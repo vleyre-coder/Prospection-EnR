@@ -42,8 +42,20 @@ filtres.
 
 ## Démarrage
 
-Un seul prérequis : **[Docker Desktop](https://docs.docker.com/get-docker/)**. Rien d'autre à
-installer — ni Node, ni PostgreSQL, ni clé d'API.
+### Sur Windows, sans Docker ni Git — voie recommandée
+
+1. installer **[Node.js](https://nodejs.org/fr/download)** (Suivant jusqu'au bout) ;
+2. installer **[PostgreSQL](https://www.postgresql.org/download/windows/)** en cochant
+   **PostGIS** dans le Stack Builder, à la fin de l'installation ;
+3. sur cette page GitHub : bouton vert **`< > Code` → Download ZIP**, puis extraire ;
+4. double-cliquer sur **`demarrer.bat`**.
+
+Le navigateur s'ouvre sur <http://localhost:3000>. Marche à suivre détaillée, écran par
+écran : **[docs/WINDOWS.md](docs/WINDOWS.md)**.
+
+### Avec Docker, si vous l'avez déjà
+
+Aucune autre installation — ni Node, ni PostgreSQL.
 
 ```bash
 git clone https://github.com/vleyre-coder/Prospection-EnR.git
@@ -51,17 +63,9 @@ cd Prospection-EnR
 ./demarrer.sh          # sous Windows : .\demarrer.ps1
 ```
 
-L'application s'ouvre sur <http://localhost:8080>. Au premier lancement, elle applique son
-schéma, génère son secret de signature, crée un compte administrateur et charge les données
-nationales (35 000 communes, 3 119 postes sources, 43 873 monuments, gisement de vent) **en
-arrière-plan** : l'interface est utilisable immédiatement et affiche l'avancement.
-
-Le mot de passe administrateur généré s'affiche avec `./demarrer.sh --journaux`. Pour choisir
-vos propres identifiants, renseignez `ADMIN_EMAIL` et `ADMIN_MOT_DE_PASSE` dans `.env` avant le
-premier lancement.
-
-Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, cliquer sur
-**Qualifier l'emprise**, et cliquer sur une parcelle.
+L'application s'ouvre sur <http://localhost:8080>. Le mot de passe administrateur généré
+s'affiche avec `./demarrer.sh --journaux` ; pour choisir vos identifiants, renseignez
+`ADMIN_EMAIL` et `ADMIN_MOT_DE_PASSE` dans `.env` avant le premier lancement.
 
 | | |
 |---|---|
@@ -70,9 +74,23 @@ Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, clique
 | Arrêter (sans rien perdre) | `./demarrer.sh --arreter` |
 | Repartir de zéro | `./demarrer.sh --effacer` |
 
-Installation sans Docker et dépannage : [docs/INSTALLATION.md](docs/INSTALLATION.md).
-Mise en ligne — un service Docker, ou interface sur Netlify et API ailleurs :
-[docs/HEBERGEMENT.md](docs/HEBERGEMENT.md).
+### Sur macOS ou Linux, sans Docker
+
+Node.js 20+ et PostgreSQL avec PostGIS ([Postgres.app](https://postgresapp.com) l'inclut),
+puis `./demarrer-sans-docker.sh`.
+
+### Dans tous les cas
+
+Au premier lancement, l'application applique son schéma, crée son compte administrateur et
+charge les données nationales — 35 000 communes, 3 119 postes sources, 43 873 monuments,
+gisement de vent — **en arrière-plan** : l'interface est utilisable immédiatement et affiche
+l'avancement.
+
+Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, cliquer sur
+**Qualifier l'emprise**, et cliquer sur une parcelle.
+
+Dépannage : [docs/INSTALLATION.md](docs/INSTALLATION.md). Mise en ligne pour un accès à
+plusieurs : [docs/HEBERGEMENT.md](docs/HEBERGEMENT.md).
 
 ## Données
 

@@ -4,8 +4,13 @@ Deux voies, selon l'usage :
 
 | Voie | Pour qui | Prérequis | Durée |
 |---|---|---|---|
-| [1. Docker](#1-installation-en-une-commande-docker) | utiliser l'application | Docker Desktop | 5 min + 15 min de chargement |
+| **[Windows sans Docker](WINDOWS.md)** | utiliser l'application sur un poste Windows | Node.js, PostgreSQL + PostGIS | 20 min, guidé écran par écran |
+| [1. Docker](#1-installation-en-une-commande-docker) | utiliser l'application, Docker déjà en place | Docker Desktop | 5 min + 15 min de chargement |
 | [2. Sources](#2-installation-pour-développer) | modifier le code | Node ≥ 20, PostgreSQL + PostGIS | 15 min |
+
+Sans Docker sur macOS ou Linux : `./demarrer-sans-docker.sh` fait la même chose que
+`demarrer.bat` sous Windows — vérification des prérequis, préparation de la base, compilation
+et lancement sur un seul port.
 
 Pour une **mise en ligne** — accès à plusieurs, HTTPS, nom de domaine, ou interface sur
 Netlify avec l'API ailleurs — voir [HEBERGEMENT.md](HEBERGEMENT.md).
