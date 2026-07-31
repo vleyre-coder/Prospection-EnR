@@ -7,7 +7,12 @@
 | Node.js | ≥ 20 (testé sur 22) | monorepo npm workspaces |
 | PostgreSQL | ≥ 15 (testé sur 16) | |
 | PostGIS | ≥ 3.3 (testé sur 3.4) | `ST_AsMVT`, `ST_TileEnvelope`, index GiST |
-| Accès réseau sortant HTTPS | — | vers `apicarto.ign.fr`, `data.geopf.fr`, `georisques.gouv.fr`, `capareseau.fr`, `re.jrc.ec.europa.eu`, `geo.api.gouv.fr` |
+| Accès réseau sortant HTTPS | — | vers `apicarto.ign.fr`, `data.geopf.fr`, `georisques.gouv.fr`, `capareseau.fr`, `re.jrc.ec.europa.eu`, `geo.api.gouv.fr`, `www.data.gouv.fr`, `static.data.gouv.fr` |
+
+**Derrière un proxy d'entreprise**, renseigner `HTTPS_PROXY` **et** `NODE_USE_ENV_PROXY=1` :
+Node ignore `HTTPS_PROXY` par défaut, ce qui rend certaines sources injoignables sans erreur
+explicite (réponse `503 upstream connect error` émise par le proxy). Le navigateur doit être
+configuré séparément pour atteindre `data.geopf.fr` (fonds de carte).
 
 Aucune clé d'API n'est requise pour les sources utilisées.
 
@@ -183,6 +188,7 @@ Efface les données nominatives de propriétaires arrivées à échéance
 | Vue nationale vide sous le zoom 14 | communes non ingérées | `npm run ingest -w @enr/api -- communes` |
 | Critères de raccordement gris | postes sources non ingérés | `npm run ingest -w @enr/api -- postes_sources` |
 | Critères patrimoine gris | patrimoine non ingéré | `npm run ingest -w @enr/api -- patrimoine_culture` |
+| `503 upstream connect error` sur une ingestion | `HTTPS_PROXY` non pris en compte par Node | ajouter `NODE_USE_ENV_PROXY=1` |
 | `502 source_indisponible` | source externe momentanément en panne | comportement attendu : les critères concernés restent gris. Réessayer plus tard. |
 | Qualification lente | limitation de débit des sources | normal. Réduire l'emprise ou augmenter `QUALIF_SURFACE_MIN_M2`. |
 | Beaucoup de connecteurs en échec sur une grande emprise | saturation d'`apicarto.ign.fr` | abaisser `HTTP_CONCURRENCE` à 2 et relancer la qualification ; les parcelles déjà enrichies ne sont pas réinterrogées |

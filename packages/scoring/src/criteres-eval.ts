@@ -1003,14 +1003,23 @@ const pat_sites: Evaluateur = (s) => {
     noteProximiteZonage(s.patrimoine.siteInscrit, courbe),
   );
   if (note == null) return indispo(SRC.patrimoine);
+
+  const distance = s.patrimoine.siteClasse.distanceM ?? s.patrimoine.siteInscrit.distanceM;
+  // Lorsque la couche est ingeree et qu'aucun site n'est trouve dans le rayon d'analyse, la
+  // distance est nulle : c'est une absence de site, non une absence de donnee. Le libelle
+  // doit le dire, sans quoi un feu vert s'afficherait avec la mention « indisponible ».
+  const libelle = s.patrimoine.siteClasse.recouvre
+    ? `Site classe - ${s.patrimoine.siteClasse.nom ?? 'sans nom'}`
+    : s.patrimoine.siteInscrit.recouvre
+      ? `Site inscrit - ${s.patrimoine.siteInscrit.nom ?? 'sans nom'}`
+      : distance != null
+        ? formatDistance(distance)
+        : "Aucun site classe ni inscrit dans le rayon d'analyse";
+
   return {
     note,
-    valeurBrute: s.patrimoine.siteClasse.distanceM ?? s.patrimoine.siteInscrit.distanceM,
-    valeurAffichee: s.patrimoine.siteClasse.recouvre
-      ? `Site classe - ${s.patrimoine.siteClasse.nom ?? 'sans nom'}`
-      : s.patrimoine.siteInscrit.recouvre
-        ? `Site inscrit - ${s.patrimoine.siteInscrit.nom ?? 'sans nom'}`
-        : formatDistance(s.patrimoine.siteClasse.distanceM ?? s.patrimoine.siteInscrit.distanceM),
+    valeurBrute: distance,
+    valeurAffichee: libelle,
     commentaire:
       "Un site classe impose une autorisation ministerielle speciale ; un site inscrit, un avis de l'ABF.",
     sourceKey: SRC.patrimoine,

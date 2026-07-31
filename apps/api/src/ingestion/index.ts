@@ -17,6 +17,7 @@ import { journal } from '../journal.js';
 import { config } from '../config.js';
 import { requete } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
+import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 export { ingererPostesSources } from './postes-sources.js';
 import { ingererPostesSources } from './postes-sources.js';
 
@@ -190,60 +191,132 @@ function nombreOuNull(v: unknown): number | null {
 // Patrimoine : monuments historiques
 // ---------------------------------------------------------------------------
 
-export async function ingererPatrimoine(): Promise<{ connecteur: string; nbObjets: number }> {
-  // Base des immeubles proteges au titre des monuments historiques (Ministere de la Culture,
-  // portail Opendatasoft).
-  const url = avecParams(
-    'https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques/records',
-    { limit: 100 },
-  );
+/**
+ * Jeu de donnees national des immeubles proteges au titre des monuments historiques
+ * (base Merimee, ministere de la Culture), publie sur data.gouv.fr.
+ *
+ * Le portail Opendatasoft `data.culture.gouv.fr` a ete ferme : il redirige desormais vers
+ * une plateforme differente et son API Explore n'existe plus. L'ingestion passe donc par le
+ * fichier GeoJSON national, dont l'URL est resolue a l'execution (elle porte un horodatage
+ * qui change a chaque publication).
+ *
+ * Le fichier pese environ 220 Mo pour 46 000 entites : il est lu EN FLUX, entite par entite.
+ */
+const JEU_MONUMENTS = '65cb6f939898f97cedd0d6d4';
 
+/** Le champ `nature_de_la_protection` distingue classement et inscription. */
+function sousTypeProtection(p: Record<string, unknown>): string {
+  const texte = [p['typologie_de_la_protection'], p['date_et_typologie_de_la_protection']]
+    .map((v) => String(v ?? '').toLowerCase())
+    .join(' ');
+  if (texte.includes('class')) return 'classe';
+  if (texte.includes('inscri')) return 'inscrit';
+  return 'protege';
+}
+
+export async function ingererPatrimoine(): Promise<{
+  connecteur: string;
+  nbObjets: number;
+  nbSansGeometrie: number;
+  millesime: string | null;
+}> {
   let nbObjets = 0;
-  try {
-    let offset = 0;
-    // L'API Opendatasoft plafonne a 100 enregistrements par page et 10 000 au total :
-    // au-dela il faut l'export, que l'on n'utilise pas ici pour rester econome.
-    while (offset < 10000) {
-      const rep = await jsonExterne<{ results?: Array<Record<string, unknown>>; total_count?: number }>(
-        `${url}&offset=${offset}`,
-        { connecteur: 'patrimoine_culture', timeoutMs: 30000 },
-      );
-      const resultats = rep.results ?? [];
-      if (resultats.length === 0) break;
+  let nbSansGeometrie = 0;
+  let millesime: string | null = null;
 
-      for (const r of resultats) {
-        const geo = extraireCoordonnees(r);
-        if (!geo) continue;
-        const id = String(r['reference'] ?? r['id'] ?? `${geo[0]},${geo[1]}`);
-        const dep = String(r['departement'] ?? r['code_departement'] ?? '').slice(0, 3) || null;
-        await requete(
-          `INSERT INTO contrainte
-             (type, sous_type, nom, identifiant_source, geom, attributs, connecteur, code_departement, date_donnee)
-           VALUES ('monument_historique', $1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326),
-                   $6, 'patrimoine_culture', $7, current_date)
-           ON CONFLICT (connecteur, type, identifiant_source) DO UPDATE SET
-             nom = EXCLUDED.nom, geom = EXCLUDED.geom, attributs = EXCLUDED.attributs`,
-          [
-            String(r['nature_protection'] ?? r['protection'] ?? 'inscrit').slice(0, 80),
-            String(r['appellation_courante'] ?? r['denomination'] ?? id).slice(0, 300),
-            id,
-            geo[0],
-            geo[1],
-            JSON.stringify(r),
-            dep,
-          ],
-        );
-        nbObjets += 1;
+  try {
+    const ressource = await urlRessourceDataGouv(JEU_MONUMENTS, 'geojson');
+    millesime = ressource.derniereMaj;
+    journal.info({ url: ressource.url, millesime }, 'Telechargement du jeu monuments historiques');
+
+    // Insertion par lots : une transaction par entite couterait des heures sur 46 000 objets.
+    const lot: Array<[string, string, string, number, number, string, string | null]> = [];
+    const viderLot = async (): Promise<void> => {
+      if (lot.length === 0) return;
+      await requete(
+        `INSERT INTO contrainte
+           (type, sous_type, nom, identifiant_source, geom, attributs, connecteur,
+            code_departement, date_donnee)
+         SELECT 'monument_historique', d.sous_type, d.nom, d.identifiant,
+                ST_SetSRID(ST_MakePoint(d.lon, d.lat), 4326), d.attributs::jsonb,
+                'patrimoine_culture', d.dep, current_date
+           FROM unnest($1::text[], $2::text[], $3::text[], $4::float8[], $5::float8[],
+                       $6::text[], $7::text[])
+                AS d(sous_type, nom, identifiant, lon, lat, attributs, dep)
+         ON CONFLICT (connecteur, type, identifiant_source) DO UPDATE SET
+           sous_type = EXCLUDED.sous_type,
+           nom = EXCLUDED.nom,
+           geom = EXCLUDED.geom,
+           attributs = EXCLUDED.attributs,
+           code_departement = EXCLUDED.code_departement,
+           date_donnee = EXCLUDED.date_donnee`,
+        [
+          lot.map((l) => l[0]),
+          lot.map((l) => l[1]),
+          lot.map((l) => l[2]),
+          lot.map((l) => l[3]),
+          lot.map((l) => l[4]),
+          lot.map((l) => l[5]),
+          lot.map((l) => l[6]),
+        ],
+      );
+      lot.length = 0;
+    };
+
+    for await (const entite of entitesDepuisFlux(ressource.url)) {
+      const p = entite.properties ?? {};
+      const g = entite.geometry;
+      if (!g || g.type !== 'Point') {
+        nbSansGeometrie += 1;
+        continue;
       }
-      offset += resultats.length;
-      if (rep.total_count != null && offset >= rep.total_count) break;
+      const coords = g.coordinates as [number, number];
+      if (!Array.isArray(coords) || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) {
+        nbSansGeometrie += 1;
+        continue;
+      }
+
+      const identifiant = String(p['reference'] ?? p['identifiant_agregee'] ?? `${coords[0]},${coords[1]}`);
+      const nom = String(
+        p['titre_editorial_de_la_notice'] ?? p['denomination_de_l_edifice'] ?? identifiant,
+      ).slice(0, 300);
+      const dep = String(p['departement_format_numerique'] ?? '').padStart(2, '0').slice(0, 3) || null;
+
+      // Seuls les attributs utiles a la fiche sont conserves : la notice Merimee compte
+      // plus de soixante-dix champs, dont la plupart sont sans usage ici.
+      const attributs = {
+        reference: p['reference'] ?? null,
+        commune: p['commune_forme_editoriale'] ?? p['commune_forme_index'] ?? null,
+        adresse: p['adresse_forme_editoriale'] ?? null,
+        protection: p['date_et_typologie_de_la_protection'] ?? null,
+        denomination: p['denomination_de_l_edifice'] ?? null,
+        siecle: p['format_abrege_du_siecle_de_construction'] ?? null,
+        lien: p['liens_externes'] ?? null,
+      };
+
+      lot.push([
+        sousTypeProtection(p),
+        nom,
+        identifiant,
+        coords[0],
+        coords[1],
+        JSON.stringify(attributs),
+        dep,
+      ]);
+      nbObjets += 1;
+
+      if (lot.length >= 500) await viderLot();
+      if (nbObjets % 5000 === 0) journal.info({ nbObjets }, 'Monuments historiques ingeres');
     }
+    await viderLot();
   } catch (err) {
-    journal.warn({ err }, "Echec de l'ingestion du patrimoine");
+    journal.error({ err }, "Echec de l'ingestion du patrimoine");
+    await enregistrerIngestion('patrimoine_culture', 'echec', (err as Error).message, nbObjets);
+    return { connecteur: 'patrimoine_culture', nbObjets, nbSansGeometrie, millesime };
   }
 
   // Trace de couverture par departement : indispensable pour ne pas conclure a tort a
-  // l'absence de monument.
+  // l'absence de monument dans un secteur non ingere.
   const parDep = await requete<{ code_departement: string | null; n: number }>(
     `SELECT code_departement, count(*)::int AS n FROM contrainte
       WHERE connecteur = 'patrimoine_culture' GROUP BY code_departement`,
@@ -257,10 +330,11 @@ export async function ingererPatrimoine(): Promise<{ connecteur: string; nbObjet
   await enregistrerIngestion(
     'patrimoine_culture',
     nbObjets > 0 ? 'ok' : 'echec',
-    `${nbObjets} monuments`,
+    `${nbObjets} monuments, ${nbSansGeometrie} sans geometrie exploitable, ${parDep.length} departements`,
     nbObjets,
+    millesime,
   );
-  return { connecteur: 'patrimoine_culture', nbObjets };
+  return { connecteur: 'patrimoine_culture', nbObjets, nbSansGeometrie, millesime };
 }
 
 // ---------------------------------------------------------------------------
