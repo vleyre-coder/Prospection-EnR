@@ -47,7 +47,9 @@ filtres.
 1. installer **[Node.js](https://nodejs.org/fr/download)** (Suivant jusqu'au bout) ;
 2. installer **[PostgreSQL](https://www.postgresql.org/download/windows/)** en cochant
    **PostGIS** dans le Stack Builder, à la fin de l'installation ;
-3. sur cette page GitHub : bouton vert **`< > Code` → Download ZIP**, puis extraire ;
+3. sur cette page GitHub : bouton vert **`< > Code` → Download ZIP**, extraire, puis
+   **déplacer le dossier en `C:\Prospection-EnR`** — un `&` ou un chemin trop long dans
+   l'emplacement fait échouer la compilation ;
 4. double-cliquer sur **`demarrer.bat`**.
 
 Le navigateur s'ouvre sur <http://localhost:3000>. Marche à suivre détaillée, écran par

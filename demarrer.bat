@@ -37,6 +37,21 @@ echo  [OK]  Node.js !VERSION_NODE!
 where npm >nul 2>nul
 if errorlevel 1 goto pas_de_node
 
+REM ------------------------------------------------- Emplacement du dossier ---
+REM Verification faite AVANT l'installation des composants, qui prend plusieurs
+REM minutes : la decouvrir au moment de la compilation ferait perdre ce temps.
+REM
+REM Un « & » dans le chemin casse la compilation de facon deroutante. npm ajoute
+REM le dossier node_modules\.bin au PATH puis appelle cmd.exe, qui traite le « & »
+REM comme un separateur de commandes : le PATH est coupe en deux et les outils de
+REM compilation deviennent introuvables. Meme probleme avec ^, ! et %.
+REM Node fait le test, plutot que batch : il est deja verifie present, et il n'a
+REM pas les pieges d'analyse de cmd sur ces caracteres precis.
+node -e "const p = process.cwd(); if (/[&^!%%]/.test(p)) process.exit(3); if (p.length > 130) process.exit(4);"
+if errorlevel 4 goto chemin_trop_long
+if errorlevel 3 goto chemin_caracteres_interdits
+echo  [OK]  Emplacement du dossier utilisable
+
 REM ------------------------------------------------------------ PostgreSQL ---
 REM psql n'est pas toujours ajoute au PATH par l'installateur : on cherche aussi
 REM aux emplacements standards, de la version la plus recente a la plus ancienne.
@@ -156,6 +171,41 @@ echo  [X]   Node.js !VERSION_NODE! est trop ancien : il faut la version 20 ou pl
 echo.
 echo        Reinstallez la version LTS depuis https://nodejs.org/fr/download
 start "" https://nodejs.org/fr/download
+goto erreur
+
+:chemin_caracteres_interdits
+echo  [X]   Le dossier est a un emplacement que Windows ne sait pas gerer ici.
+echo.
+echo        Emplacement actuel :
+echo        %CD%
+echo.
+echo        Il contient un caractere que l'invite de commandes Windows utilise
+echo        comme separateur - le plus souvent un ET COMMERCIAL ^&, parfois ^^, ^!
+echo        ou pourcent. La compilation echouerait avec un message incomprehensible.
+echo.
+echo        LA SOLUTION, en une minute :
+echo         1. fermez cette fenetre ;
+echo         2. deplacez le dossier a la racine du disque, par exemple
+echo            C:\Prospection-EnR
+echo            (couper-coller depuis l'explorateur de fichiers) ;
+echo         3. renommez-le simplement Prospection-EnR ;
+echo         4. double-cliquez de nouveau sur demarrer.bat.
+echo.
+echo        Rien n'est perdu : les composants deja telecharges sont dans le
+echo        dossier et se deplacent avec lui.
+goto erreur
+
+:chemin_trop_long
+echo  [X]   Le chemin du dossier est trop long pour Windows.
+echo.
+echo        Emplacement actuel :
+echo        %CD%
+echo.
+echo        Windows limite la longueur des chemins de fichiers, et l'application
+echo        cree des dossiers imbriques qui depasseraient cette limite.
+echo.
+echo        LA SOLUTION : deplacez le dossier a la racine du disque et
+echo        renommez-le, par exemple C:\Prospection-EnR, puis relancez.
 goto erreur
 
 :pas_de_postgres
