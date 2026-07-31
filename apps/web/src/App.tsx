@@ -15,7 +15,7 @@ import {
   definirJeton,
   ErreurApi,
   jetonEnregistre,
-  RACINE_API,
+  RACINE_ABSOLUE,
   type Amorcage,
   type LigneListe,
   type ResultatRecherche,
@@ -257,29 +257,97 @@ function OutilsCarte({
 }): JSX.Element {
   const etat = useEtat();
   const [qualification, setQualification] = useState<string | null>(null);
+  /** Vrai pendant qu'une campagne tourne en arriere-plan : on suit son avancement. */
+  const [suiviActif, setSuiviActif] = useState(false);
+
+  /** Recharge les tuiles : elles sont en cache navigateur et masqueraient le nouveau travail. */
+  const rafraichirTuiles = (): void => {
+    const m = carteRef.current;
+    const src = m?.getSource('parcelles') as maplibregl.VectorTileSource | undefined;
+    src?.setTiles([
+      `${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etat.filiere}&t=${Date.now()}`,
+    ]);
+  };
+
+  // Suivi de la campagne en arriere-plan. L'interface reste utilisable pendant ce temps ;
+  // sans ce suivi, l'utilisateur ne saurait pas si son secteur avance.
+  useEffect(() => {
+    if (!suiviActif) return;
+    const minuteur = window.setInterval(() => {
+      void api
+        .etatQualification()
+        .then((e) => {
+          setQualification(
+            e.enCours
+              ? `${e.message ?? 'Qualification en cours…'}${
+                  e.resteSecondes != null && e.resteSecondes > 0
+                    ? ` — encore ${Math.ceil(e.resteSecondes / 60)} min environ`
+                    : ''
+                }`
+              : `${e.message ?? 'Qualification terminee'}. Carte mise a jour.`,
+          );
+          if (!e.enCours) {
+            setSuiviActif(false);
+            rafraichirTuiles();
+          }
+        })
+        .catch(() => setSuiviActif(false));
+    }, 4000);
+    return () => window.clearInterval(minuteur);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suiviActif, etat.filiere]);
 
   const qualifierEmprise = (): void => {
     const m = carteRef.current;
     if (!m) return;
-    if (m.getZoom() < 13) {
-      setQualification('Zoomez davantage : la qualification porte sur l’emprise visible.');
+    // Seuil bas : la qualification doit pouvoir porter sur plusieurs communes. En dessous,
+    // l'emprise couvre un departement entier et represente des semaines de traitement.
+    if (m.getZoom() < 10) {
+      setQualification(
+        'Zoomez un peu : au-dela de l’echelle du departement, la qualification demanderait des semaines. Le niveau d’une a quelques communes est le bon.',
+      );
       return;
     }
     const b = m.getBounds();
-    setQualification('Qualification en cours — interrogation des sources officielles…');
+    const bbox: [number, number, number, number] = [
+      b.getWest(),
+      b.getSouth(),
+      b.getEast(),
+      b.getNorth(),
+    ];
+
+    setQualification('Estimation du volume…');
     void api
-      .qualifierEmprise([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], etat.filiere)
-      .then((r) => {
-        setQualification(
-          `${r.nbEnrichies} parcelle(s) qualifiee(s) sur ${r.nbParcelles} (${Math.round(r.dureeMs / 1000)} s)` +
-            (r.nbEchecs > 0 ? `, ${r.nbEchecs} en echec` : '') +
-            '. Rafraichissez la carte si besoin.',
-        );
-        // Les tuiles sont en cache navigateur : on force leur rechargement.
-        const src = m.getSource('parcelles') as maplibregl.VectorTileSource | undefined;
-        src?.setTiles([
-          `${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etat.filiere}&t=${Date.now()}`,
-        ]);
+      .estimerEmprise(bbox)
+      .then((est) => {
+        // Au-dela de quelques dizaines de parcelles, l'utilisateur doit savoir a quoi il
+        // s'engage : plusieurs minutes, parfois plus d'une heure.
+        if (est.nbEstime > 40) {
+          const ok = window.confirm(
+            `Environ ${est.nbEstime} parcelles a qualifier sur ce secteur, soit de l'ordre de ` +
+              `${est.dureeEstimeeMin} minutes.\n\n` +
+              "Le traitement se fait en arriere-plan : vous pouvez continuer a travailler, " +
+              "l'avancement s'affiche en bas de la carte.\n\nLancer la campagne ?",
+          );
+          if (!ok) {
+            setQualification(null);
+            return;
+          }
+        }
+        setQualification('Qualification lancee — interrogation des sources officielles…');
+        return api.qualifierEmprise(bbox, etat.filiere).then((r) => {
+          if (r.mode === 'arriere_plan') {
+            setSuiviActif(true);
+            setQualification(r.etat?.message ?? 'Campagne lancee en arriere-plan…');
+          } else {
+            setQualification(
+              `${r.nbEnrichies ?? 0} parcelle(s) qualifiee(s) sur ${r.nbParcelles ?? 0}` +
+                ((r.nbEchecs ?? 0) > 0 ? `, ${r.nbEchecs} en echec` : '') +
+                '. Carte mise a jour.',
+            );
+            rafraichirTuiles();
+          }
+        });
       })
       .catch((e: ErreurApi) => setQualification(`Echec : ${e.message}`));
   };

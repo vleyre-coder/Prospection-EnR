@@ -6,6 +6,7 @@
  */
 
 import { create } from 'zustand';
+import { FILIERES_META } from '@enr/core';
 import type { Feu, Filiere, StatutProspection } from '@enr/core';
 import type { FiltresRecherche } from '../api/client.js';
 
@@ -28,6 +29,15 @@ export interface EtatApp {
   couchesActives: string[];
   /** Rayon de raccordement economique affiche autour des postes, en km. 0 = masque. */
   rayonRaccordementKm: number;
+  /**
+   * Vrai des que l'utilisateur a deplace le curseur du rayon.
+   *
+   * Tant que c'est faux, changer de filiere reprend la valeur par defaut de la nouvelle
+   * filiere : le rayon economique d'un parc eolien n'a rien a voir avec celui d'un
+   * stockage. Une fois le curseur touche, le choix de l'utilisateur prime et n'est plus
+   * ecrase dans son dos.
+   */
+  rayonPersonnalise: boolean;
   afficherPostes: boolean;
   afficherReseauGaz: boolean;
 
@@ -51,6 +61,8 @@ export interface EtatApp {
   viderSelection: () => void;
   basculerCouche: (id: string) => void;
   definirRayon: (km: number) => void;
+  /** Revient au rayon par defaut de la filiere courante. */
+  reinitialiserRayon: () => void;
   basculerPostes: () => void;
   basculerReseauGaz: () => void;
   definirPoids: (critereId: string, poids: number) => void;
@@ -71,6 +83,7 @@ interface Preferences {
   theme?: 'clair' | 'sombre' | 'systeme';
   couchesActives?: string[];
   rayonRaccordementKm?: number;
+  rayonPersonnalise?: boolean;
   ponderations?: Partial<Record<Filiere, Record<string, number>>>;
 }
 
@@ -89,6 +102,7 @@ function enregistrerPreferences(e: EtatApp): void {
     theme: e.theme,
     couchesActives: e.couchesActives,
     rayonRaccordementKm: e.rayonRaccordementKm,
+    rayonPersonnalise: e.rayonPersonnalise,
     ponderations: e.ponderations,
   };
   try {
@@ -109,7 +123,11 @@ export const useEtat = create<EtatApp>((set, get) => ({
   iduSelectionne: null,
   idusSelectionnes: [],
   couchesActives: prefs.couchesActives ?? ['natura2000_habitats', 'zone_humide'],
-  rayonRaccordementKm: prefs.rayonRaccordementKm ?? 5,
+  rayonRaccordementKm:
+    prefs.rayonPersonnalise && prefs.rayonRaccordementKm != null
+      ? prefs.rayonRaccordementKm
+      : FILIERES_META[prefs.filiere ?? 'solaire_sol'].rayonRaccordementKm,
+  rayonPersonnalise: prefs.rayonPersonnalise ?? false,
   afficherPostes: true,
   afficherReseauGaz: false,
   ponderations: prefs.ponderations ?? {},
@@ -121,6 +139,11 @@ export const useEtat = create<EtatApp>((set, get) => ({
 
   definirFiliere: (filiere) => {
     set({ filiere });
+    // Le rayon de raccordement economique depend de la puissance evacuee, donc de la
+    // filiere : il suit le changement tant que l'utilisateur ne l'a pas fixe lui-meme.
+    if (!get().rayonPersonnalise) {
+      set({ rayonRaccordementKm: FILIERES_META[filiere].rayonRaccordementKm });
+    }
     // Le reseau gaz n'a de sens que pour la methanisation : on l'active et le desactive
     // avec la filiere, sans figer le choix de l'utilisateur ensuite.
     if (filiere === 'methanisation' && !get().afficherReseauGaz) set({ afficherReseauGaz: true });
@@ -152,7 +175,14 @@ export const useEtat = create<EtatApp>((set, get) => ({
     enregistrerPreferences(get());
   },
   definirRayon: (rayonRaccordementKm) => {
-    set({ rayonRaccordementKm });
+    set({ rayonRaccordementKm, rayonPersonnalise: true });
+    enregistrerPreferences(get());
+  },
+  reinitialiserRayon: () => {
+    set((e) => ({
+      rayonRaccordementKm: FILIERES_META[e.filiere].rayonRaccordementKm,
+      rayonPersonnalise: false,
+    }));
     enregistrerPreferences(get());
   },
   basculerPostes: () => set((e) => ({ afficherPostes: !e.afficherPostes })),

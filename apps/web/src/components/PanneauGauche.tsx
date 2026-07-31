@@ -90,7 +90,8 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
       <summary>Legende</summary>
       <div className="section-corps">
         <div className="legende-bloc">
-          <div className="legende-titre">Score de propice — remplissage</div>
+          <div className="legende-titre">Score de la parcelle</div>
+          <p className="legende-note">Couleur de remplissage de la parcelle sur la carte.</p>
           {FEUX.map((f) => (
             <div key={f} className="legende-ligne">
               <span
@@ -106,7 +107,13 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         </div>
 
         <div className="legende-bloc">
-          <div className="legende-titre">Etat de prospection — contour</div>
+          <div className="legende-titre">Ou en est votre demarchage</div>
+          <p className="legende-note">
+            Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien a voir
+            avec le score : une parcelle peut etre excellente et jamais contactee, ou mediocre et
+            deja sous promesse. Le statut se change dans la fiche de la parcelle, onglet
+            prospection.
+          </p>
           {referentiel.statutsProspection.map((s) => (
             <div key={s.id} className="legende-ligne">
               <span
@@ -124,10 +131,6 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               <span>{s.libelle}</span>
             </div>
           ))}
-          <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', margin: '5px 0 0' }}>
-            Le remplissage indique le potentiel, le contour l&apos;avancement commercial : les deux
-            dimensions sont independantes.
-          </p>
         </div>
 
         <div className="legende-bloc">
@@ -278,35 +281,10 @@ function Filtres({
           />
         </div>
 
-        <div className="champ">
-          <label>Statut de propice</label>
-          <div className="pastilles">
-            {FEUX.map((feu) => {
-              const actif = f.statutsScore?.includes(feu) ?? false;
-              return (
-                <button
-                  key={feu}
-                  type="button"
-                  className="pastille"
-                  aria-pressed={actif}
-                  onClick={() =>
-                    maj({
-                      statutsScore: actif
-                        ? (f.statutsScore ?? []).filter((s) => s !== feu)
-                        : [...(f.statutsScore ?? []), feu],
-                    })
-                  }
-                >
-                  <span
-                    className="point"
-                    style={{ background: referentiel.palette.couleursScore[feu] }}
-                  />
-                  {referentiel.palette.libellesScore[feu]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Le filtre par statut de score a ete retire : la couleur de la parcelle le donne
+            deja sur la carte, la vue liste est triable par score, et « score minimum »
+            ci-dessus couvre le seul besoin reel, celui d'ecarter le bas du classement.
+            Un filtre qu'on ne regle jamais est un filtre a supprimer. */}
 
         <div className="champ">
           <label>Etat de prospection</label>
@@ -547,6 +525,11 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
 
 function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
   const etat = useEtat();
+  const filiereMeta = referentiel.filieres.find((f) => f.id === etat.filiere);
+  const rayonFiliere = filiereMeta?.rayonRaccordementKm ?? 5;
+  const couchesIndisponibles = referentiel.couches.filter(
+    (c) => c.groupe !== 'reseaux' && (c.nbObjets ?? 1) === 0,
+  ).length;
   const groupes = new Map<string, typeof referentiel.couches>();
   for (const c of referentiel.couches) {
     groupes.set(c.groupe, [...(groupes.get(c.groupe) ?? []), c]);
@@ -584,8 +567,24 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
 
         <div className="champ" style={{ marginTop: 7 }}>
           <label htmlFor="rayon">
-            Rayon de raccordement affiche : {etat.rayonRaccordementKm > 0 ? `${etat.rayonRaccordementKm} km` : 'masque'}
+            Rayon de raccordement affiche :{' '}
+            {etat.rayonRaccordementKm > 0 ? `${etat.rayonRaccordementKm} km` : 'masque'}
           </label>
+          <p className="legende-note">
+            {etat.rayonPersonnalise ? (
+              <>
+                Valeur que vous avez choisie.{' '}
+                <button type="button" className="bouton-discret" onClick={etat.reinitialiserRayon}>
+                  Revenir a la valeur de la filiere ({rayonFiliere} km)
+                </button>
+              </>
+            ) : (
+              <>
+                Valeur indicative pour la filiere {filiereMeta?.libelleCourt ?? ''} : le cout de
+                raccordement se rapporte a la puissance evacuee, il change donc avec la filiere.
+              </>
+            )}
+          </p>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {[0, 2, 5, 10, 20].map((km) => (
               <button
@@ -616,22 +615,48 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
           .map(([groupe, couches]) => (
             <div key={groupe}>
               <div className="groupe-famille">{libellesGroupes[groupe] ?? groupe}</div>
-              {couches.map((c) => (
-                <label key={c.id} className="case">
-                  <input
-                    type="checkbox"
-                    checked={etat.couchesActives.includes(c.id)}
-                    onChange={() => etat.basculerCouche(c.id)}
-                  />
-                  <span
-                    className="point"
-                    style={{ background: c.couleur, marginTop: 4, marginRight: 2 }}
-                  />
-                  {c.libelle}
-                </label>
-              ))}
+              {couches.map((c) => {
+                // Une couche sans objet en base ne peut rien afficher. Le dire, plutot que
+                // de laisser cocher une case sans effet et conclure a une panne.
+                const disponible = (c.nbObjets ?? 1) > 0;
+                return (
+                  <label
+                    key={c.id}
+                    className={disponible ? 'case' : 'case case-indisponible'}
+                    title={
+                      disponible
+                        ? `${c.nbObjets?.toLocaleString('fr-FR') ?? ''} objet(s) en base`
+                        : "Couche non ingeree : rien a afficher sur la carte. Le critere correspondant est neanmoins evalue parcelle par parcelle, en interrogeant la source au moment de la qualification."
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={disponible && etat.couchesActives.includes(c.id)}
+                      disabled={!disponible}
+                      onChange={() => etat.basculerCouche(c.id)}
+                    />
+                    <span
+                      className="point"
+                      style={{ background: c.couleur, marginTop: 4, marginRight: 2 }}
+                    />
+                    {c.libelle}
+                    {!disponible && <span className="etiquette-indisponible">non ingeree</span>}
+                  </label>
+                );
+              })}
             </div>
           ))}
+
+        {couchesIndisponibles > 0 && (
+          <p className="legende-note" style={{ marginTop: 8 }}>
+            <strong>{couchesIndisponibles} couche(s) grisee(s) :</strong> aucune donnee ingeree pour
+            l&apos;instant, elles ne peuvent donc rien afficher sur la carte.{' '}
+            <strong>Cela ne fausse pas les scores</strong> : les criteres correspondants sont
+            evalues parcelle par parcelle en interrogeant directement les sources officielles au
+            moment de la qualification. Ces couches ne servent qu&apos;a la visualisation
+            d&apos;ensemble.
+          </p>
+        )}
       </div>
     </details>
   );

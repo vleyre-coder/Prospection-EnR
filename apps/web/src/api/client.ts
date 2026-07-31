@@ -20,6 +20,17 @@ export const RACINE_API: string = (
   (import.meta.env['VITE_URL_API'] as string | undefined) ?? ''
 ).replace(/\/+$/, '');
 
+/**
+ * Meme racine, mais toujours ABSOLUE.
+ *
+ * A reserver aux ressources chargees par MapLibre : tuiles vectorielles et glyphes sont
+ * recuperes dans un Web Worker, ou une URL relative ne se resout pas contre le document.
+ * Elle echoue alors silencieusement, tuile par tuile, et la carte reste vide sans erreur
+ * reseau visible. Les appels `fetch` ordinaires, eux, se contentent de `RACINE_API`.
+ */
+export const RACINE_ABSOLUE: string =
+  RACINE_API || (typeof location !== 'undefined' ? location.origin : '');
+
 import type {
   Avertissement,
   DefinitionCritere,
@@ -172,12 +183,27 @@ export interface Sante {
   sourcesPerimees: string[];
 }
 
+/** Avancement d'une campagne de qualification menee en arriere-plan. */
+export interface EtatQualification {
+  enCours: boolean;
+  phase: 'recuperation' | 'enrichissement' | 'terminee' | 'aucune';
+  total: number;
+  traitees: number;
+  echecs: number;
+  debutLe: string | null;
+  finLe: string | null;
+  message: string | null;
+  resteSecondes: number | null;
+}
+
 export interface CoucheMeta {
   id: string;
   libelle: string;
   groupe: string;
   typeGeom: string;
   couleur: string;
+  /** Objets effectivement en base. 0 = couche non ingeree, rien a afficher. */
+  nbObjets?: number;
 }
 
 export interface Referentiel {
@@ -199,6 +225,11 @@ export interface Referentiel {
   };
   statutsProspection: StatutProspectionMeta[];
   couches: CoucheMeta[];
+  /** Reglages de carte servis par l'API, pour ne pas dupliquer de constantes cote client. */
+  carte?: {
+    zoomMinParcelles: number;
+    zoomMaxCommunes: number;
+  };
 }
 
 export interface ParcelleCarte {
@@ -355,9 +386,22 @@ export const api = {
     ),
 
   qualifierEmprise: (bbox: [number, number, number, number], filiere: Filiere, surfaceMinM2?: number) =>
-    appeler<{ nbParcelles: number; nbEnrichies: number; nbEchecs: number; dureeMs: number }>(
-      '/api/qualification/emprise',
-      { methode: 'POST', corps: { bbox, filiere, surfaceMinM2 } },
+    appeler<{
+      /** `arriere_plan` pour une emprise etendue : suivre ensuite `etatQualification()`. */
+      mode: 'immediat' | 'arriere_plan';
+      etat?: EtatQualification;
+      nbParcelles?: number;
+      nbEnrichies?: number;
+      nbEchecs?: number;
+      dureeMs?: number;
+    }>('/api/qualification/emprise', { methode: 'POST', corps: { bbox, filiere, surfaceMinM2 } }),
+
+  etatQualification: () => appeler<EtatQualification>('/api/qualification/etat'),
+
+  estimerEmprise: (bbox: [number, number, number, number], surfaceMinM2?: number) =>
+    appeler<{ nbEstime: number; dureeEstimeeMin: number; nbCellules: number }>(
+      '/api/qualification/estimation',
+      { methode: 'POST', corps: { bbox, surfaceMinM2 } },
     ),
 
   postesSources: (bbox: [number, number, number, number], rayonKm?: number | null) =>

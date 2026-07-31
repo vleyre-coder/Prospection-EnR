@@ -15,12 +15,28 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feu } from '@enr/core';
-import { api, RACINE_API, type PosteSourceProps, type Referentiel } from '../api/client.js';
+import { api, RACINE_ABSOLUE, type PosteSourceProps, type Referentiel } from '../api/client.js';
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 
 const VUE_FRANCE = { centre: [2.4, 46.6] as [number, number], zoom: 5.2 };
-const ZOOM_MIN_PARCELLES = 14;
+
+/**
+ * Zoom a partir duquel les parcelles sont servies. Doit rester aligne sur
+ * `ZOOM_MIN_PARCELLES` cote API, qui refuse les tuiles en dessous : la valeur est donc
+ * lue dans le referentiel et cette constante n'est qu'un repli.
+ */
+const ZOOM_MIN_PARCELLES_DEFAUT = 12;
+
+/**
+ * Police des etiquettes, servie par le relais de l'API.
+ *
+ * MapLibre exige une source de glyphes pour afficher le moindre libelle. La faire pointer
+ * vers un domaine externe reviendrait a perdre les numeros de parcelle dans les reseaux
+ * filtrants - exactement la situation ou le fond de carte est deja relaye.
+ */
+const POLICE_ETIQUETTES = ['Open Sans Regular'];
+const URL_GLYPHES = `${RACINE_ABSOLUE}/api/carte/polices/{fontstack}/{range}.pbf`;
 
 const TUILES_IGN = {
   plan:
@@ -45,8 +61,8 @@ const ATTRIBUTION = '&copy; IGN &mdash; Geoplateforme';
  * alors automatiquement sur le relais, plutot que de rester vide.
  */
 const TUILES_RELAIS: Record<FondCarte, string> = {
-  plan: `${RACINE_API}/api/carte/fond/plan/{z}/{x}/{y}`,
-  ortho: `${RACINE_API}/api/carte/fond/ortho/{z}/{x}/{y}`,
+  plan: `${RACINE_ABSOLUE}/api/carte/fond/plan/{z}/{x}/{y}`,
+  ortho: `${RACINE_ABSOLUE}/api/carte/fond/ortho/{z}/{x}/{y}`,
 };
 
 /** Motifs de contour par statut de prospection, distincts du codage de score. */
@@ -73,6 +89,8 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const [fondInjoignable, setFondInjoignable] = useState(false);
   /** Passe a `true` lorsque les appels directs a l'IGN ont echoue et que le relais prend le relais. */
   const [fondViaRelais, setFondViaRelais] = useState(false);
+  /** Message d'echec d'installation des couches metier, affiche plutot que masque. */
+  const [couchesEnEchec, setCouchesEnEchec] = useState<string | null>(null);
 
   const etat = useEtat();
   const {
@@ -92,6 +110,10 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const etatRef = useRef(etat);
   etatRef.current = etat;
 
+  // Aligne sur le service de tuiles, qui refuse les tuiles en dessous de ce zoom.
+  const ZOOM_MIN_PARCELLES = referentiel.carte?.zoomMinParcelles ?? ZOOM_MIN_PARCELLES_DEFAUT;
+  const ZOOM_MAX_COMMUNES = referentiel.carte?.zoomMaxCommunes ?? ZOOM_MIN_PARCELLES;
+
   const couleurs = referentiel.palette.couleursScoreRemplissage;
   const couleursStatut = Object.fromEntries(
     referentiel.statutsProspection.map((s) => [s.id, s.couleur]),
@@ -110,7 +132,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       attributionControl: false,
       style: {
         version: 8,
-        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+        glyphs: URL_GLYPHES,
         sources: {
           fond: {
             type: 'raster',
@@ -145,15 +167,24 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
      * tuiles du fond.
      */
     let couchesInstallees = false;
+    let tentatives = 0;
     const installer = (): void => {
       if (couchesInstallees) return;
+      tentatives += 1;
       try {
         installerCouches(m, filiere);
         couchesInstallees = true;
         setPret(true);
       } catch (err) {
-        // Le style n'est pas encore analysable : une tentative ulterieure aboutira.
-        void err;
+        // Une premiere tentative peut echouer parce que le style n'est pas encore
+        // analysable ; la suivante aboutira. Mais une erreur persistante doit etre
+        // VISIBLE : silencieuse, elle laisse une carte sans parcelles ni scores, ce qui
+        // ressemble a une absence de donnees et non a un defaut de code.
+        if (tentatives >= 2) {
+          // eslint-disable-next-line no-console
+          console.error('Installation des couches cartographiques impossible', err);
+          setCouchesEnEchec((err as Error).message);
+        }
       }
     };
 
@@ -184,7 +215,17 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         setFondInjoignable(true);
         return;
       }
-      if (!estFondDirect && e.sourceId !== 'fond') return;
+      if (!estFondDirect && e.sourceId !== 'fond') {
+        // Toute autre erreur de source concerne les donnees metier : la taire reviendrait a
+        // presenter une carte incomplete comme une carte vide. `AbortError` est en revanche
+        // attendu : changer de filiere appelle `setTiles`, qui annule les requetes en vol.
+        const nom = (e.error as { name?: string } | undefined)?.name;
+        if (nom !== 'AbortError') {
+          // eslint-disable-next-line no-console
+          console.warn('Erreur de source cartographique', e.sourceId, e.error);
+        }
+        return;
+      }
 
       echecsDirects += 1;
       if (echecsDirects >= 3 && !bascule) {
@@ -208,7 +249,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     // --- Communes (vue nationale) ---
     m.addSource('communes', {
       type: 'vector',
-      tiles: [`${RACINE_API}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${f}`],
+      tiles: [`${RACINE_ABSOLUE}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${f}`],
       minzoom: 5,
       maxzoom: 13,
     });
@@ -217,7 +258,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       type: 'fill',
       source: 'communes',
       'source-layer': 'communes',
-      maxzoom: ZOOM_MIN_PARCELLES,
+      maxzoom: ZOOM_MAX_COMMUNES,
       paint: {
         'fill-color': [
           'case',
@@ -243,14 +284,14 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       type: 'line',
       source: 'communes',
       'source-layer': 'communes',
-      maxzoom: ZOOM_MIN_PARCELLES,
+      maxzoom: ZOOM_MAX_COMMUNES,
       paint: { 'line-color': '#64748b', 'line-width': 0.4, 'line-opacity': 0.5 },
     });
 
     // --- Parcelles ---
     m.addSource('parcelles', {
       type: 'vector',
-      tiles: [`${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${f}`],
+      tiles: [`${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${f}`],
       minzoom: ZOOM_MIN_PARCELLES,
       maxzoom: 19,
       promoteId: 'idu',
@@ -275,14 +316,28 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       },
     });
 
-    // Contour fin de parcellaire, pour la lisibilite du decoupage.
+    // Contour de parcellaire : la delimitation doit rester lisible meme en vue large, ou
+    // les parcelles sont petites et le remplissage seul ne suffit pas a les distinguer.
     m.addLayer({
       id: 'parcelles-limites',
       type: 'line',
       source: 'parcelles',
       'source-layer': 'parcelles',
       minzoom: ZOOM_MIN_PARCELLES,
-      paint: { 'line-color': 'rgba(30,41,59,0.45)', 'line-width': 0.5 },
+      paint: {
+        'line-color': 'rgba(15,23,42,0.65)',
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          ZOOM_MIN_PARCELLES,
+          0.7,
+          15,
+          0.9,
+          18,
+          1.4,
+        ] as ExpressionSpecification,
+      },
     });
 
     // Contour = ETAT DE PROSPECTION. Une couche par motif, car `line-dasharray` n'accepte
@@ -303,6 +358,39 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         },
       });
     }
+
+    /**
+     * Numeros de parcelle.
+     *
+     * Le fond IGN ne les affiche qu'a tres fort zoom : cette couche les rend lisibles des
+     * que le parcellaire est exploitable. `text-halo` est indispensable au-dessus de
+     * l'ortho-photographie, ou un texte sans cerne devient illisible.
+     */
+    m.addLayer({
+      id: 'parcelles-numeros',
+      type: 'symbol',
+      source: 'parcelles',
+      'source-layer': 'parcelles',
+      minzoom: 14.5,
+      layout: {
+        'text-field': [
+          'step',
+          ['zoom'],
+          ['get', 'numero'],
+          16.5,
+          ['concat', ['get', 'section'], ' ', ['get', 'numero']],
+        ] as ExpressionSpecification,
+        'text-font': POLICE_ETIQUETTES,
+        'text-size': ['interpolate', ['linear'], ['zoom'], 14.5, 9, 18, 13] as ExpressionSpecification,
+        'text-allow-overlap': false,
+        'text-padding': 2,
+      },
+      paint: {
+        'text-color': '#0f172a',
+        'text-halo-color': 'rgba(255,255,255,0.9)',
+        'text-halo-width': 1.4,
+      },
+    });
 
     // Parcelle ouverte dans la fiche, et parcelles cochees pour un site.
     m.addLayer({
@@ -537,10 +625,10 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     if (!m || !pret) return;
     // Changer de filiere change l'URL des tuiles : le style, lui, reste identique.
     (m.getSource('parcelles') as maplibregl.VectorTileSource | undefined)?.setTiles([
-      `${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+      `${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${filiere}`,
     ]);
     (m.getSource('communes') as maplibregl.VectorTileSource | undefined)?.setTiles([
-      `${RACINE_API}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+      `${RACINE_ABSOLUE}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${filiere}`,
     ]);
   }, [filiere, pret]);
 

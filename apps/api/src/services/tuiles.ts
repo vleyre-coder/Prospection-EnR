@@ -59,7 +59,12 @@ export async function tuileParcelles(
         s.regime_implantation,
         l.statut          AS statut_prospection,
         ST_AsMVTGeom(
-          ST_Transform(p.geom, 3857),
+          ST_Transform(
+            -- En vue large, le detail du contour cadastral est invisible mais pese lourd :
+            -- une tuile couvrant plusieurs communes transfererait des centaines de
+            -- kilo-octets pour un rendu identique.
+            CASE WHEN $1 < 14 THEN ST_SimplifyPreserveTopology(p.geom, 0.00008) ELSE p.geom END,
+            3857),
           bornes.geom,
           4096, 64, true
         ) AS geom

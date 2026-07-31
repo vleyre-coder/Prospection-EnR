@@ -506,7 +506,9 @@ const sol_culture_compatible: Evaluateur = (s, ctx) => {
   return {
     note,
     valeurBrute: s.occupationSol.rpg.codeCulture ?? groupe,
-    valeurAffichee: `${s.occupationSol.rpg.libelleCulture ?? s.occupationSol.rpg.libelleGroupeCulture ?? `groupe ${groupe}`}${s.occupationSol.rpg.millesime ? ` (RPG ${s.occupationSol.rpg.millesime})` : ''}`,
+    // `||` et non `??` : le RPG renvoie parfois un libelle vide plutot qu'absent, ce qui
+    // produirait une valeur affichee reduite au seul millesime.
+    valeurAffichee: `${s.occupationSol.rpg.libelleCulture || s.occupationSol.rpg.libelleGroupeCulture || `groupe de culture ${groupe}`}${s.occupationSol.rpg.millesime ? ` (RPG ${s.occupationSol.rpg.millesime})` : ''}`,
     commentaire:
       groupe === '21'
         ? "Vigne : implantation photovoltaique en principe exclue, a fortiori en aire parcellaire AOP."

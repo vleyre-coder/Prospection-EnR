@@ -1301,6 +1301,20 @@ button:focus-visible,
   font-size: 13px;
 }
 
+/* Note explicative sous un titre de legende ou un reglage : le contexte compte autant
+   que la valeur, mais ne doit pas concurrencer la donnee elle-meme. */
+.legende-note {
+  margin: 3px 0 6px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--texte-faible);
+}
+
+.legende-note .bouton-discret {
+  font-size: 10.5px;
+  padding: 0;
+}
+
 /* -------------------------------------------------------------- connexion */
 
 .connexion {
@@ -1536,4 +1550,23 @@ button:focus-visible,
   .recherche {
     width: 40vw;
   }
+}
+
+/* Couche declaree mais non ingeree : la case reste visible pour que l'utilisateur sache
+   ce qui existera, mais son inefficacite doit etre lisible d'un coup d'oeil. */
+.case-indisponible {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.etiquette-indisponible {
+  margin-left: 5px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: 1px solid var(--bordure);
+  border-radius: 3px;
+  color: var(--texte-faible);
+  white-space: nowrap;
 }

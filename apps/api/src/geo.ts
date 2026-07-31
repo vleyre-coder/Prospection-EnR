@@ -181,6 +181,25 @@ export function bboxDepuisChaine(s: string): Bbox | null {
   return [p[0]!, p[1]!, p[2]!, p[3]!];
 }
 
+/**
+ * Decoupe une emprise en cellules d'au plus `cote` degres.
+ *
+ * Necessaire pour interroger le cadastre sur de grandes surfaces : API Carto n'accepte pas
+ * une geometrie couvrant plusieurs communes et plafonne le nombre d'objets retournes. Une
+ * emprise a l'echelle d'un canton est donc parcourue cellule par cellule.
+ */
+export function decouperBbox(b: Bbox, cote = 0.05): Bbox[] {
+  const [ouest, sud, est, nord] = b;
+  const cellules: Bbox[] = [];
+  for (let x = ouest; x < est; x += cote) {
+    for (let y = sud; y < nord; y += cote) {
+      cellules.push([x, y, Math.min(x + cote, est), Math.min(y + cote, nord)]);
+    }
+  }
+  // Une emprise plus petite qu'une cellule doit malgre tout produire une cellule.
+  return cellules.length > 0 ? cellules : [b];
+}
+
 export function bboxEnPolygone(b: Bbox): Polygone {
   return {
     type: 'Polygon',

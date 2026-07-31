@@ -117,6 +117,53 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     },
   );
 
+  /**
+   * Relais des polices d'etiquettes (glyphes SDF).
+   *
+   * MapLibre exige une source de glyphes pour tout libelle affiche sur la carte - les
+   * numeros de parcelle en particulier. Sans relais, ces libelles disparaitraient
+   * exactement dans le cas ou le fond de carte disparait aussi : un reseau filtrant. La
+   * liste des polices est fermee, pour ne pas transformer l'API en proxy ouvert.
+   */
+  const POLICES_AUTORISEES = new Set(['Open Sans Regular', 'Open Sans Bold']);
+
+  app.get<{ Params: { police: string; plage: string } }>(
+    '/api/carte/polices/:police/:plage.pbf',
+    async (req, rep) => {
+      const police = decodeURIComponent(req.params.police);
+      if (!POLICES_AUTORISEES.has(police)) {
+        return erreur(rep, 404, 'police_inconnue', `Police non relayee : ${police}`);
+      }
+      // Les plages de glyphes sont de la forme 0-255, 256-511, ...
+      if (!/^\d{1,6}-\d{1,6}$/.test(req.params.plage)) {
+        return erreur(rep, 400, 'plage_invalide', 'Plage de glyphes invalide');
+      }
+
+      const url =
+        'https://data.geopf.fr/annexes/ressources/vectorTiles/fonts/' +
+        `${encodeURIComponent(police)}/${req.params.plage}.pbf`;
+      try {
+        const reponse = await fetch(url, {
+          headers: { 'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)' },
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!reponse.ok) {
+          // Une plage sans glyphe est normale : MapLibre en demande bien plus qu'il n'en
+          // existe. Repondre 204 evite de faire echouer le rendu de la carte.
+          if (reponse.status === 404) return rep.code(204).send();
+          return erreur(rep, 502, 'polices_indisponibles', `Le service de polices a repondu ${reponse.status}.`);
+        }
+        return rep
+          .header('Content-Type', 'application/x-protobuf')
+          .header('Cache-Control', 'public, max-age=2592000, immutable')
+          .send(Buffer.from(await reponse.arrayBuffer()));
+      } catch (err) {
+        req.log.warn({ err, police, plage: req.params.plage }, 'Relais de police en echec');
+        return erreur(rep, 502, 'polices_indisponibles', 'Le service de polices est injoignable depuis le serveur.');
+      }
+    },
+  );
+
   // --- Tuiles vectorielles des parcelles ----------------------------------
   app.get<{ Params: ParamsTuile }>('/api/carte/tuiles/parcelles/:z/:x/:y.mvt', async (req, rep) => {
     const z = Number(req.params.z);

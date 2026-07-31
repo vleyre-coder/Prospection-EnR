@@ -20,9 +20,15 @@ import {
   STATUTS_PROSPECTION_META,
 } from '@enr/core';
 import { VERSION_MOTEUR, LIBELLES_REGIME } from '@enr/scoring';
-import { bddDisponible } from '../bdd.js';
+import { bddDisponible, requeteUne } from '../bdd.js';
+import { config } from '../config.js';
 import { etatAmorcage } from '../amorcage.js';
-import { etatSources, sourcesPerimees } from '../depots/sources.js';
+import {
+  compterContraintes,
+  compterPostes,
+  etatSources,
+  sourcesPerimees,
+} from '../depots/sources.js';
 
 /** Couches cartographiques exposees au frontend, avec leur presentation. */
 export const COUCHES = [
@@ -72,24 +78,55 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get('/api/referentiel', async () => ({
-    filieres: FILIERES.map((f) => FILIERES_META[f]),
-    criteres: CRITERES,
-    famillesLibelles: FAMILLES_LIBELLES,
-    ponderationsDefaut: PONDERATIONS_DEFAUT,
-    reglementation: REGLES,
-    libellesRegime: LIBELLES_REGIME,
-    referentielDerniereVerification: REFERENTIEL_DERNIERE_VERIFICATION,
-    avertissements: AVERTISSEMENTS,
-    palette: {
-      couleursScore: COULEURS_SCORE,
-      couleursScoreRemplissage: COULEURS_SCORE_REMPLISSAGE,
-      libellesScore: LIBELLES_SCORE,
-      descriptionsScore: DESCRIPTIONS_SCORE,
-      couleursSaturation: COULEURS_SATURATION,
-      libellesSaturation: LIBELLES_SATURATION,
-    },
-    statutsProspection: STATUTS_PROSPECTION.map((s) => STATUTS_PROSPECTION_META[s]),
-    couches: COUCHES,
-  }));
+  app.get('/api/referentiel', async () => {
+    /**
+     * Volumetrie reelle de chaque couche.
+     *
+     * Une case a cocher qui n'affiche jamais rien est pire qu'une case absente :
+     * l'utilisateur conclut que l'application est cassee. L'interface a donc besoin de
+     * savoir quelles couches sont effectivement ingerees. Les couches de reseaux ne
+     * viennent pas de `contrainte` et sont traitees a part.
+     */
+    const volumetrie = await compterContraintes().catch(() => ({}) as Record<string, number>);
+    const postes = await compterPostes().catch(() => ({ total: 0, parEtat: {} }));
+    const gaz = await requeteUne<{ n: number }>(
+      'SELECT count(*)::int AS n FROM point_injection_gaz',
+    ).catch(() => null);
+
+    const nbObjetsCouche = (id: string): number => {
+      if (id === 'postes_sources') return postes.total;
+      if (id === 'reseau_gaz') return gaz?.n ?? 0;
+      return volumetrie[id] ?? 0;
+    };
+
+    return {
+      filieres: FILIERES.map((f) => FILIERES_META[f]),
+      criteres: CRITERES,
+      famillesLibelles: FAMILLES_LIBELLES,
+      ponderationsDefaut: PONDERATIONS_DEFAUT,
+      reglementation: REGLES,
+      libellesRegime: LIBELLES_REGIME,
+      referentielDerniereVerification: REFERENTIEL_DERNIERE_VERIFICATION,
+      avertissements: AVERTISSEMENTS,
+      palette: {
+        couleursScore: COULEURS_SCORE,
+        couleursScoreRemplissage: COULEURS_SCORE_REMPLISSAGE,
+        libellesScore: LIBELLES_SCORE,
+        descriptionsScore: DESCRIPTIONS_SCORE,
+        couleursSaturation: COULEURS_SATURATION,
+        libellesSaturation: LIBELLES_SATURATION,
+      },
+      statutsProspection: STATUTS_PROSPECTION.map((s) => STATUTS_PROSPECTION_META[s]),
+      // `nbObjets` dit la verite sur chaque couche : 0 signifie « rien a afficher »,
+      // ce que l'interface doit annoncer au lieu de laisser croire a une panne.
+      couches: COUCHES.map((c) => ({ ...c, nbObjets: nbObjetsCouche(c.id) })),
+      // Reglages de carte : le client les lit ici plutot que de dupliquer des constantes
+      // qui doivent rester alignees sur celles du service de tuiles. Le rayon de
+      // raccordement par defaut est deja porte par chaque filiere ci-dessus.
+      carte: {
+        zoomMinParcelles: config.carte.zoomMinParcelles,
+        zoomMaxCommunes: config.carte.zoomMaxCommunes,
+      },
+    };
+  });
 }

@@ -117,9 +117,16 @@ export const config = {
   },
 
   carte: {
-    /** Zoom minimal a partir duquel les parcelles sont servies. */
-    zoomMinParcelles: nombre('ZOOM_MIN_PARCELLES', 14),
-    zoomMaxCommunes: nombre('ZOOM_MAX_COMMUNES', 13),
+    /**
+     * Zoom minimal a partir duquel les parcelles sont servies.
+     *
+     * 12 et non 14 : les parcelles qualifiees doivent etre visibles a l'echelle de
+     * plusieurs communes, sans quoi l'utilisateur ne voit jamais son travail d'ensemble.
+     * Seules les parcelles effectivement qualifiees sont en base, donc le volume reste
+     * modeste ; la geometrie est de plus simplifiee en vue large.
+     */
+    zoomMinParcelles: nombre('ZOOM_MIN_PARCELLES', 12),
+    zoomMaxCommunes: nombre('ZOOM_MAX_COMMUNES', 12),
     /** Nombre maximal de parcelles retournees par requete d'emprise. */
     limiteParcelles: nombre('LIMITE_PARCELLES', 3000),
   },
@@ -127,8 +134,15 @@ export const config = {
   qualification: {
     /** Surface minimale d'une parcelle qualifiee a la demande, en m2 (evite le bruit). */
     surfaceMinM2: nombre('QUALIF_SURFACE_MIN_M2', 3000),
-    /** Nombre maximal de parcelles enrichies en une seule requete. */
-    lotMax: nombre('QUALIF_LOT_MAX', 300),
+    /**
+     * Nombre maximal de parcelles enrichies en une seule campagne.
+     *
+     * 1500 et non 300 : la qualification d'une emprise s'execute desormais en arriere-plan,
+     * ce qui rend une campagne longue exploitable. A 5 secondes par parcelle, 1500 parcelles
+     * representent environ deux heures - le volume d'un secteur de plusieurs communes.
+     * L'interface annonce le volume et la duree avant de lancer.
+     */
+    lotMax: nombre('QUALIF_LOT_MAX', 1500),
   },
 } as const;
 

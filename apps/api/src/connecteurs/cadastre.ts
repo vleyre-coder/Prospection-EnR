@@ -10,8 +10,16 @@
  */
 
 import { config } from '../config.js';
+import { journal } from '../journal.js';
 import { avecParams, jsonExterne } from '../http.js';
-import { bboxEnPolygone, surfaceM2, centroideDe, type Bbox, type GeoJsonGeometry } from '../geo.js';
+import {
+  bboxEnPolygone,
+  decouperBbox,
+  surfaceM2,
+  centroideDe,
+  type Bbox,
+  type GeoJsonGeometry,
+} from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
 
 const CONNECTEUR = 'apicarto_cadastre';
@@ -131,6 +139,51 @@ export async function parcellesParGeometrie(
 
 export async function parcellesParEmprise(bbox: Bbox, limite?: number): Promise<ParcelleBrute[]> {
   return parcellesParGeometrie(bboxEnPolygone(bbox), limite);
+}
+
+/**
+ * Parcelles d'une grande emprise, recuperees cellule par cellule.
+ *
+ * API Carto ne repond pas a une geometrie couvrant plusieurs communes, et plafonne le
+ * nombre d'objets par requete : demander l'emprise entiere d'un seul coup renverrait une
+ * liste tronquee, sans qu'on le sache. Le decoupage rend la troncature impossible et
+ * permet de rendre compte de l'avancement.
+ *
+ * Les cellules se recouvrant sur leurs bords, la deduplication par IDU est indispensable.
+ */
+export async function parcellesParGrandeEmprise(
+  bbox: Bbox,
+  options: {
+    coteCellule?: number;
+    limite?: number;
+    surfaceMinM2?: number;
+    onProgres?: (fait: number, total: number, trouvees: number) => void;
+  } = {},
+): Promise<ParcelleBrute[]> {
+  const cellules = decouperBbox(bbox, options.coteCellule ?? 0.05);
+  const limite = options.limite ?? 20000;
+  const surfaceMin = options.surfaceMinM2 ?? 0;
+  const parIdu = new Map<string, ParcelleBrute>();
+
+  for (const [i, cellule] of cellules.entries()) {
+    if (parIdu.size >= limite) break;
+    try {
+      const lot = await parcellesParGeometrie(bboxEnPolygone(cellule));
+      for (const p of lot) {
+        // Le filtre de surface est applique ici : inutile de conserver en memoire des
+        // micro-parcelles qui seront ecartees ensuite.
+        if ((p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) < surfaceMin) continue;
+        parIdu.set(p.idu, p);
+      }
+    } catch (err) {
+      // Une cellule en echec ne doit pas annuler l'emprise entiere : le reste du secteur
+      // reste exploitable, et l'echec est journalise.
+      journal.warn({ err, cellule }, "Cellule d'emprise non recuperee");
+    }
+    options.onProgres?.(i + 1, cellules.length, parIdu.size);
+  }
+
+  return [...parIdu.values()];
 }
 
 /** Contour communal, utilise par la vue nationale agregee et la recherche. */

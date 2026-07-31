@@ -66,7 +66,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     return rep
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="fiche-${idu}-${q.filiere}.pdf"`)
-      .send(ficheParcellePdf(parcelle, snapshot.snapshot, score));
+      .send(ficheParcellePdf(parcelle, snapshot.snapshot, score, snapshot.connecteursEnEchec));
   });
 
   app.post('/api/exports/geojson', async (req, rep) => {

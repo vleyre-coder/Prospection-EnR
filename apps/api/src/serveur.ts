@@ -101,6 +101,8 @@ export async function construireServeur(options: OptionsServeur = {}) {
     if (req.url.startsWith('/api/carte/tuiles/')) return;
     // Meme raison pour le relais du fond de carte : ce sont des tuiles IGN publiques.
     if (req.url.startsWith('/api/carte/fond/')) return;
+    // Idem pour les polices d'etiquettes : MapLibre les charge sans en-tete d'autorisation.
+    if (req.url.startsWith('/api/carte/polices/')) return;
 
     if (config.auth.desactivee) {
       if (config.env === 'production') {

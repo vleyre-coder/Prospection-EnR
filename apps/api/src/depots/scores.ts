@@ -102,3 +102,13 @@ export async function repartitionStatuts(
   }
   return base;
 }
+
+/**
+ * Rafraichit les agregats communaux servant la vue nationale.
+ *
+ * A appeler apres toute qualification de masse : sans cela, le travail accompli reste
+ * invisible en dessous du zoom parcellaire, et l'utilisateur croit n'avoir rien produit.
+ */
+export async function rafraichirCompteursCommunaux(): Promise<void> {
+  await requete('SELECT rafraichir_compteurs_communaux()');
+}

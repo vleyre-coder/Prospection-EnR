@@ -24,6 +24,18 @@ export interface FiliereMeta {
   surfaceUtileOptimaleHa: number;
   /** Le gisement de ressource intervient-il dans le score ? (non pour le stockage) */
   gisementPertinent: boolean;
+  /**
+   * Rayon de raccordement economiquement raisonnable, en km, affiche par defaut autour des
+   * postes sources.
+   *
+   * Il differe fortement d'une filiere a l'autre, parce que le cout de raccordement se
+   * rapporte a la puissance evacuee : une centrale solaire de 20 MWc amortit plusieurs
+   * kilometres de liaison, un parc eolien de 30 MW davantage encore, un stockage vit de
+   * l'arbitrage et supporte mal l'eloignement, et une unite de methanisation raccordee au
+   * gaz n'a pas le meme reseau de reference. Valeurs indicatives, ajustables par
+   * l'utilisateur : elles ne remplacent pas une etude de raccordement.
+   */
+  rayonRaccordementKm: number;
   /** Couches cartographiques a activer par defaut pour cette filiere. */
   couchesParDefaut: string[];
 }
@@ -40,6 +52,8 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     surfaceUtileMinHa: 1,
     surfaceUtileOptimaleHa: 20,
     gisementPertinent: true,
+    // une centrale de 5 a 20 MWc amortit couramment 5 a 10 km de liaison
+    rayonRaccordementKm: 8,
     couchesParDefaut: ['parcelles', 'postes_sources', 'zonage_urba', 'rpg', 'zaer', 'natura2000'],
   },
   eolien_terrestre: {
@@ -53,6 +67,8 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     surfaceUtileMinHa: 10,
     surfaceUtileOptimaleHa: 80,
     gisementPertinent: true,
+    // un parc de 20 a 40 MW supporte une liaison plus longue
+    rayonRaccordementKm: 12,
     couchesParDefaut: [
       'parcelles',
       'postes_sources',
@@ -73,6 +89,8 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     surfaceUtileMinHa: 0.5,
     surfaceUtileOptimaleHa: 3,
     gisementPertinent: false,
+    // le stockage vit de l'arbitrage : le cout de liaison pese lourd sur des puissances modestes
+    rayonRaccordementKm: 5,
     couchesParDefaut: ['parcelles', 'postes_sources', 'zonage_urba', 'zones_activite', 'risques'],
   },
   methanisation: {
@@ -86,6 +104,8 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     surfaceUtileMinHa: 1,
     surfaceUtileOptimaleHa: 4,
     gisementPertinent: true,
+    // l'injection se raisonne sur le reseau gaz ; ce rayon ne vaut que pour la cogeneration
+    rayonRaccordementKm: 5,
     couchesParDefaut: ['parcelles', 'reseau_gaz', 'rpg', 'elevages', 'captages', 'bati_200m'],
   },
 };

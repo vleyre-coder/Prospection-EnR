@@ -8,9 +8,25 @@ import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 import * as depotProspection from '../depots/prospection.js';
 import { journaliserStrict } from '../depots/sources.js';
-import { qualifierEmprise, qualifierIdus, scorerAvecPonderation } from '../services/qualification.js';
+import {
+  estimerEmprise,
+  etatQualification,
+  lancerQualificationEmprise,
+  qualifierEmprise,
+  qualifierIdus,
+  scorerAvecPonderation,
+} from '../services/qualification.js';
 import { requeteUne } from '../bdd.js';
 import { erreur } from './erreurs.js';
+
+/**
+ * Au-dela de cette etendue, une emprise est traitee en arriere-plan.
+ *
+ * 0,02 degre carre represente environ 3 km sur 7, soit deja plusieurs dizaines de parcelles
+ * exploitables et quelques minutes de traitement : c'est le point ou une requete HTTP
+ * synchrone devient un mauvais choix.
+ */
+const SEUIL_ARRIERE_PLAN_DEG2 = 0.02;
 
 export async function routesParcelles(app: FastifyInstance): Promise<void> {
   // --- Fiche parcelle ------------------------------------------------------
@@ -194,18 +210,58 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       filiere?: string;
       surfaceMinM2?: number;
       forcer?: boolean;
+      /** Force le traitement en arriere-plan, quelle que soit la taille de l'emprise. */
+      arrierePlan?: boolean;
     };
     const bbox = Array.isArray(corps.bbox)
       ? corps.bbox
       : bboxDepuisChaine(String(corps.bbox ?? ''));
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Champ `bbox` requis');
 
+    // Une emprise etendue se traite en arriere-plan : la maintenir dans une requete HTTP
+    // la ferait couper par les passerelles bien avant la fin.
+    const etendue = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]);
+    const enArrierePlan = corps.arrierePlan === true || etendue > SEUIL_ARRIERE_PLAN_DEG2;
+
+    if (enArrierePlan) {
+      const lance = lancerQualificationEmprise(bbox, {
+        surfaceMinM2: corps.surfaceMinM2,
+        filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
+        forcer: corps.forcer,
+      });
+      if (!lance) {
+        return erreur(
+          rep,
+          409,
+          'qualification_en_cours',
+          'Une qualification est deja en cours. Attendez sa fin : les sources publiques sont limitees en debit et deux campagnes simultanees seraient plus lentes que l\'une seule.',
+        );
+      }
+      return { mode: 'arriere_plan', etat: lance };
+    }
+
     const resultat = await qualifierEmprise(bbox, {
       surfaceMinM2: corps.surfaceMinM2,
       filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
       forcer: corps.forcer,
     });
-    return resultat;
+    return { mode: 'immediat', ...resultat };
+  });
+
+  /** Avancement de la qualification en arriere-plan. */
+  app.get('/api/qualification/etat', async () => etatQualification());
+
+  /** Volume et duree previsibles d'une emprise, avant de lancer la campagne. */
+  app.post('/api/qualification/estimation', async (req, rep) => {
+    const corps = req.body as {
+      bbox?: [number, number, number, number] | string;
+      surfaceMinM2?: number;
+    };
+    const bbox = Array.isArray(corps.bbox)
+      ? corps.bbox
+      : bboxDepuisChaine(String(corps.bbox ?? ''));
+    if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Champ `bbox` requis');
+    return estimerEmprise(bbox, corps.surfaceMinM2);
   });
 
   app.post('/api/qualification/parcelles', async (req, rep) => {
