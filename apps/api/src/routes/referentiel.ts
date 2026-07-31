@@ -21,6 +21,7 @@ import {
 } from '@enr/core';
 import { VERSION_MOTEUR, LIBELLES_REGIME } from '@enr/scoring';
 import { bddDisponible } from '../bdd.js';
+import { etatAmorcage } from '../amorcage.js';
 import { etatSources, sourcesPerimees } from '../depots/sources.js';
 
 /** Couches cartographiques exposees au frontend, avec leur presentation. */
@@ -57,11 +58,15 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       etatSources().catch(() => []),
       sourcesPerimees().catch(() => []),
     ]);
+    const amorcage = etatAmorcage();
     return {
       statut: bdd ? 'ok' : 'degrade',
       version: '0.1.0',
       versionMoteur: VERSION_MOTEUR,
       baseDeDonnees: bdd ? 'ok' : 'indisponible',
+      // Avancement du chargement initial des donnees nationales : sans cette information,
+      // un premier demarrage donne une carte vide sans explication.
+      amorcage,
       sources,
       sourcesPerimees: perimees,
     };

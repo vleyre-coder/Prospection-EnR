@@ -40,24 +40,37 @@ filtres.
 - **Exports** : fiche PDF, GeoJSON, Shapefile, CSV.
 - **Dessin et mesure** : périmètre, distance, surface, création de site.
 
-## Démarrage rapide
+## Démarrage
+
+Un seul prérequis : **[Docker Desktop](https://docs.docker.com/get-docker/)**. Rien d'autre à
+installer — ni Node, ni PostgreSQL, ni clé d'API.
 
 ```bash
-npm install
-docker compose up -d bdd                # ou une instance PostgreSQL + PostGIS existante
-cp .env.example .env
-sed -i "s|^SECRET_JWT=.*|SECRET_JWT=$(openssl rand -hex 32)|" .env
-
-npm run build
-npm run db:migrate
-npm run ingest -w @enr/api -- communes postes_sources   # ~10 min, indispensable
-npm run dev                                            # API :3000 · interface :5173
+git clone https://github.com/vleyre-coder/Prospection-EnR.git
+cd Prospection-EnR
+./demarrer.sh          # sous Windows : .\demarrer.ps1
 ```
+
+L'application s'ouvre sur <http://localhost:8080>. Au premier lancement, elle applique son
+schéma, génère son secret de signature, crée un compte administrateur et charge les données
+nationales (35 000 communes, 3 119 postes sources, 43 873 monuments, gisement de vent) **en
+arrière-plan** : l'interface est utilisable immédiatement et affiche l'avancement.
+
+Le mot de passe administrateur généré s'affiche avec `./demarrer.sh --journaux`. Pour choisir
+vos propres identifiants, renseignez `ADMIN_EMAIL` et `ADMIN_MOT_DE_PASSE` dans `.env` avant le
+premier lancement.
 
 Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, cliquer sur
 **Qualifier l'emprise**, et cliquer sur une parcelle.
 
-Installation détaillée, déploiement en conteneurs et dépannage :
+| | |
+|---|---|
+| Suivre le chargement | `./demarrer.sh --journaux` |
+| État de l'installation | `./demarrer.sh --etat` |
+| Arrêter (sans rien perdre) | `./demarrer.sh --arreter` |
+| Repartir de zéro | `./demarrer.sh --effacer` |
+
+Installation sans Docker, déploiement sur serveur et dépannage :
 [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Données

@@ -93,9 +93,17 @@ l'application applique le rayon par défaut et le signale.
 
 ### 2.4 Réseau gaz
 
-Open data GRDF. Les identifiants de jeux évoluent : le job en essaie plusieurs et échoue
-explicitement si aucun ne répond. GRTgaz et Teréga n'exposent pas de portail propre
-joignable ; leurs jeux passent par ODRE.
+Open data GRDF, jeu `les-sites-dinjection-de-biomethane-en-france` : 840 sites géolocalisés,
+dont 836 en service. Les identifiants de jeux évoluent — le job en essaie plusieurs, du plus
+récent au plus ancien, et échoue explicitement si aucun ne répond.
+
+Ce jeu publie une **capacité de production annuelle en GWh/an**, pas un débit d'injection en
+Nm³/h. La colonne `capacite_nm3h` reste donc nulle : convertir supposerait d'inventer un nombre
+d'heures de fonctionnement. Seule la **distance au point d'injection** est exploitée par le
+scoring, et c'est elle qui détermine la faisabilité du raccordement. Les sites fermés
+(`site_ouvert = False`) sont écartés : les retenir donnerait un faux débouché.
+
+GRTgaz et Teréga n'exposent pas de portail propre joignable ; leurs jeux passent par ODRE.
 
 ### 2.5 Gisement de vent — Global Wind Atlas
 

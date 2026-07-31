@@ -41,6 +41,11 @@ export class ErreurApi extends Error {
   get estReseau(): boolean {
     return this.statut === 0;
   }
+
+  /** Jeton absent, invalide ou expire : il faut se reconnecter. */
+  get estNonAuthentifie(): boolean {
+    return this.statut === 401;
+  }
 }
 
 let jeton: string | null = null;
@@ -119,11 +124,37 @@ export interface EtatSource {
   avertissement: string | null;
 }
 
+export interface Utilisateur {
+  id: string;
+  email: string;
+  nom: string;
+  role: 'admin' | 'prospection' | 'lecture';
+  habiliteDonneesProprietaires: boolean;
+}
+
+export interface EtapeAmorcage {
+  nom: string;
+  libelle: string;
+  duree: string;
+  indispensable: boolean;
+  statut: 'attente' | 'en_cours' | 'ok' | 'echec' | 'deja_present';
+  message: string | null;
+}
+
+/** Avancement du chargement initial des donnees nationales, au premier demarrage. */
+export interface Amorcage {
+  enCours: boolean;
+  debutLe: string | null;
+  finLe: string | null;
+  etapes: EtapeAmorcage[];
+}
+
 export interface Sante {
   statut: string;
   version: string;
   versionMoteur: string;
   baseDeDonnees: string;
+  amorcage?: Amorcage;
   sources: EtatSource[];
   sourcesPerimees: string[];
 }
@@ -280,6 +311,13 @@ export interface SiteResume {
 export const api = {
   sante: () => appeler<Sante>('/api/sante'),
   referentiel: () => appeler<Referentiel>('/api/referentiel'),
+
+  moi: () => appeler<Utilisateur>('/api/auth/moi'),
+  connexion: (email: string, motDePasse: string) =>
+    appeler<{ token: string; utilisateur: Utilisateur }>('/api/auth/connexion', {
+      methode: 'POST',
+      corps: { email, motDePasse },
+    }),
 
   fiche: (idu: string, filiere: Filiere, rafraichir = false) =>
     appeler<FicheParcelle>(

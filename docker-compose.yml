@@ -1,7 +1,13 @@
-# Pile de developpement : PostGIS, API et frontend.
+# Pile complete : PostGIS, API et interface.
 #
+#   ./demarrer.sh                   # voie recommandee (verifie Docker, ouvre le navigateur)
+#   docker compose up -d --build    # equivalent direct
 #   docker compose up -d bdd        # base seule (developpement local du code)
-#   docker compose up --build       # pile complete
+#   docker compose logs -f api      # suivre le chargement initial des donnees
+#
+# Aucune variable n'est obligatoire : au premier demarrage l'API applique ses migrations,
+# genere son secret de signature, cree un compte administrateur et charge les donnees
+# nationales manquantes.
 services:
   bdd:
     image: postgis/postgis:16-3.4
@@ -21,6 +27,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
 
   api:
     build:
@@ -34,8 +41,26 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://enr:${POSTGRES_PASSWORD:-enr}@bdd:5432/prospection_enr
-      SECRET_JWT: ${SECRET_JWT:?SECRET_JWT est obligatoire en production}
+      # Optionnel : a defaut, un secret aleatoire est genere au premier demarrage et
+      # conserve en base. Le definir explicitement reste preferable en production.
+      SECRET_JWT: ${SECRET_JWT:-}
+      # Renseigner ces deux variables fixe les identifiants d'administration. Sans elles,
+      # un compte est cree au premier demarrage avec un mot de passe affiche dans les
+      # journaux (docker compose logs api).
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_MOT_DE_PASSE: ${ADMIN_MOT_DE_PASSE:-}
+      # Mettre a false pour piloter l'ingestion par un ordonnanceur externe.
+      AMORCAGE_AUTO: ${AMORCAGE_AUTO:-true}
+      REPERTOIRE_DONNEES: /app/donnees
       NIVEAU_LOG: ${NIVEAU_LOG:-info}
+      # Derriere un proxy d'entreprise : Node ignore HTTPS_PROXY sans NODE_USE_ENV_PROXY.
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-bdd,localhost,127.0.0.1}
+      NODE_USE_ENV_PROXY: ${NODE_USE_ENV_PROXY:-}
+    volumes:
+      # Rasters volumineux (gisement de vent, 55 Mo) : a conserver entre les recreations de
+      # conteneur, sinon ils sont retelecharges a chaque fois.
+      - api_donnees:/app/donnees
     ports:
       - '${PORT_API:-3000}:3000'
     restart: unless-stopped
@@ -53,3 +78,4 @@ services:
 
 volumes:
   bdd_donnees:
+  api_donnees:

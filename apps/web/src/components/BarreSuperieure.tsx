@@ -11,6 +11,9 @@ import { useEtat } from '../store/etat.js';
 interface Props {
   referentiel: Referentiel;
   onAllerVers: (r: ResultatRecherche) => void;
+  /** Absent en mode developpement (authentification desactivee) : rien a deconnecter. */
+  utilisateur?: { email: string; role: string } | null;
+  onDeconnexion?: () => void;
 }
 
 /** Icones en ligne : aucune ressource externe, aucun chargement differe. */
@@ -64,7 +67,12 @@ function Icone({ nom }: { nom: string }): JSX.Element {
 
 export { Icone };
 
-export function BarreSuperieure({ referentiel, onAllerVers }: Props): JSX.Element {
+export function BarreSuperieure({
+  referentiel,
+  onAllerVers,
+  utilisateur,
+  onDeconnexion,
+}: Props): JSX.Element {
   const etat = useEtat();
 
   return (
@@ -141,6 +149,17 @@ export function BarreSuperieure({ referentiel, onAllerVers }: Props): JSX.Elemen
       >
         {etat.theme === 'sombre' ? 'Clair' : 'Sombre'}
       </button>
+
+      {utilisateur && onDeconnexion && (
+        <button
+          type="button"
+          className="bouton"
+          title={`${utilisateur.email} — role ${utilisateur.role}`}
+          onClick={onDeconnexion}
+        >
+          Quitter
+        </button>
+      )}
     </header>
   );
 }

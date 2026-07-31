@@ -22,6 +22,36 @@ Conséquence assumée : **la première visite d'un secteur est lente** (4 à 6 s
 parcelle), les suivantes sont instantanées. Pour de grandes surfaces, la pré-qualification
 nocturne par lots est le mode d'emploi recommandé.
 
+## 1 bis. Une instance s'initialise elle-même
+
+Une application dont la mise en service demande huit commandes dans le bon ordre ne sera pas
+mise en service. Le serveur porte donc sa propre initialisation, dans `amorcage.ts`, exécutée à
+chaque démarrage et **idempotente** :
+
+| Étape | Quand elle agit | Verrou |
+|---|---|---|
+| attente de PostgreSQL | la base peut démarrer après l'API (conteneurs) | — |
+| migrations | une migration non appliquée existe | `pg_advisory_lock` |
+| secret de signature des jetons | `SECRET_JWT` absent → tiré au hasard et conservé dans `parametre` | `ON CONFLICT` |
+| compte administrateur | `ADMIN_*` fournis, ou **aucun** utilisateur en base | `ON CONFLICT` |
+| données nationales | la donnée n'est pas là | `pg_try_advisory_lock` |
+
+Deux décisions méritent d'être explicitées :
+
+- **L'amorçage des données s'exécute après l'ouverture du port**, en arrière-plan. Charger
+  35 000 communes prend cinq à dix minutes ; bloquer le démarrage rendrait l'application
+  injoignable sans que l'utilisateur sache pourquoi. Son avancement est publié par
+  `/api/sante` et affiché en bandeau, faute de quoi une carte vide serait indiscernable d'une
+  panne.
+- **La réussite d'une étape est jugée sur la présence effective de la donnée**, avec le même
+  prédicat que celui qui permet de la sauter — pas sur l'absence d'exception. Un job peut se
+  terminer proprement sans rien produire (jeu de données renommé côté fournisseur) ; l'annoncer
+  comme réussi serait mensonger.
+
+Le verrou non bloquant sur l'amorçage compte : en développement, `tsx watch` relance le serveur
+à chaque sauvegarde, et sans lui une modification de code pendant l'ingestion des communes en
+déclencherait une seconde en parallèle.
+
 ## 2. Vue d'ensemble
 
 ```
@@ -139,6 +169,7 @@ mégaoctets de contours.
 | `site`, `site_parcelle` | agrégats de parcelles |
 | `lead`, `lead_evenement`, `document` | pipeline commercial |
 | `utilisateur`, `profil_ponderation`, `filtre_sauvegarde` | comptes et préférences |
+| `parametre` | secrets générés par l'instance, jamais exposés |
 | `proprietaire_parcelle` | **table isolée** de données à caractère personnel |
 | `journal_acces` | journalisation RGPD |
 
@@ -165,6 +196,13 @@ Voir [apps/web/README.md](../apps/web/README.md). Deux points d'architecture :
   carte bascule **automatiquement** sur le relais `/api/carte/fond/:fond/:z/:x/:y` de l'API,
   qui reproxifie les tuiles avec un cache d'une semaine. La liste des fonds relayés est
   fermée, pour que le relais ne devienne pas un proxy ouvert ;
+- **l'interface peut être servie par l'API**. Dès que `apps/web/dist` existe, Fastify le sert
+  avec un repli page unique : une installation locale n'a alors qu'un port à ouvrir. En
+  déploiement par conteneurs, nginx garde ce rôle — il apporte la compression et le cache
+  d'en-têtes que Fastify n'a pas ici ;
+- **l'écran de connexion n'apparaît que lorsqu'il sert.** Le frontend interroge
+  `/api/auth/moi` ; en développement (`AUTH_DESACTIVEE`) l'API répond une identité et l'écran
+  est sauté, en production un 401 le déclenche ;
 - **les couches métier sont installées sur `style.load`, pas sur `load`**. MapLibre n'émet
   `load` que lorsque toutes les sources du style sont résolues : un fond de carte injoignable
   privait donc l'utilisateur des parcelles, des scores et des contraintes. Un filet de sécurité
@@ -178,6 +216,11 @@ Voir [apps/web/README.md](../apps/web/README.md). Deux points d'architecture :
   pipeline.
 - **`AUTH_DESACTIVEE`** facilite le développement mais le serveur **refuse de servir les routes
   protégées si `NODE_ENV=production`**.
+- **Aucun secret ni mot de passe par défaut.** À défaut de `SECRET_JWT`, un secret aléatoire est
+  généré et conservé en base ; à défaut d'`ADMIN_MOT_DE_PASSE`, et seulement si la base ne
+  contient aucun utilisateur, un mot de passe aléatoire est généré et affiché **une seule fois**
+  dans les journaux. Une installation sans configuration reste ainsi utilisable sans jamais
+  reposer sur une valeur devinable.
 - **Données de propriétaires** : table isolée, habilitation explicite par utilisateur, motif
   d'accès obligatoire en en-tête, et **journalisation stricte** — si la trace ne peut pas être
   écrite, l'accès est refusé. La journalisation courante (exports, modifications) est au

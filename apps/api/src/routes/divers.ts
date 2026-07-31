@@ -1,11 +1,12 @@
 /** Routes de recherche, filtres, exports, ponderations, authentification et administration. */
 
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { estFiliere, FILIERES, PONDERATIONS_DEFAUT, type Filiere } from '@enr/core';
 import { VERSION_MOTEUR } from '@enr/scoring';
 import { config } from '../config.js';
 import { requete, requeteUne } from '../bdd.js';
+import { hacherMotDePasse, verifierMotDePasse } from '../mots-de-passe.js';
 import { filtrerParcelles, rechercher, type FiltresParcelles } from '../services/recherche.js';
 import { csvResultats, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
@@ -21,24 +22,6 @@ import {
 } from '../depots/sources.js';
 import { rescorerTout } from '../services/qualification.js';
 import { erreur } from './erreurs.js';
-
-// ---------------------------------------------------------------------------
-// Mots de passe : scrypt, avec sel par utilisateur
-// ---------------------------------------------------------------------------
-
-export function hacherMotDePasse(motDePasse: string): string {
-  const sel = randomBytes(16).toString('hex');
-  const cle = scryptSync(motDePasse, sel, 64).toString('hex');
-  return `scrypt$${sel}$${cle}`;
-}
-
-function verifierMotDePasse(motDePasse: string, hash: string): boolean {
-  const [algo, sel, cle] = hash.split('$');
-  if (algo !== 'scrypt' || !sel || !cle) return false;
-  const candidat = scryptSync(motDePasse, sel, 64);
-  const attendu = Buffer.from(cle, 'hex');
-  return candidat.length === attendu.length && timingSafeEqual(candidat, attendu);
-}
 
 export async function routesDivers(app: FastifyInstance): Promise<void> {
   // --- Recherche unifiee ---------------------------------------------------

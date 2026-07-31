@@ -1,5 +1,9 @@
 /** Configuration applicative, lue depuis l'environnement. */
 
+// Charge `.env` s'il existe, AVANT toute lecture de process.env. L'environnement reste
+// prioritaire sur le fichier.
+import { fichierEnvCharge } from './env.js';
+
 function texte(cle: string, defaut: string): string {
   return process.env[cle] ?? defaut;
 }
@@ -18,6 +22,8 @@ function booleen(cle: string, defaut: boolean): boolean {
 }
 
 export const config = {
+  /** Chemin du `.env` effectivement charge, ou `null`. Consigne au demarrage. */
+  fichierEnvCharge,
   env: texte('NODE_ENV', 'development'),
   port: nombre('PORT', 3000),
   hote: texte('HOTE', '0.0.0.0'),
@@ -32,8 +38,34 @@ export const config = {
   auth: {
     /** En developpement, permet de travailler sans compte. Interdit en production. */
     desactivee: booleen('AUTH_DESACTIVEE', false),
-    secretJwt: texte('SECRET_JWT', 'changez-ce-secret-en-production'),
+    /**
+     * Secret de signature des jetons. Laisse vide, l'instance en genere un au premier
+     * demarrage et le conserve en base (voir amorcage.ts) : une installation sans
+     * configuration reste ainsi securisee.
+     */
+    secretJwt: texte('SECRET_JWT', ''),
     dureeToken: texte('DUREE_TOKEN', '12h'),
+  },
+
+  demarrage: {
+    /** Applique les migrations au demarrage : evite une etape manuelle a l'installation. */
+    migrationsAuto: booleen('MIGRATIONS_AUTO', true),
+    /**
+     * Charge les donnees nationales manquantes en arriere-plan au premier demarrage.
+     * A desactiver quand l'ingestion est pilotee par un ordonnanceur externe.
+     */
+    amorcageAuto: booleen('AMORCAGE_AUTO', true),
+    /** Delai maximal d'attente de la base au demarrage (conteneurs demarrant ensemble). */
+    attenteBddMs: nombre('ATTENTE_BDD_MS', 60_000),
+  },
+
+  /**
+   * Interface web servie par l'API lorsque le build existe : une installation locale
+   * n'a alors qu'un seul port a ouvrir et une seule commande a lancer.
+   */
+  web: {
+    repertoireStatique: texte('REPERTOIRE_WEB', ''),
+    servirStatique: booleen('SERVIR_WEB', true),
   },
 
   /** URLs des services externes, surchargeables pour les tests. */

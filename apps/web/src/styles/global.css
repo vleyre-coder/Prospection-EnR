@@ -1301,6 +1301,76 @@ button:focus-visible,
   font-size: 13px;
 }
 
+/* -------------------------------------------------------------- connexion */
+
+.connexion {
+  margin: auto;
+  width: min(380px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 26px 24px 20px;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+}
+
+.connexion h1 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.2px;
+}
+
+.connexion-sous-titre {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--texte-faible);
+  line-height: 1.5;
+}
+
+.connexion label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texte-faible);
+  margin-top: 6px;
+}
+
+.connexion input {
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--texte);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+}
+
+.connexion input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.connexion button {
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.connexion-erreur {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--rouge) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rouge) 40%, transparent);
+}
+
+.connexion-aide {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--texte-faible);
+}
+
 /* ------------------------------------------------------------------ divers */
 
 .vide {

@@ -10,7 +10,7 @@
 
 import { pool, requete } from '../bdd.js';
 import { journal } from '../journal.js';
-import { hacherMotDePasse } from '../routes/divers.js';
+import { assurerAdministrateur } from '../amorcage.js';
 import { qualifierEmprise } from '../services/qualification.js';
 import { ingererCommunes, ingererPostesSources, ingererPatrimoine } from '../ingestion/index.js';
 import { enregistrerCouverture, synchroniserReferentiel } from '../depots/sources.js';
@@ -28,33 +28,6 @@ const SECTEURS = [
     departement: '30',
   },
 ];
-
-async function creerAdministrateur(): Promise<void> {
-  const email = process.env['ADMIN_EMAIL'] ?? 'admin@prospection-enr.local';
-  const motDePasse = process.env['ADMIN_MOT_DE_PASSE'];
-
-  if (!motDePasse) {
-    journal.warn(
-      "ADMIN_MOT_DE_PASSE n'est pas defini : aucun compte administrateur n'est cree. " +
-        "Definissez ADMIN_EMAIL et ADMIN_MOT_DE_PASSE puis relancez `npm run db:seed`.",
-    );
-    return;
-  }
-  if (motDePasse.length < 12) {
-    journal.error('ADMIN_MOT_DE_PASSE doit comporter au moins 12 caracteres.');
-    process.exitCode = 1;
-    return;
-  }
-
-  await requete(
-    `INSERT INTO utilisateur (email, nom, mot_de_passe_hash, role, habilite_donnees_proprietaires)
-     VALUES ($1, 'Administrateur', $2, 'admin', true)
-     ON CONFLICT (email) DO UPDATE SET
-       mot_de_passe_hash = EXCLUDED.mot_de_passe_hash, role = 'admin', actif = true`,
-    [email.toLowerCase(), hacherMotDePasse(motDePasse)],
-  );
-  journal.info({ email }, 'Compte administrateur cree ou mis a jour');
-}
 
 /**
  * Exemples de ZAER et de document-cadre, pour les departements de demonstration.
@@ -108,7 +81,7 @@ async function main(): Promise<void> {
   const tout = etapes.length === 0;
 
   await synchroniserReferentiel();
-  await creerAdministrateur();
+  await assurerAdministrateur();
 
   if (tout || etapes.includes('communes')) {
     journal.info('Ingestion des communes (contours nationaux) - plusieurs minutes');

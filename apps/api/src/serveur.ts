@@ -3,15 +3,25 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
 import { journal } from './journal.js';
-import { bddDisponible, fermerBdd } from './bdd.js';
+import { fermerBdd } from './bdd.js';
+import {
+  amorcerSiNecessaire,
+  assurerAdministrateur,
+  attendreBdd,
+  resoudreSecretJwt,
+} from './amorcage.js';
+import { appliquerMigrations } from './migrations.js';
 import { synchroniserReferentiel } from './depots/sources.js';
 import { routesReferentiel } from './routes/referentiel.js';
 import { routesCarte } from './routes/carte.js';
 import { routesParcelles } from './routes/parcelles.js';
 import { routesProspection } from './routes/prospection.js';
 import { routesDivers } from './routes/divers.js';
+import statique from '@fastify/static';
+import { optionsStatique, repertoireInterface } from './routes/statique.js';
 import { ErreurSource } from './http.js';
 
 export interface UtilisateurCourant {
@@ -31,7 +41,12 @@ declare module 'fastify' {
 /** Routes accessibles sans authentification. */
 const ROUTES_PUBLIQUES = ['/api/sante', '/api/auth/connexion', '/api/referentiel'];
 
-export async function construireServeur() {
+export interface OptionsServeur {
+  /** Secret de signature des jetons. A defaut, celui de la configuration. */
+  secretJwt?: string;
+}
+
+export async function construireServeur(options: OptionsServeur = {}) {
   const app = Fastify({
     // Fastify 5 distingue `logger` (options de configuration) de `loggerInstance`
     // (instance pino deja construite) : ici, l'instance partagee de l'application.
@@ -45,7 +60,12 @@ export async function construireServeur() {
     credentials: true,
   });
 
-  await app.register(jwt, { secret: config.auth.secretJwt });
+  // Le secret vient du demarrage (variable d'environnement, ou secret persiste en base).
+  // Le repli aleatoire ne sert qu'aux appels directs a `construireServeur` (tests) :
+  // il vaut mieux des jetons non reutilisables qu'un secret devinable.
+  await app.register(jwt, {
+    secret: options.secretJwt || config.auth.secretJwt || randomBytes(32).toString('hex'),
+  });
 
   // --- Authentification ----------------------------------------------------
   app.addHook('onRequest', async (req, rep) => {
@@ -115,12 +135,6 @@ export async function construireServeur() {
     });
   });
 
-  app.setNotFoundHandler((req, rep) =>
-    rep.code(404).send({
-      erreur: { code: 'route_inconnue', message: `Route inconnue : ${req.method} ${req.url}` },
-    }),
-  );
-
   // --- Routes --------------------------------------------------------------
   await app.register(routesReferentiel);
   await app.register(routesCarte);
@@ -128,25 +142,72 @@ export async function construireServeur() {
   await app.register(routesProspection);
   await app.register(routesDivers);
 
+  // --- Interface web -------------------------------------------------------
+  // Servie par l'API des lors que son build existe : une installation locale n'a alors
+  // qu'une seule commande a lancer et qu'un seul port a ouvrir.
+  const interfaceWeb = repertoireInterface();
+  if (interfaceWeb) {
+    await app.register(statique, optionsStatique(interfaceWeb));
+    journal.info({ racine: interfaceWeb }, "Interface web servie par l'API");
+  }
+
+  app.setNotFoundHandler((req, rep) => {
+    // Application a page unique : une URL inconnue doit rendre l'interface, pas un 404,
+    // sinon la navigation directe et le rechargement de page cassent.
+    if (interfaceWeb && req.method === 'GET' && !req.url.startsWith('/api/')) {
+      return rep.sendFile('index.html');
+    }
+    return rep.code(404).send({
+      erreur: { code: 'route_inconnue', message: `Route inconnue : ${req.method} ${req.url}` },
+    });
+  });
+
   return app;
 }
 
 async function demarrer(): Promise<void> {
-  const app = await construireServeur();
+  if (config.fichierEnvCharge) {
+    journal.info({ fichier: config.fichierEnvCharge }, 'Configuration chargee depuis .env');
+  }
 
-  const bdd = await bddDisponible();
+  // 1. La base peut demarrer en meme temps que l'API (conteneurs) : on l'attend.
+  const bdd = await attendreBdd(config.demarrage.attenteBddMs);
   if (!bdd) {
     journal.error(
       { url: config.bdd.url.replace(/:[^:@]*@/, ':***@') },
-      "Base de donnees injoignable. Lancez `npm run db:migrate` et verifiez DATABASE_URL.",
+      "Base de donnees injoignable. Verifiez DATABASE_URL et que PostgreSQL est demarre.",
     );
-  } else {
-    const n = await synchroniserReferentiel().catch((err) => {
+  }
+
+  // 2. Schema et referentiel : l'application initialise sa propre base.
+  if (bdd && config.demarrage.migrationsAuto) {
+    try {
+      const { appliquees, total } = await appliquerMigrations();
+      if (appliquees > 0) journal.info({ appliquees, total }, 'Schema mis a jour');
+    } catch (err) {
+      journal.error(
+        { err },
+        'Echec des migrations : le serveur demarre mais les donnees seront indisponibles.',
+      );
+    }
+  }
+  if (bdd) {
+    const n = await synchroniserReferentiel().catch((err: unknown) => {
       journal.warn({ err }, 'Synchronisation du referentiel des sources impossible');
       return 0;
     });
     journal.info({ connecteurs: n }, 'Referentiel des sources synchronise');
   }
+
+  // 3. Secret de signature et acces : fournis par l'environnement, ou generes.
+  const secretJwt = await resoudreSecretJwt(bdd);
+  if (bdd) {
+    await assurerAdministrateur().catch((err: unknown) =>
+      journal.error({ err }, 'Creation du compte administrateur impossible'),
+    );
+  }
+
+  const app = await construireServeur({ secretJwt });
 
   if (config.auth.desactivee && config.env !== 'development') {
     journal.warn(
@@ -155,7 +216,19 @@ async function demarrer(): Promise<void> {
   }
 
   await app.listen({ port: config.port, host: config.hote });
-  journal.info({ port: config.port }, 'API de prospection ENR demarree');
+  journal.info(
+    { port: config.port, adresse: `http://localhost:${config.port}` },
+    'API de prospection ENR demarree',
+  );
+
+  // 4. Donnees nationales : en arriere-plan, apres l'ouverture du port. L'ingestion des
+  //    communes dure plusieurs minutes ; l'interface doit rester accessible pendant ce
+  //    temps, et son avancement est publie par /api/sante.
+  if (bdd && config.demarrage.amorcageAuto) {
+    void amorcerSiNecessaire().catch((err: unknown) =>
+      journal.error({ err }, 'Amorcage des donnees nationales interrompu'),
+    );
+  }
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {

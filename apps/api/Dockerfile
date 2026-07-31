@@ -32,6 +32,10 @@ COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY db ./db
 
+# Repertoire des rasters ingeres (gisement de vent), monte en volume par compose.
+# Cree ici avec le bon proprietaire : le conteneur ne tourne pas en root.
+RUN mkdir -p /app/donnees && chown -R node:node /app/donnees
+
 USER node
 EXPOSE 3000
 

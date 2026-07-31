@@ -8,9 +8,18 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import maplibregl from 'maplibre-gl';
-import { api, ErreurApi, type LigneListe, type ResultatRecherche } from './api/client.js';
+import {
+  api,
+  definirJeton,
+  ErreurApi,
+  jetonEnregistre,
+  type Amorcage,
+  type LigneListe,
+  type ResultatRecherche,
+} from './api/client.js';
+import { Connexion } from './components/Connexion.js';
 import { useEtat } from './store/etat.js';
 import { BarreSuperieure, Icone } from './components/BarreSuperieure.js';
 import { PanneauGauche } from './components/PanneauGauche.js';
@@ -22,6 +31,16 @@ import { TableauDeBord } from './components/TableauDeBord.js';
 export function App(): JSX.Element {
   const etat = useEtat();
   const carteRef = useRef<maplibregl.Map | null>(null);
+  const clientRequetes = useQueryClient();
+
+  // Identite de l'utilisateur : en mode developpement l'API repond sans jeton, et l'ecran
+  // de connexion n'apparait jamais. En mode authentifie, un 401 le declenche.
+  const moi = useQuery({
+    queryKey: ['moi'],
+    queryFn: () => api.moi(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   const referentiel = useQuery({
     queryKey: ['referentiel'],
@@ -33,7 +52,9 @@ export function App(): JSX.Element {
   const sante = useQuery({
     queryKey: ['sante'],
     queryFn: () => api.sante(),
-    refetchInterval: 5 * 60 * 1000,
+    // Pendant le chargement initial des donnees nationales, on suit l'avancement de pres ;
+    // ensuite, la sante n'a pas besoin d'etre interrogee souvent.
+    refetchInterval: (q) => (q.state.data?.amorcage?.enCours ? 10 * 1000 : 5 * 60 * 1000),
     retry: 1,
   });
 
@@ -62,7 +83,19 @@ export function App(): JSX.Element {
     return () => window.removeEventListener('keydown', surTouche);
   }, [referentiel.data, etat]);
 
-  if (referentiel.isLoading) {
+  // Authentification requise : l'API a refuse l'identite courante.
+  if ((moi.error as ErreurApi | undefined)?.estNonAuthentifie) {
+    return (
+      <Connexion
+        onConnecte={() => {
+          // Toutes les requetes ont ete faites sans jeton : on les rejoue.
+          void clientRequetes.invalidateQueries();
+        }}
+      />
+    );
+  }
+
+  if (referentiel.isLoading || moi.isLoading) {
     return (
       <div className="application">
         <div className="chargement" style={{ margin: 'auto' }}>
@@ -124,7 +157,19 @@ export function App(): JSX.Element {
 
   return (
     <div className="application">
-      <BarreSuperieure referentiel={ref} onAllerVers={allerVers} />
+      <BarreSuperieure
+        referentiel={ref}
+        onAllerVers={allerVers}
+        // Le bouton de deconnexion n'a de sens que si un jeton est en jeu : en mode
+        // developpement, l'API repond sans authentification.
+        utilisateur={jetonEnregistre() ? (moi.data ?? null) : null}
+        onDeconnexion={() => {
+          definirJeton(null);
+          void clientRequetes.invalidateQueries();
+        }}
+      />
+
+      {sante.data?.amorcage && <BandeauAmorcage amorcage={sante.data.amorcage} />}
 
       <BandeauAvertissements referentiel={ref} sourcesPerimees={sante.data?.sourcesPerimees ?? []} />
 
@@ -332,6 +377,52 @@ function OutilsCarte({
       )}
     </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Bandeau de premier demarrage
+// ---------------------------------------------------------------------------
+
+/**
+ * Au premier lancement, l'API charge les donnees nationales en arriere-plan (contours
+ * communaux, postes sources, monuments, gisement de vent). Sans ce bandeau, l'utilisateur
+ * verrait une carte vide et des criteres gris sans savoir que c'est temporaire.
+ */
+function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | null {
+  const enCours = amorcage.etapes.find((e) => e.statut === 'en_cours');
+  const echecs = amorcage.etapes.filter((e) => e.statut === 'echec');
+
+  if (amorcage.enCours) {
+    const faites = amorcage.etapes.filter((e) => e.statut === 'ok' || e.statut === 'deja_present');
+    return (
+      <div className="bandeau">
+        <span className="tourniquet" />
+        <p>
+          <strong>Premier demarrage : chargement des donnees nationales.</strong>{' '}
+          {enCours
+            ? `Etape en cours : ${enCours.libelle} (environ ${enCours.duree}).`
+            : 'Preparation…'}{' '}
+          {faites.length}/{amorcage.etapes.length} terminees. L&apos;application est utilisable
+          pendant ce temps ; les couches concernees apparaitront au fur et a mesure.
+        </p>
+      </div>
+    );
+  }
+
+  if (echecs.length > 0) {
+    return (
+      <div className="bandeau">
+        <Icone nom="alerte" />
+        <p>
+          <strong>Chargement initial incomplet.</strong> {echecs.map((e) => e.libelle).join(', ')} —
+          les criteres correspondants resteront gris. Relancez le chargement avec{' '}
+          <code>npm run ingest -w @enr/api -- {echecs.map((e) => e.nom).join(' ')}</code>.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------

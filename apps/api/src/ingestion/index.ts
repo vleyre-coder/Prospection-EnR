@@ -100,50 +100,81 @@ export async function ingererCommunes(): Promise<{ connecteur: string; nbCommune
 // ---------------------------------------------------------------------------
 
 export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints: number }> {
-  // Jeu GRDF des sites d'injection de biomethane. Le nom exact du jeu evolue : on tente
-  // plusieurs identifiants connus, plutot que d'echouer sur un seul.
+  // Jeu GRDF des sites d'injection de biomethane. Le nom exact du jeu a change au moins
+  // une fois : on tente plusieurs identifiants connus, du plus recent au plus ancien,
+  // plutot que d'echouer sur un seul.
   const candidats = [
+    'les-sites-dinjection-de-biomethane-en-france',
     'sites-dinjection-de-biomethane',
     'sites-d-injection-de-biomethane-en-service',
-    'liste-des-sites-dinjection-de-biomethane',
   ];
+  // Opendatasoft plafonne une page a 100 enregistrements ; le jeu en compte plus de 800.
+  const PAGE = 100;
 
   let nbPoints = 0;
+  let nbFermes = 0;
   for (const jeu of candidats) {
     try {
-      const url = avecParams(`${config.sources.opendataGrdf}/catalog/datasets/${jeu}/records`, {
-        limit: 100,
-      });
-      const rep = await jsonExterne<{
-        total_count?: number;
-        results?: Array<Record<string, unknown>>;
-      }>(url, { connecteur: 'reseau_gaz', timeoutMs: 30000 });
+      let decalage = 0;
+      let total = Infinity;
+      while (decalage < total) {
+        const url = avecParams(`${config.sources.opendataGrdf}/catalog/datasets/${jeu}/records`, {
+          limit: PAGE,
+          offset: decalage,
+        });
+        const rep = await jsonExterne<{
+          total_count?: number;
+          results?: Array<Record<string, unknown>>;
+        }>(url, { connecteur: 'reseau_gaz', timeoutMs: 30000 });
 
-      const resultats = rep.results ?? [];
-      if (resultats.length === 0) continue;
+        const resultats = rep.results ?? [];
+        if (resultats.length === 0) break;
+        total = rep.total_count ?? resultats.length;
 
-      for (const [index, r] of resultats.entries()) {
-        const geo = extraireCoordonnees(r);
-        if (!geo) continue;
-        const id = String(r['id'] ?? r['code'] ?? `${jeu}-${index}`);
-        await requete(
-          `INSERT INTO point_injection_gaz
-             (id, nom, gestionnaire, code_insee, geom, capacite_nm3h, connecteur, date_donnee, updated_at)
-           VALUES ($1, $2, 'GRDF', $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6,
-                   'reseau_gaz', current_date, now())
-           ON CONFLICT (id) DO UPDATE SET
-             nom = EXCLUDED.nom, geom = EXCLUDED.geom,
-             capacite_nm3h = EXCLUDED.capacite_nm3h, updated_at = now()`,
-          [
-            id,
-            String(r['nom'] ?? r['nom_site'] ?? r['denomination'] ?? id),
-            String(r['code_commune'] ?? r['code_insee'] ?? '').slice(0, 5) || null,
-            geo[0],
-            geo[1],
-            nombreOuNull(r['capacite'] ?? r['capacite_injection'] ?? r['debit_max']),
-          ],
-        );
-        nbPoints += 1;
+        for (const [index, r] of resultats.entries()) {
+          const geo = extraireCoordonnees(r);
+          if (!geo) continue;
+
+          // Un site ferme n'offre plus de debouche d'injection : le retenir donnerait une
+          // fausse proximite a un projet de methanisation.
+          const ouvert = r['site_ouvert'];
+          if (ouvert !== undefined && String(ouvert).toLowerCase() === 'false') {
+            nbFermes += 1;
+            continue;
+          }
+
+          const id = String(
+            r['id_unique_projet'] ?? r['id'] ?? r['code'] ?? `${jeu}-${decalage + index}`,
+          );
+          await requete(
+            `INSERT INTO point_injection_gaz
+               (id, nom, gestionnaire, code_insee, code_departement, geom, capacite_nm3h,
+                connecteur, date_donnee, updated_at)
+             VALUES ($1, $2, 'GRDF', $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326), $7,
+                     'reseau_gaz', current_date, now())
+             ON CONFLICT (id) DO UPDATE SET
+               nom = EXCLUDED.nom, geom = EXCLUDED.geom, code_insee = EXCLUDED.code_insee,
+               code_departement = EXCLUDED.code_departement,
+               capacite_nm3h = EXCLUDED.capacite_nm3h, updated_at = now()`,
+            [
+              id,
+              String(r['nom_du_projet'] ?? r['nom'] ?? r['nom_site'] ?? id).slice(0, 300),
+              String(r['code_commune'] ?? r['current_code'] ?? r['code_insee'] ?? '').slice(0, 5) ||
+                null,
+              String(r['code_dep'] ?? '').slice(0, 3) || null,
+              geo[0],
+              geo[1],
+              // Ce jeu publie une capacite de PRODUCTION annuelle en GWh/an, pas un debit
+              // d'injection en Nm3/h. Convertir supposerait un nombre d'heures de
+              // fonctionnement invente : la colonne reste nulle, et le critere de capacite
+              // demeure gris plutot que faux. Seule la distance au point d'injection est
+              // exploitee, et c'est elle qui compte pour le raccordement.
+              nombreOuNull(r['capacite'] ?? r['capacite_injection'] ?? r['debit_max']),
+            ],
+          );
+          nbPoints += 1;
+        }
+        decalage += PAGE;
       }
       if (nbPoints > 0) break;
     } catch (err) {
@@ -155,7 +186,7 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
     'reseau_gaz',
     nbPoints > 0 ? 'ok' : 'echec',
     nbPoints > 0
-      ? `${nbPoints} sites d'injection`
+      ? `${nbPoints} sites d'injection en service, ${nbFermes} sites fermes ecartes`
       : "Aucun jeu GRDF exploitable : verifier les identifiants de jeux sur opendata.grdf.fr",
     nbPoints,
   );
