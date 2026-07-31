@@ -314,3 +314,81 @@ describe('moteur de scoring', () => {
     assert.ok(poidsRacc > 0.35, `poids raccordement ${poidsRacc}`);
   });
 });
+
+describe('limites de viabilite economique', () => {
+  it('plafonne a orange une parcelle sous la surface minimale de la filiere', () => {
+    // 0,45 ha pour du solaire au sol (minimum indicatif : 1 ha).
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 4500;
+        p.identite.surfaceCalculeeM2 = 4500;
+      }),
+      'solaire_sol',
+    );
+    assert.equal(r.knockOuts.length, 0, 'aucune contrainte reglementaire ne doit etre declenchee');
+    assert.ok(r.scoreGlobal != null, 'le score reste calcule');
+    assert.equal(r.statut, 'orange', `statut ${r.statut} (score ${r.scoreGlobal})`);
+    assert.equal(r.limitesViabilite[0]?.id, 'viab_surface_insuffisante');
+    assert.match(r.limitesViabilite[0]!.motif, /ECONOMIQUE et non reglementaire/);
+  });
+
+  it('plafonne a rouge une parcelle tres largement sous le seuil', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 850;
+        p.identite.surfaceCalculeeM2 = 850;
+      }),
+      'solaire_sol',
+    );
+    assert.equal(r.statut, 'rouge');
+    // Le score reste renseigne : la parcelle est ecartee pour raison economique, pas
+    // reglementaire, et l'utilisateur doit pouvoir le constater.
+    assert.ok(r.scoreGlobal != null);
+    assert.equal(r.knockOuts.length, 0);
+    assert.equal(r.limitesViabilite[0]?.id, 'viab_surface_tres_insuffisante');
+  });
+
+  it('ne plafonne pas une parcelle de 2 ha en stockage (minimum 0,5 ha)', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 20000;
+        p.identite.surfaceCalculeeM2 = 20000;
+      }),
+      'bess',
+    );
+    assert.equal(r.limitesViabilite.length, 0);
+    assert.equal(r.statut, 'vert');
+  });
+
+  it('conserve dans un site les parcelles trop petites seules', () => {
+    // Six parcelles de 0,2 ha : chacune est ecartee seule (moins du quart du minimum
+    // de 1 ha), mais l'ensemble atteint 1,2 ha, soit une taille exploitable.
+    const petites = Array.from({ length: 6 }, (_, i) =>
+      parcelleType((p) => {
+        p.identite.idu = `283900000C08${String(50 + i).padStart(2, '0')}`;
+        p.identite.contenanceM2 = 2000;
+        p.identite.surfaceCalculeeM2 = 2000;
+      }),
+    );
+    for (const p of petites) {
+      assert.equal(calculerScore(p, 'solaire_sol').statut, 'rouge', 'chaque parcelle est rouge seule');
+    }
+    const site = calculerScoreSite(petites, 'solaire_sol');
+    assert.equal(site.surfaceTotaleHa, 1.2);
+    assert.equal(site.knockOutsConsolides.length, 0);
+    // Le site agrege reste evalue : c'est la raison d'etre de l'agregation.
+    assert.ok(site.scoreGlobal != null, 'le site doit rester score');
+    assert.notEqual(site.statut, 'rouge', `statut du site : ${site.statut}`);
+  });
+
+  it('retire du site les parcelles frappees d\'un knock-out reglementaire', () => {
+    const bonne = parcelleType();
+    const humide = parcelleType((p) => {
+      p.identite.idu = '283900000C0899';
+      p.eau.zoneHumide = 'oui';
+    });
+    const site = calculerScoreSite([bonne, humide], 'solaire_sol');
+    assert.equal(site.knockOutsConsolides.length, 1);
+    assert.equal(site.knockOutsConsolides[0]?.id, 'ko_zone_humide');
+  });
+});

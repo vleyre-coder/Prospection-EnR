@@ -119,3 +119,30 @@ CREATE TABLE IF NOT EXISTS document (
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_lead ON document (lead_id);
+
+-- ---------------------------------------------------------------------------
+-- Vue de service des tuiles vectorielles : jointure parcelle + score + statut de prospection.
+-- La coloration (remplissage) vient du score, le contour vient du statut de prospection :
+-- les deux dimensions restent distinctes cote client.
+CREATE OR REPLACE VIEW v_parcelle_carte AS
+SELECT
+  p.idu,
+  p.geom,
+  p.code_insee,
+  p.nom_commune,
+  p.section,
+  p.numero,
+  COALESCE(p.surface_calculee_m2, p.contenance_m2) AS surface_m2,
+  s.filiere,
+  s.statut          AS statut_score,
+  s.score_global,
+  s.couverture_donnees,
+  s.nb_knock_outs,
+  s.regime_implantation,
+  l.statut          AS statut_prospection,
+  l.assigne_a
+FROM parcelle p
+LEFT JOIN score_parcelle_filiere s
+  ON s.idu = p.idu AND s.profil_ponderation = 'defaut'
+LEFT JOIN lead l
+  ON l.idu = p.idu AND l.filiere = s.filiere;

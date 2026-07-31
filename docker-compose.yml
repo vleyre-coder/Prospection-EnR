@@ -1,0 +1,55 @@
+# Pile de developpement : PostGIS, API et frontend.
+#
+#   docker compose up -d bdd        # base seule (developpement local du code)
+#   docker compose up --build       # pile complete
+services:
+  bdd:
+    image: postgis/postgis:16-3.4
+    container_name: enr-bdd
+    environment:
+      POSTGRES_USER: enr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-enr}
+      POSTGRES_DB: prospection_enr
+      # Le tri francais est necessaire pour les recherches par nom de commune.
+      LANG: fr_FR.utf8
+    ports:
+      - '${PORT_BDD:-5432}:5432'
+    volumes:
+      - bdd_donnees:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U enr -d prospection_enr']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: enr-api
+    depends_on:
+      bdd:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://enr:${POSTGRES_PASSWORD:-enr}@bdd:5432/prospection_enr
+      SECRET_JWT: ${SECRET_JWT:?SECRET_JWT est obligatoire en production}
+      NIVEAU_LOG: ${NIVEAU_LOG:-info}
+    ports:
+      - '${PORT_API:-3000}:3000'
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: enr-web
+    depends_on:
+      - api
+    ports:
+      - '${PORT_WEB:-8080}:80'
+    restart: unless-stopped
+
+volumes:
+  bdd_donnees:

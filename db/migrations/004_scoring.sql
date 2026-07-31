@@ -29,31 +29,9 @@ CREATE INDEX IF NOT EXISTS idx_score_global ON score_parcelle_filiere (filiere, 
 CREATE INDEX IF NOT EXISTS idx_score_date ON score_parcelle_filiere (date_calcul);
 CREATE INDEX IF NOT EXISTS idx_score_version ON score_parcelle_filiere (version_moteur);
 
--- Vue de service des tuiles vectorielles : jointure parcelle + score + statut de prospection.
--- La coloration (remplissage) vient du score, le contour vient du statut de prospection :
--- les deux dimensions restent distinctes cote client.
-CREATE OR REPLACE VIEW v_parcelle_carte AS
-SELECT
-  p.idu,
-  p.geom,
-  p.code_insee,
-  p.nom_commune,
-  p.section,
-  p.numero,
-  COALESCE(p.surface_calculee_m2, p.contenance_m2) AS surface_m2,
-  s.filiere,
-  s.statut          AS statut_score,
-  s.score_global,
-  s.couverture_donnees,
-  s.nb_knock_outs,
-  s.regime_implantation,
-  l.statut          AS statut_prospection,
-  l.assigne_a
-FROM parcelle p
-LEFT JOIN score_parcelle_filiere s
-  ON s.idu = p.idu AND s.profil_ponderation = 'defaut'
-LEFT JOIN lead l
-  ON l.idu = p.idu AND l.filiere = s.filiere;
+-- NOTE : la vue de service `v_parcelle_carte` joint les parcelles, leurs scores et leur
+-- statut de prospection. Elle est definie dans la migration 005, apres la creation de la
+-- table `lead` dont elle depend.
 
 -- ---------------------------------------------------------------------------
 -- Couche communale agregee : c'est elle qui est servie a l'echelle nationale

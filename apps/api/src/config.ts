@@ -42,7 +42,10 @@ export const config = {
     geoplateformeWfs: texte('URL_GEOPF_WFS', 'https://data.geopf.fr/wfs/ows'),
     geoplateformeAlti: texte('URL_GEOPF_ALTI', 'https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest'),
     georisques: texte('URL_GEORISQUES', 'https://georisques.gouv.fr/api'),
-    adresse: texte('URL_ADRESSE', 'https://api-adresse.data.gouv.fr'),
+    // Geocodage : la Geoplateforme remplace api-adresse.data.gouv.fr, deprecie et instable
+    // (503 frequents). L'ancien host reste utilise en repli.
+    adresse: texte('URL_ADRESSE', 'https://data.geopf.fr/geocodage'),
+    adresseRepli: texte('URL_ADRESSE_REPLI', 'https://api-adresse.data.gouv.fr'),
     geoApiGouv: texte('URL_GEO_API', 'https://geo.api.gouv.fr'),
     opendataEnedis: texte('URL_OPENDATA_ENEDIS', 'https://opendata.enedis.fr/api/explore/v2.1'),
     odre: texte('URL_ODRE', 'https://odre.opendatasoft.com/api/explore/v2.1'),

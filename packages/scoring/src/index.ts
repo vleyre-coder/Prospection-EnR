@@ -14,13 +14,14 @@ import type {
   Feu,
   Filiere,
   KnockOut,
+  LimiteViabilite,
   OptionsScoring,
   ParcelleSnapshot,
   PointSynthese,
   ProfilPonderation,
   ResultatScore,
 } from '@enr/core';
-import { AVERTISSEMENTS_GLOBAUX, CRITERES, PONDERATIONS_DEFAUT } from '@enr/core';
+import { AVERTISSEMENTS_GLOBAUX, CRITERES, FILIERES_META, PONDERATIONS_DEFAUT } from '@enr/core';
 import { EVALUATEURS, type ContexteEval } from './criteres-eval.js';
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
@@ -88,6 +89,43 @@ export const LIBELLES_REGIME: Record<string, string> = {
   pv_sol_defrichement: 'Photovoltaique au sol avec defrichement (fortement penalise)',
 };
 
+/**
+ * Limites de viabilite economique.
+ *
+ * Une parcelle nettement sous la surface minimale de la filiere est licite mais ne peut pas
+ * porter un projet finançable seule. Elle ne doit donc jamais s'afficher en VERT - ce serait
+ * envoyer un prospecteur demarcher un proprietaire pour rien - tout en restant visible et
+ * mobilisable dans un regroupement de parcelles.
+ */
+function evaluerLimitesViabilite(
+  filiere: Filiere,
+  surfaceHa: number | null,
+): LimiteViabilite[] {
+  const limites: LimiteViabilite[] = [];
+  if (surfaceHa == null) return limites;
+
+  const meta = FILIERES_META[filiere];
+  const min = meta.surfaceUtileMinHa;
+
+  if (surfaceHa < min * 0.25) {
+    limites.push({
+      id: 'viab_surface_tres_insuffisante',
+      libelle: 'Surface tres insuffisante',
+      motif: `La parcelle mesure ${surfaceHa.toFixed(2)} ha, soit moins du quart de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet qu'agregee a des parcelles voisines au sein d'un site.`,
+      statutMaximal: 'rouge',
+    });
+  } else if (surfaceHa < min * 0.6) {
+    limites.push({
+      id: 'viab_surface_insuffisante',
+      libelle: 'Surface insuffisante seule',
+      motif: `La parcelle mesure ${surfaceHa.toFixed(2)} ha, en dessous de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des parcelles voisines pour atteindre une taille finançable.`,
+      statutMaximal: 'orange',
+    });
+  }
+
+  return limites;
+}
+
 export function calculerScore(
   snapshot: ParcelleSnapshot,
   filiere: Filiere,
@@ -101,6 +139,7 @@ export function calculerScore(
   // -- 1. Criteres redhibitoires -------------------------------------------
   const knockOuts: KnockOut[] = evaluerKnockOuts(snapshot, { filiere, options, surfaceHa });
   const bloquants = knockOuts.filter((k) => !k.derogeable);
+  const limitesViabilite = evaluerLimitesViabilite(filiere, surfaceHa);
 
   // -- 2. Criteres ponderes ------------------------------------------------
   const criteres: EvaluationCritere[] = [];
@@ -172,6 +211,15 @@ export function calculerScore(
     scoreGlobal = scoreBrut;
   }
 
+  // Application des plafonds de viabilite economique : ils ne modifient pas le score, mais
+  // empechent une parcelle non finançable d'apparaitre comme propice.
+  const ordreStatut: Record<Feu, number> = { vert: 3, orange: 2, rouge: 1, gris: 0 };
+  for (const limite of limitesViabilite) {
+    if (statut !== 'gris' && ordreStatut[statut] > ordreStatut[limite.statutMaximal]) {
+      statut = limite.statutMaximal;
+    }
+  }
+
   // -- 4. Synthese ---------------------------------------------------------
   const evalues = criteres.filter((c) => c.note != null);
   const pointsForts: PointSynthese[] = [...evalues]
@@ -211,6 +259,9 @@ export function calculerScore(
       `Couverture de donnees de ${Math.round(couvertureDonnees * 100)} % : ${criteres.filter((c) => c.note == null).length} critere(s) n'ont pu etre evalues. L'absence de donnee ne vaut pas absence de contrainte.`,
     );
   }
+  for (const limite of limitesViabilite) {
+    avertissements.push(`${limite.libelle} : ${limite.motif}`);
+  }
   if ((options.knockOutsDesactives?.length ?? 0) > 0) {
     avertissements.push(
       `Mode scenario derogatoire : ${options.knockOutsDesactives!.length} critere(s) redhibitoire(s) ont ete desactives manuellement. Le resultat ne reflete pas le cadre reglementaire en vigueur.`,
@@ -223,6 +274,7 @@ export function calculerScore(
     statut,
     scoreGlobal,
     knockOuts,
+    limitesViabilite,
     criteres: criteres.sort((a, b) => b.poids - a.poids),
     pointsForts,
     pointsVigilance: [...pointsVigilance, ...grisImportants].slice(0, 3),
@@ -262,10 +314,16 @@ export function calculerScoreSite(
 
   // Un knock-out sur une parcelle du site n'ecarte pas le site : il en retire la parcelle.
   // Le site est ecarte si les parcelles restantes ne suffisent plus a atteindre la surface utile.
+  //
+  // Point important : une parcelle ecartee UNIQUEMENT pour insuffisance de surface est
+  // conservee dans le site. C'est precisement la raison d'etre de l'agregation : dix
+  // parcelles de 0,3 ha ne sont finançables qu'ensemble. Seuls les knock-outs reglementaires
+  // bloquants retirent une parcelle du site.
   const knockOutsConsolides = parcelles.flatMap((p) => p.knockOuts.filter((k) => !k.derogeable));
-  const retenues = parcelles.filter((p) => p.statut !== 'rouge');
+  const estExclue = (p: ResultatScore): boolean => p.knockOuts.some((k) => !k.derogeable);
+  const retenues = parcelles.filter((p) => !estExclue(p));
   const surfaceRetenueHa = snapshots
-    .filter((_, i) => parcelles[i]!.statut !== 'rouge')
+    .filter((_, i) => !estExclue(parcelles[i]!))
     .reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0);
 
   if (retenues.length === 0) {
@@ -277,7 +335,7 @@ export function calculerScoreSite(
   let poids = 0;
   for (let i = 0; i < parcelles.length; i += 1) {
     const p = parcelles[i]!;
-    if (p.statut === 'rouge' || p.scoreGlobal == null) continue;
+    if (estExclue(p) || p.scoreGlobal == null) continue;
     const ha = surfaceHectares(snapshots[i]!) ?? 0;
     somme += p.scoreGlobal * ha;
     poids += ha;

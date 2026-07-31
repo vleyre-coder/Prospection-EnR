@@ -107,6 +107,23 @@ export interface SeuilProcedure {
   commentaire: string | null;
 }
 
+/**
+ * Limite de viabilite economique.
+ *
+ * A la difference d'un knock-out - qui traduit une impossibilite REGLEMENTAIRE - une limite
+ * de viabilite traduit une impossibilite ECONOMIQUE : la parcelle est licite, mais un projet
+ * ne peut pas y etre finance en l'etat. Elle ne remet donc pas le score a zero, elle
+ * PLAFONNE le statut : une parcelle sous le seuil de viabilite ne peut pas etre affichee
+ * comme propice, mais reste mobilisable dans un regroupement de parcelles (site).
+ */
+export interface LimiteViabilite {
+  id: string;
+  libelle: string;
+  motif: string;
+  /** Statut maximal atteignable malgre le score. */
+  statutMaximal: Feu;
+}
+
 export interface PointSynthese {
   critereId: string;
   libelle: string;
@@ -126,6 +143,8 @@ export interface ResultatScore {
   scoreGlobal: number | null;
   /** Criteres redhibitoires declenches. Non vide => statut rouge (ou orange si derogeable). */
   knockOuts: KnockOut[];
+  /** Limites de viabilite economique plafonnant le statut (surface insuffisante, etc.). */
+  limitesViabilite: LimiteViabilite[];
   /** Detail critere par critere. */
   criteres: EvaluationCritere[];
   /** Les 3 principaux points forts. */

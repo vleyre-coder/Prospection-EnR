@@ -1,0 +1,90 @@
+/** Routes de referentiel et de sante : tout ce dont le frontend a besoin au demarrage. */
+
+import type { FastifyInstance } from 'fastify';
+import {
+  AVERTISSEMENTS,
+  COULEURS_SATURATION,
+  COULEURS_SCORE,
+  COULEURS_SCORE_REMPLISSAGE,
+  CRITERES,
+  DESCRIPTIONS_SCORE,
+  FAMILLES_LIBELLES,
+  FILIERES,
+  FILIERES_META,
+  LIBELLES_SATURATION,
+  LIBELLES_SCORE,
+  PONDERATIONS_DEFAUT,
+  REFERENTIEL_DERNIERE_VERIFICATION,
+  REGLES,
+  STATUTS_PROSPECTION,
+  STATUTS_PROSPECTION_META,
+} from '@enr/core';
+import { VERSION_MOTEUR, LIBELLES_REGIME } from '@enr/scoring';
+import { bddDisponible } from '../bdd.js';
+import { etatSources, sourcesPerimees } from '../depots/sources.js';
+
+/** Couches cartographiques exposees au frontend, avec leur presentation. */
+export const COUCHES = [
+  { id: 'postes_sources', libelle: 'Postes sources', groupe: 'reseaux', typeGeom: 'point', couleur: '#0f766e' },
+  { id: 'reseau_gaz', libelle: 'Reseau gaz et injection', groupe: 'reseaux', typeGeom: 'ligne', couleur: '#a16207' },
+  { id: 'natura2000_habitats', libelle: 'Natura 2000 - habitats', groupe: 'environnement', typeGeom: 'polygone', couleur: '#15803d' },
+  { id: 'natura2000_oiseaux', libelle: 'Natura 2000 - oiseaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#22c55e' },
+  { id: 'znieff1', libelle: 'ZNIEFF de type I', groupe: 'environnement', typeGeom: 'polygone', couleur: '#65a30d' },
+  { id: 'znieff2', libelle: 'ZNIEFF de type II', groupe: 'environnement', typeGeom: 'polygone', couleur: '#a3e635' },
+  { id: 'reserve_naturelle', libelle: 'Reserves naturelles', groupe: 'environnement', typeGeom: 'polygone', couleur: '#166534' },
+  { id: 'appb', libelle: 'Protection de biotope (APPB)', groupe: 'environnement', typeGeom: 'polygone', couleur: '#14532d' },
+  { id: 'parc_national', libelle: 'Parcs nationaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#047857' },
+  { id: 'parc_naturel_regional', libelle: 'Parcs naturels regionaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#5eead4' },
+  { id: 'zone_humide', libelle: 'Zones humides (pre-reperage)', groupe: 'environnement', typeGeom: 'polygone', couleur: '#0891b2' },
+  { id: 'monument_historique', libelle: 'Monuments historiques', groupe: 'patrimoine', typeGeom: 'point', couleur: '#7c3aed' },
+  { id: 'site_classe', libelle: 'Sites classes', groupe: 'patrimoine', typeGeom: 'polygone', couleur: '#6d28d9' },
+  { id: 'site_inscrit', libelle: 'Sites inscrits', groupe: 'patrimoine', typeGeom: 'polygone', couleur: '#a78bfa' },
+  { id: 'ppri', libelle: 'Risque inondation (PPRI)', groupe: 'risques', typeGeom: 'polygone', couleur: '#1d4ed8' },
+  { id: 'pprif', libelle: 'Risque incendie (PPRif)', groupe: 'risques', typeGeom: 'polygone', couleur: '#ea580c' },
+  { id: 'pprt', libelle: 'Risque technologique (PPRT)', groupe: 'risques', typeGeom: 'polygone', couleur: '#be123c' },
+  { id: 'radar', libelle: 'Radars et servitudes aeronautiques', groupe: 'risques', typeGeom: 'polygone', couleur: '#9f1239' },
+  { id: 'zaer', libelle: "Zones d'acceleration des ENR", groupe: 'urbanisme', typeGeom: 'polygone', couleur: '#0284c7' },
+  { id: 'document_cadre_pv', libelle: 'Document-cadre PV au sol', groupe: 'urbanisme', typeGeom: 'polygone', couleur: '#0369a1' },
+  { id: 'aoc_viticole', libelle: 'Aires AOP viticoles', groupe: 'agriculture', typeGeom: 'polygone', couleur: '#86198f' },
+  { id: 'elevage', libelle: "Exploitations d'elevage", groupe: 'agriculture', typeGeom: 'point', couleur: '#b45309' },
+  { id: 'industrie_agroalimentaire', libelle: 'Industries agroalimentaires', groupe: 'agriculture', typeGeom: 'point', couleur: '#92400e' },
+] as const;
+
+export async function routesReferentiel(app: FastifyInstance): Promise<void> {
+  app.get('/api/sante', async () => {
+    const [bdd, sources, perimees] = await Promise.all([
+      bddDisponible(),
+      etatSources().catch(() => []),
+      sourcesPerimees().catch(() => []),
+    ]);
+    return {
+      statut: bdd ? 'ok' : 'degrade',
+      version: '0.1.0',
+      versionMoteur: VERSION_MOTEUR,
+      baseDeDonnees: bdd ? 'ok' : 'indisponible',
+      sources,
+      sourcesPerimees: perimees,
+    };
+  });
+
+  app.get('/api/referentiel', async () => ({
+    filieres: FILIERES.map((f) => FILIERES_META[f]),
+    criteres: CRITERES,
+    famillesLibelles: FAMILLES_LIBELLES,
+    ponderationsDefaut: PONDERATIONS_DEFAUT,
+    reglementation: REGLES,
+    libellesRegime: LIBELLES_REGIME,
+    referentielDerniereVerification: REFERENTIEL_DERNIERE_VERIFICATION,
+    avertissements: AVERTISSEMENTS,
+    palette: {
+      couleursScore: COULEURS_SCORE,
+      couleursScoreRemplissage: COULEURS_SCORE_REMPLISSAGE,
+      libellesScore: LIBELLES_SCORE,
+      descriptionsScore: DESCRIPTIONS_SCORE,
+      couleursSaturation: COULEURS_SATURATION,
+      libellesSaturation: LIBELLES_SATURATION,
+    },
+    statutsProspection: STATUTS_PROSPECTION.map((s) => STATUTS_PROSPECTION_META[s]),
+    couches: COUCHES,
+  }));
+}

@@ -7,13 +7,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "node --watch --experimental-strip-types src/serveur.ts",
+    "dev": "tsx watch src/serveur.ts",
     "start": "node dist/serveur.js",
-    "migrate": "node --experimental-strip-types src/scripts/migrer.ts",
-    "seed": "node --experimental-strip-types src/scripts/seeder.ts",
-    "ingest": "node --experimental-strip-types src/scripts/ingerer.ts",
-    "rescorer": "node --experimental-strip-types src/scripts/rescorer.ts",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "migrate": "tsx src/scripts/migrer.ts",
+    "seed": "tsx src/scripts/seeder.ts",
+    "ingest": "tsx src/scripts/ingerer.ts",
+    "rescorer": "tsx src/scripts/rescorer.ts",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@enr/core": "0.1.0",
@@ -21,7 +21,9 @@
     "@fastify/cors": "^10.0.1",
     "@fastify/jwt": "^9.0.1",
     "@fastify/static": "^8.0.3",
+    "@types/pdfkit": "^0.17.6",
     "fastify": "^5.2.0",
+    "pdfkit": "^0.19.1",
     "pg": "^8.13.1",
     "pino": "^9.5.0"
   },
