@@ -189,8 +189,12 @@ Voir [apps/web/README.md](../apps/web/README.md). Deux points d'architecture :
    *probabilité*, pas une conclusion ; l'URL du règlement est systématiquement fournie.
 3. **Le zonage réglementaire des PPR n'est pas disponible** par API : l'application signale la
    présence d'un PPR, pas la couleur de la zone.
-4. **Vent, intrants méthanisables, radars et captages** ne sont pas couverts par des API
-   nationales : ces critères restent gris tant que les couches ne sont pas ingérées localement.
+4. **Le vent est désormais couvert** par le raster Global Wind Atlas (250 m), et les
+   **servitudes aéronautiques, radioélectriques et les périmètres de captage** par les SUP du
+   GPU — avec la réserve que la couverture du GPU est territoriale. Restent non couverts : les
+   **positions des radars météorologiques et militaires** (aucun jeu national ouvert
+   réutilisable identifié) et la **densité d'intrants méthanisables** (pas de base nationale
+   d'élevages).
 5. **ZAER et documents-cadres** exigent une ingestion territoire par territoire.
 6. **Le bundle frontend dépasse 1 Mo** (MapLibre GL), soit 304 ko compressés. Un découpage en
    segments serait possible mais la carte est nécessaire dès le premier écran.

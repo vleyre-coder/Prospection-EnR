@@ -18,6 +18,7 @@ import { config } from '../config.js';
 import { requete } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
 import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
+import { telechargerRaster } from '../connecteurs/vent.js';
 export { ingererPostesSources } from './postes-sources.js';
 import { ingererPostesSources } from './postes-sources.js';
 
@@ -338,6 +339,27 @@ export async function ingererPatrimoine(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Gisement de vent
+// ---------------------------------------------------------------------------
+
+/**
+ * Telecharge le raster national de vitesse de vent a 100 m (Global Wind Atlas).
+ *
+ * Environ 55 Mo, republie a l'occasion des nouvelles versions du modele : une ingestion
+ * annuelle suffit.
+ */
+export async function ingererVent(): Promise<{ connecteur: string; octets: number; chemin: string }> {
+  const r = await telechargerRaster();
+  await enregistrerIngestion(
+    'vent_100m',
+    'ok',
+    `Raster Global Wind Atlas a 100 m, ${Math.round(r.octets / 1_048_576)} Mo`,
+    null,
+  );
+  return { connecteur: 'vent_100m', ...r };
+}
+
+// ---------------------------------------------------------------------------
 // Registre des jobs
 // ---------------------------------------------------------------------------
 
@@ -346,6 +368,7 @@ export const JOBS: Record<string, () => Promise<Record<string, unknown>>> = {
   postes_sources: ingererPostesSources,
   reseau_gaz: ingererReseauGaz,
   patrimoine_culture: ingererPatrimoine,
+  vent_100m: ingererVent,
 };
 
 export async function lancerIngestion(connecteur: string): Promise<Record<string, unknown>> {

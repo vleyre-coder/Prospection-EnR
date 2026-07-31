@@ -14,6 +14,7 @@
 | `postes_sources` | **mensuelle** | `npm run ingest -w @enr/api -- postes_sources` | les capacités évoluent en continu au fil des demandes de raccordement. Endpoints non contractuels : ne pas interroger plus souvent. |
 | `communes` | annuelle | `npm run ingest -w @enr/api -- communes` | fusions et changements de contours |
 | `patrimoine_culture` | semestrielle | `npm run ingest -w @enr/api -- patrimoine_culture` | nouvelles protections |
+| `vent_100m` | annuelle | `npm run ingest -w @enr/api -- vent_100m` | raster Global Wind Atlas (55 Mo), republié à chaque nouvelle version du modèle |
 | `reseau_gaz` | trimestrielle | `npm run ingest -w @enr/api -- reseau_gaz` | nouveaux sites d'injection |
 | `zaer_local` | trimestrielle | ingestion manuelle | au fil des délibérations |
 | `document_cadre_local` | semestrielle | ingestion manuelle | au fil des arrêtés préfectoraux |
@@ -33,8 +34,8 @@
 # Patrimoine et réseau gaz : le 2 du mois
 0 3 2 * *  cd /opt/prospection-enr && npm run ingest -w @enr/api -- patrimoine_culture reseau_gaz >> /var/log/enr-ingest.log 2>&1
 
-# Communes : le 15 janvier
-0 2 15 1 * cd /opt/prospection-enr && npm run ingest -w @enr/api -- communes >> /var/log/enr-ingest.log 2>&1
+# Communes et raster de vent : le 15 janvier
+0 2 15 1 * cd /opt/prospection-enr && npm run ingest -w @enr/api -- communes vent_100m >> /var/log/enr-ingest.log 2>&1
 
 # Snapshots périmés : dimanche 2 h
 0 2 * * 0  cd /opt/prospection-enr && npm run rescorer -w @enr/api >> /var/log/enr-ingest.log 2>&1

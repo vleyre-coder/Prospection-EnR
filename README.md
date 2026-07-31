@@ -70,9 +70,14 @@ Les contrats techniques ont été **vérifiés endpoint par endpoint** :
 [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md). La nature, les limites et les manques de chaque
 source : [docs/SOURCES_DONNEES.md](docs/SOURCES_DONNEES.md).
 
-Certaines couches n'ont **aucune API nationale** (ZAER, documents-cadres départementaux PV au
-sol, gisement de vent, densité d'intrants, radars). Elles exigent une ingestion territoriale ;
-en leur absence les critères correspondants restent **gris**, jamais favorables.
+S'y ajoutent le **Global Wind Atlas** pour le gisement de vent (raster national à 250 m) et
+les **servitudes d'utilité publique du GPU** (captages `AS1`, aéronautique `T4`/`T5`,
+radioélectrique `PT1`-`PT3`, réseaux `I3`/`I4`).
+
+Trois couches n'ont **aucune source nationale réutilisable** : ZAER et documents-cadres
+départementaux PV au sol (délibérations et arrêtés, à ingérer territoire par territoire),
+densité d'intrants méthanisables, et positions des radars météorologiques. En leur absence les
+critères correspondants restent **gris**, jamais favorables.
 
 ## Architecture
 

@@ -24,6 +24,7 @@ import { risquesEtEau } from './connecteurs/georisques.js';
 import { topographie } from './connecteurs/altimetrie.js';
 import { gisementComplet } from './connecteurs/gisement.js';
 import { acces, aocViticole, distanceCoursEau, distancesBati, foret, zoneHumide } from './connecteurs/wfs.js';
+import { libelleCategorie, servitudes } from './connecteurs/servitudes.js';
 import {
   documentCadrePv,
   patrimoine,
@@ -93,6 +94,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     rDocCadre,
     rPatrimoine,
     rZoneHabitat,
+    rServitudes,
   ] = await Promise.all([
     urbanismeParcelle(geom, parcelle.surfaceCalculeeM2).catch((e) => {
       journal.warn({ err: e, idu: parcelle.idu }, 'Echec urbanisme');
@@ -114,6 +116,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     documentCadrePv(centroide, parcelle.codeDepartement).catch(() => null),
     patrimoine(centroide).catch(() => null),
     distanceZoneHabitat(geom, bboxEnPolygone(elargirBbox(bboxDe(geom), 1000))),
+    servitudes(geom).catch(() => null),
   ]);
 
   // --- Urbanisme ------------------------------------------------------------
@@ -190,6 +193,36 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
   } else {
     echecs.add('georisques');
   }
+  // Les servitudes d'utilite publique du GPU completent Georisques : elles apportent les
+  // perimetres de captage, les servitudes aeronautiques et radioelectriques, et les reseaux,
+  // que Georisques n'expose pas. Elles sont fusionnees APRES lui pour avoir la priorite sur
+  // les champs qu'il laisse a null.
+  if (rServitudes) {
+    if (rServitudes.eau.captageAep?.dansPerimetre != null) {
+      snapshot.eau.captageAep = rServitudes.eau.captageAep;
+    }
+    if (rServitudes.risques.servitudesAeronautiques != null) {
+      snapshot.risques.servitudesAeronautiques = rServitudes.risques.servitudesAeronautiques;
+    }
+    if (rServitudes.risques.faisceauxHertziens != null) {
+      snapshot.risques.faisceauxHertziens = rServitudes.risques.faisceauxHertziens;
+    }
+    if ((rServitudes.risques.reseauxEnterres ?? []).length > 0) {
+      snapshot.risques.reseauxEnterres = rServitudes.risques.reseauxEnterres!;
+    }
+    // Les categories recouvrantes enrichissent la liste des servitudes affichee dans la fiche.
+    const categories = rServitudes.liste
+      .filter((s) => s.recouvre)
+      .map((s) => s.libelle ?? libelleCategorie(s.categorie));
+    if (categories.length > 0) {
+      snapshot.urbanisme.servitudes = [
+        ...new Set([...(snapshot.urbanisme.servitudes ?? []), ...categories]),
+      ];
+    }
+  } else {
+    echecs.add('gpu/assiette-sup-s');
+  }
+
   if (rZoneHumide !== null) {
     snapshot.eau.zoneHumide = rZoneHumide;
     sources.zones_humides = sourceRef('zones_humides');

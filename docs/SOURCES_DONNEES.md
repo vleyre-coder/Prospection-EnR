@@ -97,6 +97,44 @@ Open data GRDF. Les identifiants de jeux évoluent : le job en essaie plusieurs 
 explicitement si aucun ne répond. GRTgaz et Teréga n'exposent pas de portail propre
 joignable ; leurs jeux passent par ODRE.
 
+### 2.5 Gisement de vent — Global Wind Atlas
+
+Le Global Wind Atlas (DTU Wind Energy / Banque mondiale) publie, par pays, un raster GeoTIFF
+des vitesses moyennes de vent. Pour la France, le fichier à 100 m couvre le territoire au pas
+de **250 m** (8 055 × 4 143 pixels, 55 Mo).
+
+Ce n'est pas une API d'interrogation ponctuelle : le fichier est téléchargé par un job
+d'ingestion annuel, puis échantillonné localement pixel par pixel. La lecture est en accès
+aléatoire — une requête d'un seul pixel ne charge que la tuile concernée, le fichier n'est
+jamais monté en mémoire en entier.
+
+Valeurs de contrôle relevées : 6,97 m/s en Beauce, 6,96 m/s dans la vallée du Rhône,
+7,05 m/s sur la côte bretonne, 4,23 m/s dans une vallée alpine abritée.
+
+**Limite** : c'est un modèle de réanalyse, avec une incertitude de l'ordre de 0,5 m/s, et
+davantage en terrain complexe. Il ne remplace pas une campagne de mesure sur site — mais il
+suffit largement à écarter un secteur peu venté avant tout déplacement.
+
+### 2.6 Servitudes d'utilité publique — le Géoportail de l'Urbanisme
+
+Le GPU **est** une API nationale pour les servitudes d'utilité publique, publiées par
+catégorie selon la nomenclature du CNIG. L'application exploite :
+
+| Catégorie | Objet | Champ alimenté |
+|---|---|---|
+| `AS1` | périmètres de protection des captages d'eau potable | `eau.captageAep` |
+| `T4`, `T5`, `T7` | servitudes aéronautiques de balisage et de dégagement | `risques.servitudesAeronautiques` |
+| `PT1` à `PT3` | servitudes radioélectriques (émission, faisceaux hertziens) | `risques.faisceauxHertziens` |
+| `I1`, `I3`, `I4`, `I6` | hydrocarbures, gaz, ouvrages électriques, mines | `risques.reseauxEnterres` |
+| `AC1`, `AC2`, `AC4` | monuments historiques, sites, patrimoine | corrobore la rubrique patrimoine |
+| `PM1` à `PM3` | plans de prévention des risques | corrobore Géorisques |
+
+**Sa couverture est partielle** : seules figurent les servitudes effectivement téléversées par
+les services de l'État et les collectivités. Conséquence directement visible dans le code : un
+champ ne passe à `false` que si des SUP ont été reçues pour le secteur ; si la réponse est
+vide, il reste à `null` et le critère est **gris**. L'absence d'une catégorie sur un territoire
+ne prouve pas l'absence de servitude.
+
 ---
 
 ## 3. Sources sans API nationale — ingestion territoriale
@@ -108,10 +146,11 @@ donnée** (critère gris), jamais comme absence de contrainte.
 |---|---|---|
 | **ZAER** (zones d'accélération des ENR) | délibérations communales, pas de portail national consolidé | table `zaer`, ingestion territoire par territoire. `couverture_ingestion` distingue « hors ZAER » de « territoire non ingéré ». |
 | **Document-cadre départemental PV au sol** (art. L.111-29 CU) | arrêtés préfectoraux départementaux | table `document_cadre_pv`. Un département non ingéré **n'écarte pas** une parcelle inculte : le knock-out ne se déclenche que si le département est ingéré **et** la parcelle absente de la liste. Certains documents-cadres procèdent par critères littéraux et non par cartographie : l'éligibilité reste alors à apprécier. |
-| **Vent à 100 m** | ni le Global Wind Atlas ni l'atlas éolien français n'exposent d'API stable | un raster doit être ingéré localement (`contrainte` de type `vent_100m`). En son absence, le critère est **gris** : inventer une vitesse de vent conduirait à des décisions de prospection erronées. |
+| **Vent à 100 m** | ✅ **couvert** — voir §2.5 | raster national Global Wind Atlas, ingéré et échantillonné localement |
 | **Intrants méthanisables** | aucune base nationale d'élevages ni de gisement | dérivés des couches locales `elevage`, `industrie_agroalimentaire` et `surface_agricole_commune` si elles sont ingérées, selon des ratios documentés dans le code. Gris sinon. |
-| **Radars et servitudes aéronautiques** | non exposés par Géorisques | non couverts. Le critère est gris et les seuils de consultation (Météo-France, DGAC, armée) sont rappelés dans la fiche. |
-| **Périmètres de protection de captage** | données ARS hétérogènes | non couverts de façon homogène ; critère gris. |
+| **Servitudes aéronautiques (T4, T5, T7)** | ⚠️ **partiellement couvert** — SUP du GPU, voir §2.6 | national mais publié territoire par territoire par les services de l'État |
+| **Radars météorologiques et militaires** | pas de jeu national ouvert identifié | non couverts. Les positions du réseau ARAMIS de Météo-France ne sont pas publiées en open data réutilisable ; les seuils de consultation sont rappelés dans la fiche et l'avis du gestionnaire reste à solliciter. |
+| **Périmètres de protection de captage** | ⚠️ **partiellement couvert** — SUP `AS1` du GPU, voir §2.6 | l'assiette est exposée, mais **pas la sous-catégorie** (immédiat, rapproché, éloigné), qui doit être lue sur l'arrêté de DUP du captage |
 | **Données nominatives de propriétaires** | **aucune API publique ne les expose légalement** | table isolée `proprietaire_parcelle`, alimentée uniquement sur demande documentée auprès de la DGFiP ou de la mairie. Accès soumis à habilitation, motif obligatoire et journalisation stricte. |
 
 Le nombre de propriétaires affiché est une **estimation** dérivée de la structure parcellaire,

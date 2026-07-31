@@ -14,6 +14,7 @@ import type { Gisement } from '@enr/core';
 import { avecParams, jsonExterne } from '../http.js';
 import type { Position } from '../geo.js';
 import { requete } from '../bdd.js';
+import { ventA100m } from './vent.js';
 
 const CONNECTEUR = 'gisement';
 
@@ -57,28 +58,17 @@ export async function solaire(
 }
 
 /**
- * Gisement de vent a 100 m.
+ * Gisement de vent a 100 m, echantillonne sur le raster du Global Wind Atlas.
  *
- * Le Global Wind Atlas n'expose pas d'API ouverte stable et l'atlas eolien francais n'est
- * pas servi en API. Un raster de vitesses moyennes doit donc etre ingere localement
- * (table `contrainte` de type `vent_100m`, attribut `vitesse_ms`). En son absence, la
- * fonction retourne null : le critere devient GRIS, ce qui est le comportement attendu -
- * inventer une vitesse de vent conduirait a des decisions de prospection erronees.
+ * Contrairement a ce qui etait initialement suppose, une source nationale exploitable
+ * existe : le Global Wind Atlas publie un GeoTIFF par pays, au pas de 250 m pour la France.
+ * Il est ingere par un job dedie puis lu localement (voir connecteurs/vent.ts).
+ *
+ * Il ne remplace pas une campagne de mesure : c'est un modele de reanalyse, avec une
+ * incertitude de l'ordre de 0,5 m/s en terrain complexe.
  */
 export async function vent(pt: Position): Promise<number | null> {
-  try {
-    const rows = await requete<{ vitesse: number | null }>(
-      `SELECT (attributs->>'vitesse_ms')::numeric AS vitesse
-         FROM contrainte
-        WHERE type = 'vent_100m'
-          AND ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))
-        LIMIT 1`,
-      [pt[0], pt[1]],
-    );
-    return rows[0]?.vitesse ?? null;
-  } catch {
-    return null;
-  }
+  return ventA100m(pt);
 }
 
 /**

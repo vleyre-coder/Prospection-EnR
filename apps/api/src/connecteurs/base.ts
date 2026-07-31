@@ -171,6 +171,17 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     avertissement:
       "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densite d'intrants methanisables sont des ESTIMATIONS derivees de donnees indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une etude de gisement d'intrants.",
   },
+  vent_100m: {
+    connecteur: 'vent_100m',
+    nom: 'Global Wind Atlas - vitesse moyenne du vent a 100 m',
+    url: 'https://globalwindatlas.info',
+    modeAcces: 'ingestion',
+    valeurJuridique: 'indicative',
+    couverture: 'nationale',
+    periodiciteJours: 365,
+    avertissement:
+      "Modele de reanalyse au pas de 250 m (DTU Wind Energy / Banque mondiale). Incertitude de l'ordre de 0,5 m/s, davantage en terrain complexe : ne remplace pas une campagne de mesure sur site.",
+  },
   zaer_local: {
     connecteur: 'zaer_local',
     nom: "Zones d'acceleration des ENR (deliberations communales)",

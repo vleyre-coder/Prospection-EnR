@@ -70,6 +70,11 @@ export const config = {
     parcelleMaxAgeJours: nombre('PARCELLE_MAX_AGE_JOURS', 180),
   },
 
+  donnees: {
+    /** Repertoire des donnees volumineuses ingerees (rasters). */
+    repertoire: texte('REPERTOIRE_DONNEES', 'data'),
+  },
+
   carte: {
     /** Zoom minimal a partir duquel les parcelles sont servies. */
     zoomMinParcelles: nombre('ZOOM_MIN_PARCELLES', 14),
