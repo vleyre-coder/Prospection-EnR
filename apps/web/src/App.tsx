@@ -15,6 +15,7 @@ import {
   definirJeton,
   ErreurApi,
   jetonEnregistre,
+  RACINE_API,
   type Amorcage,
   type LigneListe,
   type ResultatRecherche,
@@ -277,7 +278,7 @@ function OutilsCarte({
         // Les tuiles sont en cache navigateur : on force leur rechargement.
         const src = m.getSource('parcelles') as maplibregl.VectorTileSource | undefined;
         src?.setTiles([
-          `${location.origin}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etat.filiere}&t=${Date.now()}`,
+          `${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etat.filiere}&t=${Date.now()}`,
         ]);
       })
       .catch((e: ErreurApi) => setQualification(`Echec : ${e.message}`));

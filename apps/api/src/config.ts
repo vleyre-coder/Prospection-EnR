@@ -66,6 +66,15 @@ export const config = {
   web: {
     repertoireStatique: texte('REPERTOIRE_WEB', ''),
     servirStatique: booleen('SERVIR_WEB', true),
+    /**
+     * Origines autorisees a appeler l'API depuis un navigateur, separees par des virgules.
+     * Necessaire uniquement lorsque l'interface est hebergee ailleurs que l'API (front
+     * statique sur Netlify, par exemple). Vide : seules les origines locales sont admises.
+     */
+    originesAutorisees: texte('ORIGINES_AUTORISEES', '')
+      .split(',')
+      .map((o) => o.trim().replace(/\/+$/, ''))
+      .filter((o) => o.length > 0),
   },
 
   /** URLs des services externes, surchargeables pour les tests. */

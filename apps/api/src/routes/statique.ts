@@ -12,7 +12,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
 
@@ -43,20 +43,30 @@ export function repertoireInterface(): string | null {
 /**
  * Options de @fastify/static. L'enregistrement lui-meme reste dans le serveur, qui pose
  * aussi le repli page unique : les deux doivent rester coherents.
+ *
+ * `cacheControl: false` est indispensable : laisse actif, le plugin ecrit son propre
+ * `Cache-Control: public, max-age=0` APRES `setHeaders`, et les assets ne seraient jamais
+ * mis en cache par le navigateur.
  */
 export function optionsStatique(racine: string): {
   root: string;
   index: string[];
+  cacheControl: false;
   setHeaders: (rep: { setHeader: (k: string, v: string) => void }, chemin: string) => void;
 } {
   return {
     root: racine,
     index: ['index.html'],
-    // Les fichiers d'assets sont versionnes par empreinte : ils sont immuables.
+    cacheControl: false,
     setHeaders: (rep, chemin) => {
-      if (chemin.includes('/assets/')) {
-        rep.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      }
+      // Les fichiers d'assets sont versionnes par empreinte : ils sont immuables. Le
+      // document HTML, lui, ne doit jamais etre mis en cache, sinon un deploiement
+      // continuerait de servir les anciens assets.
+      const immuable = chemin.includes(`${sep}assets${sep}`) || chemin.includes('/assets/');
+      rep.setHeader(
+        'Cache-Control',
+        immuable ? 'public, max-age=31536000, immutable' : 'no-cache',
+      );
     },
   };
 }

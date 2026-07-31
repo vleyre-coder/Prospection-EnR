@@ -7,6 +7,9 @@ Deux voies, selon l'usage :
 | [1. Docker](#1-installation-en-une-commande-docker) | utiliser l'application | Docker Desktop | 5 min + 15 min de chargement |
 | [2. Sources](#2-installation-pour-développer) | modifier le code | Node ≥ 20, PostgreSQL + PostGIS | 15 min |
 
+Pour une **mise en ligne** — accès à plusieurs, HTTPS, nom de domaine, ou interface sur
+Netlify avec l'API ailleurs — voir [HEBERGEMENT.md](HEBERGEMENT.md).
+
 L'application **s'initialise elle-même** dans les deux cas : à son premier démarrage, elle
 applique ses migrations, génère son secret de signature des jetons, crée un compte
 administrateur et charge les données nationales manquantes. Il n'y a plus de séquence de

@@ -1,0 +1,67 @@
+# Deploiement sur Render, en un seul dossier de configuration (« Blueprint »).
+#
+# Usage : sur render.com > New > Blueprint, connecter ce depot. Render lit ce fichier et
+# cree les deux ressources ci-dessous. L'API sert aussi l'interface : il n'y a qu'une URL.
+#
+# Ce que Render fournit et que Netlify ne peut pas fournir pour cette application :
+#   - un processus permanent (l'ingestion des communes dure dix minutes) ;
+#   - un disque persistant (raster de vent, 55 Mo) ;
+#   - PostgreSQL avec l'extension PostGIS, indispensable a ST_AsMVT.
+#
+# Region : frankfurt. L'application peut contenir des donnees nominatives de
+# proprietaires ; les heberger dans l'Union europeenne est la seule option raisonnable.
+#
+# Apres le premier deploiement, relever le mot de passe administrateur dans les journaux
+# du service (bloc « PREMIER DEMARRAGE »), ou definir ADMIN_EMAIL et ADMIN_MOT_DE_PASSE
+# dans les variables du service avant le premier demarrage.
+
+databases:
+  - name: enr-bdd
+    databaseName: prospection_enr
+    user: enr
+    region: frankfurt
+    postgresMajorVersion: '16'
+    # PostGIS est cree par la premiere migration : Render l'autorise sur PostgreSQL >= 13.
+    # basic-256mb est le plus petit plan payant ; il suffit a demarrer. Passez a basic-1gb
+    # si la qualification de gros secteurs devient lente — le plan ne fixe que la memoire.
+    plan: basic-256mb
+    # Contours communaux, monuments, postes, parcelles qualifiees et snapshots.
+    diskSizeGB: 10
+
+services:
+  - type: web
+    name: enr-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /api/sante
+    # Le raster de vent est retelecharge a chaque redeploiement sans disque persistant.
+    disk:
+      name: donnees
+      mountPath: /app/donnees
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: enr-bdd
+          property: connectionString
+      # Genere par Render et conserve : preferable au secret auto-genere en base.
+      - key: SECRET_JWT
+        generateValue: true
+      - key: REPERTOIRE_DONNEES
+        value: /app/donnees
+      # A renseigner dans l'interface de Render pour choisir vos identifiants. Sinon un
+      # mot de passe aleatoire est genere et affiche une seule fois dans les journaux.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_MOT_DE_PASSE
+        sync: false
+      # A renseigner uniquement si l'interface est hebergee ailleurs (Netlify).
+      - key: ORIGINES_AUTORISEES
+        sync: false

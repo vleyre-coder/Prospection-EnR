@@ -7,6 +7,19 @@
  * elle laisse simplement des criteres non evalues.
  */
 
+/**
+ * Racine de l'API.
+ *
+ * Vide par defaut : l'interface et l'API partagent alors la meme origine, ce qui est le cas
+ * quand l'API sert le build (installation locale) et quand un hebergeur de sites statiques
+ * reproxifie `/api`. Renseigner `VITE_URL_API` a la construction permet de deployer
+ * l'interface seule, sur une origine differente de celle de l'API — l'API doit alors
+ * declarer cette origine dans `ORIGINES_AUTORISEES`.
+ */
+export const RACINE_API: string = (
+  (import.meta.env['VITE_URL_API'] as string | undefined) ?? ''
+).replace(/\/+$/, '');
+
 import type {
   Avertissement,
   DefinitionCritere,
@@ -67,7 +80,7 @@ async function appeler<T>(
 ): Promise<T> {
   let reponse: Response;
   try {
-    reponse = await fetch(chemin, {
+    reponse = await fetch(`${RACINE_API}${chemin}`, {
       method: options.methode ?? 'GET',
       headers: {
         Accept: 'application/json',
@@ -415,7 +428,7 @@ export const api = {
     corps: unknown,
     nomFichier: string,
   ): Promise<void> => {
-    const reponse = await fetch(`/api/exports/${format}`, {
+    const reponse = await fetch(`${RACINE_API}/api/exports/${format}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

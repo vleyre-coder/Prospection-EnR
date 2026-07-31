@@ -70,8 +70,9 @@ Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, clique
 | Arrêter (sans rien perdre) | `./demarrer.sh --arreter` |
 | Repartir de zéro | `./demarrer.sh --effacer` |
 
-Installation sans Docker, déploiement sur serveur et dépannage :
-[docs/INSTALLATION.md](docs/INSTALLATION.md).
+Installation sans Docker et dépannage : [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Mise en ligne — un service Docker, ou interface sur Netlify et API ailleurs :
+[docs/HEBERGEMENT.md](docs/HEBERGEMENT.md).
 
 ## Données
 

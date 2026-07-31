@@ -1,0 +1,40 @@
+# Hebergement de l'INTERFACE sur Netlify.
+#
+# Netlify heberge le front-end ; l'API et sa base PostGIS doivent tourner ailleurs
+# (voir docs/HEBERGEMENT.md — un service Docker suffit). Netlify ne peut pas heberger
+# l'API : elle a besoin d'un processus permanent, d'un disque persistant pour le raster
+# de vent et de PostGIS avec ST_AsMVT.
+#
+# Une variable a definir dans Netlify (Site configuration > Environment variables) :
+#
+#   URL_API = https://mon-api.exemple.fr      (sans barre oblique finale)
+#
+# Deux modes selon ce que vous choisissez, decrits dans scripts/netlify-build.sh :
+#   - par defaut, Netlify reproxifie /api vers URL_API : meme origine, aucun CORS a regler ;
+#   - avec APPEL_DIRECT=1, l'interface appelle URL_API directement. Renseignez alors
+#     ORIGINES_AUTORISEES cote API avec l'URL de votre site Netlify.
+
+[build]
+  command = "bash scripts/netlify-build.sh"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Les fichiers d'assets sont versionnes par empreinte : ils sont immuables.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # L'application n'a aucune raison d'etre embarquee dans un site tiers, et elle
+    # affiche des donnees de prospection.
+    X-Frame-Options = "DENY"
+
+# Les redirections /api et le repli page unique sont ecrits dans dist/_redirects par
+# le script de construction, car leur cible depend de URL_API.

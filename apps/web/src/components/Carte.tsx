@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feu } from '@enr/core';
-import { api, type PosteSourceProps, type Referentiel } from '../api/client.js';
+import { api, RACINE_API, type PosteSourceProps, type Referentiel } from '../api/client.js';
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 
@@ -45,8 +45,8 @@ const ATTRIBUTION = '&copy; IGN &mdash; Geoplateforme';
  * alors automatiquement sur le relais, plutot que de rester vide.
  */
 const TUILES_RELAIS: Record<FondCarte, string> = {
-  plan: `${location.origin}/api/carte/fond/plan/{z}/{x}/{y}`,
-  ortho: `${location.origin}/api/carte/fond/ortho/{z}/{x}/{y}`,
+  plan: `${RACINE_API}/api/carte/fond/plan/{z}/{x}/{y}`,
+  ortho: `${RACINE_API}/api/carte/fond/ortho/{z}/{x}/{y}`,
 };
 
 /** Motifs de contour par statut de prospection, distincts du codage de score. */
@@ -208,7 +208,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     // --- Communes (vue nationale) ---
     m.addSource('communes', {
       type: 'vector',
-      tiles: [`${location.origin}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${f}`],
+      tiles: [`${RACINE_API}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${f}`],
       minzoom: 5,
       maxzoom: 13,
     });
@@ -250,7 +250,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     // --- Parcelles ---
     m.addSource('parcelles', {
       type: 'vector',
-      tiles: [`${location.origin}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${f}`],
+      tiles: [`${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${f}`],
       minzoom: ZOOM_MIN_PARCELLES,
       maxzoom: 19,
       promoteId: 'idu',
@@ -537,10 +537,10 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     if (!m || !pret) return;
     // Changer de filiere change l'URL des tuiles : le style, lui, reste identique.
     (m.getSource('parcelles') as maplibregl.VectorTileSource | undefined)?.setTiles([
-      `${location.origin}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+      `${RACINE_API}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${filiere}`,
     ]);
     (m.getSource('communes') as maplibregl.VectorTileSource | undefined)?.setTiles([
-      `${location.origin}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+      `${RACINE_API}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${filiere}`,
     ]);
   }, [filiere, pret]);
 

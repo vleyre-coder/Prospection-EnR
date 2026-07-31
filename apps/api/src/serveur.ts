@@ -21,6 +21,7 @@ import { routesParcelles } from './routes/parcelles.js';
 import { routesProspection } from './routes/prospection.js';
 import { routesDivers } from './routes/divers.js';
 import statique from '@fastify/static';
+import compression from '@fastify/compress';
 import { optionsStatique, repertoireInterface } from './routes/statique.js';
 import { ErreurSource } from './http.js';
 
@@ -55,14 +56,38 @@ export async function construireServeur(options: OptionsServeur = {}) {
     trustProxy: true,
   });
 
+  // CORS : tout ouvert en developpement ; en production, les origines locales plus celles
+  // declarees explicitement. Cette liste est ce qui permet d'heberger l'interface ailleurs
+  // que l'API (front statique sur un hebergeur de sites) sans ouvrir l'API a tous.
+  const originesLocales = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
   await app.register(cors, {
-    origin: config.env === 'development' ? true : /\.?localhost|127\.0\.0\.1/,
+    origin:
+      config.env === 'development'
+        ? true
+        : (origine, retour) => {
+            if (!origine) return retour(null, true); // requete hors navigateur
+            const admise =
+              originesLocales.test(origine) || config.web.originesAutorisees.includes(origine);
+            return retour(null, admise);
+          },
     credentials: true,
   });
 
   // Le secret vient du demarrage (variable d'environnement, ou secret persiste en base).
   // Le repli aleatoire ne sert qu'aux appels directs a `construireServeur` (tests) :
   // il vaut mieux des jetons non reutilisables qu'un secret devinable.
+  // Compression : le paquet cartographique depasse le megaoctet, et une tuile vectorielle
+  // nationale approche les 700 ko. nginx s'en charge dans la pile docker-compose, mais
+  // l'image de l'API doit rester utilisable seule, derriere n'importe quel hebergeur.
+  // Les tuiles et le GeoJSON ne figurent pas dans les types compressibles par defaut :
+  // ce sont pourtant les reponses les plus volumineuses de l'application.
+  await app.register(compression, {
+    global: true,
+    encodings: ['br', 'gzip', 'deflate'],
+    threshold: 1024,
+    customTypes: /^application\/(vnd\.mapbox-vector-tile|geo\+json)/,
+  });
+
   await app.register(jwt, {
     secret: options.secretJwt || config.auth.secretJwt || randomBytes(32).toString('hex'),
   });

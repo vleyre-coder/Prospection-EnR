@@ -1,5 +1,10 @@
-# Image de l'API. Construire depuis la RACINE du depot :
+# Image de l'API, interface incluse. Construire depuis la RACINE du depot :
 #   docker build -f apps/api/Dockerfile -t enr-api .
+#
+# L'interface est embarquee et servie par l'API : l'image est ainsi autosuffisante, et un
+# hebergeur ne demandant qu'un service (Render, Railway, Fly, un VPS) suffit a deployer
+# l'application entiere sous une seule URL. La pile docker-compose place malgre tout nginx
+# devant, pour la compression et le cache d'en-tetes.
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -9,13 +14,16 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/scoring/package.json packages/scoring/
 COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
 RUN npm ci --workspaces --include-workspace-root --omit=dev=false
 
 COPY packages ./packages
 COPY apps/api ./apps/api
+COPY apps/web ./apps/web
 RUN npm run build -w @enr/core \
  && npm run build -w @enr/scoring \
- && npm run build -w @enr/api
+ && npm run build -w @enr/api \
+ && npm run build -w @enr/web
 
 FROM node:22-alpine AS production
 WORKDIR /app
@@ -30,6 +38,8 @@ COPY --from=build /app/packages/scoring/package.json ./packages/scoring/
 COPY --from=build /app/packages/scoring/dist ./packages/scoring/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
+# Interface : `repertoireInterface()` cherche `dist/public` a cote des routes compilees.
+COPY --from=build /app/apps/web/dist ./apps/api/dist/public
 COPY db ./db
 
 # Repertoire des rasters ingeres (gisement de vent), monte en volume par compose.
