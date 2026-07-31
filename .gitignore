@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+*.log
+npm-debug.log*
+.cache/
+data/cache/
+data/downloads/
+apps/web/dist/
+apps/api/dist/
+packages/*/dist/

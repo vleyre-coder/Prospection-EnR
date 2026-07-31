@@ -1,0 +1,29 @@
+{
+  "name": "prospection-enr",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Application de prospection fonciere pour projets d'energies renouvelables en France",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build -w @enr/core && npm run build -w @enr/scoring && npm run build -w @enr/api && npm run build -w @enr/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @enr/api\" \"npm run dev -w @enr/web\"",
+    "dev:api": "npm run dev -w @enr/api",
+    "dev:web": "npm run dev -w @enr/web",
+    "db:migrate": "npm run migrate -w @enr/api",
+    "db:seed": "npm run seed -w @enr/api",
+    "ingest": "npm run ingest -w @enr/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.2"
+  }
+}
