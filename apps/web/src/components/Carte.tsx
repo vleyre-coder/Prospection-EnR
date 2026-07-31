@@ -16,7 +16,7 @@ import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } f
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feu } from '@enr/core';
 import { api, type PosteSourceProps, type Referentiel } from '../api/client.js';
-import { ponderationCourante, useEtat } from '../store/etat.js';
+import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 
 const VUE_FRANCE = { centre: [2.4, 46.6] as [number, number], zoom: 5.2 };
@@ -34,6 +34,20 @@ const TUILES_IGN = {
 };
 
 const ATTRIBUTION = '&copy; IGN &mdash; Geoplateforme';
+
+/**
+ * Relais de tuiles servi par l'API.
+ *
+ * Les tuiles IGN sont demandees en direct par defaut : c'est le chemin le plus court et il
+ * beneficie du reseau de diffusion de la Geoplateforme. Mais dans un reseau filtrant les
+ * sorties, ou derriere un proxy que le navigateur ne traverse pas, `data.geopf.fr` est
+ * injoignable depuis le poste alors que le serveur y accede sans peine. La carte bascule
+ * alors automatiquement sur le relais, plutot que de rester vide.
+ */
+const TUILES_RELAIS: Record<FondCarte, string> = {
+  plan: `${location.origin}/api/carte/fond/plan/{z}/{x}/{y}`,
+  ortho: `${location.origin}/api/carte/fond/ortho/{z}/{x}/{y}`,
+};
 
 /** Motifs de contour par statut de prospection, distincts du codage de score. */
 const MOTIFS: Record<string, number[] | null> = {
@@ -57,6 +71,8 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const [zoom, setZoom] = useState(VUE_FRANCE.zoom);
   const [mesure, setMesure] = useState<{ points: [number, number][]; surfaceHa: number; longueurM: number } | null>(null);
   const [fondInjoignable, setFondInjoignable] = useState(false);
+  /** Passe a `true` lorsque les appels directs a l'IGN ont echoue et que le relais prend le relais. */
+  const [fondViaRelais, setFondViaRelais] = useState(false);
 
   const etat = useEtat();
   const {
@@ -151,16 +167,29 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     m.on('zoomend', () => setZoom(m.getZoom()));
     m.on('moveend', () => setZoom(m.getZoom()));
 
-    // Un fond de carte muet est indiscernable d'une application cassee : on le dit.
-    let echecsTuiles = 0;
+    // Un fond de carte muet est indiscernable d'une application cassee. Plutot que de le
+    // signaler et s'en tenir la, on bascule sur le relais servi par l'API.
+    let echecsDirects = 0;
+    let bascule = false;
     m.on('error', (evenement) => {
       // `sourceId` n'est pas declare sur le type d'evenement, mais MapLibre le fournit pour
       // les erreurs de source.
       const e = evenement as unknown as { sourceId?: string; error?: { url?: string } };
       const url = e.error?.url ?? '';
-      if (e.sourceId === 'fond' || url.includes('data.geopf.fr/wmts')) {
-        echecsTuiles += 1;
-        if (echecsTuiles >= 3) setFondInjoignable(true);
+      const estFondDirect = url.includes('data.geopf.fr/wmts');
+      const estRelais = url.includes('/api/carte/fond/');
+
+      if (estRelais) {
+        // Le relais echoue aussi : le serveur n'atteint pas l'IGN non plus.
+        setFondInjoignable(true);
+        return;
+      }
+      if (!estFondDirect && e.sourceId !== 'fond') return;
+
+      echecsDirects += 1;
+      if (echecsDirects >= 3 && !bascule) {
+        bascule = true;
+        setFondViaRelais(true);
       }
     });
 
@@ -499,8 +528,8 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     const m = carte.current;
     if (!m || !pret) return;
     const source = m.getSource('fond') as maplibregl.RasterTileSource | undefined;
-    source?.setTiles([TUILES_IGN[fond]]);
-  }, [fond, pret]);
+    source?.setTiles([fondViaRelais ? TUILES_RELAIS[fond] : TUILES_IGN[fond]]);
+  }, [fond, fondViaRelais, pret]);
 
   // ------------------------------------------------------------------ filiere
   useEffect(() => {
@@ -763,8 +792,15 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
 
       {fondInjoignable && (
         <div className="indice-zoom" style={{ bottom: 68 }}>
-          Fond cartographique IGN injoignable (data.geopf.fr) : verifiez l&apos;acces reseau ou le
-          proxy. Les parcelles, couches et scores restent utilisables.
+          Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
+          l&apos;acces a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
+        </div>
+      )}
+
+      {fondViaRelais && !fondInjoignable && (
+        <div className="indice-zoom" style={{ bottom: 68 }}>
+          Fond cartographique servi via le relais de l&apos;application : l&apos;acces direct a
+          data.geopf.fr est bloque depuis ce poste.
         </div>
       )}
 

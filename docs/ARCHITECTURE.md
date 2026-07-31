@@ -159,6 +159,12 @@ Voir [apps/web/README.md](../apps/web/README.md). Deux points d'architecture :
 - **la carte reste montée en permanence**, masquée par `visibility` lorsque l'utilisateur passe
   en liste ou en tableau de bord : la démonter perdrait le contexte WebGL et la position de
   navigation ;
+- **le fond de carte a deux chemins**. Les tuiles IGN sont demandées en direct par le
+  navigateur — chemin le plus court, servi par le réseau de diffusion de la Géoplateforme.
+  Quand ces appels échouent (réseau filtrant, proxy que le navigateur ne traverse pas), la
+  carte bascule **automatiquement** sur le relais `/api/carte/fond/:fond/:z/:x/:y` de l'API,
+  qui reproxifie les tuiles avec un cache d'une semaine. La liste des fonds relayés est
+  fermée, pour que le relais ne devienne pas un proxy ouvert ;
 - **les couches métier sont installées sur `style.load`, pas sur `load`**. MapLibre n'émet
   `load` que lorsque toutes les sources du style sont résolues : un fond de carte injoignable
   privait donc l'utilisateur des parcelles, des scores et des contraintes. Un filet de sécurité

@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { estFiliere, type Filiere } from '@enr/core';
 import { config } from '../config.js';
 import { requete } from '../bdd.js';
+import { avecParams } from '../http.js';
 import { bboxDepuisChaine, cercle } from '../geo.js';
 import * as tuiles from '../services/tuiles.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -22,7 +23,100 @@ function filiereDepuis(q: unknown): Filiere {
   return estFiliere(f) ? f : 'solaire_sol';
 }
 
+/**
+ * Fonds de carte autorises par le relais.
+ *
+ * Liste FERMEE : le relais ne doit pas devenir un proxy ouvert vers n'importe quelle
+ * ressource distante.
+ */
+const FONDS_AUTORISES: Record<string, { couche: string; format: string; type: string }> = {
+  plan: { couche: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', format: 'image/png', type: 'image/png' },
+  ortho: { couche: 'ORTHOIMAGERY.ORTHOPHOTOS', format: 'image/jpeg', type: 'image/jpeg' },
+};
+
 export async function routesCarte(app: FastifyInstance): Promise<void> {
+  /**
+   * Relais des tuiles du fond de carte IGN.
+   *
+   * Les tuiles WMTS sont normalement demandees directement par le navigateur. Dans un reseau
+   * d'entreprise filtrant les sorties, ou derriere un proxy que le navigateur ne traverse pas,
+   * `data.geopf.fr` devient injoignable et la carte reste vide alors que tout le reste
+   * fonctionne. Ce relais fait passer les tuiles par l'API : le serveur a, lui, un acces
+   * sortant maitrise. Le client y bascule automatiquement lorsqu'il detecte l'echec des
+   * appels directs.
+   *
+   * L'attribution « © IGN — Geoplateforme » reste obligatoire et demeure affichee cote client.
+   */
+  app.get<{ Params: { fond: string; z: string; x: string; y: string } }>(
+    '/api/carte/fond/:fond/:z/:x/:y',
+    async (req, rep) => {
+      const conf = FONDS_AUTORISES[req.params.fond];
+      if (!conf) {
+        return erreur(rep, 404, 'fond_inconnu', `Fond inconnu : ${req.params.fond}`);
+      }
+      const z = Number(req.params.z);
+      const x = Number(req.params.x);
+      const y = Number(req.params.y);
+      if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+      }
+      // Bornes de la pyramide : evite de relayer des requetes absurdes.
+      const max = 2 ** z;
+      if (x < 0 || y < 0 || x >= max || y >= max) {
+        return rep.code(204).send();
+      }
+
+      const url = avecParams('https://data.geopf.fr/wmts', {
+        SERVICE: 'WMTS',
+        VERSION: '1.0.0',
+        REQUEST: 'GetTile',
+        LAYER: conf.couche,
+        STYLE: 'normal',
+        TILEMATRIXSET: 'PM',
+        FORMAT: conf.format,
+        TILEMATRIX: z,
+        TILEROW: y,
+        TILECOL: x,
+      });
+
+      try {
+        const reponse = await fetch(url, {
+          headers: {
+            Accept: conf.type,
+            'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
+          },
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!reponse.ok) {
+          // Une tuile absente n'est pas une erreur applicative : hors emprise, l'IGN
+          // repond 404 et la carte doit simplement ne rien afficher.
+          if (reponse.status === 404 || reponse.status === 400) return rep.code(204).send();
+          return erreur(
+            rep,
+            502,
+            'fond_indisponible',
+            `Le service de tuiles IGN a repondu ${reponse.status}.`,
+          );
+        }
+        const tuile = Buffer.from(await reponse.arrayBuffer());
+        return rep
+          .header('Content-Type', reponse.headers.get('content-type') ?? conf.type)
+          // Les tuiles IGN sont stables : un cache long evite de relayer deux fois la
+          // meme tuile pour toute l'equipe.
+          .header('Cache-Control', 'public, max-age=604800, immutable')
+          .send(tuile);
+      } catch (err) {
+        req.log.warn({ err, fond: req.params.fond, z, x, y }, 'Relais de tuile IGN en echec');
+        return erreur(
+          rep,
+          502,
+          'fond_indisponible',
+          "Le service de tuiles IGN est injoignable depuis le serveur.",
+        );
+      }
+    },
+  );
+
   // --- Tuiles vectorielles des parcelles ----------------------------------
   app.get<{ Params: ParamsTuile }>('/api/carte/tuiles/parcelles/:z/:x/:y.mvt', async (req, rep) => {
     const z = Number(req.params.z);

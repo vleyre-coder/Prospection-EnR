@@ -54,6 +54,8 @@ export async function construireServeur() {
     // Les tuiles vectorielles sont servies sans authentification : elles ne contiennent
     // aucune donnee nominative, et l'imposer casserait le cache du client cartographique.
     if (req.url.startsWith('/api/carte/tuiles/')) return;
+    // Meme raison pour le relais du fond de carte : ce sont des tuiles IGN publiques.
+    if (req.url.startsWith('/api/carte/fond/')) return;
 
     if (config.auth.desactivee) {
       if (config.env === 'production') {

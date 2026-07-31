@@ -11,8 +11,12 @@
 
 **Derrière un proxy d'entreprise**, renseigner `HTTPS_PROXY` **et** `NODE_USE_ENV_PROXY=1` :
 Node ignore `HTTPS_PROXY` par défaut, ce qui rend certaines sources injoignables sans erreur
-explicite (réponse `503 upstream connect error` émise par le proxy). Le navigateur doit être
-configuré séparément pour atteindre `data.geopf.fr` (fonds de carte).
+explicite (réponse `503 upstream connect error` émise par le proxy).
+
+Le fond de carte, lui, n'exige **aucune configuration côté poste** : les tuiles IGN sont
+demandées en direct par le navigateur quand il y a accès, et la carte **bascule
+automatiquement** sur le relais `/api/carte/fond/…` servi par l'API dans le cas contraire.
+Seul le serveur a donc besoin d'atteindre `data.geopf.fr`.
 
 Aucune clé d'API n'est requise pour les sources utilisées.
 
@@ -184,7 +188,8 @@ Efface les données nominatives de propriétaires arrivées à échéance
 | Symptôme | Cause probable | Correction |
 |---|---|---|
 | `relation "parcelle" does not exist` | migrations non appliquées | `npm run db:migrate` |
-| Carte grise, message « fond cartographique IGN injoignable » | `data.geopf.fr` bloqué depuis le **navigateur** | configurer le proxy du navigateur ; l'application reste utilisable (parcelles, scores et couches viennent de l'API) |
+| Message « fond servi via le relais de l'application » | `data.geopf.fr` bloqué depuis le **navigateur** | rien à faire : la carte bascule automatiquement sur le relais `/api/carte/fond/…`. Pour repasser en direct, autoriser `data.geopf.fr` sur les postes. |
+| Message « fond injoignable, y compris depuis le serveur » | `data.geopf.fr` bloqué depuis le **serveur** aussi | autoriser `data.geopf.fr` en sortie du serveur, ou renseigner `HTTPS_PROXY` + `NODE_USE_ENV_PROXY=1` |
 | Vue nationale vide sous le zoom 14 | communes non ingérées | `npm run ingest -w @enr/api -- communes` |
 | Critères de raccordement gris | postes sources non ingérés | `npm run ingest -w @enr/api -- postes_sources` |
 | Critères patrimoine gris | patrimoine non ingéré | `npm run ingest -w @enr/api -- patrimoine_culture` |
