@@ -415,6 +415,12 @@ export interface Lead {
   statut: StatutProspection;
   /** Notes libres du charge de prospection. */
   notes: string | null;
+  /**
+   * Score au moment de la prise en prospection. Compare au score courant, il revele la
+   * derive due a l'evolution des donnees sources (nouvelle capacite de poste, nouveau
+   * zonage, nouveau millesime RPG).
+   */
+  scoreInitial: number | null;
   /** Historique horodate des changements de statut et des contacts. */
   historique: LeadEvenement[];
   assigneA: string | null;

@@ -1,0 +1,907 @@
+/**
+ * Carte MapLibre.
+ *
+ * Deux dimensions visuelles distinctes, exigence du cahier des charges :
+ *   - le SCORE DE PROPICE gouverne le REMPLISSAGE des parcelles ;
+ *   - l'ETAT DE PROSPECTION gouverne le CONTOUR (couleur et motif de tiretes).
+ *
+ * La coloration est faite par expression de style sur les attributs de la tuile vectorielle,
+ * jamais cote serveur : changer de filiere ne fait que changer l'URL de la source, et un
+ * deplacement de curseur de ponderation applique les nouveaux statuts par `setFeatureState`,
+ * sans retelecharger les tuiles.
+ */
+
+import { useEffect, useRef, useState } from 'react';
+import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import type { Feu } from '@enr/core';
+import { api, type PosteSourceProps, type Referentiel } from '../api/client.js';
+import { ponderationCourante, useEtat } from '../store/etat.js';
+import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
+
+const VUE_FRANCE = { centre: [2.4, 46.6] as [number, number], zoom: 5.2 };
+const ZOOM_MIN_PARCELLES = 14;
+
+const TUILES_IGN = {
+  plan:
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile' +
+    '&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM' +
+    '&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+  ortho:
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile' +
+    '&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM' +
+    '&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+};
+
+const ATTRIBUTION = '&copy; IGN &mdash; Geoplateforme';
+
+/** Motifs de contour par statut de prospection, distincts du codage de score. */
+const MOTIFS: Record<string, number[] | null> = {
+  aucun: null,
+  pointille: [1, 1.5],
+  tiret: [3, 1.5],
+  plein: null,
+  hachure: [0.5, 1],
+};
+
+interface Props {
+  referentiel: Referentiel;
+  /** Expose l'instance MapLibre au parent (recentrages depuis la recherche et la liste). */
+  onCarte?: (m: CarteMapLibre) => void;
+}
+
+export function Carte({ referentiel, onCarte }: Props): JSX.Element {
+  const conteneur = useRef<HTMLDivElement>(null);
+  const carte = useRef<CarteMapLibre | null>(null);
+  const [pret, setPret] = useState(false);
+  const [zoom, setZoom] = useState(VUE_FRANCE.zoom);
+  const [mesure, setMesure] = useState<{ points: [number, number][]; surfaceHa: number; longueurM: number } | null>(null);
+  const [fondInjoignable, setFondInjoignable] = useState(false);
+
+  const etat = useEtat();
+  const {
+    filiere,
+    fond,
+    couchesActives,
+    rayonRaccordementKm,
+    afficherPostes,
+    afficherReseauGaz,
+    outil,
+    idusSelectionnes,
+    iduSelectionne,
+  } = etat;
+
+  // Reference stable pour les gestionnaires d'evenements MapLibre, qui sont installes une
+  // seule fois mais doivent lire l'etat courant.
+  const etatRef = useRef(etat);
+  etatRef.current = etat;
+
+  const couleurs = referentiel.palette.couleursScoreRemplissage;
+  const couleursStatut = Object.fromEntries(
+    referentiel.statutsProspection.map((s) => [s.id, s.couleur]),
+  );
+
+  // ------------------------------------------------------------------ init
+  useEffect(() => {
+    if (!conteneur.current || carte.current) return;
+
+    const m = new maplibregl.Map({
+      container: conteneur.current,
+      center: VUE_FRANCE.centre,
+      zoom: VUE_FRANCE.zoom,
+      maxZoom: 19,
+      minZoom: 4,
+      attributionControl: false,
+      style: {
+        version: 8,
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+        sources: {
+          fond: {
+            type: 'raster',
+            tiles: [TUILES_IGN.plan],
+            tileSize: 256,
+            attribution: ATTRIBUTION,
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          { id: 'fond-carte', type: 'raster', source: 'fond' },
+        ],
+      },
+    });
+
+    m.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'bottom-right');
+    m.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-right');
+    m.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
+
+    // L'instance est exposee immediatement : `fitBounds` et `easeTo` sont utilisables des
+    // la construction, et un fond de carte injoignable ne doit pas empecher la navigation.
+    onCarte?.(m);
+
+    /**
+     * Installation des couches metier.
+     *
+     * On ne s'appuie PAS uniquement sur l'evenement `load` : celui-ci n'est emis que
+     * lorsque toutes les sources du style sont resolues, si bien qu'un fond de carte
+     * injoignable prive l'utilisateur des parcelles, des scores et des couches de
+     * contraintes - c'est-a-dire de tout ce qui fait la valeur de l'application.
+     * On declenche donc l'installation des que le STYLE est pret, quel que soit l'etat des
+     * tuiles du fond.
+     */
+    let couchesInstallees = false;
+    const installer = (): void => {
+      if (couchesInstallees) return;
+      try {
+        installerCouches(m, filiere);
+        couchesInstallees = true;
+        setPret(true);
+      } catch (err) {
+        // Le style n'est pas encore analysable : une tentative ulterieure aboutira.
+        void err;
+      }
+    };
+
+    // `style.load` garantit que le style est analyse, sans attendre la resolution des
+    // sources : c'est le bon moment pour ajouter les couches metier.
+    m.on('style.load', installer);
+    m.on('load', installer);
+    // Filet de securite : si aucun des deux evenements n'aboutit (fond injoignable, style
+    // partiellement resolu), l'application doit malgre tout afficher les parcelles.
+    const filet = window.setTimeout(installer, 2000);
+    m.on('zoomend', () => setZoom(m.getZoom()));
+    m.on('moveend', () => setZoom(m.getZoom()));
+
+    // Un fond de carte muet est indiscernable d'une application cassee : on le dit.
+    let echecsTuiles = 0;
+    m.on('error', (evenement) => {
+      // `sourceId` n'est pas declare sur le type d'evenement, mais MapLibre le fournit pour
+      // les erreurs de source.
+      const e = evenement as unknown as { sourceId?: string; error?: { url?: string } };
+      const url = e.error?.url ?? '';
+      if (e.sourceId === 'fond' || url.includes('data.geopf.fr/wmts')) {
+        echecsTuiles += 1;
+        if (echecsTuiles >= 3) setFondInjoignable(true);
+      }
+    });
+
+    carte.current = m;
+    return () => {
+      window.clearTimeout(filet);
+      m.remove();
+      carte.current = null;
+    };
+    // Les couches sont installees une fois ; les effets suivants les mettent a jour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Installe les sources et couches vectorielles. */
+  function installerCouches(m: CarteMapLibre, f: string): void {
+    // --- Communes (vue nationale) ---
+    m.addSource('communes', {
+      type: 'vector',
+      tiles: [`${location.origin}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${f}`],
+      minzoom: 5,
+      maxzoom: 13,
+    });
+    m.addLayer({
+      id: 'communes-remplissage',
+      type: 'fill',
+      source: 'communes',
+      'source-layer': 'communes',
+      maxzoom: ZOOM_MIN_PARCELLES,
+      paint: {
+        'fill-color': [
+          'case',
+          ['==', ['get', 'nb_parcelles_qualifiees'], 0],
+          'rgba(0,0,0,0)',
+          [
+            'interpolate',
+            ['linear'],
+            ['/', ['to-number', ['get', 'nb_vert'], 0], ['max', ['to-number', ['get', 'nb_parcelles_qualifiees'], 1], 1]],
+            0,
+            couleurs.rouge,
+            0.35,
+            couleurs.orange,
+            0.7,
+            couleurs.vert,
+          ],
+        ] as ExpressionSpecification,
+        'fill-opacity': 0.5,
+      },
+    });
+    m.addLayer({
+      id: 'communes-contour',
+      type: 'line',
+      source: 'communes',
+      'source-layer': 'communes',
+      maxzoom: ZOOM_MIN_PARCELLES,
+      paint: { 'line-color': '#64748b', 'line-width': 0.4, 'line-opacity': 0.5 },
+    });
+
+    // --- Parcelles ---
+    m.addSource('parcelles', {
+      type: 'vector',
+      tiles: [`${location.origin}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${f}`],
+      minzoom: ZOOM_MIN_PARCELLES,
+      maxzoom: 19,
+      promoteId: 'idu',
+    });
+
+    // Remplissage = SCORE. `feature-state` a priorite : il permet la recoloration
+    // instantanee au deplacement des curseurs de ponderation.
+    m.addLayer({
+      id: 'parcelles-remplissage',
+      type: 'fill',
+      source: 'parcelles',
+      'source-layer': 'parcelles',
+      minzoom: ZOOM_MIN_PARCELLES,
+      paint: {
+        'fill-color': expressionCouleurScore(couleurs),
+        'fill-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selectionnee'], false],
+          0.82,
+          0.55,
+        ] as ExpressionSpecification,
+      },
+    });
+
+    // Contour fin de parcellaire, pour la lisibilite du decoupage.
+    m.addLayer({
+      id: 'parcelles-limites',
+      type: 'line',
+      source: 'parcelles',
+      'source-layer': 'parcelles',
+      minzoom: ZOOM_MIN_PARCELLES,
+      paint: { 'line-color': 'rgba(30,41,59,0.45)', 'line-width': 0.5 },
+    });
+
+    // Contour = ETAT DE PROSPECTION. Une couche par motif, car `line-dasharray` n'accepte
+    // pas d'expression dependante des donnees dans MapLibre.
+    for (const statut of referentiel.statutsProspection) {
+      const motif = MOTIFS[statut.motif] ?? null;
+      m.addLayer({
+        id: `prospection-${statut.id}`,
+        type: 'line',
+        source: 'parcelles',
+        'source-layer': 'parcelles',
+        minzoom: ZOOM_MIN_PARCELLES,
+        filter: ['==', ['get', 'statut_prospection'], statut.id],
+        paint: {
+          'line-color': statut.couleur,
+          'line-width': 2.6,
+          ...(motif ? { 'line-dasharray': motif } : {}),
+        },
+      });
+    }
+
+    // Parcelle ouverte dans la fiche, et parcelles cochees pour un site.
+    m.addLayer({
+      id: 'parcelles-selection',
+      type: 'line',
+      source: 'parcelles',
+      'source-layer': 'parcelles',
+      minzoom: ZOOM_MIN_PARCELLES,
+      filter: ['in', ['get', 'idu'], ['literal', []]],
+      paint: { 'line-color': '#0f172a', 'line-width': 3, 'line-dasharray': [2, 1] },
+    });
+    m.addLayer({
+      id: 'parcelle-active',
+      type: 'line',
+      source: 'parcelles',
+      'source-layer': 'parcelles',
+      minzoom: ZOOM_MIN_PARCELLES,
+      filter: ['==', ['get', 'idu'], ''],
+      paint: { 'line-color': '#0f172a', 'line-width': 3.4 },
+    });
+
+    // --- Couches de contraintes (GeoJSON charge a la demande) ---
+    for (const couche of referentiel.couches) {
+      if (['postes_sources', 'reseau_gaz'].includes(couche.id)) continue;
+      m.addSource(`c-${couche.id}`, { type: 'geojson', data: vide() });
+      if (couche.typeGeom === 'point') {
+        m.addLayer({
+          id: `c-${couche.id}`,
+          type: 'circle',
+          source: `c-${couche.id}`,
+          layout: { visibility: 'none' },
+          paint: {
+            'circle-radius': 4,
+            'circle-color': couche.couleur,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#fff',
+          },
+        });
+      } else {
+        m.addLayer({
+          id: `c-${couche.id}`,
+          type: 'fill',
+          source: `c-${couche.id}`,
+          layout: { visibility: 'none' },
+          paint: { 'fill-color': couche.couleur, 'fill-opacity': 0.28 },
+        });
+        m.addLayer({
+          id: `c-${couche.id}-contour`,
+          type: 'line',
+          source: `c-${couche.id}`,
+          layout: { visibility: 'none' },
+          paint: { 'line-color': couche.couleur, 'line-width': 1.1 },
+        });
+      }
+    }
+
+    // --- Rayons de raccordement, sous les postes ---
+    m.addSource('rayons', { type: 'geojson', data: vide() });
+    m.addLayer({
+      id: 'rayons-remplissage',
+      type: 'fill',
+      source: 'rayons',
+      paint: {
+        'fill-color': [
+          'match',
+          ['get', 'etatSaturation'],
+          'disponible', referentiel.palette.couleursSaturation['disponible'] ?? '#15803d',
+          'tendu', referentiel.palette.couleursSaturation['tendu'] ?? '#d97706',
+          'sature', referentiel.palette.couleursSaturation['sature'] ?? '#b91c1c',
+          '#6b7280',
+        ] as ExpressionSpecification,
+        'fill-opacity': 0.08,
+      },
+    });
+    m.addLayer({
+      id: 'rayons-contour',
+      type: 'line',
+      source: 'rayons',
+      paint: { 'line-color': '#0f766e', 'line-width': 1, 'line-dasharray': [3, 2], 'line-opacity': 0.5 },
+    });
+
+    // --- Reseau gaz ---
+    m.addSource('gaz-canalisations', { type: 'geojson', data: vide() });
+    m.addLayer({
+      id: 'gaz-canalisations',
+      type: 'line',
+      source: 'gaz-canalisations',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#a16207', 'line-width': 1.8, 'line-dasharray': [4, 2] },
+    });
+    m.addSource('gaz-points', { type: 'geojson', data: vide() });
+    m.addLayer({
+      id: 'gaz-points',
+      type: 'circle',
+      source: 'gaz-points',
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': 5,
+        'circle-color': '#a16207',
+        'circle-stroke-width': 1.5,
+        'circle-stroke-color': '#fff',
+      },
+    });
+
+    // --- Postes sources : symbole distinct par gestionnaire, couleur = saturation ---
+    m.addSource('postes', { type: 'geojson', data: vide() });
+    const couleurSaturation: ExpressionSpecification = [
+      'match',
+      ['get', 'etatSaturation'],
+      'disponible', referentiel.palette.couleursSaturation['disponible'] ?? '#15803d',
+      'tendu', referentiel.palette.couleursSaturation['tendu'] ?? '#d97706',
+      'sature', referentiel.palette.couleursSaturation['sature'] ?? '#b91c1c',
+      referentiel.palette.couleursSaturation['inconnu'] ?? '#6b7280',
+    ];
+    // RTE : carre (gestionnaire du reseau de transport). Enedis et autres GRD : cercle.
+    m.addLayer({
+      id: 'postes-rte',
+      type: 'symbol',
+      source: 'postes',
+      filter: ['==', ['get', 'gestionnaire'], 'RTE'],
+      layout: { 'icon-image': 'carre', 'icon-allow-overlap': true, 'icon-size': 1 },
+      paint: {},
+    });
+    m.addLayer({
+      id: 'postes-grd',
+      type: 'circle',
+      source: 'postes',
+      filter: ['!=', ['get', 'gestionnaire'], 'RTE'],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 12, 7] as ExpressionSpecification,
+        'circle-color': couleurSaturation,
+        'circle-stroke-width': 2,
+        // Un poste en projet ou en renforcement est distingue par un contour clair.
+        'circle-stroke-color': [
+          'case',
+          ['any', ['get', 'enProjet'], ['get', ['literal', 'prevu'], ['get', 'renforcement']]],
+          '#ffffff',
+          '#0f172a',
+        ] as ExpressionSpecification,
+        'circle-opacity': ['case', ['get', 'enProjet'], 0.55, 0.95] as ExpressionSpecification,
+      },
+    });
+
+    // Le symbole carre est genere en memoire : aucune ressource externe n'est chargee.
+    m.addImage('carre', imageCarre(), { pixelRatio: 2 });
+    m.setPaintProperty('postes-rte', 'icon-color', couleurSaturation);
+  }
+
+  // ------------------------------------------------------------------ interactions
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+
+    const surClic = (e: maplibregl.MapLayerMouseEvent): void => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const idu = String(f.properties?.['idu'] ?? '');
+      if (!idu) return;
+      const e2 = etatRef.current;
+      // Majuscule ou outil de selection : on coche la parcelle pour constituer un site.
+      if (e.originalEvent.shiftKey || e2.outil === 'selection') {
+        e2.basculerSelection(idu);
+      } else {
+        e2.selectionnerParcelle(idu);
+      }
+    };
+
+    const surClicCommune = (e: maplibregl.MapLayerMouseEvent): void => {
+      const f = e.features?.[0];
+      if (!f) return;
+      // Un clic sur une commune zoome jusqu'au niveau parcellaire.
+      m.easeTo({ center: e.lngLat, zoom: ZOOM_MIN_PARCELLES + 0.5, duration: 700 });
+    };
+
+    let popup: maplibregl.Popup | null = null;
+    const surSurvolPoste = (e: maplibregl.MapLayerMouseEvent): void => {
+      const f = e.features?.[0];
+      if (!f) return;
+      m.getCanvas().style.cursor = 'pointer';
+      popup?.remove();
+      popup = new maplibregl.Popup({ closeButton: false, offset: 10, maxWidth: '300px' })
+        .setLngLat(e.lngLat)
+        .setHTML(htmlPoste(f.properties as unknown as PosteSourceProps, referentiel))
+        .addTo(m);
+    };
+    const surSortiePoste = (): void => {
+      m.getCanvas().style.cursor = '';
+      popup?.remove();
+      popup = null;
+    };
+
+    const curseurPointeur = (): void => {
+      m.getCanvas().style.cursor = 'pointer';
+    };
+    const curseurNormal = (): void => {
+      m.getCanvas().style.cursor = '';
+    };
+
+    m.on('click', 'parcelles-remplissage', surClic);
+    m.on('click', 'communes-remplissage', surClicCommune);
+    m.on('mouseenter', 'parcelles-remplissage', curseurPointeur);
+    m.on('mouseleave', 'parcelles-remplissage', curseurNormal);
+    for (const c of ['postes-grd', 'postes-rte']) {
+      m.on('mousemove', c, surSurvolPoste);
+      m.on('mouseleave', c, surSortiePoste);
+    }
+
+    return () => {
+      m.off('click', 'parcelles-remplissage', surClic);
+      m.off('click', 'communes-remplissage', surClicCommune);
+      m.off('mouseenter', 'parcelles-remplissage', curseurPointeur);
+      m.off('mouseleave', 'parcelles-remplissage', curseurNormal);
+      for (const c of ['postes-grd', 'postes-rte']) {
+        m.off('mousemove', c, surSurvolPoste);
+        m.off('mouseleave', c, surSortiePoste);
+      }
+      popup?.remove();
+    };
+  }, [pret, referentiel]);
+
+  // ------------------------------------------------------------------ fond de carte
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+    const source = m.getSource('fond') as maplibregl.RasterTileSource | undefined;
+    source?.setTiles([TUILES_IGN[fond]]);
+  }, [fond, pret]);
+
+  // ------------------------------------------------------------------ filiere
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+    // Changer de filiere change l'URL des tuiles : le style, lui, reste identique.
+    (m.getSource('parcelles') as maplibregl.VectorTileSource | undefined)?.setTiles([
+      `${location.origin}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+    ]);
+    (m.getSource('communes') as maplibregl.VectorTileSource | undefined)?.setTiles([
+      `${location.origin}/api/carte/tuiles/communes/{z}/{x}/{y}.mvt?filiere=${filiere}`,
+    ]);
+  }, [filiere, pret]);
+
+  // ------------------------------------------------------------------ selection
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+    m.setFilter('parcelles-selection', ['in', ['get', 'idu'], ['literal', idusSelectionnes]]);
+    m.setFilter('parcelle-active', ['==', ['get', 'idu'], iduSelectionne ?? '']);
+  }, [idusSelectionnes, iduSelectionne, pret]);
+
+  // ------------------------------------------------------------------ couches de contraintes
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+
+    for (const couche of referentiel.couches) {
+      if (['postes_sources', 'reseau_gaz'].includes(couche.id)) continue;
+      const actif = couchesActives.includes(couche.id);
+      for (const id of [`c-${couche.id}`, `c-${couche.id}-contour`]) {
+        if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', actif ? 'visible' : 'none');
+      }
+    }
+
+    if (couchesActives.length === 0) return;
+    const b = m.getBounds();
+    const bbox: [number, number, number, number] = [
+      b.getWest(),
+      b.getSouth(),
+      b.getEast(),
+      b.getNorth(),
+    ];
+    let annule = false;
+    void Promise.all(
+      couchesActives.map(async (id) => {
+        try {
+          const fc = await api.couche(id, bbox);
+          if (annule) return;
+          (m.getSource(`c-${id}`) as maplibregl.GeoJSONSource | undefined)?.setData(fc);
+        } catch {
+          // Couche indisponible : elle reste vide, la carte demeure utilisable.
+        }
+      }),
+    );
+    return () => {
+      annule = true;
+    };
+  }, [couchesActives, zoom, pret, referentiel]);
+
+  // ------------------------------------------------------------------ postes et rayons
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+
+    for (const id of ['postes-grd', 'postes-rte']) {
+      if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', afficherPostes ? 'visible' : 'none');
+    }
+    for (const id of ['rayons-remplissage', 'rayons-contour']) {
+      if (m.getLayer(id)) {
+        m.setLayoutProperty(
+          id,
+          'visibility',
+          afficherPostes && rayonRaccordementKm > 0 ? 'visible' : 'none',
+        );
+      }
+    }
+    if (!afficherPostes) return;
+
+    const b = m.getBounds();
+    const bbox: [number, number, number, number] = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    let annule = false;
+    void api
+      .postesSources(bbox, null)
+      .then((fc) => {
+        if (annule) return;
+        (m.getSource('postes') as maplibregl.GeoJSONSource | undefined)?.setData(fc);
+        // Les cercles sont calcules cote client : le curseur de rayon reagit instantanement.
+        if (rayonRaccordementKm > 0) {
+          (m.getSource('rayons') as maplibregl.GeoJSONSource | undefined)?.setData({
+            type: 'FeatureCollection',
+            features: fc.features.map((f) => ({
+              type: 'Feature' as const,
+              geometry: cercleGeodesique(f.geometry.coordinates, rayonRaccordementKm * 1000),
+              properties: { etatSaturation: f.properties.etatSaturation, nom: f.properties.nom },
+            })),
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      annule = true;
+    };
+  }, [afficherPostes, rayonRaccordementKm, zoom, pret]);
+
+  // ------------------------------------------------------------------ reseau gaz
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+    for (const id of ['gaz-canalisations', 'gaz-points']) {
+      if (m.getLayer(id)) {
+        m.setLayoutProperty(id, 'visibility', afficherReseauGaz ? 'visible' : 'none');
+      }
+    }
+    if (!afficherReseauGaz) return;
+    const b = m.getBounds();
+    let annule = false;
+    void api
+      .reseauGaz([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
+      .then((r) => {
+        if (annule) return;
+        (m.getSource('gaz-points') as maplibregl.GeoJSONSource | undefined)?.setData(r.pointsInjection);
+        (m.getSource('gaz-canalisations') as maplibregl.GeoJSONSource | undefined)?.setData(r.canalisations);
+      })
+      .catch(() => undefined);
+    return () => {
+      annule = true;
+    };
+  }, [afficherReseauGaz, zoom, pret]);
+
+  // ------------------------------------------------------------------ recoloration par ponderation
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret || zoom < ZOOM_MIN_PARCELLES) return;
+    const ponderation = ponderationCourante(etatRef.current);
+    if (!ponderation) {
+      // Retour au profil par defaut : les statuts de la tuile reprennent la main.
+      m.removeFeatureState({ source: 'parcelles', sourceLayer: 'parcelles' });
+      return;
+    }
+
+    const entites = m.querySourceFeatures('parcelles', { sourceLayer: 'parcelles' });
+    const idus = [...new Set(entites.map((f) => String(f.properties?.['idu'] ?? '')).filter(Boolean))];
+    if (idus.length === 0) return;
+
+    let annule = false;
+    void api
+      .scoresLot(idus.slice(0, 2000), filiere, ponderation)
+      .then(({ scores }) => {
+        if (annule) return;
+        for (const [idu, s] of Object.entries(scores)) {
+          m.setFeatureState(
+            { source: 'parcelles', sourceLayer: 'parcelles', id: idu },
+            { statut: s.statut },
+          );
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      annule = true;
+    };
+  }, [etat.ponderations, etat.seuils, filiere, zoom, pret]);
+
+  // ------------------------------------------------------------------ outils de dessin
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+
+    if (!m.getSource('dessin')) {
+      m.addSource('dessin', { type: 'geojson', data: vide() });
+      m.addLayer({
+        id: 'dessin-remplissage',
+        type: 'fill',
+        source: 'dessin',
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: { 'fill-color': '#0f5b8a', 'fill-opacity': 0.16 },
+      });
+      m.addLayer({
+        id: 'dessin-ligne',
+        type: 'line',
+        source: 'dessin',
+        paint: { 'line-color': '#0f5b8a', 'line-width': 2.2 },
+      });
+      m.addLayer({
+        id: 'dessin-sommets',
+        type: 'circle',
+        source: 'dessin',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: {
+          'circle-radius': 4,
+          'circle-color': '#fff',
+          'circle-stroke-color': '#0f5b8a',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+
+    if (outil !== 'polygone' && outil !== 'mesure') {
+      (m.getSource('dessin') as maplibregl.GeoJSONSource | undefined)?.setData(vide());
+      setMesure(null);
+      m.getCanvas().style.cursor = '';
+      return;
+    }
+
+    m.getCanvas().style.cursor = 'crosshair';
+    const points: [number, number][] = [];
+
+    const rafraichir = (): void => {
+      const traits: GeoJSON.Feature[] = points.map((p) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: p },
+        properties: {},
+      }));
+      if (points.length >= 2) {
+        traits.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: outil === 'polygone' ? [...points, points[0]!] : points },
+          properties: {},
+        });
+      }
+      if (outil === 'polygone' && points.length >= 3) {
+        traits.push({
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [[...points, points[0]!]] },
+          properties: {},
+        });
+      }
+      (m.getSource('dessin') as maplibregl.GeoJSONSource | undefined)?.setData({
+        type: 'FeatureCollection',
+        features: traits,
+      });
+      setMesure({
+        points: [...points],
+        surfaceHa: points.length >= 3 ? surfaceAnneauHa([...points, points[0]!]) : 0,
+        longueurM: longueurLigneM(outil === 'polygone' && points.length >= 3 ? [...points, points[0]!] : points),
+      });
+    };
+
+    const surClic = (e: maplibregl.MapMouseEvent): void => {
+      points.push([e.lngLat.lng, e.lngLat.lat]);
+      rafraichir();
+    };
+    const surDoubleClic = (e: maplibregl.MapMouseEvent): void => {
+      e.preventDefault();
+    };
+
+    m.on('click', surClic);
+    m.on('dblclick', surDoubleClic);
+    return () => {
+      m.off('click', surClic);
+      m.off('dblclick', surDoubleClic);
+    };
+  }, [outil, pret]);
+
+  const enVueNationale = zoom < ZOOM_MIN_PARCELLES;
+
+  return (
+    <>
+      <div ref={conteneur} className="carte" role="application" aria-label="Carte de prospection" />
+
+      {fondInjoignable && (
+        <div className="indice-zoom" style={{ bottom: 68 }}>
+          Fond cartographique IGN injoignable (data.geopf.fr) : verifiez l&apos;acces reseau ou le
+          proxy. Les parcelles, couches et scores restent utilisables.
+        </div>
+      )}
+
+      {enVueNationale && (
+        <div className="indice-zoom">
+          Vue nationale : potentiel par commune. Zoomez jusqu&apos;au niveau {ZOOM_MIN_PARCELLES} pour
+          afficher les parcelles.
+        </div>
+      )}
+
+      {mesure && mesure.points.length > 0 && (
+        <div className="mesure-info">
+          {outil === 'polygone' ? (
+            <>
+              <span>
+                <strong>Surface</strong> {formatSurface(mesure.surfaceHa)}
+              </span>
+              <span>
+                <strong>Perimetre</strong> {formatLongueur(mesure.longueurM)}
+              </span>
+            </>
+          ) : (
+            <span>
+              <strong>Distance</strong> {formatLongueur(mesure.longueurM)}
+            </span>
+          )}
+          <span style={{ color: 'var(--texte-faible)', fontSize: 11 }}>
+            {mesure.points.length} point{mesure.points.length > 1 ? 's' : ''} &mdash; cliquez pour
+            ajouter
+          </span>
+          {outil === 'polygone' && mesure.points.length >= 3 && (
+            <button
+              type="button"
+              className="bouton bouton-principal"
+              onClick={() => {
+                const nom = window.prompt('Nom du site a creer :', 'Nouveau site');
+                if (!nom) return;
+                void api
+                  .creerSite({
+                    nom,
+                    filiere,
+                    geometrie: {
+                      type: 'Polygon',
+                      coordinates: [[...mesure.points, mesure.points[0]!]],
+                    },
+                  })
+                  .then((s) => {
+                    window.alert(
+                      `Site « ${s.nom} » cree : ${s.idus.length} parcelle(s), ${s.surfaceHa ?? 0} ha, score ${s.scoreGlobal ?? 'non calcule'}.`,
+                    );
+                    useEtat.getState().definirOutil('aucun');
+                  })
+                  .catch((err: Error) => window.alert(`Creation impossible : ${err.message}`));
+              }}
+            >
+              Creer un site
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Expression de couleur du remplissage.
+ * `feature-state.statut` prime sur l'attribut de la tuile : c'est ce qui rend la
+ * recoloration immediate lorsque l'utilisateur modifie les ponderations.
+ */
+function expressionCouleurScore(couleurs: Record<Feu, string>): ExpressionSpecification {
+  return [
+    'match',
+    ['coalesce', ['feature-state', 'statut'], ['get', 'statut_score'], 'gris'],
+    'vert',
+    couleurs.vert,
+    'orange',
+    couleurs.orange,
+    'rouge',
+    couleurs.rouge,
+    couleurs.gris,
+  ] as ExpressionSpecification;
+}
+
+function vide(): GeoJSON.FeatureCollection {
+  return { type: 'FeatureCollection', features: [] };
+}
+
+/** Symbole carre pour les postes RTE, genere sans ressource externe. */
+function imageCarre(): { width: number; height: number; data: Uint8Array } {
+  const t = 22;
+  const data = new Uint8Array(t * t * 4);
+  for (let y = 0; y < t; y += 1) {
+    for (let x = 0; x < t; x += 1) {
+      const i = (y * t + x) * 4;
+      const bord = x < 3 || y < 3 || x >= t - 3 || y >= t - 3;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = bord ? 255 : 200;
+    }
+  }
+  return { width: t, height: t, data };
+}
+
+function htmlPoste(p: PosteSourceProps, r: Referentiel): string {
+  const echapper = (s: unknown): string =>
+    String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+  const etat = p.etatSaturation ?? 'inconnu';
+  const libelleEtat = r.palette.libellesSaturation[etat] ?? 'Etat inconnu';
+  const couleur = r.palette.couleursSaturation[etat] ?? '#6b7280';
+
+  const lignes: Array<[string, string]> = [];
+  if (p.tension) lignes.push(['Tension', echapper(p.tension)]);
+  lignes.push([
+    'Capacite residuelle',
+    p.capaciteResiduelleMw != null ? `${p.capaciteResiduelleMw} MW` : 'non publiee',
+  ]);
+  if (p.fileAttenteMw != null) lignes.push(["File d'attente", `${p.fileAttenteMw} MW`]);
+  if (p.quotePartEurParKw != null) lignes.push(['Quote-part', `${p.quotePartEurParKw} EUR/kW`]);
+  if (p.renforcement?.prevu) {
+    lignes.push([
+      'Renforcement',
+      echapper(p.renforcement.horizon ?? 'programme') +
+        (p.renforcement.capaciteAttendueMw != null ? ` (+${p.renforcement.capaciteAttendueMw} MW)` : ''),
+    ]);
+  }
+  if (p.enProjet) lignes.push(['Statut', 'poste en projet']);
+  if (p.dateDonnee) lignes.push(['Donnee du', echapper(p.dateDonnee)]);
+
+  return `<div class="popup-poste">
+    <h4>${echapper(p.nom)}</h4>
+    <div style="font-size:11.5px;margin-bottom:5px">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${couleur};margin-right:5px"></span>
+      ${echapper(p.gestionnaire)} &mdash; ${echapper(libelleEtat)}
+    </div>
+    <dl>${lignes.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    <p class="note">Capacite indicative (Capareseau), non engageante : seule une etude de
+    raccordement puis une proposition technique et financiere engagent une capacite.</p>
+  </div>`;
+}

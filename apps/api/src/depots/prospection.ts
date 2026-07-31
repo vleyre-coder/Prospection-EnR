@@ -35,6 +35,7 @@ function versLead(l: LigneLead, historique: LeadEvenement[] = []): Lead {
     filiere: l.filiere,
     statut: l.statut,
     notes: l.notes,
+    scoreInitial: l.score_initial,
     historique,
     assigneA: l.assigne_a,
     createdAt: l.created_at.toISOString(),
