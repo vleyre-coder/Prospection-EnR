@@ -15,6 +15,38 @@ Périmètre mesuré : 21 726 lignes (TypeScript, TSX, SQL), 76 fichiers source,
 
 ---
 
+## État des corrections — mise à jour du 1er août 2026
+
+Les **six corrections indispensables** listées en conclusion ont été implémentées. Le
+constat d'audit ci-dessous est conservé en l'état : il documente ce qui était en défaut et
+pourquoi. Chaque point corrigé porte un encadré « Corrigé ».
+
+| # | Point | État | Vérification |
+|---|---|---|---|
+| B1 | Avifaune = chiroptères = espèces | **corrigé** | test « ne note plus la sensibilité avifaune ni chiroptères » |
+| E1 | Knock-outs 500 m / 200 m mal référencés | **corrigé** | test « conserve une parcelle assez vaste pour tenir le recul de 500 m » |
+| B6 | Données de démonstration en base | **corrigé** | 4 tests, dont un garde-fou sur toute lecture non filtrée |
+| B2 | Biais optimiste sur données manquantes | **corrigé** | test « plafonne à orange … sous 90 % » |
+| B5 | Indice de covisibilité inventé | **corrigé** | supprimé du catalogue ; la fiche indique qu'il relève d'une étude paysagère |
+| B4 | Tuiles exposant le pipeline commercial | **corrigé** | 5 tests d'accès sur la route de tuiles |
+
+**Défaut découvert pendant ces corrections, et corrigé.** `rescorerTout` supprimait tous les
+scores d'une version antérieure du moteur, puis ne recalculait que les parcelles dont le
+*snapshot* était périmé. Les parcelles en bonne santé — snapshot récent — perdaient donc leur
+score sans jamais le retrouver : elles disparaissaient de la carte et des listes. Le défaut
+était latent ; la montée de version qu'imposent les corrections ci-dessus l'aurait déclenché
+au premier recalcul. La sélection porte désormais sur les parcelles privées de score à la
+version courante, la suppression n'intervient qu'après, et le recalcul est lancé
+automatiquement au démarrage — une correction du moteur qui n'atteint pas les parcelles déjà
+qualifiées n'a corrigé que le code.
+
+Couverture de test : **41 tests** (22 scoring, 19 API) contre 19 au moment de l'audit. Cela
+ne referme pas C2 : il n'y a toujours pas d'intégration continue, et les corrections B4 et B6
+sont vérifiées par des tests de structure, pas par un scénario de bout en bout sur une base
+réelle.
+
+---
+
 ## A. Ce qui fonctionne bien
 
 Ces points ne sont pas de la politesse : ce sont des choix qui tiennent l'examen.
@@ -90,6 +122,11 @@ trompera, et ne pourra pas défendre son classement.
 source (couches de sensibilité avifaune régionales, atlas LPO/DREAL). Tant qu'aucune
 donnée n'existe, le critère doit être **gris**, pas dérivé.
 
+> **Corrigé.** `env_avifaune` et `env_chiropteres` sont retirés du catalogue et des pondérations. Les champs
+> du snapshot restent, mais le connecteur les laisse à `null` : ils accueilleront un atlas DREAL
+> ou LPO le jour où il sera ingéré. Le poids d'`env_especes_protegees` en éolien passe de 4 à 9,
+> de sorte que l'enjeu écologique garde son importance sans être compté trois fois.
+
 ### B2. Le score est optimiste quand la donnée manque
 
 `packages/scoring/src/index.ts:190` — `scoreBrut = sommePonderee / poidsRenseigne`
@@ -108,6 +145,11 @@ parcelles sur lesquelles on en sait le moins.
 **Correction :** remonter le seuil de couverture à 0,8 par défaut, et introduire une
 pénalité explicite d'incertitude (par exemple plafonner le statut à orange en deçà de
 0,85 de couverture), sur le modèle des `LimiteViabilite` déjà en place.
+
+> **Corrigé.** Seuil de grisement porté de 0,5 à 0,8 pour les quatre filières. Entre 80 % et 90 % de
+> couverture, le statut est plafonné à orange par une limite de viabilité explicite
+> (`couverture_insuffisante`) qui affiche son motif : le vert affirme une conclusion, il exige
+> une couverture qui la fonde. Version du moteur portée à 1.1.0.
 
 ### B3. Les scores matérialisés ne sont pas invalidés quand la réglementation change
 
@@ -137,6 +179,12 @@ lesquelles l'entreprise négocie.
 **Correction :** retirer `statut_prospection` de la tuile publique et le servir par une
 tuile authentifiée distincte, ou authentifier les tuiles par jeton en paramètre d'URL.
 
+> **Corrigé.** La route `/api/carte/tuiles/parcelles/` exige désormais un jeton ; les tuiles communales
+> (compteurs agrégés) et de contraintes (zonages publics) restent ouvertes. Le client attache le
+> jeton via `transformRequest`, évalué sur le fil principal et transmis au worker avec la
+> requête. La réponse passe en `Cache-Control: private` avec `Vary: Authorization`, pour qu'aucun
+> cache partagé ne la resserve à un autre porteur de jeton.
+
 ### B5. Un indice de covisibilité inventé
 
 `apps/api/src/connecteurs/locales.ts:276` :
@@ -149,6 +197,9 @@ case grise : il se cite en réunion.
 
 **Correction :** supprimer l'indice, conserver la distance au monument le plus proche et
 le nombre de monuments dans le rayon — des faits vérifiables.
+
+> **Corrigé.** Le critère `pat_covisibilite` est supprimé et le connecteur ne fabrique plus l'indice. La
+> fiche affiche « non évalué — relève d'une étude paysagère » plutôt qu'une case vide.
 
 ### B6. Les données de démonstration cohabitent avec les données réelles
 
@@ -164,6 +215,13 @@ réglementaire majeur — **qui est faux**.
 **Correction :** colonne `est_demonstration boolean` filtrée par toutes les lectures, ou
 schéma séparé. Un jeu de démonstration ne doit jamais être indiscernable du réel au
 niveau du moteur.
+
+> **Corrigé.** Migration 008 : colonne `est_demonstration` sur `zaer` et `document_cadre_pv`, avec reprise des
+> enregistrements déjà posés. Toutes les lectures du moteur filtrent dessus. L'amorçage
+> n'enregistre plus de couverture d'ingestion pour ces exemples : sans cela, le connecteur
+> serait passé de « on ne sait pas s'il existe une ZAER ici » à « il n'y a pas de ZAER ici » —
+> une affirmation d'absence fondée sur un jeu fictif, aussi trompeuse que l'affirmation de
+> présence corrigée.
 
 ### B7. La fonctionnalité « données de propriétaires » est une coquille
 
@@ -245,6 +303,11 @@ outil professionnel.
 ## E. Erreurs métier
 
 **E1. Les distances réglementaires sont mesurées depuis la mauvaise référence.**
+*(Corrigé : le moteur ajoute un déport d'implantation, approché par le rayon du disque de même
+surface, avant de comparer au recul de 500 m ou 200 m. Une parcelle de 40 ha dont le bord est à
+430 m n'est plus écartée ; la même distance sur 1,5 ha reste éliminatoire. La valeur affichée
+distingue « du bord » et « en implantant au plus loin ».)*
+
 `knockouts.ts:184` — le knock-out des 500 m éolien utilise `distanceHabitationM`,
 c'est-à-dire la distance entre **la parcelle** et l'habitation la plus proche. L'article
 L.515-44 impose 500 m entre **l'aérogénérateur** et l'habitation. Une éolienne étant
@@ -307,12 +370,12 @@ est totale, et l'application ne la voit pas.
 
 | # | Problème | Impact | Difficulté | Priorité |
 |---|---|---|---|---|
-| 1 | Avifaune = chiroptères = espèces (B1) | fausse le cœur du score éolien | faible (supprimer 2 critères) | **critique** |
-| 2 | Knock-outs 500 m / 200 m mal référencés (E1) | écarte des parcelles viables | moyenne | **critique** |
-| 3 | Données de démonstration en base (B6) | conclusion réglementaire fausse | faible | **critique** |
-| 4 | Biais optimiste sur données manquantes (B2) | classement faussé | faible (seuils) | **critique** |
-| 5 | Indice de covisibilité inventé (B5) | chiffre sans contenu | faible | **critique** |
-| 6 | Tuiles exposant le pipeline (B4) | fuite concurrentielle | faible | **critique** |
+| 1 | ~~Avifaune = chiroptères = espèces (B1)~~ **corrigé** | fausse le cœur du score éolien | faible (supprimer 2 critères) | **critique** |
+| 2 | ~~Knock-outs 500 m / 200 m mal référencés (E1)~~ **corrigé** | écarte des parcelles viables | moyenne | **critique** |
+| 3 | ~~Données de démonstration en base (B6)~~ **corrigé** | conclusion réglementaire fausse | faible | **critique** |
+| 4 | ~~Biais optimiste sur données manquantes (B2)~~ **corrigé** | classement faussé | faible (seuils) | **critique** |
+| 5 | ~~Indice de covisibilité inventé (B5)~~ **corrigé** | chiffre sans contenu | faible | **critique** |
+| 6 | ~~Tuiles exposant le pipeline (B4)~~ **corrigé** | fuite concurrentielle | faible | **critique** |
 | 7 | Doublon couches/calques (C1) | interface incohérente | faible | **élevée** |
 | 8 | Scores non invalidés au changement de règle (B3) | règle périmée appliquée | moyenne | **élevée** |
 | 9 | Fonction propriétaires vide (B7) | promesse non tenue | faible (retirer) ou élevée (implémenter) | **élevée** |
@@ -361,7 +424,8 @@ distances réglementaires mesurées depuis la parcelle au lieu de l'installation
 de démonstration indiscernable du réel.
 
 **Corrections indispensables avant tout usage opérationnel** — les six premières lignes
-du tableau G, soit environ deux à trois jours de travail :
+du tableau G, soit environ deux à trois jours de travail. *Les six ont été implémentées ; voir
+« Verdict révisé » en fin de document.* :
 
 1. supprimer `env_avifaune` et `env_chiropteres`, ou les passer en gris tant qu'aucune
    source réelle ne les alimente ;
@@ -381,3 +445,44 @@ de test et l'intégration continue (10). En l'état, chaque évolution peut cass
 silencieusement un calcul — et les deux régressions rencontrées cette semaine (coloration
 rouge généralisée, tuiles vectorielles muettes) en sont la démonstration : toutes deux
 sont passées inaperçues jusqu'à l'usage réel.
+
+---
+
+## Verdict révisé — après les six corrections critiques
+
+> **Cette application est-elle aujourd'hui suffisamment fiable pour être utilisée dans un
+> cadre professionnel sans risque majeur d'erreur ?**
+
+**Comme outil de dégrossissage et de priorisation interne : oui désormais.** Les six points
+qui faisaient afficher à l'application une précision qu'elle n'avait pas sont traités. Elle
+n'invente plus de chiffre, ne triple plus un enjeu, n'écarte plus une parcelle implantable, ne
+publie plus un vert sur une donnée trop lacunaire, ne présente plus une ZAER fictive comme
+réelle, et n'expose plus le pipeline commercial.
+
+**Comme pièce transmise à un tiers — client, investisseur, service instructeur : toujours
+non**, et pour des raisons différentes de celles de l'audit initial :
+
+- **B3** subsiste : un seuil réglementaire peut changer sans que la version du moteur bouge,
+  laissant en base des scores calculés sous l'ancienne règle. C'est le point le plus gênant
+  pour un document transmis, puisque l'argument de vente est la réglementation datée.
+- **B7** subsiste : la fonction « données de propriétaires » reste une coquille.
+- **C2** subsiste largement : 41 tests et toujours aucune intégration continue. Les tests
+  ajoutés couvrent les corrections, pas le reste du moteur.
+- Les indicateurs dérivés restants (potentiel agronomique, surface d'un seul tenant, distance à
+  vol d'oiseau) demeurent des proxies. Ils sont désormais honnêtement étiquetés, mais un
+  destinataire externe les lira comme des mesures.
+
+**Note révisée : 66 / 100** (contre 54).
+
+| Critère | Avant | Après | Ce qui a changé |
+|---|---|---|---|
+| Fiabilité des résultats | 45 | **70** | proxies dupliqués supprimés, biais optimiste corrigé, jeu de démonstration écarté ; reste B3 |
+| Qualité technique | 62 | **66** | 41 tests contre 19, dont un garde-fou anti-régression ; toujours pas de CI |
+| Qualité métier | 50 | **72** | distances réglementaires correctement référencées, plus aucun indice inventé |
+| Ergonomie | 60 | **61** | inchangée, hormis l'affichage explicite des indicateurs sans source |
+| Robustesse | 55 | **62** | recalcul automatique des scores obsolètes, défaut de `rescorerTout` corrigé |
+| Professionnalisation | 55 | **58** | documentation à jour ; ni CI, ni versionnement du référentiel, ni sauvegarde |
+
+**Prochaine correction à prioriser :** B3 — faire entrer l'empreinte du référentiel
+réglementaire dans la clé d'invalidation des scores. Le mécanisme de recalcul automatique
+ajouté pendant ces corrections en constitue la moitié : il ne manque que l'empreinte.

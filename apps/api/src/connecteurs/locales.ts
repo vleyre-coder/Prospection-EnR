@@ -150,7 +150,10 @@ export async function zaer(pt: Position, codeDepartement: string): Promise<Urban
     requete<{ filieres: string[]; date_deliberation: string | null; source_document: string | null }>(
       `SELECT filieres, date_deliberation, source_document
          FROM zaer
-        WHERE ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))`,
+        -- Les zones de demonstration sont ecartees : une ZAER fictive vaudrait un
+        -- argument reglementaire majeur qui n'existe pas.
+        WHERE est_demonstration = false
+          AND ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))`,
       [pt[0], pt[1]],
     ),
   ]);
@@ -189,7 +192,8 @@ export async function documentCadrePv(
             (geom IS NOT NULL) AS a_geometrie,
             COALESCE(ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326)), false) AS contient
        FROM document_cadre_pv
-      WHERE code_departement = $3`,
+      WHERE est_demonstration = false
+        AND code_departement = $3`,
     [pt[0], pt[1], codeDepartement],
   );
 
@@ -273,7 +277,11 @@ export async function patrimoine(pt: Position, rayonM = 10000): Promise<Partial<
         : distanceMhM <= 500 || siteInscrit.some((s) => s.contient) || spr.some((s) => s.contient),
     // La covisibilite reelle exige une analyse de bassin visuel (MNT + occupation du sol) :
     // on n'expose qu'un indicateur derive de la densite patrimoniale a proximite.
-    covisibiliteIndice: lignes.length === 0 ? null : Math.min(100, lignes.length * 6),
+    // Aucun indice de covisibilite n'est calcule : il valait « nombre de monuments x 6 »,
+    // une arithmetique sans contenu presentee comme une mesure sur 100. La covisibilite
+    // depend du relief, des masques, des distances et de l'appreciation de l'ABF. Seuls
+    // les faits verifiables sont conserves : distance au monument et nombre dans le rayon.
+    covisibiliteIndice: null,
     sensibiliteArcheologique: null,
   };
 }

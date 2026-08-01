@@ -44,8 +44,16 @@ Spécifiques :
 | Filière | Knock-outs supplémentaires |
 |---|---|
 | Solaire au sol | hors document-cadre départemental (terrain inculte) ; aire parcellaire AOP viticole |
-| Éolien | habitation ou zone d'habitat à moins de 500 m (art. L.515-44 CE) ; site classé ; monument historique à moins de 500 m ; périmètre radar bloquant ; servitude aéronautique |
-| Méthanisation | habitation à moins de 200 m ; périmètre de protection de captage immédiat ou rapproché ; cours d'eau à moins de 35 m |
+| Éolien | recul de 500 m vers une habitation ou une zone d'habitat **hors d'atteinte** (art. L.515-44 CE) ; site classé ; monument historique à moins de 500 m ; périmètre radar bloquant ; servitude aéronautique |
+| Méthanisation | recul de 200 m vers une habitation **hors d'atteinte** ; périmètre de protection de captage immédiat ou rapproché ; cours d'eau à moins de 35 m |
+
+**« Hors d'atteinte » et non « bord à moins de 500 m ».** Le recul réglementaire se mesure
+depuis l'installation, jamais depuis la limite de propriété. Le moteur ajoute donc à la
+distance mesurée au bord un **déport possible** à l'intérieur de la parcelle, approché par le
+rayon du disque de même surface (1 ha → 56 m, 10 ha → 178 m, 40 ha → 357 m) : une parcelle de
+40 ha dont le bord est à 430 m peut porter une machine à 787 m, elle n'est pas écartée. Cette
+approximation est conservatrice — une parcelle réelle n'est pas circulaire — et ne remplace
+pas une étude d'implantation ; le motif affiché le dit.
 
 **Deux knock-outs sont « dérogeables »** et font basculer en orange avec alerte forte plutôt
 qu'en rouge — parce que le cahier des charges les formule lui-même de façon conditionnelle :
@@ -96,11 +104,22 @@ retire du site que les parcelles frappées d'un knock-out réglementaire bloquan
 couverture = Σ poids des critères renseignés / Σ poids des critères applicables
 ```
 
-Sous le seuil (50 % par défaut), la parcelle passe en **gris** quel que soit son score : les
-données disponibles ne suffisent pas à conclure. L'interface affiche « l'absence de donnée ne
-vaut pas absence de contrainte ».
+Trois régimes, et non deux :
 
-Au-dessus du seuil mais sous 80 %, un avertissement énumère les critères non évalués.
+| Couverture | Statut | Raison |
+|---|---|---|
+| < 80 % | **gris**, quel que soit le score | les données disponibles ne suffisent pas à conclure |
+| 80 % à 90 % | plafonné à **orange**, score affiché | il reste trop d'inconnu pour affirmer « propice » |
+| ≥ 90 % | statut libre, **vert** possible | la conclusion est fondée |
+
+Le seuil de grisement était à 50 %. Une parcelle dont la moitié du poids des critères n'avait
+pas pu être évaluée sortait donc avec un score publié — et pouvait ressortir verte, c'est-à-dire
+« à démarcher ». Le vert affirme une conclusion ; il exige désormais une couverture qui la
+fonde. Entre les deux seuils, le plafonnement est explicite : il apparaît dans les limites de
+viabilité avec son motif, pas en silence.
+
+L'interface rappelle dans tous les cas que « l'absence de donnée ne vaut pas absence de
+contrainte », et énumère les critères non évalués.
 
 ## 4. Règles propres à chaque filière
 
@@ -191,10 +210,14 @@ sans date n'est pas exploitable pour décider.
 
 ## 8. Tests
 
-`packages/scoring/test/moteur.test.ts` — 19 tests couvrant :
+`packages/scoring/test/moteur.test.ts` — 22 tests couvrant :
 
 - une parcelle favorable notée verte pour les quatre filières ;
-- l'asymétrie des seuils d'éloignement (une habitation à 320 m écarte l'éolien, pas le solaire) ;
+- l'asymétrie des seuils d'éloignement (une habitation proche écarte l'éolien, pas le solaire) ;
+- le déport d'implantation : une parcelle de 40 ha au bord à 430 m est conservée, la même
+  distance sur 1,5 ha reste éliminatoire ;
+- l'absence des critères avifaune, chiroptères et covisibilité, faute de source ;
+- le plafonnement à orange entre 80 % et 90 % de couverture ;
 - AOP viticole, document-cadre départemental présent ou non ingéré ;
 - poste saturé avec et sans renforcement programmé (orange contre rouge) ;
 - bascule en gris sous le seuil de couverture ;

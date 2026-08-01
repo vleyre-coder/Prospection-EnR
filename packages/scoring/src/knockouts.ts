@@ -14,6 +14,7 @@
 import type { Filiere, KnockOut, OptionsScoring, ParcelleSnapshot } from '@enr/core';
 import { formatDistance, formatNombre } from './notes.js';
 import { SRC } from './sources.js';
+import { deportPossibleM } from './implantation.js';
 
 interface CtxKo {
   filiere: Filiere;
@@ -176,18 +177,24 @@ const koAopViticole: RegleKo = (s) => {
   return null;
 };
 
+
+
 // ---------------------------------------------------------------------------
 // Eolien terrestre
 // ---------------------------------------------------------------------------
 
-const koDistanceHabitation500: RegleKo = (s) => {
+const koDistanceHabitation500: RegleKo = (s, ctx) => {
   const d = s.bati.distanceHabitationM;
   if (d == null) return null;
-  if (d < 500) {
+  const deport = deportPossibleM(ctx.surfaceHa);
+
+  // Redhibitoire seulement si le seuil reste hors d'atteinte MEME en implantant
+  // l'aerogenerateur au point le plus eloigne de la parcelle.
+  if (d + deport < 500) {
     return ko(
       'ko_eol_habitation_500',
-      "Habitation a moins de 500 m",
-      `L'habitation la plus proche est a ${formatDistance(d)}. L'article L.515-44 du code de l'environnement impose un eloignement minimal de 500 m entre un aerogenerateur et toute construction a usage d'habitation ou zone destinee a l'habitation. Distance calculee sur le bati IGN : a verifier sur le terrain.`,
+      "Recul de 500 m impossible sur cette parcelle",
+      `L'habitation la plus proche est a ${formatDistance(d)} du bord de la parcelle. Meme en implantant l'aerogenerateur au point le plus eloigne (deport maximal estime ${formatDistance(deport)} pour ${ctx.surfaceHa?.toFixed(1) ?? '?'} ha), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas etre atteint.`,
       'distances_reglementaires',
       'eol_distance_habitation',
     );
@@ -255,13 +262,18 @@ const koRadar: RegleKo = (s) => {
 // Methanisation
 // ---------------------------------------------------------------------------
 
-const koMethaHabitation200: RegleKo = (s) => {
+const koMethaHabitation200: RegleKo = (s, ctx) => {
   const d = s.bati.distanceHabitationM;
-  if (d != null && d < 200) {
+  if (d == null) return null;
+  const deport = deportPossibleM(ctx.surfaceHa);
+
+  // Meme raisonnement que pour l'eolien : le recul de 200 m se mesure depuis
+  // l'installation, pas depuis la limite parcellaire.
+  if (d + deport < 200) {
     return ko(
       'ko_metha_habitation_200',
-      "Habitation a moins de 200 m",
-      `L'habitation la plus proche est a ${formatDistance(d)}. Les installations de methanisation soumises a enregistrement ou autorisation doivent respecter un eloignement de 200 m des habitations et locaux occupes par des tiers.`,
+      "Recul de 200 m impossible sur cette parcelle",
+      `L'habitation la plus proche est a ${formatDistance(d)} du bord de la parcelle. Meme en implantant l'unite au point le plus eloigne (deport maximal estime ${formatDistance(deport)}), le recul de 200 m exige des installations soumises a enregistrement ou autorisation ne peut pas etre atteint.`,
       'distances_reglementaires',
       'metha_distance_habitation',
     );

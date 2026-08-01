@@ -836,8 +836,22 @@ function RubriquesDonnees({
           ],
           ['Enjeu defrichement', val(s.milieux.enjeuDefrichement)],
           ['Pre-enjeu especes protegees', val(s.milieux.preEnjeuEspeces, '/100')],
-          ['Sensibilite avifaune', val(s.milieux.sensibiliteAvifaune, '/100')],
-          ['Sensibilite chiropteres', val(s.milieux.sensibiliteChiropteres, '/100')],
+          // Aucune source nationale ne publie ces deux sensibilites a la parcelle. Le
+          // champ existe pour accueillir un atlas DREAL ou LPO le jour ou il sera ingere ;
+          // tant qu'il est vide, on le dit, plutot que d'afficher une case blanche qui se
+          // lit « rien a signaler ».
+          [
+            'Sensibilite avifaune',
+            s.milieux.sensibiliteAvifaune == null
+              ? val('aucune source ingeree - a verifier aupres de la DREAL / LPO')
+              : val(s.milieux.sensibiliteAvifaune, '/100'),
+          ],
+          [
+            'Sensibilite chiropteres',
+            s.milieux.sensibiliteChiropteres == null
+              ? val('aucune source ingeree - a verifier aupres de la DREAL / LPO')
+              : val(s.milieux.sensibiliteChiropteres, '/100'),
+          ],
         ]}
       />
 
@@ -852,7 +866,15 @@ function RubriquesDonnees({
           ['Site inscrit', zonageTexte(s.patrimoine.siteInscrit)],
           ['Site patrimonial remarquable', zonageTexte(s.patrimoine.spr)],
           ['Avis de l’ABF requis', val(s.patrimoine.avisAbfRequis)],
-          ['Indice de covisibilite', val(s.patrimoine.covisibiliteIndice, '/100')],
+          // Cet indice etait auparavant fabrique a partir du nombre de monuments
+          // alentour, ce qui ne mesure aucune covisibilite reelle. Il ne sera renseigne
+          // que par une etude paysagere.
+          [
+            'Indice de covisibilite',
+            s.patrimoine.covisibiliteIndice == null
+              ? val('non evalue - releve d’une etude paysagere')
+              : val(s.patrimoine.covisibiliteIndice, '/100'),
+          ],
           ['Sensibilite archeologique', val(s.patrimoine.sensibiliteArcheologique)],
         ]}
       />

@@ -197,3 +197,36 @@ export async function idusARafraichir(limite = 500): Promise<string[]> {
   );
   return lignes.map((l) => l.idu);
 }
+
+/**
+ * IDU disposant d'un snapshot mais d'aucun score a la version courante du moteur.
+ *
+ * C'est la population exacte a recalculer apres une montee de version : le recalcul se fait
+ * a partir du snapshot deja stocke, sans reinterroger la moindre source.
+ *
+ * A ne pas confondre avec `idusARafraichir`, qui designe les parcelles dont la DONNEE est
+ * perimee. Piloter le rescoring sur ce dernier critere effacait les scores des parcelles en
+ * bonne sante - snapshot recent, donc absentes de la liste - sans jamais les recalculer :
+ * elles disparaissaient de la carte et des listes.
+ */
+export async function idusSansScoreCourant(version: string, limite = 5000): Promise<string[]> {
+  const lignes = await requete<{ idu: string }>(
+    `SELECT s.idu
+       FROM parcelle_snapshot s
+      WHERE NOT EXISTS (
+              SELECT 1 FROM score_parcelle_filiere sc
+               WHERE sc.idu = s.idu AND sc.version_moteur = $1)
+      LIMIT $2`,
+    [version, limite],
+  );
+  return lignes.map((l) => l.idu);
+}
+
+/** Nombre de scores calcules par une version anterieure du moteur. */
+export async function nbScoresObsoletes(version: string): Promise<number> {
+  const lignes = await requete<{ n: number }>(
+    `SELECT count(*)::int AS n FROM score_parcelle_filiere WHERE version_moteur <> $1`,
+    [version],
+  );
+  return lignes[0]?.n ?? 0;
+}

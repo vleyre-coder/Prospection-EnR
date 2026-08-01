@@ -110,8 +110,17 @@ export async function milieuxNaturels(
   // temps reel. Il combine la proximite des zonages d'inventaire et de protection.
   // C'est une ESTIMATION, signalee comme telle dans la fiche.
   milieux.preEnjeuEspeces = preEnjeuDerive(milieux);
-  milieux.sensibiliteAvifaune = milieux.preEnjeuEspeces;
-  milieux.sensibiliteChiropteres = milieux.preEnjeuEspeces;
+
+  // Avifaune et chiropteres restent NULS, volontairement.
+  //
+  // Ils valaient auparavant une copie de `preEnjeuEspeces`, ce qui donnait trois criteres
+  // d'apparence independante portant le meme nombre - et pesant ensemble 18 % du score
+  // eolien, sur le critere qui decide precisement de l'acceptabilite d'un parc. Une
+  // sensibilite avifaune ou chiropteres se determine par des inventaires sur un cycle
+  // biologique complet, ou a defaut par les atlas regionaux DREAL / LPO, dont aucun n'est
+  // expose par une API nationale. En l'absence de source, le critere doit rester gris.
+  milieux.sensibiliteAvifaune = null;
+  milieux.sensibiliteChiropteres = null;
 
   return { milieux, echecs };
 }

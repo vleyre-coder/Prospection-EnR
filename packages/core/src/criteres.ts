@@ -141,13 +141,10 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     def('env_zone_humide', 'environnement', 'Zone humide', "Pre-reperage cartographique. Une zone humide avereee impose evitement, ou compensation a 100-200 % ; a confirmer imperativement par sondages pedologiques.", ),
     def('env_tvb', 'environnement', 'Trame verte et bleue', "Reservoir de biodiversite ou corridor ecologique identifie au SRADDET : opposabilite indirecte via le PLU.", ),
     def('env_especes_protegees', 'environnement', 'Pre-enjeu especes protegees', "Probabilite de presence d'especes protegees, estimee a partir des donnees d'occurrence. Conditionne le risque de derogation especes protegees.", ),
-    def('env_avifaune', 'environnement', 'Sensibilite avifaune', "Couloirs de migration, sites de nidification d'especes patrimoniales, zones de halte. Premier motif de refus des parcs eoliens.", ),
-    def('env_chiropteres', 'environnement', 'Sensibilite chiropteres', "Proximite de gites, lisieres et corridors de chasse. Conditionne les bridages imposes et donc la production.", ),
 
     // -- Patrimoine --------------------------------------------------------
     def('pat_monuments', 'patrimoine', 'Monuments historiques', "Distance au monument le plus proche et presence dans un perimetre de protection ou un PDA, declenchant l'avis de l'ABF.", 'm'),
     def('pat_sites', 'patrimoine', 'Sites classes et inscrits', "Un site classe impose une autorisation ministerielle. Un site inscrit, un avis de l'ABF.", 'm'),
-    def('pat_covisibilite', 'patrimoine', 'Covisibilite et saturation paysagere', "Exposition visuelle depuis les monuments, bourgs et points de vue. Pour l'eolien, la saturation paysagere est un motif de refus fréquent.", ),
     def('pat_archeologie', 'patrimoine', 'Sensibilite archeologique', "Zone de presomption de prescription archeologique : risque de diagnostic et de fouille preventive, impactant le calendrier.", ),
 
     // -- Risques -----------------------------------------------------------
@@ -199,7 +196,6 @@ const POIDS_DEFAUT: Record<Filiere, Record<string, number>> = {
     env_tvb: 2,
     pat_monuments: 3,
     pat_sites: 2,
-    pat_covisibilite: 2,
     pat_archeologie: 1,
     risq_inondation: 3,
     risq_argiles_cavites: 1,
@@ -216,14 +212,13 @@ const POIDS_DEFAUT: Record<Filiere, Record<string, number>> = {
     racc_distance_poste: 9,
     racc_capacite_residuelle: 7,
     risq_aero_radar: 9,
-    env_avifaune: 8,
-    env_chiropteres: 6,
     env_proximite_natura2000: 6,
     env_znieff: 3,
     env_zone_humide: 3,
-    env_especes_protegees: 4,
+    // Poids releve de 4 a 9 : ce critere porte desormais seul le pre-enjeu ecologique de
+    // l'eolien, apres suppression des deux criteres qui n'en etaient qu'une copie.
+    env_especes_protegees: 9,
     env_tvb: 2,
-    pat_covisibilite: 7,
     pat_monuments: 5,
     pat_sites: 3,
     topo_altitude: 3,
@@ -285,28 +280,28 @@ export const PONDERATIONS_DEFAUT: Record<Filiere, ProfilPonderation> = {
     poids: POIDS_DEFAUT.solaire_sol,
     seuilVert: 65,
     seuilOrange: 40,
-    seuilCouvertureDonnees: 0.5,
+    seuilCouvertureDonnees: 0.8,
   },
   eolien_terrestre: {
     filiere: 'eolien_terrestre',
     poids: POIDS_DEFAUT.eolien_terrestre,
     seuilVert: 65,
     seuilOrange: 40,
-    seuilCouvertureDonnees: 0.5,
+    seuilCouvertureDonnees: 0.8,
   },
   bess: {
     filiere: 'bess',
     poids: POIDS_DEFAUT.bess,
     seuilVert: 65,
     seuilOrange: 40,
-    seuilCouvertureDonnees: 0.5,
+    seuilCouvertureDonnees: 0.8,
   },
   methanisation: {
     filiere: 'methanisation',
     poids: POIDS_DEFAUT.methanisation,
     seuilVert: 65,
     seuilOrange: 40,
-    seuilCouvertureDonnees: 0.5,
+    seuilCouvertureDonnees: 0.8,
   },
 };
 

@@ -23,6 +23,7 @@ import {
   type Palier,
 } from './notes.js';
 import { SRC } from './sources.js';
+import { deportPossibleM } from './implantation.js';
 
 export interface ContexteEval {
   filiere: Filiere;
@@ -905,52 +906,18 @@ const env_especes_protegees: Evaluateur = (s) => {
       [100, 5],
     ]),
     valeurBrute: p,
-    valeurAffichee: `Pre-enjeu ${formatNombre(p, '', 0)}/100`,
+    valeurAffichee: `Pre-enjeu ${formatNombre(p, '', 0)}/100 (derive des zonages)`,
     commentaire:
-      "Indicateur derive des donnees d'occurrence et des zonages d'inventaire. Ne remplace pas un cycle biologique complet d'inventaires de terrain.",
+      "Indicateur DERIVE de la proximite et du recouvrement des zonages d'inventaire et de " +
+      "protection - ce n'est pas une donnee d'inventaire. Il ne dit rien des especes " +
+      "reellement presentes et ne remplace pas des inventaires sur un cycle biologique " +
+      "complet. Pour l'eolien, la sensibilite avifaune et chiropteres doit etre etablie " +
+      "par les atlas regionaux DREAL ou LPO, qu'aucune API nationale n'expose.",
     sourceKey: SRC.nature,
   };
 };
 
-const env_avifaune: Evaluateur = (s, ctx) => {
-  if (ctx.filiere !== 'eolien_terrestre') return null;
-  const v = s.milieux.sensibiliteAvifaune;
-  if (v == null) return indispo(SRC.nature);
-  return {
-    note: paliers(v, [
-      [0, 100],
-      [25, 78],
-      [50, 50],
-      [75, 22],
-      [100, 3],
-    ]),
-    valeurBrute: v,
-    valeurAffichee: `Sensibilite ${formatNombre(v, '', 0)}/100`,
-    commentaire:
-      "Couloirs de migration, sites de nidification d'especes patrimoniales et zones de halte : premier motif de refus des parcs eoliens.",
-    sourceKey: SRC.nature,
-  };
-};
 
-const env_chiropteres: Evaluateur = (s, ctx) => {
-  if (ctx.filiere !== 'eolien_terrestre') return null;
-  const v = s.milieux.sensibiliteChiropteres;
-  if (v == null) return indispo(SRC.nature);
-  return {
-    note: paliers(v, [
-      [0, 100],
-      [25, 80],
-      [50, 55],
-      [75, 25],
-      [100, 5],
-    ]),
-    valeurBrute: v,
-    valeurAffichee: `Sensibilite ${formatNombre(v, '', 0)}/100`,
-    commentaire:
-      "Une sensibilite chiropteres elevee conduit a des plans de bridage qui amputent la production de plusieurs pourcents.",
-    sourceKey: SRC.nature,
-  };
-};
 
 // ---------------------------------------------------------------------------
 // Patrimoine
@@ -1028,24 +995,6 @@ const pat_sites: Evaluateur = (s) => {
   };
 };
 
-const pat_covisibilite: Evaluateur = (s) => {
-  const c = s.patrimoine.covisibiliteIndice;
-  if (c == null) return indispo(SRC.patrimoine);
-  return {
-    note: paliers(c, [
-      [0, 100],
-      [25, 80],
-      [50, 55],
-      [75, 28],
-      [100, 5],
-    ]),
-    valeurBrute: c,
-    valeurAffichee: `Indice ${formatNombre(c, '', 0)}/100`,
-    commentaire:
-      "Estimation de l'exposition visuelle depuis les bourgs, monuments et points de vue. Pour l'eolien, la saturation paysagere est un motif de refus fréquent.",
-    sourceKey: SRC.patrimoine,
-  };
-};
 
 const pat_archeologie: Evaluateur = (s) => {
   const a = s.patrimoine.sensibiliteArcheologique;
@@ -1259,8 +1208,17 @@ const risq_karst: Evaluateur = (s, ctx) => {
 // ---------------------------------------------------------------------------
 
 const dist_habitation: Evaluateur = (s, ctx) => {
-  const d = s.bati.distanceHabitationM;
-  if (d == null) return indispo(SRC.bdtopo);
+  const dBord = s.bati.distanceHabitationM;
+  if (dBord == null) return indispo(SRC.bdtopo);
+
+  // Le recul se mesure depuis l'installation : la note porte donc sur la distance
+  // ATTEIGNABLE en implantant au point le plus eloigne de la parcelle, pas sur la
+  // distance du bord. Sans cela, une parcelle vaste mais bordee par une habitation
+  // serait notee comme une micro-parcelle collee a cette meme habitation.
+  const soumisARecul = ctx.filiere === 'eolien_terrestre' || ctx.filiere === 'methanisation';
+  const deport = soumisARecul ? deportPossibleM(ctx.surfaceHa) : 0;
+  const d = dBord + deport;
+
   let courbe: readonly Palier[];
   let regles: string[] = [];
   if (ctx.filiere === 'eolien_terrestre') {
@@ -1296,8 +1254,13 @@ const dist_habitation: Evaluateur = (s, ctx) => {
   }
   return {
     note: paliers(d, courbe),
-    valeurBrute: d,
-    valeurAffichee: `${formatDistance(d)}${s.bati.nbHabitationsRayon500m != null ? ` - ${s.bati.nbHabitationsRayon500m} habitation(s) < 500 m` : ''}`,
+    valeurBrute: dBord,
+    valeurAffichee:
+      `${formatDistance(dBord)} du bord` +
+      (deport > 0 ? `, jusqu'a ${formatDistance(d)} en implantant au plus loin` : '') +
+      (s.bati.nbHabitationsRayon500m != null
+        ? ` - ${s.bati.nbHabitationsRayon500m} habitation(s) < 500 m`
+        : ''),
     commentaire:
       ctx.filiere === 'eolien_terrestre'
         ? "500 m est un plancher legal, pas une cible : la plupart des projets autorises se situent au-dela de 700 m. Distance mesuree sur le bati IGN, a verifier sur le terrain (batiments recents, permis en cours)."
@@ -1472,11 +1435,8 @@ export const EVALUATEURS: Record<string, Evaluateur> = {
   env_zone_humide,
   env_tvb,
   env_especes_protegees,
-  env_avifaune,
-  env_chiropteres,
   pat_monuments,
   pat_sites,
-  pat_covisibilite,
   pat_archeologie,
   risq_inondation,
   risq_incendie,

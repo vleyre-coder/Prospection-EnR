@@ -267,7 +267,7 @@ export function etatAmorcage(): EtatAmorcage {
  * chaque sauvegarde. Sans ce verrou, une modification de code pendant l'ingestion des
  * communes en declencherait une seconde en parallele.
  */
-async function tenterVerrou(cle: number): Promise<(() => Promise<void>) | null> {
+export async function tenterVerrou(cle: number): Promise<(() => Promise<void>) | null> {
   const client = await pool.connect();
   const r = await client.query<{ ok: boolean }>('SELECT pg_try_advisory_lock($1) AS ok', [cle]);
   if (!r.rows[0]?.ok) {

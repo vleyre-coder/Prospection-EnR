@@ -182,7 +182,11 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     const tuile = await tuiles.tuileParcelles({ z, x, y }, filiereDepuis(req.query));
     return rep
       .header('Content-Type', 'application/vnd.mapbox-vector-tile')
-      .header('Cache-Control', 'public, max-age=60')
+      // `private` et non `public` : la tuile contient le statut de prospection, propre a
+      // l'organisation. Un cache partage (proxy d'entreprise, CDN) ne doit pas la stocker
+      // ni la resservir a un autre porteur de jeton.
+      .header('Cache-Control', 'private, max-age=60')
+      .header('Vary', 'Authorization')
       .send(tuile);
   });
 

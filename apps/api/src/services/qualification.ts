@@ -11,6 +11,7 @@ import { FILIERES, type Filiere, type ResultatScore } from '@enr/core';
 import { calculerScore, VERSION_MOTEUR } from '@enr/scoring';
 import { journal } from '../journal.js';
 import { config } from '../config.js';
+import { requete } from '../bdd.js';
 import { decouperBbox, limiterAlaFrance, pointDansBbox, type Bbox } from '../geo.js';
 import {
   parcellesParEmprise,
@@ -404,17 +405,23 @@ export async function scorerAvecPonderation(
   return out;
 }
 
-/** Recalcul par batch, apres mise a jour de donnees ou changement de version du moteur. */
+/**
+ * Recalcul par batch, apres mise a jour de donnees ou changement de version du moteur.
+ *
+ * Le recalcul part des snapshots deja stockes : aucune source n'est reinterrogee, ce qui
+ * rend l'operation rapide et hors ligne. La population traitee est celle des parcelles
+ * disposant d'un snapshot et privees de score a la version courante - et non celle des
+ * parcelles dont la donnee est perimee, qui est un tout autre ensemble.
+ */
 export async function rescorerTout(
   filieres: Filiere[] = [...FILIERES],
   limite = 5000,
 ): Promise<{ nbParcelles: number; nbScores: number }> {
-  const invalides = await depotScores.invaliderVersionsAnterieures(VERSION_MOTEUR);
-  if (invalides > 0) {
-    journal.info({ invalides, version: VERSION_MOTEUR }, 'Scores obsoletes invalides');
-  }
+  // L'ordre importe : on selectionne AVANT de supprimer. Une parcelle dont le score
+  // obsolete vient d'etre efface doit se retrouver dans la liste a recalculer, faute de
+  // quoi elle sort de la carte et des listes sans que personne ne s'en apercoive.
+  const idus = await depotParcelles.idusSansScoreCourant(VERSION_MOTEUR, limite);
 
-  const idus = await depotParcelles.idusARafraichir(limite);
   let nbScores = 0;
   for (const idu of idus) {
     const s = await depotParcelles.snapshotParIdu(idu);
@@ -423,5 +430,51 @@ export async function rescorerTout(
     await depotScores.enregistrerScores(scores);
     nbScores += scores.length;
   }
+
+  // Le menage ne vient qu'ensuite, et seulement sur ce qui reste d'une version anterieure :
+  // les lignes recalculees ci-dessus portent desormais la version courante.
+  const invalides = await depotScores.invaliderVersionsAnterieures(VERSION_MOTEUR);
+  if (invalides > 0) {
+    journal.info({ invalides, version: VERSION_MOTEUR }, 'Scores obsoletes supprimes');
+  }
+
   return { nbParcelles: idus.length, nbScores };
+}
+
+/**
+ * Recalcule au demarrage les scores laisses par une version anterieure du moteur.
+ *
+ * Sans cela, une correction du moteur reste invisible : la carte, les listes et les exports
+ * continuent d'afficher des statuts calcules par la version corrigee. L'utilisateur n'a
+ * aucun moyen de le savoir - le score ne porte pas sa date - et n'a aucune raison de penser
+ * a lancer un script de recalcul.
+ */
+export async function rescorerSiVersionObsolete(): Promise<void> {
+  const obsoletes = await depotParcelles.nbScoresObsoletes(VERSION_MOTEUR);
+  if (obsoletes === 0) return;
+
+  journal.info(
+    { obsoletes, version: VERSION_MOTEUR },
+    'Version du moteur modifiee : recalcul des scores a partir des snapshots stockes',
+  );
+
+  // Par lots, jusqu'a epuisement : la selection ne renvoie que ce qui reste a faire, donc
+  // un lot sans progression signifie qu'il n'y a plus rien a traiter (ou que les snapshots
+  // manquent) et arrete la boucle.
+  let total = 0;
+  for (;;) {
+    const { nbParcelles, nbScores } = await rescorerTout(undefined, 500);
+    // `nbScores === 0` avec des parcelles selectionnees signale un lot dont les snapshots
+    // sont introuvables : le meme lot reviendrait indefiniment.
+    if (nbParcelles === 0 || nbScores === 0) break;
+    total += nbParcelles;
+  }
+
+  // Les compteurs communaux alimentent la vue nationale : ils sont derives des scores et
+  // doivent suivre, sinon la France reste coloriee par l'ancien moteur.
+  await requete(`SELECT rafraichir_compteurs_communaux()`).catch((err: unknown) =>
+    journal.warn({ err }, 'Rafraichissement des compteurs communaux impossible'),
+  );
+
+  journal.info({ parcelles: total, version: VERSION_MOTEUR }, 'Recalcul des scores termine');
 }

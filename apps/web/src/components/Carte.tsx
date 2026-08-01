@@ -15,7 +15,13 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Feu } from '@enr/core';
-import { api, RACINE_ABSOLUE, type PosteSourceProps, type Referentiel } from '../api/client.js';
+import {
+  api,
+  jetonEnregistre,
+  RACINE_ABSOLUE,
+  type PosteSourceProps,
+  type Referentiel,
+} from '../api/client.js';
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 
@@ -95,6 +101,25 @@ const TUILES_RELAIS: Record<FondCarte, string> = {
   ortho: `${RACINE_ABSOLUE}/api/carte/fond/ortho/{z}/{x}/{y}`,
 };
 
+/**
+ * Attache le jeton aux requetes de tuiles parcellaires.
+ *
+ * Ces tuiles portent le statut de prospection : l'API les protege desormais. MapLibre
+ * charge les tuiles depuis un Web Worker, mais `transformRequest` est evalue sur le fil
+ * principal - les en-tetes qu'il renvoie sont transmis au worker avec la requete. C'est le
+ * seul point d'accroche possible : on ne peut pas poser d'en-tete sur une URL de source.
+ *
+ * Le filtre est volontairement etroit. Les tuiles IGN n'ont pas a recevoir notre jeton, et
+ * les glyphes non plus : les envoyer a un tiers reviendrait a fuiter une authentification.
+ */
+function transformerRequete(url: string): maplibregl.RequestParameters {
+  const jeton = jetonEnregistre();
+  if (jeton && url.startsWith(`${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/`)) {
+    return { url, headers: { Authorization: `Bearer ${jeton}` } };
+  }
+  return { url };
+}
+
 /** Motifs de contour par statut de prospection, distincts du codage de score. */
 const MOTIFS: Record<string, number[] | null> = {
   aucun: null,
@@ -166,6 +191,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       // emprise absurde.
       renderWorldCopies: false,
       attributionControl: false,
+      transformRequest: transformerRequete,
       style: {
         version: 8,
         glyphs: URL_GLYPHES,

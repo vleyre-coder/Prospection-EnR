@@ -201,11 +201,24 @@ présentés avec une valeur juridique `indicative` et un avertissement explicite
 
 | Indicateur | Mode de calcul | Ce qu'il ne remplace pas |
 |---|---|---|
-| Pré-enjeu espèces, avifaune, chiroptères | proximité et recouvrement des zonages d'inventaire et de protection | un cycle biologique complet d'inventaires de terrain |
-| Indice de covisibilité | densité patrimoniale à proximité | une analyse de bassin visuel (MNT et occupation du sol) |
+| Pré-enjeu espèces protégées | proximité et recouvrement des zonages d'inventaire et de protection | un cycle biologique complet d'inventaires de terrain |
 | Potentiel agronomique | proxy dérivé du groupe de culture RPG | la base sol régionale (IGCS), sans API nationale |
 | Indice de morcellement | rapport périmètre / périmètre du cercle équivalent | — |
 | Surface d'un seul tenant | agrégation des parcelles contiguës de même section | une analyse de propriété réelle |
+
+### Trois indicateurs retirés
+
+**Sensibilité avifaune** et **sensibilité chiroptères** étaient dérivées des mêmes zonages que
+le pré-enjeu espèces. Trois critères d'apparence indépendante portaient donc le même nombre, et
+pesaient ensemble 18 % du score éolien — la proximité d'une ZNIEFF était comptée trois fois.
+Aucune source nationale ne publie ces sensibilités à la parcelle : les champs restent vides et
+la fiche indique qu'ils relèvent d'un atlas DREAL ou LPO, plutôt que d'afficher une case
+blanche qui se lit « rien à signaler ».
+
+L'**indice de covisibilité** était calculé comme `6 × nombre de monuments dans un rayon`, borné
+à 100. Ce nombre ne mesure aucune covisibilité : deux monuments derrière une crête donnaient 12,
+un seul monument en vis-à-vis direct donnait 6. Il est supprimé ; la covisibilité relève d'une
+étude paysagère.
 
 ---
 

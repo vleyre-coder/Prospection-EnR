@@ -145,9 +145,11 @@ describe('moteur de scoring', () => {
     }
   });
 
-  it('ecarte en rouge une habitation a moins de 500 m en eolien, mais pas en solaire', () => {
+  it('ecarte en rouge une habitation hors de portee du recul de 500 m en eolien, mais pas en solaire', () => {
+    // Parcelle de 12 ha : deport possible ~195 m. Meme en implantant au plus loin, la
+    // machine reste a 200 + 195 = 395 m < 500 m. Le recul est donc reellement impossible.
     const s = parcelleType((p) => {
-      p.bati.distanceHabitationM = 320;
+      p.bati.distanceHabitationM = 200;
     });
     const eolien = calculerScore(s, 'eolien_terrestre');
     assert.equal(eolien.statut, 'rouge');
@@ -159,15 +161,67 @@ describe('moteur de scoring', () => {
     assert.equal(solaire.statut, 'vert');
   });
 
-  it('ecarte la methanisation en dessous de 200 m des habitations', () => {
+  it('ecarte la methanisation lorsque le recul de 200 m est hors de portee', () => {
+    // Parcelle volontairement minuscule (0,2 ha, deport ~25 m) : 150 + 25 < 200.
     const r = calculerScore(
       parcelleType((p) => {
+        p.identite.contenanceM2 = 2000;
+        p.identite.surfaceCalculeeM2 = 2000;
         p.bati.distanceHabitationM = 150;
       }),
       'methanisation',
     );
     assert.equal(r.statut, 'rouge');
     assert.ok(r.knockOuts.some((k) => k.id === 'ko_metha_habitation_200'));
+  });
+
+  /**
+   * Correction E1. Le recul reglementaire se mesure depuis l'AEROGENERATEUR, pas depuis la
+   * limite de propriete. Mesurer depuis le bord ecartait du classement des parcelles
+   * parfaitement implantables - un faux negatif silencieux, jamais reexamine.
+   */
+  it('conserve une parcelle assez vaste pour tenir le recul de 500 m, bord a 430 m', () => {
+    const s = parcelleType((p) => {
+      p.identite.contenanceM2 = 400000; // 40 ha -> deport possible ~357 m
+      p.identite.surfaceCalculeeM2 = 400000;
+      p.foncier.surfaceDunSeulTenantHa = 40;
+      p.bati.distanceHabitationM = 430; // 430 + 357 = 787 m : le recul est tenable
+    });
+    const r = calculerScore(s, 'eolien_terrestre');
+    assert.equal(
+      r.knockOuts.filter((k) => k.id === 'ko_eol_habitation_500').length,
+      0,
+      'une parcelle de 40 ha peut porter la machine a plus de 500 m',
+    );
+    assert.notEqual(r.statut, 'rouge');
+
+    // La meme distance sur une petite parcelle reste eliminatoire : le deport n'existe pas.
+    const petite = calculerScore(
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 15000; // 1,5 ha -> deport ~69 m
+        p.identite.surfaceCalculeeM2 = 15000;
+        p.bati.distanceHabitationM = 430;
+      }),
+      'eolien_terrestre',
+    );
+    assert.ok(petite.knockOuts.some((k) => k.id === 'ko_eol_habitation_500'));
+  });
+
+  /**
+   * Correction B1. `env_avifaune` et `env_chiropteres` etaient alimentes par une derivation
+   * des zonages : trois criteres d'apparence independante portaient le meme nombre, et
+   * pesaient ensemble 18 % du score eolien. Ils ont ete retires du catalogue.
+   */
+  it('ne note plus la sensibilite avifaune ni chiropteres, faute de source', () => {
+    const r = calculerScore(parcelleType(), 'eolien_terrestre');
+    const ids = r.criteres.map((c) => c.id);
+    assert.ok(!ids.includes('env_avifaune'), 'env_avifaune ne doit plus etre evalue');
+    assert.ok(!ids.includes('env_chiropteres'), 'env_chiropteres ne doit plus etre evalue');
+    assert.ok(!ids.includes('pat_covisibilite'), 'pat_covisibilite ne doit plus etre evalue');
+    // Le critere conserve, lui, dit explicitement d'ou vient sa valeur.
+    const especes = r.criteres.find((c) => c.id === 'env_especes_protegees');
+    assert.ok(especes, 'env_especes_protegees reste evalue');
+    assert.match(especes.commentaire ?? '', /zonage/i);
   });
 
   it('ecarte une AOP viticole en solaire et signale le knock-out', () => {
@@ -239,6 +293,45 @@ describe('moteur de scoring', () => {
     assert.equal(r.statut, 'gris');
     assert.ok(r.couvertureDonnees < 0.5);
     assert.ok(r.criteres.every((c) => c.note != null || c.feu === 'gris'));
+  });
+
+  /**
+   * Correction B2. Entre le seuil de grisement (80 %) et 90 %, le score etait publie tel
+   * quel : une parcelle pouvait ressortir VERTE - donc « a demarcher » - alors qu'un
+   * cinquieme du poids des criteres n'avait pas pu etre evalue. Le vert affirme une
+   * conclusion ; il exige une couverture qui la fonde. Entre les deux seuils, le statut est
+   * desormais plafonne a orange, avec un motif qui dit pourquoi.
+   */
+  it('plafonne a orange une parcelle dont la couverture reste sous 90 %', () => {
+    const s = parcelleType((p) => {
+      p.topographie.pentePct = null;
+      p.topographie.penteMaxPct = null;
+      p.gisement.irradiationKwhM2An = null;
+      p.gisement.productibleKwhKwcAn = null;
+    });
+    const r = calculerScore(s, 'solaire_sol');
+
+    // La parcelle reste bien au-dessus du seuil de grisement : ce n'est pas un cas « gris ».
+    assert.ok(
+      r.couvertureDonnees >= 0.8 && r.couvertureDonnees < 0.9,
+      `couverture attendue dans [0,80 ; 0,90[, obtenue ${r.couvertureDonnees}`,
+    );
+    assert.notEqual(r.statut, 'gris');
+    assert.equal(r.statut, 'orange', 'le vert exige une couverture d’au moins 90 %');
+
+    const limite = r.limitesViabilite.find((l) => l.id === 'couverture_insuffisante');
+    assert.ok(limite, 'le plafonnement doit etre explicite, pas silencieux');
+    assert.equal(limite.statutMaximal, 'orange');
+    assert.match(limite.motif, /90/);
+
+    // Le score reste calcule et affiche : on plafonne le STATUT, on n'efface pas l'analyse.
+    assert.ok(r.scoreGlobal != null);
+
+    // Controle a contrario : la meme parcelle complete repasse en vert.
+    const complete = calculerScore(parcelleType(), 'solaire_sol');
+    assert.ok(complete.couvertureDonnees >= 0.9);
+    assert.equal(complete.statut, 'vert');
+    assert.ok(!complete.limitesViabilite.some((l) => l.id === 'couverture_insuffisante'));
   });
 
   it('produit un score explicable : contributions coherentes avec le score global', () => {

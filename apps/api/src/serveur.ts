@@ -12,7 +12,9 @@ import {
   assurerAdministrateur,
   attendreBdd,
   resoudreSecretJwt,
+  tenterVerrou,
 } from './amorcage.js';
+import { rescorerSiVersionObsolete } from './services/qualification.js';
 import { appliquerMigrations } from './migrations.js';
 import { synchroniserReferentiel } from './depots/sources.js';
 import { routesReferentiel } from './routes/referentiel.js';
@@ -96,9 +98,21 @@ export async function construireServeur(options: OptionsServeur = {}) {
   app.addHook('onRequest', async (req, rep) => {
     if (!req.url.startsWith('/api/')) return;
     if (ROUTES_PUBLIQUES.some((r) => req.url.startsWith(r))) return;
-    // Les tuiles vectorielles sont servies sans authentification : elles ne contiennent
-    // aucune donnee nominative, et l'imposer casserait le cache du client cartographique.
-    if (req.url.startsWith('/api/carte/tuiles/')) return;
+    // Les tuiles communales (compteurs agreges) et les tuiles de contraintes (zonages
+    // publics) restent ouvertes : elles ne portent rien de confidentiel, et les laisser
+    // libres evite d'imposer un en-tete a chaque requete du client cartographique.
+    //
+    // Les tuiles PARCELLAIRES, elles, portent `statut_prospection` : le pipeline
+    // commercial, parcelle par parcelle. Servi sans authentification, il exposait a qui
+    // connaissait l'URL la liste des terrains demarches, negocies ou signes - une
+    // information concurrentielle, et un indice indirect sur les proprietaires contactes.
+    // Elles exigent donc un jeton, comme le reste de l'API.
+    if (
+      req.url.startsWith('/api/carte/tuiles/') &&
+      !req.url.startsWith('/api/carte/tuiles/parcelles/')
+    ) {
+      return;
+    }
     // Meme raison pour le relais du fond de carte : ce sont des tuiles IGN publiques.
     if (req.url.startsWith('/api/carte/fond/')) return;
     // Idem pour les polices d'etiquettes : MapLibre les charge sans en-tete d'autorisation.
@@ -255,6 +269,21 @@ async function demarrer(): Promise<void> {
     void amorcerSiNecessaire().catch((err: unknown) =>
       journal.error({ err }, 'Amorcage des donnees nationales interrompu'),
     );
+  }
+
+  // 5. Scores laisses par une version anterieure du moteur : recalcules a partir des
+  //    snapshots stockes, sans reinterroger la moindre source. Une correction du moteur
+  //    qui n'atteint pas les parcelles deja qualifiees n'a corrige que le code.
+  if (bdd) {
+    void (async () => {
+      const liberer = await tenterVerrou(864_203);
+      if (!liberer) return;
+      try {
+        await rescorerSiVersionObsolete();
+      } finally {
+        await liberer();
+      }
+    })().catch((err: unknown) => journal.error({ err }, 'Recalcul des scores interrompu'));
   }
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {

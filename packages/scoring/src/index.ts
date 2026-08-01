@@ -27,7 +27,19 @@ import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
 import { borne } from './notes.js';
 
-export const VERSION_MOTEUR = '1.0.0';
+/**
+ * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
+ * scores materialises (`invaliderVersionsAnterieures`).
+ */
+export const VERSION_MOTEUR = '1.1.0';
+
+/**
+ * Couverture de donnees minimale pour qu'une parcelle puisse etre declaree PROPICE.
+ *
+ * Distincte de `seuilCouvertureDonnees`, qui decide du grisement. En dessous de ce
+ * seuil-ci, la parcelle reste affichable et comparable, mais plafonnee a orange.
+ */
+const SEUIL_COUVERTURE_POUR_VERT = 0.9;
 
 /** Seuils de coloration du feu tricolore au niveau d'un critere individuel. */
 const SEUIL_FEU_VERT = 70;
@@ -211,8 +223,37 @@ export function calculerScore(
     scoreGlobal = scoreBrut;
   }
 
-  // Application des plafonds de viabilite economique : ils ne modifient pas le score, mais
-  // empechent une parcelle non finançable d'apparaitre comme propice.
+  /**
+   * Plafond d'INCERTITUDE.
+   *
+   * Le score est une moyenne des seuls criteres evalues : les criteres non renseignes sont
+   * exclus, pas penalises. Cela introduit un biais optimiste, et il n'est pas neutre - les
+   * criteres qui manquent sont structurellement ceux qui portent la contrainte
+   * (environnement, patrimoine, risques). Sans correctif, une parcelle mal documentee
+   * obtenait un meilleur score qu'une parcelle bien documentee de qualite egale, et
+   * remontait donc en tete du classement.
+   *
+   * Une parcelle ne peut donc etre declaree PROPICE que si l'essentiel de son poids a
+   * reellement ete evalue. Entre le seuil de grisement et ce seuil, le statut est plafonne
+   * a orange : « peut-etre, mais on ne sait pas assez ».
+   */
+  if (couvertureDonnees < SEUIL_COUVERTURE_POUR_VERT) {
+    limitesViabilite.push({
+      id: 'couverture_insuffisante',
+      libelle: 'Couverture de donnees insuffisante pour conclure',
+      motif:
+        `Seuls ${Math.round(couvertureDonnees * 100)} % du poids des criteres ont pu etre evalues ` +
+        `(${criteres.filter((c) => c.note == null).length} critere(s) sans donnee). Le score est ` +
+        `calcule sur les seuls criteres renseignes : il est donc optimiste, car les donnees ` +
+        `manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut ` +
+        `pas etre classee propice tant que la couverture n'atteint pas ` +
+        `${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
+      statutMaximal: 'orange',
+    });
+  }
+
+  // Application des plafonds : ils ne modifient pas le score, mais empechent une parcelle
+  // non finançable ou insuffisamment documentee d'apparaitre comme propice.
   const ordreStatut: Record<Feu, number> = { vert: 3, orange: 2, rouge: 1, gris: 0 };
   for (const limite of limitesViabilite) {
     if (statut !== 'gris' && ordreStatut[statut] > ordreStatut[limite.statutMaximal]) {

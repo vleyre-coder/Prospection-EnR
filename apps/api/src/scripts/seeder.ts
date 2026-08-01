@@ -13,7 +13,7 @@ import { journal } from '../journal.js';
 import { assurerAdministrateur } from '../amorcage.js';
 import { qualifierEmprise } from '../services/qualification.js';
 import { ingererCommunes, ingererPostesSources, ingererPatrimoine } from '../ingestion/index.js';
-import { enregistrerCouverture, synchroniserReferentiel } from '../depots/sources.js';
+import { synchroniserReferentiel } from '../depots/sources.js';
 
 /** Secteurs de demonstration, choisis pour couvrir des contextes contrastes. */
 const SECTEURS = [
@@ -33,8 +33,13 @@ const SECTEURS = [
  * Exemples de ZAER et de document-cadre, pour les departements de demonstration.
  *
  * Ces donnees sont des EXEMPLES pedagogiques : aucune API nationale ne les publie, et
- * l'ingestion reelle se fait deliberation par deliberation. Elles sont marquees comme
- * telles afin de ne jamais etre confondues avec une source officielle.
+ * l'ingestion reelle se fait deliberation par deliberation. Elles portent
+ * `est_demonstration = true` : le moteur les ecarte, elles ne servent qu'a l'affichage
+ * cartographique.
+ *
+ * Aucune couverture d'ingestion n'est enregistree pour elles, volontairement. Enregistrer
+ * une couverture ferait passer le connecteur de « on ne sait pas s'il existe une ZAER ici »
+ * a « il n'y a pas de ZAER ici » : une affirmation d'absence fondee sur un jeu fictif.
  */
 async function amorcerCouchesLocales(): Promise<void> {
   const MARQUE = 'EXEMPLE DE DEMONSTRATION - a remplacer par la deliberation officielle';
@@ -43,36 +48,28 @@ async function amorcerCouchesLocales(): Promise<void> {
     const [minLon, minLat, maxLon, maxLat] = secteur.bbox;
     // ZAER couvrant la moitie ouest du secteur, pour illustrer l'effet du critere.
     await requete(
-      `INSERT INTO zaer (code_insee, nom_commune, filieres, geom, date_deliberation, source_document, attributs)
+      `INSERT INTO zaer (code_insee, nom_commune, filieres, geom, date_deliberation, source_document, attributs, est_demonstration)
        SELECT c.code_insee, c.nom, ARRAY['solaire_sol', 'bess'],
               ST_Multi(ST_Intersection(c.geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))),
-              '2024-09-01'::date, $5, '{"exemple": true}'::jsonb
+              '2024-09-01'::date, $5, '{"exemple": true}'::jsonb, true
          FROM commune c
         WHERE ST_Intersects(c.geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
           AND NOT EXISTS (SELECT 1 FROM zaer z WHERE z.code_insee = c.code_insee)
         LIMIT 5`,
       [minLon, minLat, (minLon + maxLon) / 2, maxLat, MARQUE],
     );
-    await enregistrerCouverture('zaer_local', 'zaer', secteur.departement, 1, MARQUE);
 
     // Document-cadre departemental couvrant l'ensemble du secteur.
     await requete(
-      `INSERT INTO document_cadre_pv (code_departement, date_arrete, url_arrete, geom, criteres_texte)
+      `INSERT INTO document_cadre_pv (code_departement, date_arrete, url_arrete, geom, criteres_texte, est_demonstration)
        SELECT $1, '2024-05-15'::date, NULL,
-              ST_Multi(ST_MakeEnvelope($2, $3, $4, $5, 4326)), $6
+              ST_Multi(ST_MakeEnvelope($2, $3, $4, $5, 4326)), $6, true
         WHERE NOT EXISTS (SELECT 1 FROM document_cadre_pv WHERE code_departement = $1)`,
       [secteur.departement, minLon, minLat, maxLon, maxLat, MARQUE],
     );
-    await enregistrerCouverture(
-      'document_cadre_local',
-      'document_cadre_pv',
-      secteur.departement,
-      1,
-      MARQUE,
-    );
   }
   journal.info(
-    'Couches locales de demonstration amorcees (ZAER et document-cadre marques comme exemples)',
+    'Couches locales de demonstration amorcees (marquees est_demonstration = true, ecartees du moteur)',
   );
 }
 
