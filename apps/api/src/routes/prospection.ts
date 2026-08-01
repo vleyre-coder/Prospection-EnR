@@ -152,6 +152,10 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/sites', async (req, rep) => {
+    // Meme garde que pour les leads : un compte en lecture seule ne cree rien.
+    if (req.utilisateur?.role === 'lecture') {
+      return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
+    }
     const corps = req.body as {
       nom?: string;
       filiere?: string;
@@ -197,6 +201,9 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
   });
 
   app.delete<{ Params: { id: string } }>('/api/sites/:id', async (req, rep) => {
+    if (req.utilisateur?.role === 'lecture') {
+      return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
+    }
     const ok = await depot.supprimerSite(req.params.id);
     if (!ok) return erreur(rep, 404, 'site_introuvable', 'Site introuvable');
     return rep.code(204).send();

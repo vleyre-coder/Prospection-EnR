@@ -25,21 +25,41 @@ export const COULEURS_SCORE_REMPLISSAGE: Record<Feu, string> = {
   gris: '#d1d5db',
 };
 
+/**
+ * Rouge REDHIBITOIRE : un critere eliminatoire est declenche.
+ *
+ * A distinguer du rouge de score faible, qui partageait jusqu'ici la meme couleur. Les deux
+ * n'appellent pourtant pas la meme decision : l'un est definitif en l'etat du droit, l'autre
+ * est une question de priorite - une parcelle notee 38 peut redevenir interessante si le
+ * poste source est renforce ou si les ponderations changent. Les confondre sur la carte, la
+ * ou se prend la decision d'envoyer un prospecteur, est un contresens metier.
+ *
+ * Teinte volontairement plus sombre et plus saturee que le rouge de score : elle reste
+ * distinguable en deuteranopie par sa luminance nettement plus basse.
+ */
+export const COULEUR_REDHIBITOIRE = '#7f1d1d';
+export const COULEUR_REDHIBITOIRE_REMPLISSAGE = '#991b1b';
+
 export const LIBELLES_SCORE: Record<Feu, string> = {
   vert: 'Propice',
   orange: 'Sous conditions / a etudier',
-  rouge: 'Redhibitoire / ecarte',
+  rouge: 'Score faible',
   gris: 'Donnees manquantes',
 };
+
+export const LIBELLE_REDHIBITOIRE = 'Redhibitoire';
 
 export const DESCRIPTIONS_SCORE: Record<Feu, string> = {
   vert: "Aucun critere redhibitoire et score global au-dessus du seuil : parcelle a demarcher en priorite.",
   orange:
     "Aucun critere redhibitoire, mais des points de vigilance abaissent le score : a etudier avant demarchage.",
   rouge:
-    "Au moins un critere redhibitoire est declenche, ou le score est tres bas : parcelle a ecarter en l'etat.",
+    "Aucun critere redhibitoire, mais un score tres bas : parcelle peu interessante en l'etat, sans obstacle de droit. Elle peut remonter si le contexte evolue (renforcement de poste, changement de ponderation).",
   gris: "Couverture de donnees insuffisante pour conclure. L'absence de donnee ne vaut pas absence de contrainte.",
 };
+
+export const DESCRIPTION_REDHIBITOIRE =
+  "Au moins un critere eliminatoire est declenche (recul reglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est ecartee en l'etat du droit, et non simplement mal classee.";
 
 export const COULEURS_SATURATION: Record<string, string> = {
   disponible: '#15803d',

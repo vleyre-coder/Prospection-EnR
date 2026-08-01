@@ -1,0 +1,91 @@
+# Integration continue.
+#
+# Elle manquait entierement : rien n'empechait un push de casser le moteur de scoring, et
+# trois regressions sont effectivement passees en production avant d'etre vues a l'usage.
+#
+# L'ordre compte. Les tests de `@enr/scoring` s'executent contre `dist/`, pas contre les
+# sources : lancer les tests sans construire d'abord les ferait passer contre un build
+# perime - c'est deja arrive, deux tests etaient au vert contre du code obsolete. La
+# construction est donc une etape a part entiere, avant les tests.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Une seule execution par branche : un push qui en suit un autre annule le precedent.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Typage, construction et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Le projet utilise `process.loadEnvFile` (Node >= 20.12) et le lanceur de tests
+          # integre. La version 22 est celle de l'image Docker de production.
+          node-version: '22'
+          cache: npm
+
+      - name: Installer les dependances
+        run: npm ci
+
+      - name: Verifier le typage
+        run: npm run typecheck
+
+      - name: Construire
+        run: npm run build
+
+      - name: Tester
+        run: npm test
+
+  migrations:
+    name: Migrations SQL sur PostGIS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Les migrations sont le seul endroit ou une faute ne se voit ni au typage ni aux tests
+    # unitaires : une colonne mal nommee ne casse qu'au demarrage, chez l'utilisateur. Une
+    # base jetable suffit a le detecter.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: enr_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build --workspace @enr/core --workspace @enr/scoring
+
+      - name: Appliquer les migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: npm run migrate --workspace @enr/api
+
+      - name: Les rejouer, pour verifier leur idempotence
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: npm run migrate --workspace @enr/api

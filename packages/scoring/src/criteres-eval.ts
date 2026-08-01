@@ -39,6 +39,21 @@ export interface EvalBrute {
   commentaire?: string | null;
   sourceKey?: string | null;
   reglesLiees?: string[];
+  /**
+   * Aucune SOURCE n'alimente ce critere sur ce territoire - a distinguer d'une donnee
+   * manquante pour cette parcelle-ci.
+   *
+   * La difference est decisive pour la couverture. Un critere dont la source n'existe pas
+   * manque a TOUTES les parcelles : le compter comme non renseigne fait chuter la couverture
+   * de la meme quantite partout, ce qui ne discrimine rien et peut passer la filiere entiere
+   * sous le seuil de grisement - c'est ce qui est arrive a la methanisation, rendue
+   * integralement grise par 23,8 % de poids sans source.
+   *
+   * Un tel critere est donc EXCLU du denominateur de couverture, mais reste affiche en gris
+   * et PLAFONNE le statut a orange : le classement redevient exploitable, sans qu'aucune
+   * parcelle puisse etre declaree propice sur un enjeu qui n'a pas ete regarde.
+   */
+  sansSource?: boolean;
 }
 
 export type Evaluateur = (s: ParcelleSnapshot, ctx: ContexteEval) => EvalBrute | null;
@@ -246,7 +261,29 @@ const gis_vent: Evaluateur = (s) => {
   };
 };
 
+/**
+ * Marque un critere dont la source n'est pas ingeree sur ce territoire.
+ * Le libelle affiche dit explicitement ce qui manque et ou le chercher.
+ */
+function sansSource(sourceKey: string, quoi: string, ou: string): EvalBrute {
+  return {
+    note: null,
+    valeurBrute: null,
+    valeurAffichee: 'non evalue - aucune source ingeree',
+    commentaire: `${quoi} n'est alimente par aucune couche ingeree sur ce territoire. Ce n'est pas une absence constatee sur le terrain : l'enjeu n'a pas ete regarde. ${ou}`,
+    sourceKey,
+    sansSource: true,
+  };
+}
+
 const gis_intrants: Evaluateur = (s) => {
+  if (s.gisement.sourcesIntrantsIngerees === false) {
+    return sansSource(
+      SRC.gisement,
+      "Le gisement d'intrants methanisables",
+      'A etablir par un recensement des elevages, des industries agroalimentaires et des surfaces de CIVE dans un rayon de 15 km, puis par des lettres d’intention d’apporteurs.',
+    );
+  }
   const v = s.gisement.intrantsMethaTonnesMsAn;
   if (v == null) return indispo(SRC.gisement);
   const details: string[] = [formatNombre(v, 't MS/an', 0)];
@@ -270,6 +307,13 @@ const gis_intrants: Evaluateur = (s) => {
 };
 
 const gis_debouche_epandage: Evaluateur = (s) => {
+  if (s.gisement.sourcesIntrantsIngerees === false) {
+    return sansSource(
+      SRC.gisement,
+      "Le debouche du digestat",
+      'A etablir par un plan d’epandage, ou par une filiere de sortie du statut de dechet (digestat norme).',
+    );
+  }
   const v = s.gisement.surfacesEpandageHa;
   if (v == null) return indispo(SRC.gisement);
   return {

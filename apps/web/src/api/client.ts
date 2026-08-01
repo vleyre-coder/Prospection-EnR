@@ -85,6 +85,38 @@ export function jetonEnregistre(): string | null {
   return jeton;
 }
 
+/**
+ * Notification de session expiree.
+ *
+ * Le jeton dure 12 h. Passe ce delai, les requetes echouent en 401 - y compris celles des
+ * TUILES, que MapLibre emet depuis un worker et dont l'echec ne remonte a aucun composant
+ * React. L'utilisateur se retrouvait alors devant une carte vide, sans message, et concluait
+ * a une panne. Tout point du code qui constate un 401 le signale ici ; l'application bascule
+ * sur l'ecran de connexion.
+ */
+const ecouteursSession = new Set<() => void>();
+
+export function surSessionExpiree(ecouteur: () => void): () => void {
+  ecouteursSession.add(ecouteur);
+  return () => ecouteursSession.delete(ecouteur);
+}
+
+let sessionDejaSignalee = false;
+
+export function signalerSessionExpiree(): void {
+  // Une carte emet une erreur par tuile : sans ce verrou, une centaine de notifications
+  // partiraient pour un seul evenement.
+  if (sessionDejaSignalee) return;
+  sessionDejaSignalee = true;
+  definirJeton(null);
+  for (const e of ecouteursSession) e();
+}
+
+/** A appeler apres une reconnexion reussie, pour rearmer la detection. */
+export function reinitialiserDetectionSession(): void {
+  sessionDejaSignalee = false;
+}
+
 async function appeler<T>(
   chemin: string,
   options: { methode?: string; corps?: unknown; enTetes?: Record<string, string> } = {},
@@ -113,6 +145,11 @@ async function appeler<T>(
 
   const typeContenu = reponse.headers.get('content-type') ?? '';
   if (!reponse.ok) {
+    // Un 401 sur n'importe quelle route signifie que la session est finie : on le signale
+    // une fois pour toutes plutot que de laisser chaque appelant le decouvrir seul.
+    if (reponse.status === 401 && !chemin.startsWith('/api/auth/connexion')) {
+      signalerSessionExpiree();
+    }
     if (typeContenu.includes('json')) {
       const corps = (await reponse.json().catch(() => null)) as
         | { erreur?: { code?: string; message?: string; details?: unknown } }
@@ -241,6 +278,11 @@ export interface Referentiel {
     couleursScoreRemplissage: Record<Feu, string>;
     libellesScore: Record<Feu, string>;
     descriptionsScore: Record<Feu, string>;
+    /** Rouge des parcelles frappees d'un critere eliminatoire, distinct du rouge de score faible. */
+    couleurRedhibitoire: string;
+    couleurRedhibitoireRemplissage: string;
+    libelleRedhibitoire: string;
+    descriptionRedhibitoire: string;
     couleursSaturation: Record<string, string>;
     libellesSaturation: Record<string, string>;
   };

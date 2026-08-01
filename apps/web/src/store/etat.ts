@@ -51,6 +51,17 @@ export interface EtatApp {
 
   filtres: Partial<FiltresRecherche>;
 
+  /**
+   * Emprise actuellement affichee sur la carte, mise a jour a chaque deplacement.
+   *
+   * Elle permet de borner la LISTE a ce que l'utilisateur regarde. Sans cela, la liste
+   * presentait toutes les parcelles qualifiees de la base : on pouvait voir cote a cote des
+   * parcelles distantes de 200 km, ce qui n'a aucun sens pour un travail de secteur.
+   */
+  empriseCourante: [number, number, number, number] | null;
+  /** La liste et les exports se limitent-ils a l'emprise affichee ? */
+  limiterALEmprise: boolean;
+
   outil: OutilDessin;
   /** Avertissements globaux masques pour la session en cours uniquement. */
   avertissementsMasques: string[];
@@ -76,6 +87,8 @@ export interface EtatApp {
   definirSeuils: (seuilVert: number, seuilOrange: number) => void;
   definirFiltres: (f: Partial<FiltresRecherche>) => void;
   reinitialiserFiltres: () => void;
+  definirEmprise: (b: [number, number, number, number]) => void;
+  basculerLimiteEmprise: () => void;
   definirOutil: (o: OutilDessin) => void;
   masquerAvertissement: (id: string) => void;
   basculerPanneauGauche: () => void;
@@ -92,6 +105,7 @@ interface Preferences {
   rayonRaccordementKm?: number;
   rayonPersonnalise?: boolean;
   ponderations?: Partial<Record<Filiere, Record<string, number>>>;
+  limiterALEmprise?: boolean;
 }
 
 function chargerPreferences(): Preferences {
@@ -112,6 +126,7 @@ function enregistrerPreferences(e: EtatApp): void {
     rayonRaccordementKm: e.rayonRaccordementKm,
     rayonPersonnalise: e.rayonPersonnalise,
     ponderations: e.ponderations,
+    limiterALEmprise: e.limiterALEmprise,
   };
   try {
     localStorage.setItem(CLE_PREFERENCES, JSON.stringify(p));
@@ -126,6 +141,8 @@ const prefs = chargerPreferences();
 export const useEtat = create<EtatApp>((set, get) => ({
   filiere: prefs.filiere ?? 'solaire_sol',
   vue: 'carte',
+  empriseCourante: null,
+  limiterALEmprise: prefs.limiterALEmprise ?? true,
   fond: prefs.fond ?? 'plan',
   theme: prefs.theme ?? 'systeme',
   iduSelectionne: null,
@@ -228,6 +245,13 @@ export const useEtat = create<EtatApp>((set, get) => ({
     set((e) => ({ seuils: { ...e.seuils, [e.filiere]: { seuilVert, seuilOrange } } })),
   definirFiltres: (f) => set((e) => ({ filtres: { ...e.filtres, ...f } })),
   reinitialiserFiltres: () => set({ filtres: {} }),
+  definirEmprise: (empriseCourante) => set({ empriseCourante }),
+  basculerLimiteEmprise: () =>
+    set((e) => {
+      const suivant = { ...e, limiterALEmprise: !e.limiterALEmprise };
+      enregistrerPreferences(suivant);
+      return { limiterALEmprise: suivant.limiterALEmprise };
+    }),
   definirOutil: (outil) => set({ outil }),
   masquerAvertissement: (id) =>
     set((e) => ({ avertissementsMasques: [...e.avertissementsMasques, id] })),

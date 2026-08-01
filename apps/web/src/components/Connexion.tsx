@@ -10,7 +10,14 @@
 import { useState } from 'react';
 import { api, definirJeton, ErreurApi, type Utilisateur } from '../api/client.js';
 
-export function Connexion({ onConnecte }: { onConnecte: (u: Utilisateur) => void }): JSX.Element {
+export function Connexion({
+  onConnecte,
+  expiree = false,
+}: {
+  onConnecte: (u: Utilisateur) => void;
+  /** La session a expire en cours d'utilisation, plutot qu'une premiere connexion. */
+  expiree?: boolean;
+}): JSX.Element {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -43,6 +50,16 @@ export function Connexion({ onConnecte }: { onConnecte: (u: Utilisateur) => void
         <p className="connexion-sous-titre">
           Identification et priorisation des parcelles a demarcher, filiere par filiere.
         </p>
+
+        {expiree && (
+          <div className="erreur-encart" role="status" style={{ marginBottom: 12 }}>
+            <strong>Session expiree</strong>
+            <p style={{ margin: '4px 0 0' }}>
+              Votre session a depasse sa duree de validite. Reconnectez-vous : votre travail
+              enregistre est intact, seul l&rsquo;affichage a ete interrompu.
+            </p>
+          </div>
+        )}
 
         <label htmlFor="connexion-email">Adresse electronique</label>
         <input

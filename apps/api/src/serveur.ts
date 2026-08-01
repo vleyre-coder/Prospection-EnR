@@ -14,7 +14,10 @@ import {
   resoudreSecretJwt,
   tenterVerrou,
 } from './amorcage.js';
-import { rescorerSiVersionObsolete } from './services/qualification.js';
+import {
+  rescorerSiVersionObsolete,
+  signalerCampagnesInterrompues,
+} from './services/qualification.js';
 import { appliquerMigrations } from './migrations.js';
 import { synchroniserReferentiel } from './depots/sources.js';
 import { routesReferentiel } from './routes/referentiel.js';
@@ -231,6 +234,13 @@ async function demarrer(): Promise<void> {
         'Echec des migrations : le serveur demarre mais les donnees seront indisponibles.',
       );
     }
+  }
+  if (bdd) {
+    // Une campagne sans date de fin signale un arret du serveur en cours de traitement :
+    // le lot est incomplet, et l'utilisateur doit pouvoir le constater.
+    await signalerCampagnesInterrompues().catch((err: unknown) =>
+      journal.warn({ err }, 'Verification des campagnes interrompues impossible'),
+    );
   }
   if (bdd) {
     const n = await synchroniserReferentiel().catch((err: unknown) => {

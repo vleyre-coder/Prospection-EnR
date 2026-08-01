@@ -112,10 +112,27 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
     const t = (dominant.typeZone ?? dominant.libelle ?? '').toUpperCase();
     const enZaerPourFiliere = s.urbanisme.zaer.present === true && s.urbanisme.zaer.filieres.includes(ctx.filiere);
     if (/^N/.test(t) && !enZaerPourFiliere) {
+      // La part reellement couverte est estimee par echantillonnage ; elle peut manquer sur
+      // une parcelle trop etroite pour la grille. On le dit plutot que de laisser croire a
+      // une mesure, car cette part est ce qui designe le zonage gouvernant.
+      const part = dominant.partRecouvrement;
+      const etendue =
+        part == null
+          ? "La part de la parcelle couverte par cette zone n'a pas pu etre estimee : verifiez le plan de zonage, la parcelle peut etre a cheval sur plusieurs zones."
+          : part >= 0.95
+            ? 'La zone couvre la totalite de la parcelle.'
+            : `La zone couvre environ ${Math.round(part * 100)} % de la parcelle${
+                zonages.length > 1
+                  ? `, le reste relevant de ${zonages
+                      .filter((z) => z !== dominant)
+                      .map((z) => z.libelle ?? z.typeZone ?? '?')
+                      .join(', ')} : une implantation sur la partie hors zone N peut etre envisageable.`
+                  : '.'
+              }`;
       return ko(
         'ko_zonage_naturel',
         'Zonage naturel (N)',
-        `La parcelle est en zone ${dominant.libelle ?? t}, ou les installations de production d'energie ne sont generalement pas admises. Une implantation suppose un secteur de taille et de capacite d'accueil limitees (STECAL) ou une evolution du document d'urbanisme, soit 12 a 24 mois de procedure.`,
+        `La parcelle est en zone ${dominant.libelle ?? t}, ou les installations de production d'energie ne sont generalement pas admises. ${etendue} Une implantation suppose un secteur de taille et de capacite d'accueil limitees (STECAL) ou une evolution du document d'urbanisme, soit 12 a 24 mois de procedure.`,
         'urbanisme',
         null,
         true,

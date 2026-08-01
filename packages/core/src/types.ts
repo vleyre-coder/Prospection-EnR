@@ -319,6 +319,15 @@ export interface Gisement {
   iaaRayon20km: number | null;
   /** Surfaces d'epandage potentiellement disponibles dans un rayon de 10 km, en ha. */
   surfacesEpandageHa: number | null;
+  /**
+   * Les couches alimentant le gisement methanisable (elevages, industries agroalimentaires,
+   * surfaces agricoles communales) sont-elles ingerees pour ce territoire ?
+   *
+   * Distinction indispensable : sans elle, un comptage `count(*)` renvoie 0 la ou aucune
+   * couche n'existe, et la fiche affiche « 0 elevage a moins de 10 km » comme un constat de
+   * terrain. `false` signifie « on ne sait pas », jamais « il n'y en a pas ».
+   */
+  sourcesIntrantsIngerees: boolean | null;
 }
 
 export interface Bati {

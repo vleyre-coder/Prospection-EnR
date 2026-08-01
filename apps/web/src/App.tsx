@@ -15,7 +15,9 @@ import {
   definirJeton,
   ErreurApi,
   jetonEnregistre,
+  reinitialiserDetectionSession,
   RACINE_ABSOLUE,
+  surSessionExpiree,
   type Amorcage,
   type LigneListe,
   type ResultatRecherche,
@@ -40,6 +42,13 @@ export function App(): JSX.Element {
    * attente. Il n'apparait qu'une fois par session.
    */
   const [accueil, setAccueil] = useState(!accueilDejaVu());
+
+  /**
+   * Session expiree signalee ailleurs dans l'application - typiquement par une tuile
+   * cartographique, dont l'echec ne remonte a aucun composant React.
+   */
+  const [sessionExpiree, setSessionExpiree] = useState(false);
+  useEffect(() => surSessionExpiree(() => setSessionExpiree(true)), []);
 
   // Identite de l'utilisateur : en mode developpement l'API repond sans jeton, et l'ecran
   // de connexion n'apparait jamais. En mode authentifie, un 401 le declenche.
@@ -91,11 +100,15 @@ export function App(): JSX.Element {
     return () => window.removeEventListener('keydown', surTouche);
   }, [referentiel.data, etat]);
 
-  // Authentification requise : l'API a refuse l'identite courante.
-  if ((moi.error as ErreurApi | undefined)?.estNonAuthentifie) {
+  // Authentification requise : l'API a refuse l'identite courante, ou une requete - y
+  // compris une tuile chargee par MapLibre - a rencontre un 401 en cours de session.
+  if ((moi.error as ErreurApi | undefined)?.estNonAuthentifie || sessionExpiree) {
     return (
       <Connexion
+        expiree={sessionExpiree}
         onConnecte={() => {
+          reinitialiserDetectionSession();
+          setSessionExpiree(false);
           // Toutes les requetes ont ete faites sans jeton : on les rejoue.
           void clientRequetes.invalidateQueries();
         }}

@@ -19,6 +19,30 @@ sont donc des lectures de requêtes et d'index, pas des mesures. Tout ce qui rel
 de scoring, en revanche, a été **exécuté** : les résultats chiffrés ci-dessous sortent de
 simulations réelles.
 
+> ## État des corrections — même jour, après cet audit
+>
+> Les **quatre corrections indispensables** (B1 à B4), les **trois autres points critiques**
+> (B5 à B7) et les **problèmes importants C1 à C8** ont été implémentés. Le constat ci-dessous
+> est conservé en l'état : il documente ce qui était en défaut et pourquoi.
+>
+> | Point | État | Vérification |
+> |---|---|---|
+> | B1 méthanisation structurellement grise | **corrigé** | mécanisme « critère sans source » : couverture 100 %, statut plafonné orange — 5 tests |
+> | B2 score de site sans garde-fous | **corrigé** | 4 tests, dont « parcelles grises → site gris » |
+> | B3 zéros affichés comme mesures | **corrigé** | `couchesIntrantsIngerees()` avant tout comptage |
+> | B4 carte muette à l'expiration | **corrigé** | notification de session + bandeau « session expirée » |
+> | B5 fonction propriétaires vide | **corrigé** | trois états explicites, dont `non_alimentee` |
+> | B6 aucune CI | **corrigé** | `.github/workflows/ci.yml` ; 65 tests contre 41 |
+> | B7 référentiel non lié à l'invalidation | **corrigé** | `VERSION_MOTEUR = 1.2.0+27920b4d` |
+> | C1 zonage dominant arbitraire | **corrigé** | `partCouverte()` par échantillonnage — 7 tests |
+> | C2 rouge KO / rouge score | **corrigé** | 5e entrée de légende, teinte distincte |
+> | C3 liste hors emprise | **corrigé** | bbox transmis, bascule « Limiter à la zone affichée » |
+> | C4 IDOR + rôle `lecture` | **corrigé** | 6 tests d'accès |
+> | C5 fuite mémoire du cache | **corrigé** | plafond 5 000 entrées, purge amortie |
+> | C6 état de qualification volatil | **corrigé** | table `tache_qualification`, campagnes interrompues signalées |
+> | C7 aucune limitation de débit | **corrigé** | seau à jetons sur connexion, qualification, exports — 2 tests |
+> | C8 deux « couverture » homonymes | **corrigé** | commentaires de colonnes, migration 009 |
+
 **Périmètre mesuré :** 21 648 lignes (TypeScript, TSX), 8 migrations SQL (741 lignes),
 3 365 lignes de documentation, **4 fichiers de test (770 lignes, 41 tests)**, **0 intégration
 continue**.

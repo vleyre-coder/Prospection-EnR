@@ -23,7 +23,22 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
   const [tri, setTri] = useState<Tri>('score_desc');
   const [erreurExport, setErreurExport] = useState<string | null>(null);
 
-  const filtres = { ...etat.filtres, filiere, tri, limite: 300 };
+  /**
+   * La liste se limite par defaut a l'emprise affichee.
+   *
+   * Sans cette borne, elle presentait toutes les parcelles qualifiees de la base : on
+   * pouvait lire cote a cote deux parcelles distantes de 200 km, sans aucun indice que la
+   * liste ne correspondait pas a la carte. Le bbox etait deja accepte par l'API ; il n'etait
+   * simplement jamais transmis.
+   */
+  const borne = etat.limiterALEmprise && etat.empriseCourante != null;
+  const filtres = {
+    ...etat.filtres,
+    filiere,
+    tri,
+    limite: 300,
+    ...(borne ? { bbox: etat.empriseCourante! } : {}),
+  };
   const requete = useQuery({
     queryKey: ['liste', filtres],
     queryFn: () => api.filtrer(filtres),
@@ -53,10 +68,24 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
               — {requete.data.total} resultat{requete.data.total > 1 ? 's' : ''}
               {requete.data.total > requete.data.resultats.length &&
                 ` (${requete.data.resultats.length} affiches)`}
+              {borne
+                ? ' — dans la zone affichee'
+                : ' — sur tout le territoire qualifie'}
             </span>
           )}
         </h2>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <label
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+            title="Limite la liste et les exports aux parcelles visibles sur la carte."
+          >
+            <input
+              type="checkbox"
+              checked={etat.limiterALEmprise}
+              onChange={() => etat.basculerLimiteEmprise()}
+            />
+            Limiter a la zone affichee
+          </label>
           <button
             type="button"
             className="bouton"

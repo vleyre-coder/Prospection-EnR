@@ -18,6 +18,7 @@ import type { Feu } from '@enr/core';
 import {
   api,
   jetonEnregistre,
+  signalerSessionExpiree,
   RACINE_ABSOLUE,
   type PosteSourceProps,
   type Referentiel,
@@ -171,6 +172,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const ZOOM_MAX_COMMUNES = referentiel.carte?.zoomMaxCommunes ?? ZOOM_MIN_PARCELLES;
 
   const couleurs = referentiel.palette.couleursScoreRemplissage;
+  const couleurRedhibitoire = referentiel.palette.couleurRedhibitoireRemplissage;
   const couleursStatut = Object.fromEntries(
     referentiel.statutsProspection.map((s) => [s.id, s.couleur]),
   );
@@ -258,7 +260,17 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     // partiellement resolu), l'application doit malgre tout afficher les parcelles.
     const filet = window.setTimeout(installer, 2000);
     m.on('zoomend', () => setZoom(m.getZoom()));
-    m.on('moveend', () => setZoom(m.getZoom()));
+    m.on('moveend', () => {
+      setZoom(m.getZoom());
+      // L'emprise affichee est publiee dans l'etat : c'est elle qui borne la vue liste.
+      const b = m.getBounds();
+      etatRef.current.definirEmprise([
+        b.getWest(),
+        b.getSouth(),
+        b.getEast(),
+        b.getNorth(),
+      ]);
+    });
 
     // Un fond de carte muet est indiscernable d'une application cassee. Plutot que de le
     // signaler et s'en tenir la, on bascule sur le relais servi par l'API.
@@ -267,8 +279,21 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     m.on('error', (evenement) => {
       // `sourceId` n'est pas declare sur le type d'evenement, mais MapLibre le fournit pour
       // les erreurs de source.
-      const e = evenement as unknown as { sourceId?: string; error?: { url?: string } };
+      const e = evenement as unknown as {
+        sourceId?: string;
+        error?: { url?: string; status?: number };
+      };
       const url = e.error?.url ?? '';
+
+      // Session expiree : les tuiles parcellaires sont authentifiees depuis qu'elles portent
+      // le statut de prospection. Sans ce traitement, un jeton perime laisse une carte vide
+      // et muette - l'utilisateur conclut a une panne alors qu'il lui suffit de se
+      // reconnecter. MapLibre expose le statut HTTP sur `AJAXError`.
+      if (e.error?.status === 401 && url.startsWith(RACINE_ABSOLUE)) {
+        signalerSessionExpiree();
+        return;
+      }
+
       const estFondDirect = url.includes('data.geopf.fr/wmts');
       const estRelais = url.includes('/api/carte/fond/');
 
@@ -384,7 +409,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       'source-layer': 'parcelles',
       minzoom: ZOOM_MIN_PARCELLES,
       paint: {
-        'fill-color': expressionCouleurScore(couleurs),
+        'fill-color': expressionCouleurScore(couleurs, couleurRedhibitoire),
         'fill-opacity': [
           'case',
           ['boolean', ['feature-state', 'selectionnee'], false],
@@ -1161,7 +1186,10 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
  * `feature-state` prime, pour permettre la recoloration instantanee au deplacement des
  * curseurs de ponderation sans retelecharger les tuiles.
  */
-function expressionCouleurScore(couleurs: Record<Feu, string>): ExpressionSpecification {
+function expressionCouleurScore(
+  couleurs: Record<Feu, string>,
+  couleurRedhibitoire: string,
+): ExpressionSpecification {
   return [
     'case',
     // Ni statut recalcule a la volee, ni statut materialise : parcelle non analysee.
@@ -1171,6 +1199,19 @@ function expressionCouleurScore(couleurs: Record<Feu, string>): ExpressionSpecif
       ['!', ['has', 'statut_score']],
     ],
     'rgba(0,0,0,0)',
+    /**
+     * Critere eliminatoire declenche : rouge sombre, distinct du rouge de score faible.
+     *
+     * « Impossible en l'etat du droit » et « mal classe » n'appellent pas la meme decision,
+     * et c'est sur la carte que se decide l'envoi d'un prospecteur. L'attribut etait deja
+     * transporte par la tuile ; il n'etait simplement pas lu.
+     *
+     * Le recalcul a la volee des ponderations ne change pas les knock-outs - ils sont
+     * reglementaires, pas ponderes - donc l'attribut de tuile fait foi meme lorsqu'un
+     * `feature-state` surcharge le statut.
+     */
+    ['>', ['coalesce', ['get', 'nb_knock_outs'], 0], 0],
+    couleurRedhibitoire,
     [
       'match',
       ['coalesce', ['feature-state', 'statut'], ['get', 'statut_score'], 'gris'],

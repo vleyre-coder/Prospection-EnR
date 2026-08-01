@@ -71,10 +71,52 @@ export async function vent(pt: Position): Promise<number | null> {
   return ventA100m(pt);
 }
 
+/** Types de contraintes alimentant l'estimation du gisement methanisable. */
+const COUCHES_INTRANTS = ['elevage', 'industrie_agroalimentaire', 'surface_agricole_commune'];
+
 /**
- * Gisement d'intrants methanisables et debouches, estimes a partir des donnees locales
- * ingerees (RPG agrege par commune, elevages, industries agroalimentaires recensees en
- * ICPE). En l'absence de ces couches, les champs restent a null.
+ * Ces couches sont-elles ingerees ?
+ *
+ * Question decisive, et distincte du comptage lui-meme : `count(*)` ne renvoie jamais
+ * `null`, il renvoie 0. Sans ce test prealable, une base ou aucune couche d'elevages n'a
+ * jamais ete chargee produisait « 0 elevage a moins de 10 km » - un constat de terrain,
+ * alors que la bonne reponse est « on n'en sait rien ». Le prospecteur ecartait un secteur
+ * sur une donnee inexistante.
+ *
+ * Le resultat est mis en cache : la reponse ne change qu'apres une ingestion, et la question
+ * serait posee une fois par parcelle sur des lots de plusieurs centaines.
+ */
+let cacheCouches: { valeur: boolean; expire: number } | null = null;
+
+export async function couchesIntrantsIngerees(): Promise<boolean> {
+  if (cacheCouches && cacheCouches.expire > Date.now()) return cacheCouches.valeur;
+  try {
+    const rows = await requete<{ presente: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM contrainte WHERE type = ANY($1)) AS presente`,
+      [COUCHES_INTRANTS],
+    );
+    const valeur = rows[0]?.presente === true;
+    cacheCouches = { valeur, expire: Date.now() + 5 * 60 * 1000 };
+    return valeur;
+  } catch {
+    // Base injoignable : on ne peut pas affirmer que la couche existe.
+    return false;
+  }
+}
+
+/** Reinitialise le cache, apres une ingestion. */
+export function oublierCouchesIntrantes(): void {
+  cacheCouches = null;
+}
+
+/**
+ * Gisement d'intrants methanisables et debouches, estimes a partir des couches locales
+ * ingerees (elevages et industries agroalimentaires recensees en ICPE, RPG agrege par
+ * commune).
+ *
+ * `sourcesIntrantsIngerees` distingue les deux situations que le moteur doit traiter
+ * differemment : `false` = aucune couche, l'enjeu n'a pas ete regarde ; `true` avec des
+ * comptages nuls = territoire reellement depourvu.
  */
 export async function intrantsMethanisation(
   pt: Position,
@@ -84,7 +126,12 @@ export async function intrantsMethanisation(
   elevagesRayon10km: number | null;
   iaaRayon20km: number | null;
   surfacesEpandageHa: number | null;
+  sourcesIntrantsIngerees: boolean | null;
 }> {
+  // Aucune couche ingeree : on ne compte rien, et on le dit. Un comptage a zero sur une
+  // table vide serait indiscernable d'un comptage a zero sur un territoire sans elevage.
+  if (!(await couchesIntrantsIngerees())) return vide(false);
+
   try {
     const rows = await requete<{
       elevages: number | null;
@@ -102,36 +149,39 @@ export async function intrantsMethanisation(
       [pt[0], pt[1]],
     );
     const r = rows[0];
-    if (!r) return vide();
+    if (!r) return vide(true);
 
-    const elevages = r.elevages;
-    const iaa = r.iaa;
+    // Les couches EXISTENT (verifie plus haut) : un comptage a zero est ici une vraie
+    // absence sur le territoire, et peut donc etre affiche comme telle.
+    const elevages = r.elevages ?? 0;
+    const iaa = r.iaa ?? 0;
     const surfaces = r.surfaces_ha;
-
-    // Aucune couche ingeree : on ne devine pas.
-    if (elevages == null && iaa == null && surfaces == null) return vide();
 
     // Estimation grossiere et documentee : 250 t MS/an d'effluents mobilisables par
     // exploitation d'elevage, 800 t MS/an par industrie agroalimentaire, et 0,4 t MS/ha
     // de CIVE sur les surfaces agricoles a proximite.
     const intrants =
-      (elevages ?? 0) * 250 + (iaa ?? 0) * 800 + (surfaces ?? 0) * 0.4;
+      elevages * 250 + iaa * 800 + (surfaces ?? 0) * 0.4;
 
     return {
-      intrantsMethaTonnesMsAn: intrants > 0 ? Math.round(intrants) : null,
+      intrantsMethaTonnesMsAn: Math.round(intrants),
       elevagesRayon10km: elevages,
       iaaRayon20km: iaa,
-      surfacesEpandageHa: surfaces == null ? null : Math.round(surfaces),
+      surfacesEpandageHa: surfaces == null ? 0 : Math.round(surfaces),
+      sourcesIntrantsIngerees: true,
     };
   } catch {
-    return vide();
+    // Echec de la requete alors que les couches existent : donnee indisponible pour cette
+    // parcelle, ce qui n'est pas la meme chose qu'une source absente.
+    return vide(true);
   }
 
-  function vide(): {
+  function vide(sourcesIngerees: boolean): {
     intrantsMethaTonnesMsAn: null;
     elevagesRayon10km: null;
     iaaRayon20km: null;
     surfacesEpandageHa: null;
+    sourcesIntrantsIngerees: boolean;
   } {
     void codeInsee;
     return {
@@ -139,6 +189,7 @@ export async function intrantsMethanisation(
       elevagesRayon10km: null,
       iaaRayon20km: null,
       surfacesEpandageHa: null,
+      sourcesIntrantsIngerees: sourcesIngerees,
     };
   }
 }

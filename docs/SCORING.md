@@ -98,6 +98,20 @@ motif économique et non réglementaire. Et surtout, ces parcelles **restent mob
 d'un site** : dix parcelles de 0,2 ha ne sont finançables qu'ensemble, et l'agrégation ne
 retire du site que les parcelles frappées d'un knock-out réglementaire bloquant.
 
+### Le site est soumis aux mêmes garde-fous que la parcelle
+
+`calculerScoreSite` appliquait autrefois les seuls seuils vert et orange. Ni le seuil de
+couverture, ni le plafond d'incertitude, ni les limites de viabilité, ni la règle « un
+knock-out dérogeable interdit le vert » ne s'y appliquaient — si bien que **deux parcelles
+individuellement grises produisaient un site vert à 95/100**. Agréger deux inconnues ne
+produit pas une certitude, et le site est précisément l'objet que l'on présente en comité.
+
+Le site expose désormais sa propre `couvertureDonnees` — moyenne des parcelles retenues,
+pondérée par leur surface — et ses propres `limitesViabilite`, et il leur est soumis. Une
+seule limite ne se propage pas : l'**insuffisance de surface**, qui est réévaluée sur la
+surface retenue du site. C'est la raison d'être de l'agrégation : dix parcelles de 0,3 ha
+sont chacune sous le seuil de 1 ha, le site de 3 ha ne l'est pas.
+
 ## 3. Couverture de données et statut gris
 
 ```
@@ -120,6 +134,32 @@ viabilité avec son motif, pas en silence.
 
 L'interface rappelle dans tous les cas que « l'absence de donnée ne vaut pas absence de
 contrainte », et énumère les critères non évalués.
+
+### Critères sans source nationale
+
+Un quatrième cas se distingue des trois précédents : un critère dont **la source n'existe
+pas** sur le territoire, et qui manque donc identiquement à *toutes* les parcelles.
+
+Le compter comme non renseigné fait chuter la couverture de la même quantité partout : cela
+ne discrimine rien, et peut faire passer une filière entière sous le seuil. C'est exactement
+ce qui est arrivé à la méthanisation — `gis_intrants` (16,5 %) et `gis_debouche_epandage`
+(7,3 %) dépendent de couches d'élevages, d'industries agroalimentaires et de surfaces
+agricoles qui ne sont ingérées nulle part, soit 23,8 % du poids. La couverture plafonnait à
+76 %, sous le seuil de 80 % : **toute parcelle, partout en France, ressortait grise.**
+
+Un tel critère est donc :
+
+- **exclu du dénominateur de couverture** — le score redevient calculable et comparable d'une
+  parcelle à l'autre sur ce qui *peut* être su ;
+- **affiché en gris** dans la fiche, avec sa part réelle du sujet et un commentaire disant où
+  chercher l'information (atlas DREAL, plan d'épandage, lettres d'intention…) ;
+- **plafonnant le statut à orange**, via la limite `criteres_sans_source` : aucune parcelle ne
+  peut être déclarée propice sur un enjeu que personne n'a regardé.
+
+Le jour où les couches sont ingérées, le critère redevient ordinaire et le plafond disparaît
+de lui-même. Le connecteur distingue pour cela « aucune couche » de « comptage nul » : sans
+cette distinction, `count(*)` renvoyait 0 et la fiche affichait « 0 élevage à moins de
+10 km » comme un constat de terrain.
 
 ## 4. Règles propres à chaque filière
 
@@ -210,7 +250,7 @@ sans date n'est pas exploitable pour décider.
 
 ## 8. Tests
 
-`packages/scoring/test/moteur.test.ts` — 22 tests couvrant :
+`packages/scoring/test/moteur.test.ts` — 31 tests couvrant :
 
 - une parcelle favorable notée verte pour les quatre filières ;
 - l'asymétrie des seuils d'éloignement (une habitation proche écarte l'éolien, pas le solaire) ;
@@ -218,6 +258,10 @@ sans date n'est pas exploitable pour décider.
   distance sur 1,5 ha reste éliminatoire ;
 - l'absence des critères avifaune, chiroptères et covisibilité, faute de source ;
 - le plafonnement à orange entre 80 % et 90 % de couverture ;
+- les critères sans source : exclusion du dénominateur, plafond à orange, part affichée
+  correcte, et distinction d'avec un comptage réellement nul ;
+- le score de site : parcelles grises → site gris, knock-out dérogeable → pas de vert,
+  surface appréciée sur le site et non parcelle par parcelle ;
 - AOP viticole, document-cadre départemental présent ou non ingéré ;
 - poste saturé avec et sans renforcement programmé (orange contre rouge) ;
 - bascule en gris sous le seuil de couverture ;
@@ -229,3 +273,11 @@ sans date n'est pas exploitable pour décider.
 ```bash
 npm run test -w @enr/scoring
 ```
+
+`apps/api/test/` — 34 tests : emprises de qualification, accès aux tuiles, données de
+démonstration, part de recouvrement des zonages, contrôle d'accès par rôle et limitation de
+débit.
+
+L'ensemble est vérifié à chaque poussée par `.github/workflows/ci.yml`, qui enchaîne typage,
+construction et tests, puis rejoue les migrations SQL deux fois sur une base PostGIS jetable
+pour vérifier leur idempotence.

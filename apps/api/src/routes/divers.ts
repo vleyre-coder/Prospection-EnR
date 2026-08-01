@@ -22,6 +22,7 @@ import {
 } from '../depots/sources.js';
 import { rescorerTout } from '../services/qualification.js';
 import { erreur } from './erreurs.js';
+import { limiterDebit } from '../debit.js';
 
 export async function routesDivers(app: FastifyInstance): Promise<void> {
   // --- Recherche unifiee ---------------------------------------------------
@@ -69,7 +70,11 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       .send(ficheParcellePdf(parcelle, snapshot.snapshot, score, snapshot.connecteursEnEchec));
   });
 
-  app.post('/api/exports/geojson', async (req, rep) => {
+  const debitExport = {
+    preHandler: limiterDebit({ max: 30, fenetreMs: 10 * 60 * 1000, operation: 'export' }),
+  };
+
+  app.post('/api/exports/geojson', debitExport, async (req, rep) => {
     const corps = req.body as { idus?: string[]; filiere?: string };
     if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
       return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
@@ -87,7 +92,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       .send(geojsonParcelles(donnees));
   });
 
-  app.post('/api/exports/shapefile', async (req, rep) => {
+  app.post('/api/exports/shapefile', debitExport, async (req, rep) => {
     const corps = req.body as { idus?: string[]; filiere?: string };
     if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
       return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
@@ -131,7 +136,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       .send(archive);
   });
 
-  app.post('/api/exports/csv', async (req, rep) => {
+  app.post('/api/exports/csv', debitExport, async (req, rep) => {
     const corps = req.body as Partial<FiltresParcelles> & { filiere?: string };
     if (!estFiliere(corps.filiere)) {
       return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
@@ -228,12 +233,34 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.delete<{ Params: { id: string } }>('/api/ponderations/:id', async (req, rep) => {
-    await requete(`DELETE FROM profil_ponderation WHERE id = $1`, [req.params.id]);
+    const u = req.utilisateur;
+    if (!u) return erreur(rep, 401, 'non_authentifie', 'Authentification requise');
+
+    // Verification de PROPRIETE, et non simple authentification : la requete supprimait
+    // auparavant n'importe quel profil sur simple connaissance de son identifiant, y compris
+    // celui d'un collegue. Un administrateur reste autorise, pour pouvoir faire le menage.
+    const supprimees = await requete<{ id: string }>(
+      `DELETE FROM profil_ponderation
+        WHERE id = $1 AND ($2::boolean OR utilisateur_id = $3)
+        RETURNING id`,
+      [req.params.id, u.role === 'admin', u.id],
+    );
+    if (supprimees.length === 0) {
+      // Meme reponse que le profil soit inexistant ou appartienne a un tiers : distinguer
+      // les deux revelerait l'existence des profils d'autrui.
+      return erreur(rep, 404, 'profil_introuvable', 'Aucun profil de ponderation supprimable a cet identifiant');
+    }
     return rep.code(204).send();
   });
 
   // --- Authentification ----------------------------------------------------
-  app.post('/api/auth/connexion', async (req, rep) => {
+  app.post(
+    '/api/auth/connexion',
+    // Route publique : la seule ou un attaquant non authentifie peut insister. La limite
+    // vise le bourrage d'identifiants, pas l'usage normal - dix essais par quart d'heure
+    // laissent largement place a une faute de frappe.
+    { preHandler: limiterDebit({ max: 10, fenetreMs: 15 * 60 * 1000, operation: 'connexion' }) },
+    async (req, rep) => {
     const corps = req.body as { email?: string; motDePasse?: string };
     if (!corps.email || !corps.motDePasse) {
       return erreur(rep, 400, 'identifiants_manquants', 'Champs `email` et `motDePasse` requis');
@@ -278,7 +305,8 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
         habiliteDonneesProprietaires: u.habilite_donnees_proprietaires,
       },
     };
-  });
+    },
+  );
 
   app.get('/api/auth/moi', async (req, rep) => {
     if (!req.utilisateur) return erreur(rep, 401, 'non_authentifie', 'Authentification requise');

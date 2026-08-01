@@ -32,6 +32,34 @@ interface EntreeCache {
 
 const cache = new Map<string, EntreeCache>();
 
+/**
+ * Plafond du cache memoire.
+ *
+ * Sans plafond, une entree n'etait jamais supprimee : la duree de vie n'etait verifiee qu'a
+ * la LECTURE, si bien qu'une reponse jamais relue restait en memoire indefiniment. Une
+ * qualification de 1 000 parcelles emet une douzaine de requetes par parcelle, dont
+ * plusieurs `FeatureCollection` de plusieurs dizaines de kilo-octets : le processus
+ * grossissait de facon monotone jusqu'a l'echec d'allocation.
+ */
+const CACHE_MAX_ENTREES = 5000;
+
+/** Supprime les entrees perimees, puis les plus anciennes si le plafond est depasse. */
+function purgerCache(): void {
+  const maintenant = Date.now();
+  for (const [cle, entree] of cache) {
+    if (entree.expire <= maintenant) cache.delete(cle);
+  }
+  if (cache.size <= CACHE_MAX_ENTREES) return;
+  // `Map` conserve l'ordre d'insertion : les premieres cles sont les plus anciennes.
+  const aRetirer = cache.size - CACHE_MAX_ENTREES;
+  let i = 0;
+  for (const cle of cache.keys()) {
+    if (i >= aRetirer) break;
+    cache.delete(cle);
+    i += 1;
+  }
+}
+
 /** Semaphores par domaine, pour ne pas saturer une source. */
 const filesAttente = new Map<string, { actifs: number; attente: Array<() => void> }>();
 
@@ -130,7 +158,12 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
 
         const contenu = reponse.headers.get('content-type') ?? '';
         const valeur = contenu.includes('json') ? await reponse.json() : await reponse.text();
-        if (ttl > 0) cache.set(cleCache, { valeur, expire: Date.now() + ttl });
+        if (ttl > 0) {
+          // Purge amortie : declenchee seulement quand le plafond est atteint, pour ne pas
+          // parcourir la table a chaque reponse.
+          if (cache.size >= CACHE_MAX_ENTREES) purgerCache();
+          cache.set(cleCache, { valeur, expire: Date.now() + ttl });
+        }
         return valeur as T;
       } catch (err) {
         derniereErreur = err as Error;

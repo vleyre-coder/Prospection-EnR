@@ -485,3 +485,158 @@ describe('limites de viabilite economique', () => {
     assert.equal(site.knockOutsConsolides[0]?.id, 'ko_zone_humide');
   });
 });
+
+/**
+ * Correction B1. Un critere dont la SOURCE n'existe pas sur le territoire manque
+ * identiquement a toutes les parcelles : le compter comme non renseigne faisait chuter la
+ * couverture de la meme quantite partout. En methanisation, les 23,8 % de poids sans source
+ * plaçaient la couverture maximale a 76 %, sous le seuil de grisement de 80 % : la filiere
+ * entiere etait grise, sur tout le territoire.
+ */
+describe('criteres sans source nationale', () => {
+  /** Parcelle methanisable correcte, sur un territoire sans couche d'intrants ingeree. */
+  function sansIntrants(): ParcelleSnapshot {
+    return parcelleType((p) => {
+      p.gisement.intrantsMethaTonnesMsAn = null;
+      p.gisement.surfacesEpandageHa = null;
+      p.gisement.elevagesRayon10km = null;
+      p.gisement.iaaRayon20km = null;
+      p.gisement.sourcesIntrantsIngerees = false;
+    });
+  }
+
+  it('exclut du denominateur de couverture, plutot que de griser la filiere entiere', () => {
+    const r = calculerScore(sansIntrants(), 'methanisation');
+    assert.equal(
+      r.couvertureDonnees,
+      1,
+      'la couverture porte sur les criteres evaluables, pas sur ceux qui n’ont pas de source',
+    );
+    assert.notEqual(r.statut, 'gris', 'la filiere doit rester exploitable');
+    assert.ok(r.scoreGlobal != null, 'le score doit rester calcule et comparable');
+  });
+
+  it('plafonne malgre tout le statut a orange, et le dit', () => {
+    const r = calculerScore(sansIntrants(), 'methanisation');
+    assert.equal(r.statut, 'orange', 'aucune parcelle propice sur un enjeu jamais regarde');
+    const limite = r.limitesViabilite.find((l) => l.id === 'criteres_sans_source');
+    assert.ok(limite, 'le plafonnement doit etre explicite');
+    assert.equal(limite.statutMaximal, 'orange');
+    assert.match(limite.motif, /gisement|Gisement|debouche|Debouche/);
+  });
+
+  it('affiche les criteres concernes en gris, avec leur poids reel', () => {
+    const r = calculerScore(sansIntrants(), 'methanisation');
+    const intrants = r.criteres.find((c) => c.id === 'gis_intrants');
+    assert.ok(intrants, 'le critere reste visible dans la fiche');
+    assert.equal(intrants.note, null);
+    assert.equal(intrants.feu, 'gris');
+    // 18 / 109 du catalogue methanisation : la part affichee doit rester celle du sujet,
+    // pas une part gonflee par l'exclusion du denominateur de couverture.
+    assert.ok(
+      Math.abs(intrants.poids - 0.165) < 0.005,
+      `poids affiche ${intrants.poids}, attendu ~0,165`,
+    );
+    assert.match(intrants.valeurAffichee, /aucune source/i);
+  });
+
+  it('les parts affichees de tous les criteres somment bien a 100 %', () => {
+    const r = calculerScore(sansIntrants(), 'methanisation');
+    const somme = r.criteres.reduce((a, c) => a + c.poids, 0);
+    assert.ok(Math.abs(somme - 1) < 0.02, `somme des parts affichees : ${somme}`);
+  });
+
+  it('une source ingeree qui ne trouve rien reste un constat, pas une absence de source', () => {
+    // Couches presentes, comptages nuls : c'est une vraie absence sur le territoire, qui
+    // doit etre notee (mal) et non plafonner le statut.
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.gisement.intrantsMethaTonnesMsAn = 0;
+        p.gisement.surfacesEpandageHa = 0;
+        p.gisement.elevagesRayon10km = 0;
+        p.gisement.iaaRayon20km = 0;
+        p.gisement.sourcesIntrantsIngerees = true;
+      }),
+      'methanisation',
+    );
+    assert.ok(!r.limitesViabilite.some((l) => l.id === 'criteres_sans_source'));
+    const intrants = r.criteres.find((c) => c.id === 'gis_intrants');
+    assert.equal(intrants?.note, 0, 'un gisement nul se note zero, il ne se tait pas');
+  });
+});
+
+/**
+ * Correction B2. `calculerScoreSite` recalculait un statut a partir des seuls seuils vert et
+ * orange : ni le seuil de couverture, ni le plafond d'incertitude, ni les limites de
+ * viabilite, ni la regle « un knock-out derogeable interdit le vert » ne s'y appliquaient.
+ * Deux parcelles individuellement grises produisaient un site VERT a 95/100 - et le site est
+ * precisement l'objet que l'on presente en comite.
+ */
+describe('score de site : les garde-fous de la parcelle s’appliquent aussi', () => {
+  /** Parcelle a la couverture tres faible : seuls quelques criteres favorables sont connus. */
+  function maigre(idu: string): ParcelleSnapshot {
+    const s = snapshotVide(identiteDepuisIdu(idu, 'Tillay-le-Peneux'));
+    s.identite.contenanceM2 = 300000;
+    s.identite.surfaceCalculeeM2 = 300000;
+    s.identite.centroide = [1.75, 48.15];
+    s.raccordement.posteLePlusProche = {
+      id: 'P', nom: 'Poste', gestionnaire: 'Enedis', tension: '63 kV',
+      distanceKm: 1, capaciteResiduelleMw: 90, etatSaturation: 'disponible',
+      fileAttenteMw: 0, quotePartEurParKw: 10,
+      renforcement: { prevu: false, horizon: null, capaciteAttendueMw: null }, enProjet: false,
+    };
+    s.gisement.irradiationKwhM2An = 1500;
+    s.gisement.productibleKwhKwcAn = 1400;
+    s.foncier.surfaceDunSeulTenantHa = 30;
+    return s;
+  }
+
+  it('un site de parcelles grises ne devient pas vert', () => {
+    const parcelle = calculerScore(maigre('A'), 'solaire_sol');
+    assert.equal(parcelle.statut, 'gris', 'pre-requis : la parcelle seule est bien grise');
+
+    const site = calculerScoreSite([maigre('A'), maigre('B')], 'solaire_sol');
+    assert.equal(site.statut, 'gris', 'agreger deux inconnues ne produit pas une certitude');
+  });
+
+  it('le site expose sa couverture et ses plafonds, pour que l’interface puisse avertir', () => {
+    const site = calculerScoreSite([maigre('A'), maigre('B')], 'solaire_sol');
+    assert.equal(typeof site.couvertureDonnees, 'number');
+    assert.ok(site.couvertureDonnees < 0.5);
+    assert.ok(Array.isArray(site.limitesViabilite));
+  });
+
+  it('un knock-out derogeable sur une parcelle retenue interdit le vert au site', () => {
+    // Poste sature avec renforcement programme : knock-out derogeable, pas bloquant.
+    const avecDerogation = parcelleType((p) => {
+      p.raccordement.posteLePlusProche!.etatSaturation = 'sature';
+      p.raccordement.posteLePlusProche!.renforcement = {
+        prevu: true, horizon: '2029', capaciteAttendueMw: 40,
+      };
+    });
+    const site = calculerScoreSite([avecDerogation, parcelleType()], 'solaire_sol');
+    assert.notEqual(site.statut, 'vert');
+  });
+
+  it('la surface insuffisante s’apprecie sur le SITE, non parcelle par parcelle', () => {
+    // Dix parcelles de 0,3 ha : chacune est sous le seuil solaire de 1 ha, le site fait 3 ha.
+    const petites = Array.from({ length: 10 }, (_, i) =>
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 3000;
+        p.identite.surfaceCalculeeM2 = 3000;
+        p.foncier.surfaceDunSeulTenantHa = 3;
+      }),
+    );
+    const seule = calculerScore(petites[0]!, 'solaire_sol');
+    assert.ok(
+      seule.limitesViabilite.some((l) => l.id.startsWith('viab_surface')),
+      'pre-requis : la parcelle seule est bien sous le seuil',
+    );
+
+    const site = calculerScoreSite(petites, 'solaire_sol');
+    assert.ok(
+      !site.limitesViabilite.some((l) => l.id.startsWith('viab_surface')),
+      'c’est la raison d’etre de l’agregation : 3 ha au total passent le seuil de 1 ha',
+    );
+  });
+});

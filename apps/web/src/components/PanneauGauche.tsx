@@ -120,6 +120,19 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               </span>
             </div>
           ))}
+          {/* Cinquieme entree, et non un quatrieme statut : le redhibitoire se superpose au
+              rouge. « Impossible en l'etat du droit » et « mal classe » partageaient la meme
+              couleur, alors qu'ils n'appellent pas la meme decision. */}
+          <div className="legende-ligne">
+            <span
+              className="legende-pave"
+              style={{ background: p.couleurRedhibitoireRemplissage, opacity: 0.85 }}
+            />
+            <span>
+              <strong>{p.libelleRedhibitoire}</strong>
+              <span className="desc">{p.descriptionRedhibitoire}</span>
+            </span>
+          </div>
         </div>
 
         <div className="legende-bloc">

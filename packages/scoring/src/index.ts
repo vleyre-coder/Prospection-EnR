@@ -21,7 +21,14 @@ import type {
   ProfilPonderation,
   ResultatScore,
 } from '@enr/core';
-import { AVERTISSEMENTS_GLOBAUX, CRITERES, FILIERES_META, PONDERATIONS_DEFAUT } from '@enr/core';
+import {
+  AVERTISSEMENTS_GLOBAUX,
+  CRITERES,
+  FILIERES_META,
+  PONDERATIONS_DEFAUT,
+  REFERENTIEL_DERNIERE_VERIFICATION,
+  REGLES_PAR_ID,
+} from '@enr/core';
 import { EVALUATEURS, type ContexteEval } from './criteres-eval.js';
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
@@ -31,7 +38,49 @@ import { borne } from './notes.js';
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  */
-export const VERSION_MOTEUR = '1.1.0';
+export const VERSION_CODE_MOTEUR = '1.2.0';
+
+/**
+ * Empreinte du calcul, utilisee pour invalider les scores materialises.
+ *
+ * Elle ne peut pas se reduire au numero de version du code. Les seuils reglementaires, leurs
+ * dates d'entree en vigueur et les ponderations par defaut vivent dans `@enr/core` et
+ * changent SANS que le moteur soit modifie : un seuil qui evolue laissait alors en base des
+ * scores calcules sous l'ancienne regle, reaffiches sans la moindre reserve. C'est
+ * exactement le risque que l'application pretend ecarter, puisque son argument est la
+ * reglementation datee.
+ *
+ * L'empreinte combine donc la version du code ET le contenu du referentiel. Toute evolution
+ * de l'un ou de l'autre declenche le recalcul au demarrage suivant.
+ *
+ * Le hachage est volontairement fait a la main plutot qu'avec `node:crypto` : ce module est
+ * partage avec l'interface, qui n'a pas acces aux modules Node.
+ */
+function empreinte(valeur: string): string {
+  // FNV-1a 32 bits, suffisant pour detecter un changement de contenu - ce n'est pas un
+  // usage cryptographique.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < valeur.length; i += 1) {
+    h ^= valeur.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+export const EMPREINTE_REFERENTIEL = empreinte(
+  JSON.stringify({
+    regles: REGLES_PAR_ID,
+    verification: REFERENTIEL_DERNIERE_VERIFICATION,
+    ponderations: PONDERATIONS_DEFAUT,
+    criteres: Object.keys(CRITERES).sort(),
+  }),
+);
+
+/**
+ * Identifiant complet du calcul, ecrit dans `score_parcelle_filiere.version_moteur`.
+ * Exemple : `1.2.0+3f2a91b7`.
+ */
+export const VERSION_MOTEUR = `${VERSION_CODE_MOTEUR}+${EMPREINTE_REFERENTIEL}`;
 
 /**
  * Couverture de donnees minimale pour qu'une parcelle puisse etre declaree PROPICE.
@@ -155,6 +204,10 @@ export function calculerScore(
 
   // -- 2. Criteres ponderes ------------------------------------------------
   const criteres: EvaluationCritere[] = [];
+  const criteresSansSource: string[] = [];
+  /** Denominateur d'AFFICHAGE : inclut les criteres sans source, pour que les parts affichees somment a 100 %. */
+  let poidsTotalCatalogue = 0;
+  /** Denominateur de COUVERTURE : exclut les criteres sans source. */
   let poidsTotalApplicable = 0;
   let poidsRenseigne = 0;
   let sommePonderee = 0;
@@ -168,10 +221,19 @@ export function calculerScore(
     const brut = evaluateur(snapshot, ctx);
     if (brut === null) continue; // critere non applicable a cette filiere / configuration
 
-    poidsTotalApplicable += poidsBrut;
-    if (brut.note != null) {
-      poidsRenseigne += poidsBrut;
-      sommePonderee += brut.note * poidsBrut;
+    // Critere dont la SOURCE n'existe pas sur ce territoire : hors denominateur de
+    // couverture (il manque identiquement a toutes les parcelles, il ne discrimine rien),
+    // mais affiche en gris et plafonnant le statut. Voir `EvalBrute.sansSource`.
+    poidsTotalCatalogue += poidsBrut;
+
+    if (brut.sansSource === true) {
+      criteresSansSource.push(CRITERES[id]?.libelle ?? id);
+    } else {
+      poidsTotalApplicable += poidsBrut;
+      if (brut.note != null) {
+        poidsRenseigne += poidsBrut;
+        sommePonderee += brut.note * poidsBrut;
+      }
     }
 
     criteres.push({
@@ -191,7 +253,13 @@ export function calculerScore(
   }
 
   // Normalisation des poids et calcul des contributions.
-  const poidsAffichage = poidsTotalApplicable || 1;
+  //
+  // La part affichee se rapporte au catalogue COMPLET de la filiere, criteres sans source
+  // inclus : un critere gris qui vaut 16,5 % du sujet doit afficher 16,5 %, sans quoi son
+  // absence parait plus lourde qu'elle ne l'est et les parts ne somment plus a 100 %.
+  // Le rapport contribution / poids est inchange par le choix du denominateur, donc le
+  // score reste la moyenne ponderee des criteres renseignes.
+  const poidsAffichage = poidsTotalCatalogue || 1;
   for (const c of criteres) {
     c.poids = Math.round((c.poids / poidsAffichage) * 10000) / 10000;
     c.contribution = c.note == null ? 0 : Math.round(c.note * c.poids * 100) / 100;
@@ -237,6 +305,20 @@ export function calculerScore(
    * reellement ete evalue. Entre le seuil de grisement et ce seuil, le statut est plafonne
    * a orange : « peut-etre, mais on ne sait pas assez ».
    */
+  if (criteresSansSource.length > 0) {
+    limitesViabilite.push({
+      id: 'criteres_sans_source',
+      libelle: 'Enjeux determinants non evalues, faute de source',
+      motif:
+        `${criteresSansSource.length} critere(s) n'ont aucune source ingeree sur ce territoire : ` +
+        `${criteresSansSource.join(', ')}. Ils sont exclus du calcul plutot que comptes comme ` +
+        `manquants - sans quoi la filiere entiere basculerait en gris, ce qui n'aiderait a ` +
+        `rien. Le score reste donc comparable d'une parcelle a l'autre, mais aucune parcelle ` +
+        `ne peut etre declaree propice tant que ces enjeux n'ont pas ete regardes.`,
+      statutMaximal: 'orange',
+    });
+  }
+
   if (couvertureDonnees < SEUIL_COUVERTURE_POUR_VERT) {
     limitesViabilite.push({
       id: 'couverture_insuffisante',
@@ -349,6 +431,10 @@ export function calculerScoreSite(
   surfaceTotaleHa: number;
   parcelles: ResultatScore[];
   knockOutsConsolides: KnockOut[];
+  /** Couverture moyenne des parcelles retenues, ponderee par la surface. */
+  couvertureDonnees: number;
+  /** Plafonds appliques au statut du site, avec leur motif. */
+  limitesViabilite: LimiteViabilite[];
 } {
   const parcelles = snapshots.map((s) => calculerScore(s, filiere, options));
   const surfaceTotaleHa = snapshots.reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0);
@@ -368,7 +454,15 @@ export function calculerScoreSite(
     .reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0);
 
   if (retenues.length === 0) {
-    return { statut: 'rouge', scoreGlobal: null, surfaceTotaleHa, parcelles, knockOutsConsolides };
+    return {
+      statut: 'rouge',
+      scoreGlobal: null,
+      surfaceTotaleHa,
+      parcelles,
+      knockOutsConsolides,
+      couvertureDonnees: 0,
+      limitesViabilite: [],
+    };
   }
 
   // Moyenne ponderee par la surface des parcelles retenues.
@@ -384,20 +478,91 @@ export function calculerScoreSite(
   const scoreGlobal = poids === 0 ? null : borne(somme / poids);
 
   // Penalite de fragmentation : un site dont une partie est ecartee perd en coherence.
+  // Coefficients empiriques : un site ampute de la moitie de sa surface perd 15 % de score.
   const partRetenue = surfaceTotaleHa === 0 ? 1 : surfaceRetenueHa / surfaceTotaleHa;
   const scoreAjuste = scoreGlobal == null ? null : borne(scoreGlobal * (0.7 + 0.3 * partRetenue));
 
   const ponderation = resoudrePonderation(filiere, options.ponderation);
-  const statut: Feu =
-    scoreAjuste == null
-      ? 'gris'
-      : scoreAjuste >= ponderation.seuilVert
-        ? 'vert'
-        : scoreAjuste >= ponderation.seuilOrange
-          ? 'orange'
-          : 'rouge';
 
-  return { statut, scoreGlobal: scoreAjuste, surfaceTotaleHa, parcelles, knockOutsConsolides };
+  /**
+   * Couverture du site : moyenne des couvertures des parcelles retenues, ponderee par leur
+   * surface. Une grande parcelle mal documentee compte davantage qu'une petite bien
+   * documentee, ce qui est le comportement attendu - c'est elle qui portera l'installation.
+   */
+  let couvSomme = 0;
+  let couvPoids = 0;
+  for (let i = 0; i < parcelles.length; i += 1) {
+    const p = parcelles[i]!;
+    if (estExclue(p)) continue;
+    const ha = surfaceHectares(snapshots[i]!) ?? 0;
+    couvSomme += p.couvertureDonnees * ha;
+    couvPoids += ha;
+  }
+  const couvertureDonnees = couvPoids === 0 ? 0 : Math.round((couvSomme / couvPoids) * 1000) / 1000;
+
+  /**
+   * Limites de viabilite du SITE.
+   *
+   * Elles ne sont pas la simple reunion de celles des parcelles : l'insuffisance de surface
+   * d'une parcelle isolee est precisement ce que l'agregation vient resoudre, et la reporter
+   * sur le site contredirait sa raison d'etre. On la reevalue donc sur la surface RETENUE du
+   * site. Les autres limites - couverture, enjeux sans source - se propagent, car agreger
+   * des parcelles n'apporte aucune information nouvelle sur ce que l'on ignore.
+   */
+  const limitesViabilite: LimiteViabilite[] = evaluerLimitesViabilite(filiere, surfaceRetenueHa);
+
+  const sansSource = [
+    ...new Set(
+      parcelles
+        .filter((p) => !estExclue(p))
+        .flatMap((p) => p.limitesViabilite.filter((l) => l.id === 'criteres_sans_source')),
+    ),
+  ];
+  if (sansSource.length > 0) limitesViabilite.push(sansSource[0]!);
+
+  if (couvertureDonnees < SEUIL_COUVERTURE_POUR_VERT) {
+    limitesViabilite.push({
+      id: 'couverture_insuffisante',
+      libelle: 'Couverture de donnees insuffisante pour conclure',
+      motif:
+        `La couverture moyenne des parcelles retenues, ponderee par leur surface, atteint ` +
+        `${Math.round(couvertureDonnees * 100)} %. Agreger des parcelles mal documentees ne ` +
+        `produit pas un site documente : le site ne peut pas etre declare propice tant que la ` +
+        `couverture n'atteint pas ${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
+      statutMaximal: 'orange',
+    });
+  }
+
+  let statut: Feu;
+  if (scoreAjuste == null || couvertureDonnees < ponderation.seuilCouvertureDonnees) {
+    statut = 'gris';
+  } else if (scoreAjuste >= ponderation.seuilVert) {
+    // Un knock-out derogeable sur une parcelle retenue interdit le vert au site, comme il
+    // l'interdit a la parcelle.
+    const derogeable = parcelles.some((p) => !estExclue(p) && p.knockOuts.length > 0);
+    statut = derogeable ? 'orange' : 'vert';
+  } else if (scoreAjuste >= ponderation.seuilOrange) {
+    statut = 'orange';
+  } else {
+    statut = 'rouge';
+  }
+
+  const ordreStatut: Record<Feu, number> = { vert: 3, orange: 2, rouge: 1, gris: 0 };
+  for (const limite of limitesViabilite) {
+    if (statut !== 'gris' && ordreStatut[statut] > ordreStatut[limite.statutMaximal]) {
+      statut = limite.statutMaximal;
+    }
+  }
+
+  return {
+    statut,
+    scoreGlobal: scoreAjuste,
+    surfaceTotaleHa,
+    parcelles,
+    knockOutsConsolides,
+    couvertureDonnees,
+    limitesViabilite,
+  };
 }
 
 export { EVALUATEURS } from './criteres-eval.js';

@@ -8,8 +8,9 @@
 import type { PrescriptionInfo, Urbanisme, ZoneUrbaInfo } from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
-import { surfaceM2, type GeoJsonGeometry } from '../geo.js';
+import { type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
+import { partCouverte } from './distances.js';
 
 const CONNECTEUR = 'apicarto_gpu';
 
@@ -90,19 +91,18 @@ export async function urbanismeParcelle(
   ]);
 
   if (zones.status === 'fulfilled') {
-    const surfaceRef = surfaceParcelleM2 > 0 ? surfaceParcelleM2 : null;
+    void surfaceParcelleM2;
     urbanisme.zonages = zones.value.features.map<ZoneUrbaInfo>((f) => ({
       libelle: f.properties.libelle ?? f.properties.libelong ?? null,
       typeZone: f.properties.typezone ?? null,
       destinationDominante: f.properties.destdomi ?? null,
       urlReglement: f.properties.urlfic ?? null,
       dateApprobation: f.properties.datappro ?? null,
-      // L'API renvoie la geometrie du zonage entier, pas l'intersection : la part de
-      // recouvrement n'est donc qu'un ordre de grandeur, plafonnee a 1.
-      partRecouvrement:
-        surfaceRef && f.geometry
-          ? Math.min(1, Math.round((surfaceM2(f.geometry as GeoJsonGeometry) / surfaceRef) * 100) / 100)
-          : null,
+      // L'API renvoie la geometrie du zonage ENTIER, pas l'intersection : la part couverte
+      // s'estime donc par echantillonnage de points dans la parcelle. Ce champ designe le
+      // zonage dominant, qui gouverne un knock-out : il doit mesurer ce qu'il pretend
+      // mesurer. Voir `partCouverte`.
+      partRecouvrement: f.geometry ? partCouverte(geom, f.geometry as GeoJsonGeometry) : null,
     }));
   } else {
     echecs.push('gpu/zone-urba');

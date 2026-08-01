@@ -111,6 +111,7 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
       elevagesRayon10km: null,
       iaaRayon20km: null,
       surfacesEpandageHa: null,
+      sourcesIntrantsIngerees: null,
     },
     bati: {
       distanceHabitationM: null,

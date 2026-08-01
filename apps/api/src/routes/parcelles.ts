@@ -19,6 +19,7 @@ import {
 } from '../services/qualification.js';
 import { requeteUne } from '../bdd.js';
 import { erreur } from './erreurs.js';
+import { limiterDebit } from '../debit.js';
 
 /**
  * Au-dela de cette etendue, une emprise est traitee en arriere-plan.
@@ -181,31 +182,65 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       userAgent: req.headers['user-agent'] ?? null,
     });
 
-    const ligne = await requeteUne<{
-      nb_comptes: number | null;
-      indivision: boolean | null;
-      proprietaire_public: boolean | null;
-      nominatif: unknown;
-      origine_donnee: string | null;
-    }>(
-      `SELECT nb_comptes, indivision, proprietaire_public, nominatif, origine_donnee
-         FROM proprietaire_parcelle WHERE idu = $1`,
-      [idu],
-    );
+    const [ligne, alimentation] = await Promise.all([
+      requeteUne<{
+        nb_comptes: number | null;
+        indivision: boolean | null;
+        proprietaire_public: boolean | null;
+        nominatif: unknown;
+        origine_donnee: string | null;
+      }>(
+        `SELECT nb_comptes, indivision, proprietaire_public, nominatif, origine_donnee
+           FROM proprietaire_parcelle WHERE idu = $1`,
+        [idu],
+      ),
+      // La table est-elle alimentee, ne serait-ce que pour une parcelle ?
+      requeteUne<{ presente: boolean }>(
+        `SELECT EXISTS (SELECT 1 FROM proprietaire_parcelle) AS presente`,
+      ),
+    ]);
+
+    /**
+     * Trois etats, et non deux.
+     *
+     * La table `proprietaire_parcelle` n'est alimentee par AUCUN connecteur : aucune API
+     * publique n'expose legalement les donnees nominatives de propriete, et le versement se
+     * fait par demande documentee aupres de la DGFiP ou de la mairie. Tant que personne n'a
+     * verse de donnees, la reponse etait une fiche entierement vide, impossible a distinguer
+     * d'une parcelle sans proprietaire connu - et tout l'appareillage RGPD (habilitation,
+     * motif, journalisation) donnait l'illusion de proteger un contenu inexistant.
+     */
+    const sourceAlimentee = alimentation?.presente === true;
+    const etatSource: 'non_alimentee' | 'sans_donnee_pour_cette_parcelle' | 'renseignee' =
+      !sourceAlimentee ? 'non_alimentee' : ligne ? 'renseignee' : 'sans_donnee_pour_cette_parcelle';
 
     return {
+      etatSource,
       nbComptes: ligne?.nb_comptes ?? null,
       indivision: ligne?.indivision ?? null,
       proprietairePublic: ligne?.proprietaire_public ?? null,
       nominatif: ligne?.nominatif ?? null,
       origineDonnee: ligne?.origine_donnee ?? null,
       avertissement:
-        "Aucune API publique n'expose legalement les donnees nominatives de propriete. Ces informations proviennent d'une demande documentee aupres de la DGFiP ou de la mairie, et leur diffusion hors du cadre de prospection declare est interdite. Cette consultation a ete journalisee.",
+        etatSource === 'non_alimentee'
+          ? "Aucune donnee de propriete n'a ete versee dans cette instance. La fonction est en place - habilitation, motif obligatoire et journalisation des acces - mais le registre est vide : aucune API publique n'expose legalement ces informations, elles s'obtiennent par demande documentee aupres de la DGFiP ou de la mairie, puis se versent dans la table `proprietaire_parcelle`. L'absence d'information ici ne dit RIEN du proprietaire de la parcelle."
+          : etatSource === 'sans_donnee_pour_cette_parcelle'
+            ? "Le registre est alimente mais ne contient rien pour cette parcelle. Cela ne signifie pas qu'elle est sans proprietaire : elle n'a simplement pas fait l'objet d'une demande. Cette consultation a ete journalisee."
+            : "Ces informations proviennent d'une demande documentee aupres de la DGFiP ou de la mairie. Leur diffusion hors du cadre de prospection declare est interdite. Cette consultation a ete journalisee.",
     };
   });
 
   // --- Qualification a la demande -----------------------------------------
-  app.post('/api/qualification/emprise', async (req, rep) => {
+  const debitQualification = {
+    preHandler: limiterDebit({ max: 6, fenetreMs: 60 * 60 * 1000, operation: 'qualification' }),
+  };
+
+  app.post('/api/qualification/emprise', debitQualification, async (req, rep) => {
+    // Une qualification de masse consomme le quota des API publiques pour toute l'equipe :
+    // ce n'est pas une operation de lecture.
+    if (req.utilisateur?.role === 'lecture') {
+      return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
+    }
     const corps = req.body as {
       bbox?: [number, number, number, number] | string;
       filiere?: string;
@@ -230,6 +265,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
         surfaceMinM2: corps.surfaceMinM2,
         filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
         forcer: corps.forcer,
+        utilisateurId: req.utilisateur?.id ?? null,
       });
       if (!lance) {
         return erreur(
@@ -281,7 +317,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.post('/api/qualification/parcelles', async (req, rep) => {
+  app.post('/api/qualification/parcelles', debitQualification, async (req, rep) => {
     const corps = req.body as { idus?: string[]; filiere?: string; forcer?: boolean };
     if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
       return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');

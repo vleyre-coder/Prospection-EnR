@@ -265,6 +265,118 @@ export function etatQualification(): EtatQualification {
 }
 
 /**
+ * Identifiant de la campagne en cours en base, pour y reporter l'avancement.
+ * `null` hors campagne.
+ */
+let tacheId: number | null = null;
+let dernierReport = 0;
+
+/** Ouvre une trace de campagne. Un echec d'ecriture ne doit pas empecher le travail. */
+async function ouvrirTache(bbox: Bbox, utilisateurId: string | null): Promise<void> {
+  const lignes = await requete<{ id: number }>(
+    `INSERT INTO tache_qualification (bbox, utilisateur_id) VALUES ($1, $2) RETURNING id`,
+    [JSON.stringify(bbox), utilisateurId],
+  ).catch((err: unknown) => {
+    journal.warn({ err }, "Trace de campagne impossible : le travail se poursuit sans");
+    return [] as Array<{ id: number }>;
+  });
+  tacheId = lignes[0]?.id ?? null;
+  dernierReport = 0;
+}
+
+/**
+ * Reporte l'avancement en base, au plus une fois toutes les deux secondes.
+ *
+ * Sans cette limitation, une campagne de 500 parcelles produirait 500 ecritures pour un
+ * besoin d'affichage : la trace sert a savoir ou en etait le travail, pas a le compter au
+ * centieme.
+ */
+async function reporterTache(force = false): Promise<void> {
+  if (tacheId == null) return;
+  const maintenant = Date.now();
+  if (!force && maintenant - dernierReport < 2000) return;
+  dernierReport = maintenant;
+  await requete(
+    `UPDATE tache_qualification
+        SET phase = $2, total = $3, traitees = $4, echecs = $5, message = $6
+      WHERE id = $1`,
+    [tacheId, etat.phase === 'aucune' ? 'recuperation' : etat.phase, etat.total, etat.traitees, etat.echecs, etat.message],
+  ).catch(() => undefined);
+}
+
+async function cloturerTache(): Promise<void> {
+  if (tacheId == null) return;
+  await requete(
+    `UPDATE tache_qualification
+        SET phase = 'terminee', total = $2, traitees = $3, echecs = $4, message = $5,
+            fin_le = now()
+      WHERE id = $1`,
+    [tacheId, etat.total, etat.traitees, etat.echecs, etat.message],
+  ).catch(() => undefined);
+  tacheId = null;
+}
+
+/**
+ * Marque comme interrompues les campagnes restees ouvertes.
+ *
+ * A appeler au demarrage : une campagne sans date de fin signifie que le processus s'est
+ * arrete en cours de route. Le travail deja accompli est conserve - les parcelles qualifiees
+ * sont en base - mais l'utilisateur doit savoir que le lot n'est pas complet, sans quoi il
+ * conclura a tort que son secteur a ete entierement traite.
+ */
+export async function signalerCampagnesInterrompues(): Promise<number> {
+  const lignes = await requete<{ id: number }>(
+    `UPDATE tache_qualification
+        SET interrompue = true, fin_le = now(),
+            message = COALESCE(message, '') || ' [interrompue par un arret du serveur]'
+      WHERE fin_le IS NULL
+      RETURNING id`,
+  ).catch(() => [] as Array<{ id: number }>);
+  if (lignes.length > 0) {
+    journal.warn(
+      { campagnes: lignes.length },
+      'Campagnes de qualification interrompues par un arret precedent : les lots concernes sont incomplets',
+    );
+  }
+  return lignes.length;
+}
+
+/** Derniere campagne connue, pour informer l'utilisateur apres un redemarrage. */
+export async function derniereCampagne(): Promise<{
+  debutLe: string;
+  finLe: string | null;
+  total: number;
+  traitees: number;
+  echecs: number;
+  interrompue: boolean;
+  message: string | null;
+} | null> {
+  const lignes = await requete<{
+    debut_le: string;
+    fin_le: string | null;
+    total: number;
+    traitees: number;
+    echecs: number;
+    interrompue: boolean;
+    message: string | null;
+  }>(
+    `SELECT debut_le, fin_le, total, traitees, echecs, interrompue, message
+       FROM tache_qualification ORDER BY debut_le DESC LIMIT 1`,
+  ).catch(() => []);
+  const l = lignes[0];
+  if (!l) return null;
+  return {
+    debutLe: l.debut_le,
+    finLe: l.fin_le,
+    total: l.total,
+    traitees: l.traitees,
+    echecs: l.echecs,
+    interrompue: l.interrompue,
+    message: l.message,
+  };
+}
+
+/**
  * Lance la qualification d'une grande emprise et rend la main immediatement.
  *
  * Renvoie `null` si une qualification est deja en cours : en lancer deux en parallele
@@ -273,7 +385,13 @@ export function etatQualification(): EtatQualification {
  */
 export function lancerQualificationEmprise(
   bbox: Bbox,
-  options: { surfaceMinM2?: number; filieres?: Filiere[]; forcer?: boolean } = {},
+  options: {
+    surfaceMinM2?: number;
+    filieres?: Filiere[];
+    forcer?: boolean;
+    /** Auteur de la demande, trace en base pour savoir qui consomme le quota partage. */
+    utilisateurId?: string | null;
+  } = {},
 ): EtatQualification | null {
   if (etat.enCours) return null;
 
@@ -293,6 +411,7 @@ export function lancerQualificationEmprise(
 
   void (async () => {
     const debut = Date.now();
+    await ouvrirTache(emprise, options.utilisateurId ?? null);
     const surfaceMin = options.surfaceMinM2 ?? config.qualification.surfaceMinM2;
     try {
       const brutes = await parcellesParGrandeEmprise(emprise, {
@@ -300,6 +419,7 @@ export function lancerQualificationEmprise(
         limite: config.qualification.lotMax,
         onProgres: (fait, totalCellules, trouvees) => {
           etat.message = `Recuperation du parcellaire : secteur ${fait}/${totalCellules}, ${trouvees} parcelle(s) retenue(s)`;
+          void reporterTache();
         },
       });
 
@@ -332,6 +452,7 @@ export function lancerQualificationEmprise(
             const parParcelle = (Date.now() - debut) / Math.max(traitees, 1);
             etat.resteSecondes = Math.round(((total - traitees) * parParcelle) / 1000);
             etat.message = `Qualification : ${traitees}/${total} parcelle(s)`;
+            void reporterTache();
           },
         },
       );
@@ -354,6 +475,7 @@ export function lancerQualificationEmprise(
       etat.phase = 'terminee';
       etat.finLe = new Date().toISOString();
       etat.resteSecondes = null;
+      await cloturerTache();
     }
   })();
 
