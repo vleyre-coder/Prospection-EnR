@@ -6,6 +6,8 @@ import { config } from '../config.js';
 import { requete } from '../bdd.js';
 import { avecParams } from '../http.js';
 import { bboxDepuisChaine, cercle } from '../geo.js';
+import { CALQUES_PAR_ID, urlRasterAmont } from '../calques.js';
+import { zonagesSurEmprise } from '../connecteurs/zonages.js';
 import * as tuiles from '../services/tuiles.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
@@ -433,6 +435,109 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           source: l.connecteur,
         },
       })),
+    };
+  });
+
+  /**
+   * Relais des calques d'images (WMTS et WMS officiels).
+   *
+   * Meme raison que pour le fond de carte : le navigateur d'un poste d'entreprise n'atteint
+   * pas toujours `data.geopf.fr`, alors que le serveur y accede. Passer par l'API rend les
+   * calques disponibles partout, et permet un cache commun a toute l'equipe.
+   *
+   * La liste des calques est fermee (catalogue `CALQUES`) : le relais ne doit pas devenir un
+   * proxy ouvert.
+   */
+  app.get<{ Params: { id: string; z: string; x: string; y: string } }>(
+    '/api/carte/calque/:id/:z/:x/:y',
+    async (req, rep) => {
+      const calque = CALQUES_PAR_ID[req.params.id];
+      if (!calque || calque.mode !== 'raster') {
+        return erreur(rep, 404, 'calque_inconnu', `Calque image inconnu : ${req.params.id}`);
+      }
+      const z = Number(req.params.z);
+      const x = Number(req.params.x);
+      const y = Number(req.params.y);
+      if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+      }
+      const max = 2 ** z;
+      if (x < 0 || y < 0 || x >= max || y >= max) return rep.code(204).send();
+
+      const url = urlRasterAmont(calque, z, x, y);
+      if (!url) return erreur(rep, 500, 'calque_mal_configure', 'Calque sans source image');
+
+      try {
+        const reponse = await fetch(url, {
+          headers: {
+            Accept: 'image/png,image/*',
+            'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
+          },
+          signal: AbortSignal.timeout(25000),
+        });
+        if (!reponse.ok) {
+          // Hors emprise ou hors millesime, les services repondent 400 ou 404 : ce n'est pas
+          // une panne, il n'y a simplement rien a dessiner.
+          if (reponse.status === 404 || reponse.status === 400) return rep.code(204).send();
+          return erreur(
+            rep,
+            502,
+            'calque_indisponible',
+            `Le service du calque ${calque.id} a repondu ${reponse.status}.`,
+          );
+        }
+        const type = reponse.headers.get('content-type') ?? 'image/png';
+        // Un service WMS signale ses erreurs par un document XML avec un code 200 : le
+        // relayer tel quel afficherait un damier d'images cassees.
+        if (type.includes('xml') || type.includes('html')) return rep.code(204).send();
+
+        return rep
+          .header('Content-Type', type)
+          .header('Cache-Control', 'public, max-age=604800')
+          .send(Buffer.from(await reponse.arrayBuffer()));
+      } catch (err) {
+        req.log.warn({ err, calque: calque.id, z, x, y }, 'Relais de calque en echec');
+        return erreur(rep, 502, 'calque_indisponible', 'Le service du calque est injoignable.');
+      }
+    },
+  );
+
+  /**
+   * Calques vectoriels interroges a la demande sur l'emprise visible.
+   *
+   * Natura 2000, ZNIEFF, reserves et parcs ne sont publies en images par aucun service
+   * fiable : ils sont donc demandes a API Carto pour l'emprise affichee. Le cout est celui
+   * d'un appel par calque et par deplacement, ce qui reste acceptable a l'echelle d'un
+   * secteur de travail et evite d'imposer une ingestion nationale.
+   */
+  app.get<{ Params: { id: string } }>('/api/carte/zonage/:id', async (req, rep) => {
+    const calque = CALQUES_PAR_ID[req.params.id];
+    if (!calque || calque.mode !== 'vecteur_api') {
+      return erreur(rep, 404, 'calque_inconnu', `Calque vectoriel inconnu : ${req.params.id}`);
+    }
+    const q = req.query as { bbox?: string };
+    const bbox = bboxDepuisChaine(q.bbox ?? '');
+    if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Parametre `bbox` requis');
+
+    // Emprise bornee : au-dela, les services renvoient des reponses de plusieurs mega-octets
+    // que le navigateur ne saurait pas dessiner utilement.
+    const etendue = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]);
+    if (etendue > 4) {
+      return rep.send({
+        type: 'FeatureCollection',
+        features: [],
+        tropLarge: true,
+        message: 'Emprise trop large pour ce calque : zoomez pour l\'afficher.',
+      });
+    }
+
+    const resultat = await zonagesSurEmprise(calque, bbox);
+    return {
+      type: 'FeatureCollection',
+      features: resultat.features,
+      source: calque.source,
+      partiel: resultat.echecs.length > 0,
+      echecs: resultat.echecs,
     };
   });
 }

@@ -206,6 +206,27 @@ export interface CoucheMeta {
   nbObjets?: number;
 }
 
+/** Calque cartographique du catalogue, avec son etat et sa provenance. */
+export interface CalqueMeta {
+  id: string;
+  libelle: string;
+  groupe: string;
+  couleur: string;
+  mode: 'raster' | 'vecteur_api' | 'vecteur_base';
+  legende: string;
+  avertissement: string | null;
+  zoomMin: number | null;
+  source: {
+    nom: string;
+    millesime: string | null;
+    url: string | null;
+    valeurJuridique: 'opposable' | 'indicative' | 'pre_reperage';
+  };
+  /** `zoom_requis` : le service ne produit rien en vue large, il faut zoomer. */
+  etat: 'disponible' | 'zoom_requis' | 'indisponible';
+  nbObjets: number | null;
+}
+
 export interface Referentiel {
   filieres: FiliereMeta[];
   criteres: Record<string, DefinitionCritere>;
@@ -225,6 +246,7 @@ export interface Referentiel {
   };
   statutsProspection: StatutProspectionMeta[];
   couches: CoucheMeta[];
+  calques?: CalqueMeta[];
   /** Reglages de carte servis par l'API, pour ne pas dupliquer de constantes cote client. */
   carte?: {
     zoomMinParcelles: number;
@@ -397,6 +419,16 @@ export const api = {
     }>('/api/qualification/emprise', { methode: 'POST', corps: { bbox, filiere, surfaceMinM2 } }),
 
   etatQualification: () => appeler<EtatQualification>('/api/qualification/etat'),
+
+  /** Zonages d'un calque vectoriel sur l'emprise visible. */
+  zonage: (id: string, bbox: [number, number, number, number]) =>
+    appeler<{
+      type: 'FeatureCollection';
+      features: unknown[];
+      tropLarge?: boolean;
+      partiel?: boolean;
+      message?: string;
+    }>(`/api/carte/zonage/${id}?bbox=${bbox.join(',')}`),
 
   estimerEmprise: (bbox: [number, number, number, number], surfaceMinM2?: number) =>
     appeler<{ nbEstime: number; dureeEstimeeMin: number; nbCellules: number }>(

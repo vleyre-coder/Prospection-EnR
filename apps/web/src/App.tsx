@@ -21,6 +21,7 @@ import {
   type ResultatRecherche,
 } from './api/client.js';
 import { Connexion } from './components/Connexion.js';
+import { accueilDejaVu, Demarrage } from './components/Demarrage.js';
 import { useEtat } from './store/etat.js';
 import { BarreSuperieure, Icone } from './components/BarreSuperieure.js';
 import { PanneauGauche } from './components/PanneauGauche.js';
@@ -33,6 +34,12 @@ export function App(): JSX.Element {
   const etat = useEtat();
   const carteRef = useRef<maplibregl.Map | null>(null);
   const clientRequetes = useQueryClient();
+  /**
+   * Ecran d'ouverture. Il se superpose a l'application au lieu de la remplacer : le
+   * referentiel et la carte se chargent DERRIERE l'animation, qui n'ajoute donc aucune
+   * attente. Il n'apparait qu'une fois par session.
+   */
+  const [accueil, setAccueil] = useState(!accueilDejaVu());
 
   // Identite de l'utilisateur : en mode developpement l'API repond sans jeton, et l'ecran
   // de connexion n'apparait jamais. En mode authentifie, un 401 le declenche.
@@ -98,12 +105,15 @@ export function App(): JSX.Element {
 
   if (referentiel.isLoading || moi.isLoading) {
     return (
-      <div className="application">
-        <div className="chargement" style={{ margin: 'auto' }}>
-          <span className="tourniquet" />
-          Chargement du referentiel…
+      <>
+        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}
+        <div className="application">
+          <div className="chargement" style={{ margin: 'auto' }}>
+            <span className="tourniquet" />
+            Chargement du referentiel…
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -158,6 +168,7 @@ export function App(): JSX.Element {
 
   return (
     <div className="application">
+      {accueil && <Demarrage onTermine={() => setAccueil(false)} />}
       <BarreSuperieure
         referentiel={ref}
         onAllerVers={allerVers}

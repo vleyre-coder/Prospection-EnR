@@ -182,6 +182,31 @@ export function bboxDepuisChaine(s: string): Bbox | null {
 }
 
 /**
+ * Emprise de la France metropolitaine, en degres.
+ *
+ * Sert de garde-fou a toute operation pilotee par l'emprise de l'ecran. MapLibre peut
+ * renvoyer des bornes debordant largement le territoire — voire depassant 180 degres de
+ * longitude en vue tres large — et une qualification lancee sur de telles bornes irait
+ * chercher des parcelles a des centaines de kilometres de la zone de travail.
+ */
+export const FRANCE_METRO: Bbox = [-5.3, 41.3, 9.8, 51.2];
+
+/** Intersection d'une emprise avec la France metropolitaine, ou `null` si disjointes. */
+export function limiterAlaFrance(b: Bbox): Bbox | null {
+  const ouest = Math.max(b[0], FRANCE_METRO[0]);
+  const sud = Math.max(b[1], FRANCE_METRO[1]);
+  const est = Math.min(b[2], FRANCE_METRO[2]);
+  const nord = Math.min(b[3], FRANCE_METRO[3]);
+  if (ouest >= est || sud >= nord) return null;
+  return [ouest, sud, est, nord];
+}
+
+/** Vrai si le point est a l'interieur de l'emprise (bornes incluses). */
+export function pointDansBbox(pt: Position, b: Bbox): boolean {
+  return pt[0] >= b[0] && pt[0] <= b[2] && pt[1] >= b[1] && pt[1] <= b[3];
+}
+
+/**
  * Decoupe une emprise en cellules d'au plus `cote` degres.
  *
  * Necessaire pour interroger le cadastre sur de grandes surfaces : API Carto n'accepte pas

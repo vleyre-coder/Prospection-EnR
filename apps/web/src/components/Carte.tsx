@@ -19,7 +19,37 @@ import { api, RACINE_ABSOLUE, type PosteSourceProps, type Referentiel } from '..
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 
-const VUE_FRANCE = { centre: [2.4, 46.6] as [number, number], zoom: 5.2 };
+/**
+ * Cadrage d'ouverture : la France metropolitaine entiere, Corse comprise.
+ *
+ * On cadre sur des BORNES et non sur un couple centre/zoom : le zoom qui fait tenir la
+ * France depend de la taille de la fenetre, et une valeur fixe couperait le pays sur un
+ * ecran large ou laisserait du vide sur un ecran haut.
+ */
+const VUE_FRANCE: [[number, number], [number, number]] = [
+  [-5.2, 41.3],
+  [9.6, 51.1],
+];
+
+/**
+ * Bornes de navigation : France metropolitaine, avec une marge de respiration.
+ *
+ * L'application ne couvre que ce territoire — les sources interrogees sont toutes
+ * francaises. Laisser l'utilisateur naviguer sur l'Europe donnerait a croire le contraire,
+ * et une emprise europeenne n'a de toute facon aucun sens pour une qualification. La marge
+ * evite l'effet de butee desagreable au bord de la carte.
+ */
+const BORNES_FRANCE: [[number, number], [number, number]] = [
+  [-6.2, 40.5],
+  [10.6, 51.9],
+];
+
+/**
+ * Zoom minimal. 4,6 et non 5 : sur une fenetre etroite, faire tenir la France demande un
+ * zoom plus faible, et un plancher trop haut empecherait le cadrage d'ouverture d'aboutir.
+ * Les bornes de navigation, elles, restent le vrai garde-fou.
+ */
+const ZOOM_MIN = 4.6;
 
 /**
  * Zoom a partir duquel les parcelles sont servies. Doit rester aligne sur
@@ -84,7 +114,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const conteneur = useRef<HTMLDivElement>(null);
   const carte = useRef<CarteMapLibre | null>(null);
   const [pret, setPret] = useState(false);
-  const [zoom, setZoom] = useState(VUE_FRANCE.zoom);
+  const [zoom, setZoom] = useState(5.5);
   const [mesure, setMesure] = useState<{ points: [number, number][]; surfaceHa: number; longueurM: number } | null>(null);
   const [fondInjoignable, setFondInjoignable] = useState(false);
   /** Passe a `true` lorsque les appels directs a l'IGN ont echoue et que le relais prend le relais. */
@@ -97,6 +127,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     filiere,
     fond,
     couchesActives,
+    calquesActifs,
     rayonRaccordementKm,
     afficherPostes,
     afficherReseauGaz,
@@ -125,10 +156,15 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
 
     const m = new maplibregl.Map({
       container: conteneur.current,
-      center: VUE_FRANCE.centre,
-      zoom: VUE_FRANCE.zoom,
+      bounds: VUE_FRANCE,
+      fitBoundsOptions: { padding: 24 },
       maxZoom: 19,
-      minZoom: 4,
+      minZoom: ZOOM_MIN,
+      maxBounds: BORNES_FRANCE,
+      // Sans cela, MapLibre repete le monde a l'horizontale et `getBounds()` peut renvoyer
+      // des longitudes hors de [-180, 180] : de quoi lancer une qualification sur une
+      // emprise absurde.
+      renderWorldCopies: false,
       attributionControl: false,
       style: {
         version: 8,
@@ -260,14 +296,30 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       'source-layer': 'communes',
       maxzoom: ZOOM_MAX_COMMUNES,
       paint: {
+        /**
+         * Une commune n'est coloree QUE si elle contient des parcelles qualifiees.
+         *
+         * Le piege corrige ici : `ST_AsMVT` omet purement et simplement les attributs nuls,
+         * si bien qu'une commune sans score n'a pas d'attribut `nb_parcelles_qualifiees`.
+         * Un test `== 0` est alors faux (null n'est pas 0), la conversion `to-number` donne
+         * 0, le ratio vaut 0 et la commune se peignait en ROUGE. Resultat : la France
+         * entiere apparaissait redhibitoire au lancement, alors que rien n'avait ete
+         * analyse. `has` distingue l'attribut absent de la valeur zero.
+         */
         'fill-color': [
           'case',
-          ['==', ['get', 'nb_parcelles_qualifiees'], 0],
+          ['!', ['has', 'nb_parcelles_qualifiees']],
+          'rgba(0,0,0,0)',
+          ['<=', ['to-number', ['get', 'nb_parcelles_qualifiees'], 0], 0],
           'rgba(0,0,0,0)',
           [
             'interpolate',
             ['linear'],
-            ['/', ['to-number', ['get', 'nb_vert'], 0], ['max', ['to-number', ['get', 'nb_parcelles_qualifiees'], 1], 1]],
+            [
+              '/',
+              ['to-number', ['get', 'nb_vert'], 0],
+              ['max', ['to-number', ['get', 'nb_parcelles_qualifiees'], 1], 1],
+            ],
             0,
             couleurs.rouge,
             0.35,
@@ -444,6 +496,57 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
           layout: { visibility: 'none' },
           paint: { 'line-color': couche.couleur, 'line-width': 1.1 },
         });
+      }
+    }
+
+    /**
+     * Calques du catalogue : images relayees et zonages vectoriels.
+     *
+     * Ils sont installes SOUS les parcelles — inseres avant `parcelles-remplissage` — pour
+     * que le parcellaire et les scores restent au premier plan : une contrainte est un
+     * contexte, pas le sujet.
+     */
+    const premiereCoucheMetier = 'parcelles-remplissage';
+    for (const calque of referentiel.calques ?? []) {
+      if (calque.mode === 'raster') {
+        m.addSource(`k-${calque.id}`, {
+          type: 'raster',
+          tiles: [`${RACINE_ABSOLUE}/api/carte/calque/${calque.id}/{z}/{x}/{y}`],
+          tileSize: 256,
+          maxzoom: 18,
+        });
+        m.addLayer(
+          {
+            id: `k-${calque.id}`,
+            type: 'raster',
+            source: `k-${calque.id}`,
+            layout: { visibility: 'none' },
+            paint: { 'raster-opacity': 0.6 },
+          },
+          premiereCoucheMetier,
+        );
+      } else if (calque.mode === 'vecteur_api') {
+        m.addSource(`k-${calque.id}`, { type: 'geojson', data: vide() });
+        m.addLayer(
+          {
+            id: `k-${calque.id}`,
+            type: 'fill',
+            source: `k-${calque.id}`,
+            layout: { visibility: 'none' },
+            paint: { 'fill-color': calque.couleur, 'fill-opacity': 0.22 },
+          },
+          premiereCoucheMetier,
+        );
+        m.addLayer(
+          {
+            id: `k-${calque.id}-contour`,
+            type: 'line',
+            source: `k-${calque.id}`,
+            layout: { visibility: 'none' },
+            paint: { 'line-color': calque.couleur, 'line-width': 1.3 },
+          },
+          premiereCoucheMetier,
+        );
       }
     }
 
@@ -677,6 +780,67 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       annule = true;
     };
   }, [couchesActives, zoom, pret, referentiel]);
+
+  // ------------------------------------------------------------------ calques
+  /**
+   * Activation des calques et chargement des zonages vectoriels.
+   *
+   * L'activation est instantanee : la visibilite est basculee immediatement, sans attendre
+   * la moindre requete. Les images sont servies par le relais, donc rien a charger ici ; les
+   * zonages vectoriels sont demandes pour l'emprise visible, avec un etat de chargement
+   * expose a l'interface pour qu'un calque lent ne passe pas pour un calque vide.
+   */
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret) return;
+
+    for (const calque of referentiel.calques ?? []) {
+      const actif = calquesActifs.includes(calque.id);
+      for (const id of [`k-${calque.id}`, `k-${calque.id}-contour`]) {
+        if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', actif ? 'visible' : 'none');
+      }
+    }
+
+    const vectoriels = (referentiel.calques ?? []).filter(
+      (c) => c.mode === 'vecteur_api' && calquesActifs.includes(c.id),
+    );
+    if (vectoriels.length === 0) {
+      etat.definirCalquesEnChargement([]);
+      return;
+    }
+
+    const b = m.getBounds();
+    const bbox: [number, number, number, number] = [
+      b.getWest(),
+      b.getSouth(),
+      b.getEast(),
+      b.getNorth(),
+    ];
+
+    let annule = false;
+    etat.definirCalquesEnChargement(vectoriels.map((c) => c.id));
+    void Promise.all(
+      vectoriels.map(async (calque) => {
+        try {
+          const fc = await api.zonage(calque.id, bbox);
+          if (annule) return;
+          (m.getSource(`k-${calque.id}`) as maplibregl.GeoJSONSource | undefined)?.setData(
+            fc as unknown as GeoJSON.FeatureCollection,
+          );
+        } catch {
+          // Service momentanement indisponible : le calque reste vide et l'interface le dira.
+        } finally {
+          if (!annule) {
+            etat.definirCalquesEnChargement((precedents) => precedents.filter((id) => id !== calque.id));
+          }
+        }
+      }),
+    );
+    return () => {
+      annule = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calquesActifs, zoom, pret, referentiel]);
 
   // ------------------------------------------------------------------ postes et rayons
   useEffect(() => {
@@ -958,17 +1122,40 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
  * `feature-state.statut` prime sur l'attribut de la tuile : c'est ce qui rend la
  * recoloration immediate lorsque l'utilisateur modifie les ponderations.
  */
+/**
+ * Couleur de remplissage d'une parcelle.
+ *
+ * Trois situations a ne pas confondre, et c'est tout l'enjeu :
+ *   - parcelle NON QUALIFIEE (aucun score en base) : elle n'est pas coloree du tout. Seul son
+ *     contour la signale. Une couleur supposerait un jugement qui n'a pas ete porte ;
+ *   - parcelle qualifiee mais a couverture de donnees insuffisante : GRIS, statut a part
+ *     entiere qui dit « l'application ne sait pas » ;
+ *   - parcelle qualifiee et jugee : vert, orange ou rouge.
+ *
+ * `feature-state` prime, pour permettre la recoloration instantanee au deplacement des
+ * curseurs de ponderation sans retelecharger les tuiles.
+ */
 function expressionCouleurScore(couleurs: Record<Feu, string>): ExpressionSpecification {
   return [
-    'match',
-    ['coalesce', ['feature-state', 'statut'], ['get', 'statut_score'], 'gris'],
-    'vert',
-    couleurs.vert,
-    'orange',
-    couleurs.orange,
-    'rouge',
-    couleurs.rouge,
-    couleurs.gris,
+    'case',
+    // Ni statut recalcule a la volee, ni statut materialise : parcelle non analysee.
+    [
+      'all',
+      ['!', ['to-boolean', ['feature-state', 'statut']]],
+      ['!', ['has', 'statut_score']],
+    ],
+    'rgba(0,0,0,0)',
+    [
+      'match',
+      ['coalesce', ['feature-state', 'statut'], ['get', 'statut_score'], 'gris'],
+      'vert',
+      couleurs.vert,
+      'orange',
+      couleurs.orange,
+      'rouge',
+      couleurs.rouge,
+      couleurs.gris,
+    ],
   ] as ExpressionSpecification;
 }
 

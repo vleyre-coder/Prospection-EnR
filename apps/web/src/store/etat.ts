@@ -27,6 +27,10 @@ export interface EtatApp {
 
   /** Couches de contraintes activees. */
   couchesActives: string[];
+  /** Calques cartographiques actives (catalogue `calques`). */
+  calquesActifs: string[];
+  /** Calques vectoriels dont la requete est en cours : etat « en cours de chargement ». */
+  calquesEnChargement: string[];
   /** Rayon de raccordement economique affiche autour des postes, en km. 0 = masque. */
   rayonRaccordementKm: number;
   /**
@@ -60,6 +64,8 @@ export interface EtatApp {
   basculerSelection: (idu: string) => void;
   viderSelection: () => void;
   basculerCouche: (id: string) => void;
+  basculerCalque: (id: string) => void;
+  definirCalquesEnChargement: (ids: string[] | ((p: string[]) => string[])) => void;
   definirRayon: (km: number) => void;
   /** Revient au rayon par defaut de la filiere courante. */
   reinitialiserRayon: () => void;
@@ -82,6 +88,7 @@ interface Preferences {
   fond?: FondCarte;
   theme?: 'clair' | 'sombre' | 'systeme';
   couchesActives?: string[];
+  calquesActifs?: string[];
   rayonRaccordementKm?: number;
   rayonPersonnalise?: boolean;
   ponderations?: Partial<Record<Filiere, Record<string, number>>>;
@@ -101,6 +108,7 @@ function enregistrerPreferences(e: EtatApp): void {
     fond: e.fond,
     theme: e.theme,
     couchesActives: e.couchesActives,
+    calquesActifs: e.calquesActifs,
     rayonRaccordementKm: e.rayonRaccordementKm,
     rayonPersonnalise: e.rayonPersonnalise,
     ponderations: e.ponderations,
@@ -122,7 +130,11 @@ export const useEtat = create<EtatApp>((set, get) => ({
   theme: prefs.theme ?? 'systeme',
   iduSelectionne: null,
   idusSelectionnes: [],
-  couchesActives: prefs.couchesActives ?? ['natura2000_habitats', 'zone_humide'],
+  couchesActives: prefs.couchesActives ?? [],
+  // Par defaut : les forets publiques. C'est la contrainte la plus souvent oubliee, et une
+  // parcelle qualifiee en pleine foret n'a aucun sens pour un projet au sol.
+  calquesActifs: prefs.calquesActifs ?? ['forets_publiques'],
+  calquesEnChargement: [],
   rayonRaccordementKm:
     prefs.rayonPersonnalise && prefs.rayonRaccordementKm != null
       ? prefs.rayonRaccordementKm
@@ -174,6 +186,18 @@ export const useEtat = create<EtatApp>((set, get) => ({
     }));
     enregistrerPreferences(get());
   },
+  basculerCalque: (id) => {
+    set((e) => ({
+      calquesActifs: e.calquesActifs.includes(id)
+        ? e.calquesActifs.filter((c) => c !== id)
+        : [...e.calquesActifs, id],
+    }));
+    enregistrerPreferences(get());
+  },
+  definirCalquesEnChargement: (ids) =>
+    set((e) => ({
+      calquesEnChargement: typeof ids === 'function' ? ids(e.calquesEnChargement) : ids,
+    })),
   definirRayon: (rayonRaccordementKm) => {
     set({ rayonRaccordementKm, rayonPersonnalise: true });
     enregistrerPreferences(get());

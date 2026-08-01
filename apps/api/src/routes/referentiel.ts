@@ -22,6 +22,7 @@ import {
 import { VERSION_MOTEUR, LIBELLES_REGIME } from '@enr/scoring';
 import { bddDisponible, requeteUne } from '../bdd.js';
 import { config } from '../config.js';
+import { CALQUES } from '../calques.js';
 import { etatAmorcage } from '../amorcage.js';
 import {
   compterContraintes,
@@ -120,6 +121,34 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       // `nbObjets` dit la verite sur chaque couche : 0 signifie « rien a afficher »,
       // ce que l'interface doit annoncer au lieu de laisser croire a une panne.
       couches: COUCHES.map((c) => ({ ...c, nbObjets: nbObjetsCouche(c.id) })),
+      /**
+       * Calques cartographiques, avec leur etat.
+       *
+       * Trois etats seulement, et jamais « non ingere » : ce que l'utilisateur doit savoir,
+       * c'est si le calque s'affichera ou non, pas comment il est alimente en interne.
+       *   - `disponible`   : le calque s'affiche des activation ;
+       *   - `zoom_requis`  : il s'affichera, mais le service ne produit rien en vue large ;
+       *   - `indisponible` : rien a afficher (uniquement si la base est vide pour un calque
+       *                      qui en depend).
+       */
+      calques: CALQUES.map((c) => ({
+        id: c.id,
+        libelle: c.libelle,
+        groupe: c.groupe,
+        couleur: c.couleur,
+        mode: c.mode,
+        legende: c.legende,
+        avertissement: c.avertissement ?? null,
+        zoomMin: c.zoomMin ?? null,
+        source: c.source,
+        etat:
+          c.mode === 'vecteur_base' && (volumetrie[c.typeBase ?? ''] ?? 0) === 0
+            ? 'indisponible'
+            : c.zoomMin != null
+              ? 'zoom_requis'
+              : 'disponible',
+        nbObjets: c.mode === 'vecteur_base' ? (volumetrie[c.typeBase ?? ''] ?? 0) : null,
+      })),
       // Reglages de carte : le client les lit ici plutot que de dupliquer des constantes
       // qui doivent rester alignees sur celles du service de tuiles. Le rayon de
       // raccordement par defaut est deja porte par chaque filiere ci-dessus.

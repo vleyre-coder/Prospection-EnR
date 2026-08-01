@@ -9,6 +9,7 @@ import * as depotScores from '../depots/scores.js';
 import * as depotProspection from '../depots/prospection.js';
 import { journaliserStrict } from '../depots/sources.js';
 import {
+  ErreurEmprise,
   estimerEmprise,
   etatQualification,
   lancerQualificationEmprise,
@@ -223,6 +224,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     const etendue = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]);
     const enArrierePlan = corps.arrierePlan === true || etendue > SEUIL_ARRIERE_PLAN_DEG2;
 
+    try {
     if (enArrierePlan) {
       const lance = lancerQualificationEmprise(bbox, {
         surfaceMinM2: corps.surfaceMinM2,
@@ -246,6 +248,14 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       forcer: corps.forcer,
     });
     return { mode: 'immediat', ...resultat };
+    } catch (err) {
+      // Emprise hors territoire, invalide ou demesuree : c'est une demande irrecevable,
+      // pas une panne. Le motif doit remonter tel quel a l'utilisateur.
+      if (err instanceof ErreurEmprise) {
+        return erreur(rep, 422, 'emprise_invalide', err.message);
+      }
+      throw err;
+    }
   });
 
   /** Avancement de la qualification en arriere-plan. */
@@ -261,7 +271,14 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       ? corps.bbox
       : bboxDepuisChaine(String(corps.bbox ?? ''));
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Champ `bbox` requis');
-    return estimerEmprise(bbox, corps.surfaceMinM2);
+    try {
+      return await estimerEmprise(bbox, corps.surfaceMinM2);
+    } catch (err) {
+      if (err instanceof ErreurEmprise) {
+        return erreur(rep, 422, 'emprise_invalide', err.message);
+      }
+      throw err;
+    }
   });
 
   app.post('/api/qualification/parcelles', async (req, rep) => {

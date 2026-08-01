@@ -73,6 +73,7 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
         <Legende referentiel={referentiel} />
         <Filtres referentiel={referentiel} pertinents={pertinents} />
         <Ponderations referentiel={referentiel} />
+        <Calques referentiel={referentiel} />
         <Couches referentiel={referentiel} />
       </div>
     </aside>
@@ -92,6 +93,21 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         <div className="legende-bloc">
           <div className="legende-titre">Score de la parcelle</div>
           <p className="legende-note">Couleur de remplissage de la parcelle sur la carte.</p>
+          {/* Une parcelle jamais analysee ne porte aucune couleur : c'est le cas le plus
+              frequent, et le confondre avec un jugement defavorable serait grave. */}
+          <div className="legende-ligne">
+            <span
+              className="legende-pave"
+              style={{ background: 'transparent', borderStyle: 'solid', borderColor: 'var(--bordure-forte)' }}
+            />
+            <span>
+              <strong>Non analysee</strong>
+              <span className="desc">
+                Aucun score calcule : la parcelle n&apos;est pas coloree, seul son contour
+                apparait. Lancez « Qualifier l&apos;emprise » sur votre secteur.
+              </span>
+            </span>
+          </div>
           {FEUX.map((f) => (
             <div key={f} className="legende-ligne">
               <span
@@ -657,6 +673,111 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
             d&apos;ensemble.
           </p>
         )}
+      </div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Calques cartographiques
+// ---------------------------------------------------------------------------
+
+const LIBELLES_GROUPES_CALQUES: Record<string, string> = {
+  foret: 'Forets et boisements',
+  environnement: 'Milieux naturels proteges',
+  patrimoine: 'Patrimoine',
+  risques: 'Risques',
+  urbanisme: 'Urbanisme',
+  agriculture: 'Agriculture',
+};
+
+const LIBELLES_VALEUR: Record<string, string> = {
+  opposable: 'opposable',
+  indicative: 'indicative',
+  pre_reperage: 'pre-reperage',
+};
+
+/**
+ * Liste des calques, avec pour chacun son etat, sa source et son millesime.
+ *
+ * Trois etats seulement, et l'etat ne parle jamais de la mecanique interne : ce qui compte
+ * pour l'utilisateur, c'est de savoir si le calque va s'afficher. Un calque « a zoomer »
+ * n'est pas indisponible : son service ne produit simplement rien en vue nationale.
+ */
+function Calques({ referentiel }: { referentiel: Referentiel }): JSX.Element | null {
+  const etat = useEtat();
+  const calques = referentiel.calques ?? [];
+  if (calques.length === 0) return null;
+
+  const groupes = new Map<string, typeof calques>();
+  for (const c of calques) groupes.set(c.groupe, [...(groupes.get(c.groupe) ?? []), c]);
+
+  return (
+    <details className="section" open>
+      <summary>
+        Calques cartographiques
+        <span className="compteur-section">{etat.calquesActifs.length} actif(s)</span>
+      </summary>
+      <div className="section-corps">
+        <p className="legende-note">
+          Contraintes de reference affichees en superposition. Chaque calque indique sa source et
+          son millesime : une contrainte sans provenance datee n&apos;est pas opposable dans un
+          dossier.
+        </p>
+
+        {[...groupes.entries()].map(([groupe, liste]) => (
+          <div key={groupe}>
+            <div className="groupe-famille">{LIBELLES_GROUPES_CALQUES[groupe] ?? groupe}</div>
+            {liste.map((c) => {
+              const actif = etat.calquesActifs.includes(c.id);
+              const chargement = etat.calquesEnChargement.includes(c.id);
+              const indisponible = c.etat === 'indisponible';
+              return (
+                <div key={c.id} className="calque">
+                  <label className={indisponible ? 'case case-indisponible' : 'case'}>
+                    <input
+                      type="checkbox"
+                      checked={actif && !indisponible}
+                      disabled={indisponible}
+                      onChange={() => etat.basculerCalque(c.id)}
+                    />
+                    <span
+                      className="point"
+                      style={{ background: c.couleur, marginTop: 4, marginRight: 2 }}
+                    />
+                    <span className="calque-libelle">{c.libelle}</span>
+                    {chargement && <span className="tourniquet" style={{ marginLeft: 4 }} />}
+                    {!chargement && indisponible && (
+                      <span className="etiquette-indisponible">indisponible</span>
+                    )}
+                    {!chargement && !indisponible && c.zoomMin != null && (
+                      <span className="etiquette-zoom" title={`Visible a partir du zoom ${c.zoomMin}`}>
+                        zoom {c.zoomMin}+
+                      </span>
+                    )}
+                  </label>
+                  {actif && !indisponible && (
+                    <p className="calque-detail">
+                      {c.legende}
+                      <br />
+                      <span className="calque-source">
+                        {c.source.nom}
+                        {c.source.millesime ? ` — ${c.source.millesime}` : ''} — valeur{' '}
+                        {LIBELLES_VALEUR[c.source.valeurJuridique] ?? c.source.valeurJuridique}
+                      </span>
+                      {c.avertissement && (
+                        <>
+                          <br />
+                          <span className="calque-avertissement">{c.avertissement}</span>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </details>
   );

@@ -105,6 +105,34 @@ scoring, et c'est elle qui détermine la faisabilité du raccordement. Les sites
 
 GRTgaz et Teréga n'exposent pas de portail propre joignable ; leurs jeux passent par ODRE.
 
+## 2.6 Calques cartographiques (affichage)
+
+Distincts des sources de **scoring** : ces calques servent à *voir* les contraintes, pas à
+les noter. Le catalogue complet est dans `apps/api/src/calques.ts`, avec pour chaque entrée
+sa source, son millésime et sa valeur juridique — affichés dans l'interface.
+
+Trois modes, choisis selon ce que le producteur publie réellement :
+
+| Mode | Principe | Calques |
+|---|---|---|
+| **Image relayée** | tuile WMTS ou WMS officielle, reproxifiée par l'API | forêts publiques ONF, BD Forêt v2, forêts anciennes, OLD, zones humides BCAE, CLC zones humides, ZNIEFF (vue d'ensemble) |
+| **Vecteur à la demande** | GeoJSON interrogé sur l'emprise visible | Natura 2000 habitats et oiseaux, ZNIEFF I et II, réserves naturelles, parcs nationaux et régionaux, sites classés/inscrits et périmètres ABF (SUP `AC1`/`AC2`/`AC4` du GPU) |
+| **Base** | objets ingérés | monuments historiques |
+
+Pourquoi ce panachage plutôt qu'une ingestion générale : demander à l'exploitant d'ingérer
+plusieurs gigaoctets de vecteur national pour un simple affichage serait disproportionné, et
+la donnée serait périmée dès l'ingestion. Une image officielle est toujours à jour côté
+producteur. Le vecteur n'est retenu que là où personne ne publie d'images fiables — et là,
+il apporte en prime des objets nommés et cliquables.
+
+Comme le fond de carte, les images passent par le relais de l'API (`/api/carte/calque/…`) :
+elles restent donc disponibles sur un poste dont le navigateur n'atteint pas
+`data.geopf.fr`. La liste des calques relayés est fermée.
+
+**Les identifiants de couches WMTS/WMS ont été vérifiés** contre les `GetCapabilities` de la
+Géoplateforme. Un identifiant erroné produirait un calque silencieusement vide — le pire des
+cas, puisqu'il se lirait comme une absence de contrainte.
+
 ### 2.5 Gisement de vent — Global Wind Atlas
 
 Le Global Wind Atlas (DTU Wind Energy / Banque mondiale) publie, par pays, un raster GeoTIFF

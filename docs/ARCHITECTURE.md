@@ -183,6 +183,26 @@ Deux choix méritent explication :
   niveau de la base, avec l'utilisateur transmis par `set_config('app.utilisateur')`. Un
   historique commercial ne doit pas pouvoir être contourné par un chemin de code oublié.
 
+## 5 bis. Deux garde-fous appris à l'usage
+
+**L'emprise pilote tout, donc elle doit être bornée.** La qualification part des bornes
+affichées par MapLibre. Trois façons dont cela dérape : `getBounds()` peut renvoyer des
+longitudes hors de [-180, 180] quand le monde est répété ; une vue large déborde largement
+le territoire couvert ; une emprise régionale représente des semaines de traitement.
+`normaliserEmprise` refuse ou rogne dans ces trois cas, et un **verrou de bordure** écarte
+ensuite toute parcelle dont le centroïde tombe hors de l'emprise — un service peut toujours
+renvoyer des objets débordants. Côté carte, `maxBounds` et `renderWorldCopies: false`
+suppriment le problème à la source. Tests : `apps/api/test/emprise.test.ts`.
+
+**Une absence de donnée n'est pas une valeur.** `ST_AsMVT` omet purement et simplement les
+attributs nuls. Une commune sans parcelle qualifiée n'a donc pas d'attribut
+`nb_parcelles_qualifiees`, un test `== 0` est faux, `to-number` rend 0, et le ratio 0
+peignait la commune en **rouge** : la France entière apparaissait rédhibitoire au lancement,
+alors que rien n'avait été analysé. Toute expression de style lisant un attribut de tuile
+doit donc distinguer *absent* de *zéro* avec `has`. Même principe pour les parcelles : sans
+score, elles ne sont pas colorées du tout — le gris reste réservé au statut « données
+manquantes » d'une parcelle réellement analysée.
+
 ## 6. Frontend
 
 Voir [apps/web/README.md](../apps/web/README.md). Deux points d'architecture :

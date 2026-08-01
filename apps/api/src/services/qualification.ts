@@ -11,7 +11,7 @@ import { FILIERES, type Filiere, type ResultatScore } from '@enr/core';
 import { calculerScore, VERSION_MOTEUR } from '@enr/scoring';
 import { journal } from '../journal.js';
 import { config } from '../config.js';
-import { decouperBbox, type Bbox } from '../geo.js';
+import { decouperBbox, limiterAlaFrance, pointDansBbox, type Bbox } from '../geo.js';
 import {
   parcellesParEmprise,
   parcellesParGrandeEmprise,
@@ -23,6 +23,55 @@ import * as depotScores from '../depots/scores.js';
 
 /** Rapport d'avancement : (traitees, total, echecs). */
 export type Progres = (traitees: number, total: number, echecs: number) => void;
+
+/** Levee lorsque l'emprise demandee ne peut pas etre exploitee. */
+export class ErreurEmprise extends Error {}
+
+/**
+ * Ramene une emprise a quelque chose d'exploitable, ou refuse.
+ *
+ * Trois garde-fous, chacun repondant a un incident constate : une qualification lancee
+ * depuis une vue large avait porte sur des parcelles situees a des dizaines de kilometres
+ * de la zone de travail.
+ *
+ *   1. **Bornes valides.** MapLibre peut renvoyer des longitudes hors de [-180, 180] en vue
+ *      tres large (copies du monde), ce qui produit une emprise absurde.
+ *   2. **Limitation au territoire.** L'application ne couvre que la France metropolitaine :
+ *      toute portion d'emprise en dehors est ecartee au lieu d'etre interrogee.
+ *   3. **Etendue maximale.** Au-dela, l'utilisateur ne travaille plus sur un secteur mais
+ *      balaye une region : le refus est explicite plutot que silencieusement tronque.
+ */
+export function normaliserEmprise(bbox: Bbox): Bbox {
+  const [ouest, sud, est, nord] = bbox;
+  if (![ouest, sud, est, nord].every(Number.isFinite) || ouest >= est || sud >= nord) {
+    throw new ErreurEmprise("L'emprise demandee est invalide.");
+  }
+
+  const limitee = limiterAlaFrance(bbox);
+  if (!limitee) {
+    throw new ErreurEmprise(
+      "L'emprise affichee ne recoupe pas la France metropolitaine, seul territoire couvert.",
+    );
+  }
+
+  const etendue = (limitee[2] - limitee[0]) * (limitee[3] - limitee[1]);
+  if (etendue > ETENDUE_MAX_DEG2) {
+    throw new ErreurEmprise(
+      "L'emprise affichee est trop vaste pour une qualification : zoomez sur votre zone de travail. " +
+        "A cette echelle, le nombre de parcelles depasse ce qu'il est raisonnable d'interroger.",
+    );
+  }
+
+  return limitee;
+}
+
+/**
+ * Etendue maximale d'une qualification, en degres carres.
+ *
+ * 0,5 deg2 represente environ 55 km sur 70, soit un large canton ou un petit departement :
+ * la plus grande zone de travail plausible. Au-dela, c'est une erreur de manipulation.
+ */
+const ETENDUE_MAX_DEG2 = 0.5;
 
 export interface ResultatQualification {
   nbParcelles: number;
@@ -146,14 +195,19 @@ export async function qualifierEmprise(
 ): Promise<ResultatQualification> {
   const debut = Date.now();
   const surfaceMin = options.surfaceMinM2 ?? config.qualification.surfaceMinM2;
+  const emprise = normaliserEmprise(bbox);
 
-  const brutes = await parcellesParEmprise(bbox);
+  const brutes = await parcellesParEmprise(emprise);
   const retenues = brutes.filter(
-    (p) => (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin,
+    (p) =>
+      (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin &&
+      // Verrou de bordure : un service peut renvoyer des objets debordant l'emprise
+      // demandee. La zone de travail affichee doit rester la seule limite.
+      pointDansBbox(p.centroide, emprise),
   );
 
   journal.info(
-    { bbox, trouvees: brutes.length, retenues: retenues.length, surfaceMin },
+    { bbox: emprise, trouvees: brutes.length, retenues: retenues.length, surfaceMin },
     "Qualification d'emprise",
   );
 
@@ -222,6 +276,10 @@ export function lancerQualificationEmprise(
 ): EtatQualification | null {
   if (etat.enCours) return null;
 
+  // L'emprise est normalisee AVANT de rendre la main : une emprise refusee doit produire une
+  // erreur immediate, pas un travail de fond qui echoue en silence.
+  const emprise = normaliserEmprise(bbox);
+
   etat.enCours = true;
   etat.phase = 'recuperation';
   etat.total = 0;
@@ -236,13 +294,24 @@ export function lancerQualificationEmprise(
     const debut = Date.now();
     const surfaceMin = options.surfaceMinM2 ?? config.qualification.surfaceMinM2;
     try {
-      const retenues = await parcellesParGrandeEmprise(bbox, {
+      const brutes = await parcellesParGrandeEmprise(emprise, {
         surfaceMinM2: surfaceMin,
         limite: config.qualification.lotMax,
         onProgres: (fait, totalCellules, trouvees) => {
           etat.message = `Recuperation du parcellaire : secteur ${fait}/${totalCellules}, ${trouvees} parcelle(s) retenue(s)`;
         },
       });
+
+      // Verrou de bordure : les cellules de la grille se recouvrent et un service peut
+      // renvoyer des objets debordant l'emprise. Seules les parcelles dont le centroide est
+      // dans la zone affichee sont qualifiees.
+      const retenues = brutes.filter((p) => pointDansBbox(p.centroide, emprise));
+      if (retenues.length < brutes.length) {
+        journal.debug(
+          { ecartees: brutes.length - retenues.length },
+          'Parcelles hors emprise ecartees',
+        );
+      }
 
       await depotParcelles.enregistrerParcelles(retenues);
 
@@ -275,9 +344,9 @@ export function lancerQualificationEmprise(
       etat.message =
         `${resultat.nbEnrichies} parcelle(s) qualifiee(s) sur ${retenues.length}` +
         (resultat.nbEchecs > 0 ? `, ${resultat.nbEchecs} en echec` : '');
-      journal.info({ bbox, ...resultat }, 'Qualification de grande emprise terminee');
+      journal.info({ bbox: emprise, ...resultat }, 'Qualification de grande emprise terminee');
     } catch (err) {
-      journal.error({ err, bbox }, 'Qualification de grande emprise interrompue');
+      journal.error({ err, bbox: emprise }, 'Qualification de grande emprise interrompue');
       etat.message = `Interrompue : ${(err as Error).message}`;
     } finally {
       etat.enCours = false;
@@ -300,8 +369,9 @@ export async function estimerEmprise(
   surfaceMinM2?: number,
 ): Promise<{ nbEstime: number; dureeEstimeeMin: number; nbCellules: number }> {
   const surfaceMin = surfaceMinM2 ?? config.qualification.surfaceMinM2;
-  const cellules = decouperBbox(bbox, 0.05);
-  const sonde = cellules[Math.floor(cellules.length / 2)] ?? bbox;
+  const emprise = normaliserEmprise(bbox);
+  const cellules = decouperBbox(emprise, 0.05);
+  const sonde = cellules[Math.floor(cellules.length / 2)] ?? emprise;
 
   const lot = await parcellesParEmprise(sonde).catch(() => []);
   const retenuesSonde = lot.filter((p) => (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin);
