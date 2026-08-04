@@ -214,7 +214,7 @@ const koDistanceHabitation500: RegleKo = (s, ctx) => {
     return ko(
       'ko_eol_habitation_500',
       "Recul de 500 m impossible sur cette parcelle",
-      `L'habitation la plus proche est a ${formatDistance(d)} du bord de la parcelle. Meme en implantant l'aerogenerateur au point le plus eloigne (deport maximal estime ${formatDistance(deport)} pour ${ctx.surfaceHa?.toFixed(1) ?? '?'} ha), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas etre atteint.`,
+      `L'habitation la plus proche est a ${formatDistance(d)} du bord de la parcelle. Meme en implantant l'aerogenerateur au point le plus eloigne (deport maximal estime ${formatDistance(deport)} pour ${ctx.surfaceHa != null ? formatNombre(ctx.surfaceHa, 'ha') : 'surface inconnue'}), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas etre atteint.`,
       'distances_reglementaires',
       'eol_distance_habitation',
     );

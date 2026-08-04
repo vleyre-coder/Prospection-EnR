@@ -751,8 +751,11 @@ const topo_orientation: Evaluateur = (s, ctx) => {
   if (ctx.filiere !== 'solaire_sol') return null;
   const o = s.topographie.orientationDeg;
   const pente = s.topographie.pentePct;
-  if (o == null) return indispo(SRC.alti);
-  // Sur terrain quasi plat, l'orientation du terrain naturel est sans effet.
+  // Le test de platitude passe AVANT le test de nullite : sur terrain quasi plat, l'orientation
+  // du terrain naturel est sans effet, donc son absence n'empeche pas de conclure. Le cas est
+  // devenu courant depuis que l'ajustement de plan rejette les regressions mal conditionnees :
+  // elles laissent l'orientation nulle tout en fournissant une pente — majorante, donc d'autant
+  // plus concluante lorsqu'elle reste sous les 3 %.
   if (pente != null && pente < 3) {
     return {
       note: 95,
@@ -762,6 +765,7 @@ const topo_orientation: Evaluateur = (s, ctx) => {
       sourceKey: SRC.alti,
     };
   }
+  if (o == null) return indispo(SRC.alti);
   // 180 deg = plein sud = optimal ; 0/360 = nord = defavorable.
   const ecartAuSud = Math.abs(180 - ((o % 360) + 360) % 360);
   const note = paliers(ecartAuSud, [

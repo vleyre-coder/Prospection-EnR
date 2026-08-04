@@ -759,6 +759,29 @@ dans le CQL :
 compte sans les géométries (réponse XML même si `OUTPUTFORMAT=application/json`).
 `REQUEST=DescribeFeatureType&TYPENAMES=…` donne le schéma XSD exact (vérifié).
 
+> ⚠️ **Troncature silencieuse — piège majeur.** Au-delà de `COUNT`, le service renvoie un
+> sous-ensemble **arbitraire** en HTTP 200, sans avertissement autre que l'écart entre
+> `numberReturned` et `numberMatched`. Mesures faites sur le service réel (couche `batiment`,
+> emprise de 1500 m autour d'un point de centre-ville) :
+>
+> | Emprise | `numberReturned` / `numberMatched` | Distance à l'habitation la plus proche |
+> |---|---|---|
+> | Orléans centre, 1500 m, `COUNT=3000` | 3 000 / 15 892 | **373 m** (faux) |
+> | Orléans centre, 500 m, `COUNT=5000` | 3 343 / 3 343 | **0 m** (exact) |
+> | Bourges centre, 1500 m, `COUNT=3000` | 3 000 / 16 234 | **558 m** (faux) |
+> | Bourges centre, 500 m, `COUNT=5000` | 3 262 / 3 262 | **0 m** (exact) |
+>
+> L'erreur va toujours dans le sens dangereux : un sous-ensemble ne peut que **surestimer** une
+> distance minimale, donc surestimer la note. À 558 m annoncés, le knock-out des 500 m de
+> l'éolien ne se déclenche pas alors qu'une habitation est sur la parcelle.
+>
+> Règle appliquée dans `apps/api/src/connecteurs/wfs.ts` : toute réponse est testée
+> (`reponseTronquee`), et si elle est tronquée on **réduit l'emprise** jusqu'à obtenir une
+> réponse complète — une réponse complète sur un rayon *r* reste exacte pour toute distance
+> ≤ *r*. À défaut, la grandeur est ramenée à `null`. Vérifié : à `COUNT=5000`, l'emprise de
+> 500 m est complète partout où elle a été mesurée, Paris 11ᵉ compris (2 027 objets).
+> Volume : 4,3 Mo de JSON pour 5 000 bâtiments, soit **522 ko sur le fil** (gzip ~8:1).
+
 ### `BDTOPO_V3:batiment` — properties exactes (28 champs)
 
 ```json

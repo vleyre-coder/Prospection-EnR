@@ -900,3 +900,81 @@ describe('reproductibilite et transparence', () => {
     assert.ok(!/indetermine/.test(c.valeurAffichee));
   });
 });
+
+/**
+ * Correction (audit 5, C1). Le raccourci « terrain plat » de `topo_orientation` etait place
+ * APRES le test de nullite de l'orientation : une parcelle plate dont l'orientation etait
+ * inconnue perdait le critere alors que sa platitude suffit a conclure.
+ *
+ * Le cas n'est pas theorique. Depuis que l'ajustement de plan rejette les regressions mal
+ * conditionnees (audit 4), l'orientation est mise a `null` tout en laissant une pente issue
+ * du repli par paires — soit 17 % des parcelles mesurees sur un echantillon reel.
+ */
+describe('topo_orientation — platitude et orientation inconnue', () => {
+  it('conclut sur la platitude meme sans orientation connue', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.topographie.pentePct = 1.4;
+        p.topographie.orientationDeg = null;
+        p.topographie.penteEstimeeParPaires = true;
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'topo_orientation')!;
+    assert.equal(c.note, 95, "la platitude suffit a noter le critere");
+    assert.equal(c.feu === 'gris', false, 'le critere ne doit plus etre grise');
+    assert.match(c.valeurAffichee, /plat/);
+    assert.equal(c.valeurBrute, null, "la valeur brute reste absente : rien n'est invente");
+  });
+
+  it('reste indisponible si ni l’orientation ni la pente ne sont connues', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.topographie.pentePct = null;
+        p.topographie.orientationDeg = null;
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'topo_orientation')!;
+    assert.equal(c.note, null);
+    assert.equal(c.feu, 'gris');
+  });
+
+  it('note l’orientation lorsque la pente la rend determinante', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.topographie.pentePct = 9;
+        p.topographie.orientationDeg = 180;
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'topo_orientation')!;
+    assert.equal(c.note, 100, 'plein sud sur pente franche');
+    assert.match(c.valeurAffichee, /sud/);
+  });
+
+  it('penalise une orientation nord sur pente franche', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.topographie.pentePct = 9;
+        p.topographie.orientationDeg = 0;
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'topo_orientation')!;
+    assert.equal(c.note, 5);
+  });
+
+  it('une pente franche sans orientation connue laisse le critere indisponible', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.topographie.pentePct = 9;
+        p.topographie.orientationDeg = null;
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'topo_orientation')!;
+    assert.equal(c.note, null, "sur pente franche, l'orientation ne peut pas etre devinee");
+    assert.equal(c.feu, 'gris');
+  });
+});

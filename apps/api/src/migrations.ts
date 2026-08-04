@@ -20,6 +20,25 @@ export const DOSSIER_MIGRATIONS = join(ici, '..', '..', '..', 'db', 'migrations'
 export interface ResultatMigrations {
   appliquees: number;
   total: number;
+  /** Migrations enregistrees sans etre executees (mode adoption). */
+  adoptees?: number;
+}
+
+export interface OptionsMigrations {
+  /**
+   * Enregistre les migrations comme appliquees SANS executer leur SQL.
+   *
+   * Necessaire parce que le SQL n'est pas rejouable dans l'absolu : la migration 010
+   * redefinit par `CREATE OR REPLACE VIEW` une vue creee en 005, et rejouer 005 ensuite
+   * echoue (« cannot drop columns from view »). C'est sans consequence tant que la table
+   * `migration_appliquee` existe, puisqu'elle empeche tout rejeu — mais si elle disparait
+   * (restauration partielle, base adoptee, dump pris avec `--exclude-table`), le serveur
+   * ne demarre plus du tout et il n'existait aucune porte de sortie.
+   *
+   * Equivalent du `baseline` de Flyway ou du `stamp` d'Alembic. Refuse de s'appliquer a une
+   * base vierge, ou elle laisserait un schema absent marque comme installe.
+   */
+  adopterSansExecuter?: boolean;
 }
 
 /**
@@ -38,17 +57,37 @@ async function avecVerrou<T>(cle: number, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function appliquerMigrations(): Promise<ResultatMigrations> {
-  return avecVerrou(864_201, appliquerMigrationsSansVerrou);
+export async function appliquerMigrations(
+  options: OptionsMigrations = {},
+): Promise<ResultatMigrations> {
+  return avecVerrou(864_201, () => appliquerMigrationsSansVerrou(options));
 }
 
-async function appliquerMigrationsSansVerrou(): Promise<ResultatMigrations> {
+/** La base porte-t-elle deja le schema applicatif ? */
+async function schemaDejaInstalle(): Promise<boolean> {
+  const [r] = await requete<{ presente: boolean }>(
+    `SELECT to_regclass('public.parcelle') IS NOT NULL AS presente`,
+  );
+  return r?.presente === true;
+}
+
+async function appliquerMigrationsSansVerrou(
+  options: OptionsMigrations,
+): Promise<ResultatMigrations> {
   await requete(`
     CREATE TABLE IF NOT EXISTS migration_appliquee (
       nom         text PRIMARY KEY,
       empreinte   text NOT NULL,
       appliquee_le timestamptz NOT NULL DEFAULT now()
     )`);
+
+  if (options.adopterSansExecuter && !(await schemaDejaInstalle())) {
+    throw new Error(
+      "Adoption refusee : la table « parcelle » est absente, donc le schema n'est pas installe. " +
+        'Marquer les migrations comme appliquees laisserait une base vide reputee a jour. ' +
+        'Appliquez les migrations normalement.',
+    );
+  }
 
   const fichiers = (await readdir(DOSSIER_MIGRATIONS)).filter((f) => f.endsWith('.sql')).sort();
   if (fichiers.length === 0) {
@@ -61,6 +100,7 @@ async function appliquerMigrationsSansVerrou(): Promise<ResultatMigrations> {
   const parNom = new Map(deja.map((d) => [d.nom, d.empreinte]));
 
   let appliquees = 0;
+  let adoptees = 0;
   for (const fichier of fichiers) {
     const sql = await readFile(join(DOSSIER_MIGRATIONS, fichier), 'utf8');
     const empreinte = createHash('sha256').update(sql).digest('hex').slice(0, 16);
@@ -80,14 +120,19 @@ async function appliquerMigrationsSansVerrou(): Promise<ResultatMigrations> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(sql);
+      if (!options.adopterSansExecuter) await client.query(sql);
       await client.query(`INSERT INTO migration_appliquee (nom, empreinte) VALUES ($1, $2)`, [
         fichier,
         empreinte,
       ]);
       await client.query('COMMIT');
-      journal.info({ fichier }, 'Migration appliquee');
-      appliquees += 1;
+      if (options.adopterSansExecuter) {
+        journal.warn({ fichier }, 'Migration enregistree sans etre executee (adoption)');
+        adoptees += 1;
+      } else {
+        journal.info({ fichier }, 'Migration appliquee');
+        appliquees += 1;
+      }
     } catch (err) {
       await client.query('ROLLBACK').catch(() => undefined);
       journal.error({ err, fichier }, 'Echec de migration');
@@ -97,5 +142,5 @@ async function appliquerMigrationsSansVerrou(): Promise<ResultatMigrations> {
     }
   }
 
-  return { appliquees, total: fichiers.length };
+  return { appliquees, total: fichiers.length, adoptees };
 }

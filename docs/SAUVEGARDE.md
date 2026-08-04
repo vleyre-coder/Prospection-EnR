@@ -151,6 +151,37 @@ TRUNCATE document, lead_evenement, site_parcelle, site, lead CASCADE;
 COMMIT;
 ```
 
+### Table de suivi des migrations — à ne jamais perdre
+
+La table `migration_appliquee` enregistre quelles migrations ont été appliquées. C'est elle,
+et non l'idempotence du SQL, qui garantit qu'une migration n'est jouée qu'une fois : le SQL
+n'est **pas** rejouable dans l'absolu (la migration `010` redéfinit par `CREATE OR REPLACE VIEW`
+une vue créée en `005` ; rejouer `005` ensuite échoue avec `cannot drop columns from view`).
+
+Conséquence : si cette table disparaît alors que le schéma est à jour — restauration partielle,
+dump pris avec `--exclude-table`, base adoptée d'une autre installation — **l'API ne démarre
+plus**, puisqu'elle applique les migrations au démarrage et bute sur `005`.
+
+La sauvegarde complète de la section précédente l'inclut ; le sauvetage n'est donc utile
+qu'après une restauration sélective. Vérification :
+
+```bash
+psql "$DATABASE_URL" -c "SELECT count(*) FROM migration_appliquee;"
+# doit renvoyer le nombre de fichiers de db/migrations (12 a ce jour)
+```
+
+Si le compte est inférieur alors que le schéma est complet, réenregistrez les migrations
+**sans les exécuter** :
+
+```bash
+npm run migrate --workspace @enr/api -- --adopter
+```
+
+L'option refuse de s'appliquer à une base dont la table `parcelle` est absente : elle ne peut
+donc pas transformer une base vide en base réputée à jour. Enchaînez ensuite un `migrate`
+normal, qui doit rapporter `"appliquees":0`. Ce scénario est rejoué à chaque exécution de la
+CI (job « Migrations SQL et calculs PostGIS »).
+
 ### Après restauration
 
 1. **Relancer les migrations** — la sauvegarde peut précéder une migration :

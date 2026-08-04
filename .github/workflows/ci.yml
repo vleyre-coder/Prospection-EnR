@@ -85,10 +85,42 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
         run: npm run migrate --workspace @enr/api
 
-      - name: Les rejouer, pour verifier leur idempotence
+      # Cette etape verifiait « l'idempotence des migrations ». Elle ne le pouvait pas : le
+      # runner tient une table de suivi et n'execute aucun fichier deja enregistre, donc un
+      # second appel ne rejoue rien par construction. Ce qui est reellement teste ici, et qui
+      # est la propriete utile en exploitation (le serveur applique les migrations a chaque
+      # demarrage), c'est qu'un second passage n'applique RIEN et ne casse rien.
+      - name: Un second passage n'applique aucune migration
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
-        run: npm run migrate --workspace @enr/api
+        run: |
+          sortie=$(npm run --silent migrate --workspace @enr/api 2>&1)
+          echo "$sortie"
+          echo "$sortie" | grep -q '"appliquees":0' \
+            || { echo "::error::un second passage a applique des migrations"; exit 1; }
+
+      # Le SQL n'est PAS rejouable a la main dans l'absolu (la migration 010 redefinit une vue
+      # de 005 par CREATE OR REPLACE ; rejouer 005 ensuite echoue). C'est sans consequence
+      # tant que la table de suivi existe, mais sa perte rendait le demarrage impossible sans
+      # porte de sortie. On verifie donc que la porte de sortie fonctionne.
+      - name: Une base privee de sa table de suivi reste recuperable
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: |
+          # Suppression via `pg` plutot que psql : le client PostgreSQL n'est pas garanti
+          # present sur l'image du runner, la dependance `pg` l'est.
+          node --input-type=module -e "
+            import { Client } from 'pg';
+            const c = new Client(process.env.DATABASE_URL);
+            await c.connect();
+            await c.query('DROP TABLE migration_appliquee');
+            await c.end();
+          "
+          npm run --silent migrate --workspace @enr/api -- --adopter
+          sortie=$(npm run --silent migrate --workspace @enr/api 2>&1)
+          echo "$sortie"
+          echo "$sortie" | grep -q '"appliquees":0' \
+            || { echo "::error::la base n'est pas revenue a un etat stable"; exit 1; }
 
       # Deux calculs metier vivent en SQL : la part de recouvrement d'un zonage (qui
       # designe le zonage dominant, donc un knock-out) et le nombre de groupes de parcelles
@@ -99,4 +131,15 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
         run: npx tsx --test test/postgis.test.ts
+        working-directory: apps/api
+
+      # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :
+      # il ne tourne que sur la base jetable de la CI, et apres les tests PostGIS.
+      - name: Tester la reprise d'une base privee de sa table de suivi
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+          # Opt-in obligatoire : sans lui, ces tests s'ignorent, pour qu'un `npm test` lance
+          # avec un DATABASE_URL de production ne touche jamais au schema.
+          TESTS_MIGRATIONS: '1'
+        run: npx tsx --test test/migrations.test.ts
         working-directory: apps/api

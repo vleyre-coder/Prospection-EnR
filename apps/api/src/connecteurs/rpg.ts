@@ -184,13 +184,18 @@ export async function occupationSol(
     // Repli sur le WFS RPG.LATEST avant de renoncer.
     const wfs = await rpgParWfs(parcelle);
     if (wfs) {
-      const recouvrantes = wfs.features.filter(
+      const recouvrantes = wfs.fc.features.filter(
         (f) => f.geometry && recouvrement(parcelle, [f.geometry as GeoJsonGeometry]).recouvre,
       );
       if (recouvrantes.length > 0) {
         featureRetenue = recouvrantes[0]!.properties;
         millesimeUtilise = MILLESIME_COURANT;
         anneesDeclarees = 1;
+      } else if (wfs.tronquee) {
+        // Reponse tronquee sans ilot recouvrant : l'ilot cherche peut simplement manquer du
+        // sous-ensemble renvoye. On ne peut donc pas ecrire « aucune declaration ».
+        echecs.push('rpg');
+        rpgIndisponible = true;
       }
     } else {
       echecs.push('rpg');

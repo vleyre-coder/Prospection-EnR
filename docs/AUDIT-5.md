@@ -377,3 +377,148 @@ de la couvrir avant qu'un sixième audit ne le démontre une nouvelle fois.**
 Ce qu'il faut y tester n'est pas l'appel réseau — il n'y a rien à en dire — mais la
 **transformation** : un jeu de réponses réelles enregistrées, passé aux fonctions de mapping, et
 les champs du snapshot vérifiés un à un. Une réponse WFS tronquée fait partie de ce jeu.
+
+---
+
+## Suite donnée — corrections de priorité 1 appliquées
+
+Les trois corrections indispensables sont faites, vérifiées par exécution, et couvertes par des
+tests qui échouent si on les défait (vérifié par mutation). Une quatrième anomalie, plus grave que
+celles listées ci-dessus, a été découverte pendant la vérification et corrigée dans la foulée.
+
+### 1. Troncature WFS — corrigée, et le défaut était très supérieur à ce que cet audit annonçait
+
+L'audit estimait le biais à partir d'un seul relevé (Orléans, `numberMatched = 25 180` pour 3 000
+renvoyés) sans mesurer son effet sur la valeur affichée. Mesure faite depuis, sur cinq centres
+urbains, en comparant la distance calculée sur la réponse tronquée à celle calculée sur une réponse
+complète d'emprise réduite :
+
+| Point | 1500 m, `COUNT=3000` | distance annoncée | 500 m, complet | distance vraie |
+|---|---|---|---|---|
+| Orléans centre | 3 000 / 15 892 | 373 m | 3 343 / 3 343 | **0 m** |
+| Tours centre | 3 000 / 24 573 | 304 m | 3 464 / 3 464 | **17 m** |
+| Blois centre | 3 000 / 12 181 | 288 m | 2 464 / 2 464 | **8 m** |
+| Chartres | 3 000 / 14 607 | 379 m | 2 829 / 2 829 | **0 m** |
+| Bourges centre | 3 000 / 16 234 | **558 m** | 3 262 / 3 262 | **0 m** |
+
+L'erreur n'est pas un biais de quelques dizaines de mètres : elle est de deux ordres de grandeur, et
+toujours dans le sens dangereux. Un sous-ensemble ne peut que *surestimer* une distance minimale.
+À Bourges, 558 m annoncés **passent le knock-out des 500 m de l'article L.515-44** alors qu'une
+habitation est sur la parcelle. Le tableau F sous-estimait donc la gravité en la qualifiant de
+« moyenne en périurbain » : elle est certaine en tissu dense, et le résultat est inversé, pas dégradé.
+
+Correction retenue, dans `apps/api/src/connecteurs/wfs.ts` :
+
+- `getFeature` renvoie désormais un indicateur `tronquee`, calculé par un prédicat isolé et testé
+  (`reponseTronquee`) : `numberMatched`, à défaut `totalFeatures`, à défaut « réponse pleine au
+  plafond ». Le dernier repli produit parfois un faux positif, jamais un faux négatif.
+- Les grandeurs qui supposent l'exhaustivité passent par une **emprise dégressive**
+  (`getFeatureEtage`) : 1500 m, puis 500 m — le rayon réglementaire —, puis 200 m en dernier
+  recours. Une réponse complète sur un rayon *r* reste exacte pour toute distance ≤ *r*, puisque ce
+  qui est au-delà est par construction plus loin.
+- `COUNT` est porté au maximum du service (5000) : l'emprise de 500 m est alors complète partout où
+  elle a été mesurée, Paris 11ᵉ compris (2 027 objets). Le volume reste modeste — 4,3 Mo de JSON
+  pour 5 000 bâtiments, soit **522 ko sur le fil** (gzip ~8:1) — et ne se paie qu'en tissu dense.
+- Toute distance non démontrée par l'emprise couverte est ramenée à `null` (`distanceDemontree`).
+  Un critère grisé est exploitable ; un critère faux ne l'est pas.
+- Là où l'emprise n'est pas réductible (forêt, zones humides, AOC, RPG : l'emprise *est* la
+  parcelle), c'est la règle logique qui s'applique — **une troncature n'invalide pas un constat
+  positif, elle invalide une absence et toute part de surface**. Un recouvrement forestier trouvé
+  reste vrai ; une `partBoisee` calculée sur un sous-ensemble est sous-estimée, donc optimiste sur
+  l'enjeu défrichement, donc supprimée. Un « pas de zone humide » sur réponse tronquée devient
+  `null`, parce qu'un faux négatif y ferait sauter un knock-out.
+- `rpgParWfs` remonte la troncature à son appelant, seul à savoir si l'îlot cherché a été trouvé :
+  une absence sur réponse tronquée ne vaut plus « aucune déclaration PAC », affirmation qui partait
+  dans les exports.
+
+Vérification après correction, sur le service réel : 0 m à Orléans, Bourges, Chartres et Paris 11ᵉ,
+17 m à Tours, 430 m en Sologne rurale avec 3 habitations dans les 500 m et une densité de 12
+bâtiments/km². 19 tests, dont un test structurel qui échoue si un futur appel à `getFeature` ignore
+l'indicateur de troncature — le piège étant d'écrire `const { fc } = await getFeature(...)`, qui
+compile et ne casse aucun test métier.
+
+Le contrat de l'API est complété : `docs/API_CONTRACTS.md` §8 porte désormais le tableau de mesures
+et la règle appliquée.
+
+### 2. Raccourci « terrain plat » — corrigé
+
+Le test de nullité de l'orientation passe maintenant après le test de platitude. La note de 95 est
+attribuée sur la seule platitude, `valeurBrute` restant `null` : rien n'est inventé. Cinq tests
+encadrent le critère, dont celui du cas symétrique — une pente franche sans orientation connue reste
+indisponible, l'orientation ne se devine pas.
+
+### 3. Séparateur décimal — corrigé, et il n'était pas seul
+
+La colonne des poids passe par `formatNombre`. Vérifié sur un rendu réel : `10,7 %`, `3,8 %`,
+`3 %` — l'espace avant le signe est bien présent, contrairement à ce que laisse croire l'extraction
+texte de `pdftotext`, qui l'avale sur les cellules courtes.
+
+Quatre autres nombres destinés au lecteur portaient le même défaut, hors du champ signalé par
+l'audit : les deux surfaces des réserves `site_disperse` et `contiguite_inconnue`, et la surface
+citée par le knock-out de recul à l'habitation. Toutes converties.
+
+Un test structurel garde l'ensemble : aucun `toFixed` décimal ne peut atteindre le document sans
+mise en forme française. Il a lui-même mis au jour une exception qui doit rester — les coordonnées
+WGS84, où une virgule décimale dans une paire déjà séparée par une virgule serait ambiguë, et dont
+le point est attendu par les outils cartographiques. Elle est désormais documentée à son point
+d'emploi et déclarée dans le test.
+
+### 4. Anomalie découverte en vérifiant : une base sans sa table de suivi ne redémarre plus
+
+En rejouant les douze migrations depuis une base vierge, la seconde passe échoue :
+
+```
+db/migrations/005_prospection.sql:148  ERROR: cannot drop columns from view  (42P16)
+```
+
+La migration `010` redéfinit par `CREATE OR REPLACE VIEW` une vue créée en `005` ; rejouer `005`
+ensuite tente de lui retirer une colonne, ce que PostgreSQL refuse. Sans conséquence tant que la
+table `migration_appliquee` existe, puisqu'elle empêche tout rejeu.
+
+Deux constats en découlent.
+
+**L'étape « idempotence » de la CI ne prouvait rien.** Elle appelait `npm run migrate` deux fois ;
+or le runner tient une table de suivi et n'exécute jamais un fichier déjà enregistré. Un second
+appel ne rejoue rien *par construction* : l'étape consommait du temps et délivrait un feu vert pour
+une propriété qu'elle ne testait pas. Elle vérifie désormais ce qui compte réellement en
+exploitation — qu'un second passage applique **zéro** migration — et son intitulé le dit.
+
+**La perte de la table de suivi était un cul-de-sac.** Le serveur applique les migrations à chaque
+démarrage : si la table disparaît alors que le schéma est à jour — restauration sélective, dump pris
+avec `--exclude-table`, base adoptée d'une autre installation — il bute sur `005` et **ne démarre
+plus du tout**, sans aucune porte de sortie. Vérifié sur une vraie base.
+
+`005` n'est pas modifiable : le runner refuse, à juste titre, une migration déjà appliquée dont le
+contenu a changé, et l'empreinte est enregistrée sur toute installation existante. La sortie est
+donc un mode d'adoption, `npm run migrate -- --adopter`, équivalent du `baseline` de Flyway ou du
+`stamp` d'Alembic : il enregistre les migrations sans exécuter leur SQL. Il refuse de s'appliquer à
+une base dont la table `parcelle` est absente, faute de quoi il transformerait une base vide en base
+réputée à jour.
+
+Vérifié de bout en bout sur une base réelle : 4 migrations suivies après l'échec → adoption des 8
+manquantes → 12 suivies → passage suivant à `"appliquees":0`, démarrage possible. Et sur une base
+vierge : refus, aucune ligne écrite, migration normale toujours possible. Le scénario complet est
+rejoué par la CI et par quatre tests (`apps/api/test/migrations.test.ts`), sous opt-in explicite
+`TESTS_MIGRATIONS=1` parce qu'ils modifient le schéma — un `npm test` lancé par mégarde avec un
+`DATABASE_URL` de production ne doit pas y toucher. `docs/SAUVEGARDE.md` porte la procédure.
+
+### Hygiène, au passage
+
+`apps/api/src/services/exports.ts` contenait un **octet NUL** littéral, dans la classe de caractères
+qui borne la sortie à Latin-1. Le fichier était de ce fait « binaire » pour `grep`, et la classe
+exposée à une réindentation malheureuse. Réécrit en séquences d'échappement, comportement inchangé.
+
+### État après corrections
+
+| | Avant | Après |
+|---|---|---|
+| Tests | 240 | **270** (46 core, 53 scoring, 156 api, 15 web) |
+| Distance à l'habitation en tissu dense | fausse de deux ordres de grandeur, dans le sens dangereux | exacte, ou `null` |
+| Critère d'orientation sur terrain plat | perdu sur 17 % des parcelles | attribué |
+| Nombres décimaux des livrables | 5 fautifs | 0, et gardés par un test |
+| Base privée de sa table de suivi | démarrage impossible, aucune issue | procédure testée en CI |
+
+Ce qui reste ouvert est inchangé : les lignes 4 à 9 du tableau G. La couverture des connecteurs
+progresse — le WFS est désormais testé sur ses règles de décision — mais la transformation des
+réponses réelles en snapshot reste le point à couvrir, et c'est toujours la zone la moins testée du
+projet.

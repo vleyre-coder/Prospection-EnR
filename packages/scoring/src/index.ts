@@ -37,7 +37,7 @@ import {
 } from './criteres-eval.js';
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
-import { borne } from './notes.js';
+import { borne, formatNombre } from './notes.js';
 import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './implantation.js';
 
 /**
@@ -670,8 +670,8 @@ export function calculerScoreSite(
         `Les parcelles retenues ne forment pas une emprise continue mais ${nbGroupesContigus} ` +
         `groupes separes. Chacun demanderait sa propre cloture, sa propre piste et son propre ` +
         `raccordement : le site n'est pas un projet mais plusieurs. La surface implantable est ` +
-        `estimee groupe par groupe (${utileSite.netteHa.toFixed(2)} ha sur ` +
-        `${utileSite.bruteHa.toFixed(2)} ha au cadastre) et non comme une emprise unique, qui ` +
+        `estimee groupe par groupe (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
+        `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre) et non comme une emprise unique, qui ` +
         `l'aurait surestimee. A rapprocher d'un regroupement effectivement jointif.`,
       statutMaximal: 'orange',
     });
@@ -681,8 +681,8 @@ export function calculerScoreSite(
       libelle: 'Contiguite des parcelles non verifiee',
       motif:
         `La disposition geometrique des parcelles n'a pas ete verifiee. La surface implantable ` +
-        `est donc deduite parcelle par parcelle (${utileSite.netteHa.toFixed(2)} ha sur ` +
-        `${utileSite.bruteHa.toFixed(2)} ha au cadastre), hypothese prudente : si les parcelles ` +
+        `est donc deduite parcelle par parcelle (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
+        `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre), hypothese prudente : si les parcelles ` +
         `sont jointives, la surface reelle est superieure.`,
       statutMaximal: 'orange',
     });

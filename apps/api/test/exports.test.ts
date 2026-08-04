@@ -9,9 +9,11 @@
  * tiers ; ce sont donc les plus couteuses, et les moins visibles a la relecture.
  */
 
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { snapshotVide, type ParcelleSnapshot, type ResultatScore } from '@enr/core';
+import { formatNombre } from '@enr/scoring';
 import {
   csvResultats,
   ficheParcellePdf,
@@ -219,4 +221,46 @@ test('le rapport pagine et numerote', async () => {
   const m = /\/Count (\d+)/.exec(buf.toString('latin1'));
   assert.ok(m, 'le catalogue doit declarer un nombre de pages');
   assert.ok(Number(m![1]) >= 1);
+});
+
+/**
+ * Correction (audit 5, C2). La colonne des poids du rapport PDF affichait « 10.7 % » : un point
+ * decimal dans un document francais destine a etre transmis a un elu ou a un proprietaire.
+ * Le projet a un formateur unique, `formatNombre`, qui produit la virgule.
+ *
+ * Le test est structurel parce que le defaut est invisible aux tests fonctionnels : le PDF se
+ * genere, se pagine et contient les bonnes valeurs — seul le separateur est faux. Il verifie
+ * donc qu'aucun `toFixed` decimal ne parvienne au document sans passer par une mise en forme
+ * francaise, quel que soit le champ ajoute ensuite.
+ */
+test('aucun nombre decimal du rapport n’echappe au separateur francais', () => {
+  const source = readFileSync(new URL('../src/services/exports.ts', import.meta.url), 'utf8');
+  const sansCommentaires = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '');
+  const fautifs: string[] = [];
+  for (const m of sansCommentaires.matchAll(/.{0,60}\.toFixed\([1-9]\).{0,40}/g)) {
+    const extrait = m[0];
+    // Trois mises en forme acceptables : la conversion explicite, `formatNombre`, ou les
+    // coordonnees geographiques — seule exception assumee, documentee a son point d'emploi :
+    // une paire deja separee par une virgule deviendrait ambigue, et ces coordonnees sont
+    // faites pour etre recopiees dans un outil cartographique.
+    if (
+      !extrait.includes("replace('.', ',')") &&
+      !extrait.includes('formatNombre') &&
+      !extrait.includes('centroide')
+    ) {
+      fautifs.push(extrait.trim());
+    }
+  }
+  assert.deepEqual(fautifs, [], `nombres decimaux non localises : ${fautifs.join(' | ')}`);
+});
+
+test('les poids sont formates avec une virgule et une unite separee', () => {
+  // Verifie le formateur lui-meme sur les poids reellement rencontres dans le referentiel.
+  assert.equal(formatNombre(10.7, '%'), '10,7 %');
+  assert.equal(formatNombre(3.8, '%'), '3,8 %');
+  // Un poids rond perd sa decimale mais garde l'espace avant le signe, comme l'exige l'usage
+  // typographique francais (verifie sur un rendu PDF reel).
+  assert.equal(formatNombre(3, '%'), '3 %');
 });
