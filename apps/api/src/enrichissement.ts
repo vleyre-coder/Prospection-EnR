@@ -11,7 +11,7 @@
  */
 
 import type { Identite, ParcelleSnapshot, SourceRef } from '@enr/core';
-import { snapshotVide } from '@enr/core';
+import { assainirSnapshot, snapshotVide, type AnomalieBorne } from '@enr/core';
 import { journal } from './journal.js';
 import { bboxDe, elargirBbox, bboxEnPolygone, type GeoJsonGeometry, type Position } from './geo.js';
 import { CONNECTEURS, sourceRef } from './connecteurs/base.js';
@@ -37,6 +37,13 @@ export interface ResultatEnrichissement {
   snapshot: ParcelleSnapshot;
   connecteursEnEchec: string[];
   dureeMs: number;
+  /**
+   * Grandeurs trouvees hors bornes de vraisemblance et ramenees a « donnee indisponible ».
+   *
+   * Remonte jusqu'a l'appelant pour que la supervision les compte : une campagne qui en produit
+   * beaucoup signale un connecteur ou un calcul qui a derive, pas des parcelles atypiques.
+   */
+  anomaliesBornes: AnomalieBorne[];
 }
 
 function identiteDepuisBrute(p: ParcelleBrute): Identite {
@@ -300,13 +307,41 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
   snapshot.sources = sources;
   snapshot.dateSnapshot = new Date().toISOString();
 
+  /**
+   * Dernier controle avant que le snapshot ne devienne une donnee.
+   *
+   * C'est le point unique par lequel passe tout ce que l'application persiste : la borne posee ici
+   * couvre les onze connecteurs a la fois, alors qu'un controle par connecteur en oublierait un.
+   *
+   * Ce garde-fou existe parce qu'une pente de 1 666 % a ete ecrite en base, y a survecu trois
+   * audits et faussait le score de 14 % des parcelles. Le calcul fautif est corrige, mais le
+   * PROBLEME etait qu'aucun controle ne s'opposait a l'ecriture d'une valeur impossible. Un test
+   * verifie ce qu'on a pense a verifier ; une borne attrape le connecteur qui changera d'unite
+   * l'annee prochaine.
+   *
+   * Une anomalie est journalisee en `warn` et non en `error` : la parcelle reste exploitable, le
+   * critere concerne passe simplement au gris. Mais elle doit etre VUE — c'est le signal qu'un
+   * connecteur ou un calcul a derive.
+   */
+  const anomalies = assainirSnapshot(snapshot);
+  if (anomalies.length > 0) {
+    journal.warn(
+      {
+        idu: parcelle.idu,
+        anomalies: anomalies.map((a) => `${a.chemin} = ${a.valeur} ${a.unite} (borne ${a.min}..${a.max})`),
+      },
+      'Grandeurs hors bornes de vraisemblance : ramenees a « donnee indisponible ». ' +
+        'Verifiez le connecteur ou le calcul concerne.',
+    );
+  }
+
   const dureeMs = Date.now() - debut;
   journal.debug(
-    { idu: parcelle.idu, dureeMs, echecs: [...echecs] },
+    { idu: parcelle.idu, dureeMs, echecs: [...echecs], anomaliesBornes: anomalies.length },
     'Parcelle enrichie',
   );
 
-  return { snapshot, connecteursEnEchec: [...echecs], dureeMs };
+  return { snapshot, connecteursEnEchec: [...echecs], dureeMs, anomaliesBornes: anomalies };
 }
 
 /** Part des blocs de donnees effectivement renseignes, pour supervision. */

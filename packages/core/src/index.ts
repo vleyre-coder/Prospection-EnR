@@ -6,3 +6,4 @@ export * from './reglementation.js';
 export * from './avertissements.js';
 export * from './palette.js';
 export * from './snapshot.js';
+export * from './bornes.js';
