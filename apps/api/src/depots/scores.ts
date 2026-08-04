@@ -25,14 +25,16 @@ export async function enregistrerScore(
   await requete(
     `INSERT INTO score_parcelle_filiere
        (idu, filiere, statut, score_global, detail, couverture_donnees, nb_knock_outs,
-        regime_implantation, profil_ponderation, version_moteur, date_calcul)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+        nb_knock_outs_bloquants, regime_implantation, profil_ponderation, version_moteur,
+        date_calcul)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
      ON CONFLICT (idu, filiere, profil_ponderation) DO UPDATE SET
        statut = EXCLUDED.statut,
        score_global = EXCLUDED.score_global,
        detail = EXCLUDED.detail,
        couverture_donnees = EXCLUDED.couverture_donnees,
        nb_knock_outs = EXCLUDED.nb_knock_outs,
+       nb_knock_outs_bloquants = EXCLUDED.nb_knock_outs_bloquants,
        regime_implantation = EXCLUDED.regime_implantation,
        version_moteur = EXCLUDED.version_moteur,
        date_calcul = now()`,
@@ -44,6 +46,9 @@ export async function enregistrerScore(
       JSON.stringify(score),
       score.couvertureDonnees,
       score.knockOuts.length,
+      // Seuls les knock-outs non derogeables qualifient une parcelle d'ecartee : la carte,
+      // le filtre et la liste s'appuient sur ce compteur, la fiche sur le meme critere.
+      score.knockOuts.filter((k) => !k.derogeable).length,
       score.regimeImplantation,
       profil,
       score.versionMoteur,

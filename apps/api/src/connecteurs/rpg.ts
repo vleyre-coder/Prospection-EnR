@@ -175,6 +175,10 @@ export async function occupationSol(
     }
   }
 
+  // Distinction essentielle en aval : « le RPG dit qu'il n'y a pas de declaration » n'est
+  // pas « le RPG n'a pas repondu ». La premiere autorise a ecrire « aucune declaration »
+  // dans un rapport transmis a un tiers, la seconde impose « non renseigne ».
+  let rpgIndisponible = false;
   const tousEchecs = resultats.every((r) => r == null);
   if (tousEchecs) {
     // Repli sur le WFS RPG.LATEST avant de renoncer.
@@ -190,6 +194,7 @@ export async function occupationSol(
       }
     } else {
       echecs.push('rpg');
+      rpgIndisponible = true;
     }
   }
 
@@ -202,7 +207,9 @@ export async function occupationSol(
     libelleGroupeCulture: groupe ? (GROUPES_CULTURE[groupe] ?? null) : null,
     millesime: millesimeUtilise ? String(millesimeUtilise) : null,
     partRecouvrement,
-    anneesDeclareesConsecutives: tousEchecs ? null : anneesDeclarees,
+    // `null` uniquement quand aucune source RPG n'a repondu. Le repli WFS reussi, lui,
+    // renseigne bien une annee : il donnait auparavant `null` malgre sa declaration.
+    anneesDeclareesConsecutives: rpgIndisponible ? null : anneesDeclarees,
   };
 
   occupation.potentielAgronomique = groupe ? (POTENTIEL_AGRONOMIQUE[groupe] ?? null) : null;

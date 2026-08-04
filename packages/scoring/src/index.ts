@@ -29,17 +29,27 @@ import {
   REFERENTIEL_DERNIERE_VERIFICATION,
   REGLES_PAR_ID,
 } from '@enr/core';
-import { EVALUATEURS, type ContexteEval } from './criteres-eval.js';
+import {
+  COURBE_DISTANCE_POSTE,
+  COURBE_PENTE,
+  EVALUATEURS,
+  type ContexteEval,
+} from './criteres-eval.js';
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
 import { borne } from './notes.js';
-import { surfaceUtileEstimee } from './implantation.js';
+import { BANDE_PERIMETRALE_M, surfaceUtileEstimee } from './implantation.js';
 
 /**
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
+ *
+ * 1.3.0 : les abscisses de COURBE_DISTANCE_POSTE sont recalees en kilometres de TRACE.
+ *   Avant, le critere notait le lineaire majore de 35 % sur des courbes calibrees en vol
+ *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
+ *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.2.0';
+export const VERSION_CODE_MOTEUR = '1.3.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.
@@ -74,12 +84,18 @@ export const EMPREINTE_REFERENTIEL = empreinte(
     verification: REFERENTIEL_DERNIERE_VERIFICATION,
     ponderations: PONDERATIONS_DEFAUT,
     criteres: Object.keys(CRITERES).sort(),
+    // Les baremes de notation entrent dans l'empreinte, et pas seulement le referentiel
+    // reglementaire : une courbe deplacee change TOUS les scores de la filiere concernee.
+    // Sans cette ligne, l'invalidation dependait d'une incrementation manuelle de
+    // VERSION_CODE_MOTEUR — et la premiere fois qu'on l'oublie, la base contient deux
+    // generations de scores melangees, sans aucun signe visible.
+    baremes: { COURBE_DISTANCE_POSTE, COURBE_PENTE, BANDE_PERIMETRALE_M },
   }),
 );
 
 /**
  * Identifiant complet du calcul, ecrit dans `score_parcelle_filiere.version_moteur`.
- * Exemple : `1.2.0+3f2a91b7`.
+ * Exemple : `1.3.0+3f2a91b7`.
  */
 export const VERSION_MOTEUR = `${VERSION_CODE_MOTEUR}+${EMPREINTE_REFERENTIEL}`;
 
@@ -592,5 +608,13 @@ export function calculerScoreSite(
 export { EVALUATEURS } from './criteres-eval.js';
 export { evaluerKnockOuts } from './knockouts.js';
 export { construireSeuilsProcedure, puissancePvEstimeeMwc } from './seuils-procedure.js';
+// Reexportes pour que les exports (PDF, CSV) presentent exactement les grandeurs notees :
+// un rapport qui affiche le vol d'oiseau la ou le score juge le trace se contredit.
+export {
+  COEFFICIENT_TRACE,
+  deportPossibleM,
+  lineaireRaccordementKm,
+  surfaceUtileEstimee,
+} from './implantation.js';
 export * from './notes.js';
 export { SRC } from './sources.js';

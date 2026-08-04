@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import type { Feu, Filiere } from '@enr/core';
+import { volOiseauPourLineaireKm, type Feu, type Filiere } from '@enr/core';
 import { api, type Referentiel } from '../api/client.js';
 import { FEUX, STATUTS, useEtat } from '../store/etat.js';
 
@@ -254,7 +254,11 @@ function Filtres({
         </div>
 
         <div className="champ">
-          <label htmlFor="dist-poste">Distance max. au poste source (km)</label>
+          <label htmlFor="dist-poste">Lineaire de raccordement max. (km de trace)</label>
+          <p className="legende-note">
+            Filtre le trace estime, pas le vol d&apos;oiseau : c&apos;est la meme grandeur que
+            le rayon dessine sur la carte et que la note du critere de raccordement.
+          </p>
           <input
             id="dist-poste"
             type="number"
@@ -597,8 +601,23 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         <div className="champ" style={{ marginTop: 7 }}>
           <label htmlFor="rayon">
             Rayon de raccordement affiche :{' '}
-            {etat.rayonRaccordementKm > 0 ? `${etat.rayonRaccordementKm} km` : 'masque'}
+            {etat.rayonRaccordementKm > 0
+              ? `${etat.rayonRaccordementKm} km de trace estime`
+              : 'masque'}
           </label>
+          {/* Le cercle est geodesique, le budget est un lineaire : la conversion doit etre
+              lisible, sinon l'utilisateur mesure le cercle sur la carte et croit a une
+              erreur d'echelle. Le score note la meme grandeur que celle affichee ici. */}
+          {etat.rayonRaccordementKm > 0 && (
+            <p className="legende-note">
+              Soit un cercle de{' '}
+              {volOiseauPourLineaireKm(etat.rayonRaccordementKm).toLocaleString('fr-FR', {
+                maximumFractionDigits: 1,
+              })}{' '}
+              km a vol d&apos;oiseau. C&apos;est le lineaire pose qui se paie, et c&apos;est lui
+              que note le critere de raccordement.
+            </p>
+          )}
           <p className="legende-note">
             {etat.rayonPersonnalise ? (
               <>

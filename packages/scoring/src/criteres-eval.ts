@@ -79,41 +79,58 @@ function indispo(sourceKey?: string, commentaire?: string): EvalBrute {
 // Raccordement
 // ---------------------------------------------------------------------------
 
-/** Courbes de distance au poste source : le stockage est bien plus sensible que l'eolien. */
-const COURBE_DISTANCE_POSTE: Record<Filiere, readonly Palier[]> = {
+/**
+ * Courbes de distance au poste source, EN KILOMETRES DE TRACE.
+ *
+ * Ces paliers etaient a l'origine cales sur des distances a vol d'oiseau. Quand le critere
+ * est passe a la notation du lineaire estime (vol d'oiseau majore de 35 %), les abscisses
+ * n'ont pas suivi : chaque parcelle recevait donc la note d'une distance 35 % plus grande
+ * que celle sur laquelle la courbe avait ete calee — une penalite double, invisible parce
+ * qu'elle deforme le classement sans produire d'erreur apparente.
+ *
+ * Les abscisses sont donc multipliees par COEFFICIENT_TRACE. A parcelle identique, la note
+ * redevient celle de la calibration d'origine, mais la courbe exprime desormais la
+ * grandeur qu'elle note reellement.
+ *
+ * RESERVE, a lever avant tout usage decisionnel du classement : la calibration ABSOLUE
+ * (ou placer 72/100 plutot que 60/100) n'est etablie sur aucun devis de raccordement reel.
+ * Elle traduit une hierarchie plausible entre filieres — le stockage est bien plus
+ * sensible au lineaire que l'eolien — pas un cout constate. Cf. docs/CALIBRATION.md.
+ */
+export const COURBE_DISTANCE_POSTE: Record<Filiere, readonly Palier[]> = {
   bess: [
     [0, 100],
-    [1, 95],
-    [2, 80],
-    [5, 50],
-    [8, 25],
-    [12, 5],
-    [20, 0],
+    [1.35, 95],
+    [2.7, 80],
+    [6.75, 50],
+    [10.8, 25],
+    [16.2, 5],
+    [27, 0],
   ],
   solaire_sol: [
     [0, 100],
-    [2, 92],
-    [5, 72],
-    [8, 52],
-    [12, 28],
-    [20, 5],
-    [30, 0],
+    [2.7, 92],
+    [6.75, 72],
+    [10.8, 52],
+    [16.2, 28],
+    [27, 5],
+    [40.5, 0],
   ],
   eolien_terrestre: [
     [0, 100],
-    [3, 90],
-    [8, 70],
-    [15, 45],
-    [25, 20],
-    [40, 0],
+    [4.05, 90],
+    [10.8, 70],
+    [20.25, 45],
+    [33.75, 20],
+    [54, 0],
   ],
   methanisation: [
     [0, 100],
-    [3, 85],
-    [8, 60],
-    [15, 30],
-    [25, 5],
-    [40, 0],
+    [4.05, 85],
+    [10.8, 60],
+    [20.25, 30],
+    [33.75, 5],
+    [54, 0],
   ],
 };
 
@@ -122,7 +139,8 @@ const racc_distance_poste: Evaluateur = (s, ctx) => {
   if (!poste) return indispo(SRC.postes);
 
   // La note porte sur le LINEAIRE estime, pas sur la distance a vol d'oiseau : c'est le
-  // lineaire qui se paie. Les courbes ci-dessus sont calees sur des distances de trace.
+  // lineaire qui se paie. Les abscisses de COURBE_DISTANCE_POSTE sont exprimees dans la
+  // meme unite (cf. son commentaire), sans quoi la majoration se paierait deux fois.
   const lineaire = lineaireRaccordementKm(poste.distanceKm);
   const note = paliers(lineaire, COURBE_DISTANCE_POSTE[ctx.filiere]);
 
@@ -632,7 +650,7 @@ const sol_foret: Evaluateur = (s) => {
 // Topographie
 // ---------------------------------------------------------------------------
 
-const COURBE_PENTE: Record<Filiere, readonly Palier[]> = {
+export const COURBE_PENTE: Record<Filiere, readonly Palier[]> = {
   solaire_sol: [
     [0, 100],
     [3, 98],

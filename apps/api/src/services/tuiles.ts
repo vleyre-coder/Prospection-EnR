@@ -55,7 +55,7 @@ export async function tuileParcelles(
         s.statut          AS statut_score,
         s.score_global,
         s.couverture_donnees,
-        s.nb_knock_outs,
+        s.nb_knock_outs_bloquants,
         s.regime_implantation,
         l.statut          AS statut_prospection,
         ST_AsMVTGeom(

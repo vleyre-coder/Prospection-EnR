@@ -5,7 +5,14 @@
  * commune, poste source) plutot que d'imposer a l'utilisateur de choisir un mode.
  */
 
-import type { Feu, Filiere, StatutProspection, TypeSol } from '@enr/core';
+import {
+  COEFFICIENT_TRACE,
+  lineaireRaccordementKm,
+  type Feu,
+  type Filiere,
+  type StatutProspection,
+  type TypeSol,
+} from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { requete } from '../bdd.js';
@@ -239,8 +246,17 @@ export interface LigneResultatFiltre {
   surfaceHa: number | null;
   statutScore: Feu | null;
   scoreGlobal: number | null;
+  /**
+   * Nombre de criteres redhibitoires NON derogeables. Remonte jusqu'au client parce que
+   * le statut seul ne distingue pas une parcelle mal notee d'une parcelle
+   * reglementairement exclue : les deux sont rouges.
+   */
+  nbKnockOutsBloquants: number;
   statutProspection: StatutProspection | null;
+  /** Vol d'oiseau, tel que mesure. */
   distancePosteKm: number | null;
+  /** Lineaire de trace estime : la grandeur notee, et celle qui se paie. */
+  lineaireRaccordementKm: number | null;
   pentePct: number | null;
   typeSol: string | null;
   centroide: [number, number];
@@ -276,11 +292,18 @@ export async function filtrerParcelles(
   if (f.scoreMin != null) ajouter('s.score_global >= $?', f.scoreMin);
   if (f.statutsScore?.length) ajouter('s.statut = ANY($?)', f.statutsScore);
   if (f.statutsProspection?.length) ajouter('l.statut = ANY($?)', f.statutsProspection);
-  if (f.exclureKnockOuts) conditions.push('s.nb_knock_outs = 0');
+  // Les knock-outs derogeables (STECAL, modification de PLU) ne justifient pas d'ecarter
+  // une parcelle de la liste : seuls les bloquants le font.
+  if (f.exclureKnockOuts) conditions.push('s.nb_knock_outs_bloquants = 0');
 
   if (f.distancePosteMaxKm != null) {
+    // Le seuil saisi est un budget de LINEAIRE de trace, comme le rayon dessine sur la
+    // carte et comme la grandeur notee par le critere de raccordement. Le snapshot ne
+    // stocke que le vol d'oiseau : c'est donc lui qu'on majore, en SQL, pour rester
+    // indexable et n'avoir aucune ligne a filtrer cote applicatif.
     ajouter(
-      `(sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric <= $?`,
+      `(sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric` +
+        ` * ${COEFFICIENT_TRACE} <= $?`,
       f.distancePosteMaxKm,
     );
   }
@@ -338,6 +361,7 @@ export async function filtrerParcelles(
     surface_m2: number | null;
     statut: Feu | null;
     score_global: number | null;
+    nb_knock_outs_bloquants: number;
     statut_prospection: StatutProspection | null;
     distance_poste_km: number | null;
     pente_pct: number | null;
@@ -347,7 +371,7 @@ export async function filtrerParcelles(
   }>(
     `SELECT p.idu, p.nom_commune, p.section, p.numero,
             COALESCE(p.surface_calculee_m2, p.contenance_m2) AS surface_m2,
-            s.statut, s.score_global,
+            s.statut, s.score_global, COALESCE(s.nb_knock_outs_bloquants, 0)::int AS nb_knock_outs_bloquants,
             l.statut AS statut_prospection,
             (sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric AS distance_poste_km,
             (sn.snapshot -> 'topographie' ->> 'pentePct')::numeric AS pente_pct,
@@ -369,8 +393,11 @@ export async function filtrerParcelles(
       surfaceHa: l.surface_m2 == null ? null : Math.round((l.surface_m2 / 10000) * 100) / 100,
       statutScore: l.statut,
       scoreGlobal: l.score_global,
+      nbKnockOutsBloquants: l.nb_knock_outs_bloquants,
       statutProspection: l.statut_prospection,
       distancePosteKm: l.distance_poste_km,
+      lineaireRaccordementKm:
+        l.distance_poste_km == null ? null : lineaireRaccordementKm(l.distance_poste_km),
       pentePct: l.pente_pct,
       typeSol: l.type_sol,
       centroide: [l.lon, l.lat] as [number, number],

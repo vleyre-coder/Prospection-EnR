@@ -9,6 +9,37 @@ export const FILIERES = ['solaire_sol', 'eolien_terrestre', 'bess', 'methanisati
 
 export type Filiere = (typeof FILIERES)[number];
 
+/**
+ * Coefficient de sinuosite entre la distance a vol d'oiseau et le lineaire reellement pose.
+ *
+ * Une liaison de raccordement ne va pas en ligne droite : elle suit les emprises publiques,
+ * contourne le bati, les cours d'eau et les parcelles dont le passage n'a pas ete negocie.
+ * Le rapport observe sur les raccordements realises se situe entre 1,3 et 1,6 ; 1,35 est
+ * retenu comme valeur prudente.
+ *
+ * Place dans @enr/core, et non dans le moteur de scoring, parce que TROIS composants
+ * doivent en donner la meme lecture : le moteur qui note le lineaire, les exports qui
+ * l'impriment, et la carte qui dessine le rayon autour des postes. Un rayon trace en vol
+ * d'oiseau autour d'un score calcule en trace fait cadrer un secteur sur une contrainte
+ * qui n'est pas celle qui sera notee.
+ */
+export const COEFFICIENT_TRACE = 1.35;
+
+/** Lineaire de raccordement estime, en kilometres, a partir de la distance a vol d'oiseau. */
+export function lineaireRaccordementKm(distanceVolOiseauKm: number): number {
+  return Math.round(distanceVolOiseauKm * COEFFICIENT_TRACE * 100) / 100;
+}
+
+/**
+ * Distance a vol d'oiseau correspondant a un lineaire de trace donne.
+ *
+ * Reciproque de la precedente : la carte raisonne en distance geodesique (un cercle), mais
+ * l'utilisateur choisit un budget de lineaire.
+ */
+export function volOiseauPourLineaireKm(lineaireKm: number): number {
+  return lineaireKm / COEFFICIENT_TRACE;
+}
+
 export interface FiliereMeta {
   id: Filiere;
   libelle: string;

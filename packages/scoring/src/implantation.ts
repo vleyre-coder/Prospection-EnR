@@ -56,7 +56,7 @@ export function distanceAtteignableM(
  * en positions de machines, et une bande perimetrale n'a pas de sens. La deduction y est donc
  * nulle, et le critere de surface conserve son role de proxy de capacite d'accueil.
  */
-const BANDE_PERIMETRALE_M: Record<string, number> = {
+export const BANDE_PERIMETRALE_M: Record<string, number> = {
   solaire_sol: 5,
   bess: 7,
   methanisation: 5,
@@ -137,21 +137,6 @@ export function surfaceUtileEstimee(
 // Lineaire de raccordement
 // ---------------------------------------------------------------------------
 
-/**
- * Coefficient de sinuosite entre la distance a vol d'oiseau et le lineaire reellement pose.
- *
- * Une liaison de raccordement ne va pas en ligne droite : elle suit les emprises publiques,
- * contourne le bati, les cours d'eau et les parcelles dont le passage n'a pas ete negocie.
- * Le rapport observe sur les raccordements realises se situe entre 1,3 et 1,6 ; 1,35 est
- * retenu comme valeur prudente.
- *
- * L'enjeu n'est pas cosmetique : le critere de distance au poste pese 17,7 % du score en
- * stockage et 9,2 % en solaire. Noter la distance a vol d'oiseau revient a sous-estimer le
- * cout de liaison d'un tiers, et donc a mal classer les parcelles entre elles.
- */
-export const COEFFICIENT_TRACE = 1.35;
-
-/** Lineaire de raccordement estime, en kilometres, a partir de la distance a vol d'oiseau. */
-export function lineaireRaccordementKm(distanceVolOiseauKm: number): number {
-  return Math.round(distanceVolOiseauKm * COEFFICIENT_TRACE * 100) / 100;
-}
+// COEFFICIENT_TRACE et lineaireRaccordementKm vivent desormais dans @enr/core : la carte
+// en a besoin autant que le moteur, et deux definitions auraient fini par diverger.
+export { COEFFICIENT_TRACE, lineaireRaccordementKm } from '@enr/core';

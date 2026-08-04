@@ -121,6 +121,9 @@ async function appeler<T>(
   chemin: string,
   options: { methode?: string; corps?: unknown; enTetes?: Record<string, string> } = {},
 ): Promise<T> {
+  // Lu avant l'appel : `signalerSessionExpiree` efface le jeton, et un 401 concurrent
+  // aurait sinon vu un jeton deja nul et conclu a tort qu'il n'y avait pas de session.
+  const jetonPresent = jetonEnregistre() != null;
   let reponse: Response;
   try {
     reponse = await fetch(`${RACINE_API}${chemin}`, {
@@ -147,7 +150,12 @@ async function appeler<T>(
   if (!reponse.ok) {
     // Un 401 sur n'importe quelle route signifie que la session est finie : on le signale
     // une fois pour toutes plutot que de laisser chaque appelant le decouvrir seul.
-    if (reponse.status === 401 && !chemin.startsWith('/api/auth/connexion')) {
+    //
+    // Condition sur `jetonPresent` : sans elle, le tout premier appel de l'application
+    // (`/api/auth/moi`, emis avant toute connexion) repond 401 et affiche « Session
+    // expiree » a un visiteur qui n'a jamais eu de session. Une expiration n'a de sens
+    // que s'il y avait quelque chose a expirer — d'ou la lecture du jeton AVANT l'envoi.
+    if (reponse.status === 401 && jetonPresent && !chemin.startsWith('/api/auth/connexion')) {
       signalerSessionExpiree();
     }
     if (typeContenu.includes('json')) {
@@ -364,8 +372,13 @@ export interface LigneListe {
   surfaceHa: number | null;
   statutScore: Feu | null;
   scoreGlobal: number | null;
+  /** Knock-outs NON derogeables : distingue « mal notee » de « reglementairement ecartee ». */
+  nbKnockOutsBloquants: number;
   statutProspection: StatutProspection | null;
+  /** Vol d'oiseau, tel que mesure. */
   distancePosteKm: number | null;
+  /** Lineaire de trace estime : la grandeur notee, et celle qui se paie. */
+  lineaireRaccordementKm: number | null;
   pentePct: number | null;
   typeSol: string | null;
   centroide: [number, number];

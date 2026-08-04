@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { Feu } from '@enr/core';
+import { volOiseauPourLineaireKm, type Feu } from '@enr/core';
 import {
   api,
   jetonEnregistre,
@@ -921,12 +921,22 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         if (annule) return;
         (m.getSource('postes') as maplibregl.GeoJSONSource | undefined)?.setData(fc);
         // Les cercles sont calcules cote client : le curseur de rayon reagit instantanement.
+        //
+        // Le rayon choisi par l'utilisateur est un budget de LINEAIRE de trace, parce que
+        // c'est cette grandeur que le score juge et que le devis facture. Le cercle, lui,
+        // est geodesique : son rayon est donc le vol d'oiseau correspondant. Sans cette
+        // conversion, une parcelle situee juste a l'interieur d'un cercle de 5 km etait
+        // notee comme si elle etait a 6,75 km — la carte servait a cadrer un secteur sur
+        // une contrainte differente de celle qui allait etre notee.
         if (rayonRaccordementKm > 0) {
           (m.getSource('rayons') as maplibregl.GeoJSONSource | undefined)?.setData({
             type: 'FeatureCollection',
             features: fc.features.map((f) => ({
               type: 'Feature' as const,
-              geometry: cercleGeodesique(f.geometry.coordinates, rayonRaccordementKm * 1000),
+              geometry: cercleGeodesique(
+                f.geometry.coordinates,
+                volOiseauPourLineaireKm(rayonRaccordementKm) * 1000,
+              ),
               properties: { etatSaturation: f.properties.etatSaturation, nom: f.properties.nom },
             })),
           });
@@ -1227,7 +1237,7 @@ function expressionCouleurScore(
      * reglementaires, pas ponderes - donc l'attribut de tuile fait foi meme lorsqu'un
      * `feature-state` surcharge le statut.
      */
-    ['>', ['coalesce', ['get', 'nb_knock_outs'], 0], 0],
+    ['>', ['coalesce', ['get', 'nb_knock_outs_bloquants'], 0], 0],
     couleurRedhibitoire,
     [
       'match',

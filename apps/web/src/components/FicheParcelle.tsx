@@ -746,7 +746,20 @@ function RubriquesDonnees({
         referentiel={referentiel}
         enfants={[
           ['Type de sol retenu', val(s.occupationSol.typeSol)],
-          ['Culture (RPG)', val(s.occupationSol.rpg.libelleCulture ?? s.occupationSol.rpg.libelleGroupeCulture)],
+          [
+            'Culture (RPG)',
+            /* « donnee indisponible » et « aucune declaration » ne sont pas la meme chose :
+               la premiere dit que le RPG n'a pas repondu, la seconde qu'il a repondu et
+               qu'aucun ilot ne recouvre la parcelle. C'est ce dernier cas qui rend une
+               parcelle interessante en solaire, il ne doit pas se lire comme une lacune. */
+            s.occupationSol.rpg.libelleCulture ?? s.occupationSol.rpg.libelleGroupeCulture ? (
+              val(s.occupationSol.rpg.libelleCulture ?? s.occupationSol.rpg.libelleGroupeCulture)
+            ) : s.occupationSol.rpg.anneesDeclareesConsecutives == null ? (
+              <span className="absent">donnee indisponible (RPG non consulte)</span>
+            ) : (
+              <>aucune declaration PAC</>
+            ),
+          ],
           ['Code culture', val(s.occupationSol.rpg.codeCulture)],
           ['Millesime RPG', val(s.occupationSol.rpg.millesime)],
           ['Millesimes declares', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],

@@ -51,7 +51,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
     ['Surface', 'surface_desc', true],
     ['Statut', null, false],
     ['Score', 'score_desc', true],
-    ['Poste source', 'distance_poste_asc', true],
+    ['Trace estime', 'distance_poste_asc', true],
     ['Pente', null, true],
     ['Nature du sol', null, false],
     ['Prospection', null, false],
@@ -182,17 +182,42 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                   </td>
                   <td className="num">{formatNombre(l.surfaceHa, 'ha', 2)}</td>
                   <td>
-                    {l.statutScore && (
-                      <span
-                        className="etiquette-statut"
-                        style={{ background: referentiel.palette.couleursScore[l.statutScore] }}
-                      >
-                        {referentiel.palette.libellesScore[l.statutScore]}
-                      </span>
-                    )}
+                    {l.statutScore &&
+                      /* Un rouge de score faible et un rouge reglementaire portaient le meme
+                         libelle depuis que « Redhibitoire / ecarte » a ete renomme en
+                         « Score faible ». La liste etant l'outil de tri quotidien, elle
+                         doit distinguer les deux comme le fait la fiche. */
+                      (l.nbKnockOutsBloquants > 0 ? (
+                        <span
+                          className="etiquette-statut"
+                          style={{ background: referentiel.palette.couleurRedhibitoire }}
+                          title={referentiel.palette.descriptionRedhibitoire}
+                        >
+                          {referentiel.palette.libelleRedhibitoire}
+                        </span>
+                      ) : (
+                        <span
+                          className="etiquette-statut"
+                          style={{ background: referentiel.palette.couleursScore[l.statutScore] }}
+                        >
+                          {referentiel.palette.libellesScore[l.statutScore]}
+                        </span>
+                      ))}
                   </td>
                   <td className="num">{l.scoreGlobal == null ? '—' : Math.round(l.scoreGlobal)}</td>
-                  <td className="num">{formatNombre(l.distancePosteKm, 'km', 1)}</td>
+                  {/* La colonne donne le trace estime — la grandeur notee et facturee — et
+                      rappelle le vol d'oiseau en infobulle plutot que d'afficher deux
+                      nombres dans une cellule etroite. */}
+                  <td
+                    className="num"
+                    title={
+                      l.distancePosteKm == null
+                        ? undefined
+                        : `${formatNombre(l.distancePosteKm, 'km', 1)} a vol d'oiseau`
+                    }
+                  >
+                    {formatNombre(l.lineaireRaccordementKm, 'km', 1)}
+                  </td>
                   <td className="num">{formatNombre(l.pentePct, '%', 1)}</td>
                   <td>{l.typeSol?.replace(/_/g, ' ') ?? '—'}</td>
                   <td>
