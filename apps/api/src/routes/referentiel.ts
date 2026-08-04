@@ -28,6 +28,7 @@ import { bddDisponible, requeteUne } from '../bdd.js';
 import { config } from '../config.js';
 import { CALQUES } from '../calques.js';
 import { etatAmorcage } from '../amorcage.js';
+import { empreinteReferentiel } from './divers.js';
 import {
   compterContraintes,
   compterPostes,
@@ -108,7 +109,27 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get('/api/referentiel', async () => {
+  app.get('/api/referentiel', async (req, rep) => {
+    /**
+     * Validation par ETag.
+     *
+     * Le referentiel est la plus grosse reponse de l'API — catalogue des criteres, reglementation
+     * datee, ponderations, avertissements, palette, couches — et il ne change qu'au deploiement
+     * ou lorsqu'une couche est ingeree. Le renvoyer entier a chaque chargement de page est du
+     * gaspillage pur.
+     *
+     * `empreinteReferentiel()` existait depuis le troisieme audit et n'etait appelee par
+     * personne : c'est le troisieme mecanisme ecrit puis oublie du projet. L'empreinte couvre les
+     * ponderations et la version du moteur, donc tout changement de calcul invalide le cache.
+     */
+    const etag = `W/"${empreinteReferentiel()}"`;
+    if (req.headers['if-none-match'] === etag) return rep.code(304).send();
+    rep.header('ETag', etag);
+    // `no-cache` et non `no-store` : le client doit revalider a chaque fois, mais il a le droit
+    // de garder la reponse et de recevoir un 304. Un referentiel servi depuis un cache sans
+    // revalidation ferait afficher une reglementation perimee, ce qui est exclu.
+    rep.header('Cache-Control', 'no-cache');
+
     /**
      * Volumetrie reelle de chaque couche.
      *

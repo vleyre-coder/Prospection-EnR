@@ -221,18 +221,54 @@ function evaluerLimitesViabilite(
   const meta = FILIERES_META[filiere];
   const min = meta.surfaceUtileMinHa;
 
+  // Virgule decimale, comme partout ailleurs dans l'application. Ces motifs sortaient en
+  // « 0.14 ha » avec un point, a sept lignes d'un « 0,14 ha » de la synthese, dans la meme page
+  // du meme rapport transmis a un tiers francais.
+  const ha = (v: number): string => v.toFixed(2).replace('.', ',');
+
+  /**
+   * L'erosion perimetrale sort de son domaine de validite sur les petites parcelles.
+   *
+   * Le modele deduit une bande le long du contour. Sur une parcelle de 0,3 ha — environ 55 m de
+   * cote — une bande de 5 m consomme plus de la MOITIE de la surface : mesure sur un rapport
+   * reel, « 0,14 ha implantables (0,31 ha au cadastre, soit 54 % deduits) ». Le calcul est
+   * coherent avec lui-meme, mais 54 % n'est plus une estimation utilisable : c'est l'indication
+   * que la formule a quitte le regime ou elle a un sens.
+   *
+   * On ne corrige pas le nombre — il n'y a rien de plus juste a mettre — on le DIT. Un chiffre
+   * presente comme un constat alors qu'il sort du domaine de son modele est plus trompeur qu'un
+   * chiffre accompagne de sa reserve.
+   */
+  const partDeduite =
+    surfaceCadastraleHa > 0 ? 1 - surfaceHa / surfaceCadastraleHa : 0;
+  const reserveModele =
+    partDeduite > 0.4
+      ? ` ATTENTION : la deduction atteint ${Math.round(partDeduite * 100)} % de la surface` +
+        ` cadastrale. Le modele d'erosion perimetrale suppose une emprise dont le contour est` +
+        ` petit devant l'aire ; il quitte ce regime sous environ 1 ha et la surface implantable` +
+        ` annoncee n'y est plus qu'un ordre de grandeur pessimiste. A trancher sur plan de masse.`
+      : '';
+
   if (surfaceHa < min * 0.25) {
     limites.push({
       id: 'viab_surface_tres_insuffisante',
       libelle: 'Surface tres insuffisante',
-      motif: `La parcelle offre environ ${surfaceHa.toFixed(2)} ha implantables (${surfaceCadastraleHa.toFixed(2)} ha au cadastre), soit moins du quart de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet qu'agregee a des parcelles voisines au sein d'un site.`,
+      motif:
+        `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
+        `au cadastre), soit moins du quart de la surface minimale indicative de ${min} ha pour la ` +
+        `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet ` +
+        `qu'agregee a des parcelles voisines au sein d'un site.${reserveModele}`,
       statutMaximal: 'rouge',
     });
   } else if (surfaceHa < min * 0.6) {
     limites.push({
       id: 'viab_surface_insuffisante',
       libelle: 'Surface insuffisante seule',
-      motif: `La parcelle offre environ ${surfaceHa.toFixed(2)} ha implantables (${surfaceCadastraleHa.toFixed(2)} ha au cadastre), en dessous de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des parcelles voisines pour atteindre une taille finançable.`,
+      motif:
+        `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
+        `au cadastre), en dessous de la surface minimale indicative de ${min} ha pour la filiere ` +
+        `${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des ` +
+        `parcelles voisines pour atteindre une taille finançable.${reserveModele}`,
       statutMaximal: 'orange',
     });
   }

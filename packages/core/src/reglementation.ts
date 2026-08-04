@@ -75,6 +75,12 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     reference: "Code de l'environnement, art. R.122-2, annexe, rubrique 30",
     dateEntreeEnVigueur: '2022-10-01',
     instable: true,
+    commentaire:
+      "La rubrique 30 de l'annexe a l'article R.122-2 a ete remaniee plusieurs fois depuis 2020 " +
+      "et les bornes de puissance declenchant l'examen au cas par cas ont bouge a chaque " +
+      "revision. La decision releve en outre de l'autorite environnementale, qui apprecie la " +
+      "sensibilite du milieu au-dela du seul seuil de puissance : deux projets de meme puissance " +
+      "peuvent recevoir des reponses differentes. A confirmer aupres de la DREAL avant tout depot.",
   },
   document_cadre_departemental: {
     id: 'pv_document_cadre',

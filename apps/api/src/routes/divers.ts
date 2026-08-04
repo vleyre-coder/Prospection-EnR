@@ -147,6 +147,29 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
         },
       })),
       `parcelles-${filiere}`,
+      /**
+       * Largeurs minimales declarees, pour que le schema du DBF ne depende pas du lot.
+       *
+       * Sans elles, un export ou tous les regimes sont nuls produit un champ REGIME d'un
+       * caractere, la ou un autre lot le donne a 22 : les deux fichiers decrivent la meme chose
+       * avec des schemas differents, et les fusionner dans un SIG tronque le plus etroit.
+       *
+       * Valeurs tirees du domaine et non d'un lot : IDU cadastral sur 14, code INSEE sur 5,
+       * section sur 2 (elle est completee a gauche par un zero dans l'IDU),
+       * feux tricolores sur 5 (« orange »), regimes d'implantation sur 22
+       * (« pv_sol_terrain_degrade »), et 40 pour un nom de commune — le plus long de France en
+       * compte 38 (Saint-Remy-en-Bouzemont-Saint-Genest-et-Isson).
+       */
+      {
+        idu: 14,
+        code_insee: 5,
+        commune: 40,
+        section: 2,
+        numero: 4,
+        statut: 5,
+        ecartee: 3,
+        regime: 22,
+      },
     );
 
     await journaliser('export_shapefile', {

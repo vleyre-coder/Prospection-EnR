@@ -3,10 +3,10 @@
 # Elle manquait entierement : rien n'empechait un push de casser le moteur de scoring, et
 # trois regressions sont effectivement passees en production avant d'etre vues a l'usage.
 #
-# L'ordre compte. Les tests de `@enr/scoring` s'executent contre `dist/`, pas contre les
-# sources : lancer les tests sans construire d'abord les ferait passer contre un build
-# perime - c'est deja arrive, deux tests etaient au vert contre du code obsolete. La
-# construction est donc une etape a part entiere, avant les tests.
+# L'ordre compte. Les tests de `@enr/scoring` et de `@enr/core` s'executent contre `dist/`, pas
+# contre les sources : lancer les tests sans construire d'abord les ferait passer contre un build
+# perime - c'est deja arrive, deux tests etaient au vert contre du code obsolete. La construction
+# est donc une etape a part entiere, avant les tests.
 
 name: CI
 

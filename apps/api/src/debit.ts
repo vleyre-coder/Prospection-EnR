@@ -24,13 +24,20 @@ interface Seau {
 const seaux = new Map<string, Seau>();
 
 /**
- * Purge periodique, declenchee au comptage plutot que par un minuteur.
+ * Purge periodique, declenchee au comptage des creations plutot que par un minuteur.
  *
- * Un `setInterval` maintiendrait le processus eveille et compliquerait les tests. Le
- * declencheur precedent, `seaux.size % 500 === 0`, n'etait PAS garanti : la taille de la
- * table peut franchir un multiple de 500 sans jamais valoir exactement ce multiple au moment
- * du test, si des entrees ont ete supprimees entre-temps. La purge pouvait donc ne jamais
- * s'executer. On compte desormais les creations, ce qui est monotone.
+ * Un `setInterval` maintiendrait le processus eveille et compliquerait les tests.
+ *
+ * SUR LE DECLENCHEUR PRECEDENT, `seaux.size % 500 === 0`. Le quatrieme audit l'a signale comme
+ * potentiellement inoperant, au motif que la taille pourrait franchir un multiple de 500 sans
+ * jamais l'atteindre exactement. C'ETAIT FAUX, et la verification par mutation l'a montre : la
+ * taille augmente d'exactement un a chaque creation, elle prend donc toutes les valeurs entieres
+ * en croissant, et la purge ne peut soustraire que des entrees — le multiple suivant est donc
+ * atteint au plus tard apres 500 creations. Le mecanisme etait auto-correcteur.
+ *
+ * Le comptage des creations est conserve parce qu'il rend l'invariant DIRECT : « une purge toutes
+ * les 500 creations » se lit sans avoir a reconstruire l'argument ci-dessus. C'est un gain de
+ * lisibilite, pas une correction de defaut.
  */
 const PURGE_TOUS_LES_N_SEAUX = 500;
 let creationsDepuisPurge = 0;

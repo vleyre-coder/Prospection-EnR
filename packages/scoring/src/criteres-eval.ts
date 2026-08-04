@@ -27,6 +27,7 @@ import { SRC } from './sources.js';
 import {
   COEFFICIENT_TRACE,
   deportPossibleM,
+  distanceAtteignableM,
   lineaireRaccordementKm,
   surfaceUtileEstimee,
 } from './implantation.js';
@@ -1364,7 +1365,7 @@ const dist_habitation: Evaluateur = (s, ctx) => {
   // serait notee comme une micro-parcelle collee a cette meme habitation.
   const soumisARecul = ctx.filiere === 'eolien_terrestre' || ctx.filiere === 'methanisation';
   const deport = soumisARecul ? deportPossibleM(ctx.surfaceHa) : 0;
-  const d = dBord + deport;
+  const d = soumisARecul ? distanceAtteignableM(dBord, ctx.surfaceHa) : dBord;
 
   let courbe: readonly Palier[];
   let regles: string[] = [];

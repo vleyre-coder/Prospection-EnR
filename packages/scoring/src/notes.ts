@@ -125,10 +125,4 @@ export function formatBooleen(b: boolean | null | undefined, oui = 'Oui', non = 
   return b ? oui : non;
 }
 
-export function haToM2(ha: number): number {
-  return ha * 10000;
-}
 
-export function m2ToHa(m2: number | null | undefined): number | null {
-  return m2 == null ? null : m2 / 10000;
-}

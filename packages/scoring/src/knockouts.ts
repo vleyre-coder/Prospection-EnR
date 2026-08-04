@@ -14,7 +14,7 @@
 import type { Filiere, KnockOut, OptionsScoring, ParcelleSnapshot } from '@enr/core';
 import { formatDistance, formatNombre } from './notes.js';
 import { SRC } from './sources.js';
-import { deportPossibleM } from './implantation.js';
+import { deportPossibleM, distanceAtteignableM } from './implantation.js';
 
 interface CtxKo {
   filiere: Filiere;
@@ -203,11 +203,14 @@ const koAopViticole: RegleKo = (s) => {
 const koDistanceHabitation500: RegleKo = (s, ctx) => {
   const d = s.bati.distanceHabitationM;
   if (d == null) return null;
-  const deport = deportPossibleM(ctx.surfaceHa);
 
   // Redhibitoire seulement si le seuil reste hors d'atteinte MEME en implantant
   // l'aerogenerateur au point le plus eloigne de la parcelle.
-  if (d + deport < 500) {
+  const atteignable = distanceAtteignableM(d, ctx.surfaceHa);
+  if (atteignable < 500) {
+    // Le deport est recalcule pour le message : il est la grandeur que l'utilisateur doit voir
+    // pour comprendre pourquoi la parcelle est ecartee malgre une distance de bord acceptable.
+    const deport = deportPossibleM(ctx.surfaceHa);
     return ko(
       'ko_eol_habitation_500',
       "Recul de 500 m impossible sur cette parcelle",
@@ -282,11 +285,12 @@ const koRadar: RegleKo = (s) => {
 const koMethaHabitation200: RegleKo = (s, ctx) => {
   const d = s.bati.distanceHabitationM;
   if (d == null) return null;
-  const deport = deportPossibleM(ctx.surfaceHa);
 
   // Meme raisonnement que pour l'eolien : le recul de 200 m se mesure depuis
   // l'installation, pas depuis la limite parcellaire.
-  if (d + deport < 200) {
+  const atteignable = distanceAtteignableM(d, ctx.surfaceHa);
+  if (atteignable < 200) {
+    const deport = deportPossibleM(ctx.surfaceHa);
     return ko(
       'ko_metha_habitation_200',
       "Recul de 200 m impossible sur cette parcelle",

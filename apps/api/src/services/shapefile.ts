@@ -155,10 +155,24 @@ interface ChampDbf {
 
 /**
  * Deduit le schema DBF des attributs.
- * Les noms de champs sont tronques a 10 caracteres : c'est une limite du format DBF, pas
- * un choix - elle doit etre documentee a l'utilisateur.
+ *
+ * Les noms de champs sont tronques a 10 caracteres : c'est une limite du format DBF, pas un
+ * choix - elle doit etre documentee a l'utilisateur.
+ *
+ * LARGEURS MINIMALES, ET POURQUOI ELLES SONT NECESSAIRES. La largeur d'un champ texte etait
+ * deduite du seul lot exporte. Un export ou tous les regimes d'implantation sont nuls donnait
+ * donc un champ REGIME d'un caractere, alors qu'un autre lot le donnait a 13. Les deux fichiers
+ * decrivent la meme chose avec des schemas differents : un utilisateur qui les fusionne dans un
+ * SIG perd des donnees, sans avertissement, sur le fichier au schema le plus etroit.
+ *
+ * L'appelant declare donc la largeur qu'un champ doit AU MOINS avoir, independamment du contenu
+ * du lot. La largeur reelle reste le maximum entre cette declaration et le contenu observe : une
+ * valeur plus longue que prevu n'est jamais tronquee.
  */
-function schemaDbf(entites: EntiteShapefile[]): ChampDbf[] {
+function schemaDbf(
+  entites: EntiteShapefile[],
+  largeursMin: Readonly<Record<string, number>> = {},
+): ChampDbf[] {
   const cles = [...new Set(entites.flatMap((e) => Object.keys(e.attributs)))];
   const utilises = new Set<string>();
   return cles.map((cle) => {
@@ -185,7 +199,7 @@ function schemaDbf(entites: EntiteShapefile[]): ChampDbf[] {
     }
     const longueurMax = Math.min(
       254,
-      Math.max(1, ...valeurs.map((v) => Buffer.byteLength(String(v), 'utf8'))),
+      Math.max(1, largeursMin[cle] ?? 1, ...valeurs.map((v) => Buffer.byteLength(String(v), 'utf8'))),
     );
     return { nom, type: 'C' as const, longueur: longueurMax, decimales: 0 };
   });
@@ -356,11 +370,19 @@ export function zipper(fichiers: FichierZip[]): Buffer {
  * Construit l'archive Shapefile complete.
  * `nomCouche` sert de nom de base aux quatre fichiers de l'archive.
  */
-export function archiveShapefile(entites: EntiteShapefile[], nomCouche = 'parcelles'): Buffer {
+export function archiveShapefile(
+  entites: EntiteShapefile[],
+  nomCouche = 'parcelles',
+  /**
+   * Largeur minimale de chaque champ texte, par cle d'attribut. Rend le schema du DBF
+   * independant du contenu du lot, pour que deux exports soient fusionnables.
+   */
+  largeursMin: Readonly<Record<string, number>> = {},
+): Buffer {
   if (entites.length === 0) {
     throw new Error('Aucune entite a exporter');
   }
-  const champs = schemaDbf(entites);
+  const champs = schemaDbf(entites, largeursMin);
   const { shp, shx } = ecrireShpEtShx(entites);
   const dbf = ecrireDbf(entites, champs);
 
