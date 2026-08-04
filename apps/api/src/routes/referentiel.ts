@@ -70,11 +70,36 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       sourcesPerimees().catch(() => []),
     ]);
     const amorcage = etatAmorcage();
+
+    /**
+     * Configurations FATALES : l'instance demarre, mais aucune route protegee ne peut repondre.
+     *
+     * Sans ce controle, `/api/sante` repondait `statut: 'ok'` alors que toute route protegee
+     * renvoyait 500 `configuration_invalide` : un deploiement passait au vert sur une instance
+     * entierement inoperante, et une bascule de trafic y envoyait les utilisateurs. Une sonde de
+     * sante qui ignore la cause d'une panne totale ne remplit pas son office.
+     *
+     * Le choix d'echouer a la requete plutot qu'au demarrage reste le bon — cela echoue ferme et
+     * laisse `/api/sante` diagnostiquer — mais il exige que la sonde le sache.
+     */
+    const configurationsFatales: string[] = [];
+    if (config.auth.desactivee && config.env === 'production') {
+      configurationsFatales.push(
+        'AUTH_DESACTIVEE est actif en production : toutes les routes protegees repondent en erreur. ' +
+          'Retirez cette variable.',
+      );
+    }
+    const fatale = configurationsFatales.length > 0;
+
     return {
-      statut: bdd ? 'ok' : 'degrade',
+      // `hors_service` et non `degrade` : degrade signifie « fonctionne moins bien », ici rien ne
+      // fonctionne. Une sonde de deploiement doit pouvoir distinguer les deux.
+      statut: fatale ? 'hors_service' : bdd ? 'ok' : 'degrade',
       version: '0.1.0',
       versionMoteur: VERSION_MOTEUR,
       baseDeDonnees: bdd ? 'ok' : 'indisponible',
+      /** Vide en fonctionnement normal. Non vide : l'instance ne doit pas recevoir de trafic. */
+      configurationsFatales,
       // Avancement du chargement initial des donnees nationales : sans cette information,
       // un premier demarrage donne une carte vide sans explication.
       amorcage,

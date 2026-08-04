@@ -7,7 +7,14 @@ import { VERSION_MOTEUR } from '@enr/scoring';
 import { config } from '../config.js';
 import { requete, requeteUne } from '../bdd.js';
 import { hacherMotDePasse, verifierMotDePasse } from '../mots-de-passe.js';
-import { filtrerParcelles, rechercher, type FiltresParcelles } from '../services/recherche.js';
+import {
+  filtrerParcelles,
+  filtresValides,
+  rechercher,
+  LIMITE_DEFAUT_EXPORT,
+  LIMITE_MAX_EXPORT,
+} from '../services/recherche.js';
+import { ErreurValidation } from '../validation.js';
 import { csvResultats, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -34,11 +41,23 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
 
   // --- Filtres parametrables ----------------------------------------------
   app.post('/api/recherche/parcelles', async (req, rep) => {
-    const corps = req.body as Partial<FiltresParcelles> & { filiere?: string };
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    /**
+     * Le corps est VALIDE avant d'atteindre le constructeur SQL.
+     *
+     * Il etait auparavant diffuse tel quel avec un `as FiltresParcelles`, qui ne verifie rien a
+     * l'execution : `{"limite": -5}` remontait un 500 « LIMIT must not be negative »,
+     * `{"surfaceMinHa": "abc"}` un 500 de syntaxe PostgreSQL. Une faute de saisie etait
+     * presentee comme une panne serveur — l'utilisateur ne pouvait pas savoir quoi corriger, et
+     * une supervision reveillait une astreinte.
+     */
+    try {
+      return filtrerParcelles(filtresValides(req.body));
+    } catch (err) {
+      if (err instanceof ErreurValidation) {
+        return erreur(rep, 400, 'filtre_invalide', err.message, { champ: err.champ });
+      }
+      throw err;
     }
-    return filtrerParcelles({ ...corps, filiere: corps.filiere } as FiltresParcelles);
   });
 
   // --- Exports -------------------------------------------------------------
@@ -118,6 +137,12 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
           score: score?.scoreGlobal ?? null,
           couverture: score?.couvertureDonnees ?? null,
           nb_ko: score?.knockOuts.length ?? null,
+          // Le total inclut les knock-outs DEROGEABLES (STECAL, modification de PLU), qui
+          // conditionnent un projet sans l'exclure. Le destinataire d'un Shapefile — geometre,
+          // bureau d'etudes, consultant SIG — ne peut pas trancher sans ce second compteur : le
+          // CSV et le GeoJSON le portaient deja, celui-ci l'avait manque.
+          nb_ko_bloq: score?.knockOuts.filter((k) => !k.derogeable).length ?? null,
+          ecartee: score == null ? null : score.knockOuts.some((k) => !k.derogeable) ? 'oui' : 'non',
           regime: score?.regimeImplantation ?? null,
         },
       })),
@@ -137,23 +162,29 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/exports/csv', debitExport, async (req, rep) => {
-    const corps = req.body as Partial<FiltresParcelles> & { filiere?: string };
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    // Meme validation que la recherche, avec le plafond des exports : un export a besoin de plus
+    // de lignes qu'une page de liste, mais pas d'echapper au controle pour autant.
+    let filtres;
+    try {
+      filtres = filtresValides(req.body, LIMITE_MAX_EXPORT);
+    } catch (err) {
+      if (err instanceof ErreurValidation) {
+        return erreur(rep, 400, 'filtre_invalide', err.message, { champ: err.champ });
+      }
+      throw err;
     }
-    const { resultats } = await filtrerParcelles({
-      ...corps,
-      filiere: corps.filiere,
-      limite: Math.min(corps.limite ?? 5000, 20000),
-    } as FiltresParcelles);
+    const { resultats } = await filtrerParcelles(
+      { ...filtres, limite: filtres.limite ?? LIMITE_DEFAUT_EXPORT },
+      LIMITE_MAX_EXPORT,
+    );
     await journaliser('export_csv', {
       utilisateurId: req.utilisateur?.id,
       email: req.utilisateur?.email,
-      details: { nb: resultats.length, filiere: corps.filiere },
+      details: { nb: resultats.length, filiere: filtres.filiere },
     });
     return rep
       .header('Content-Type', 'text/csv; charset=utf-8')
-      .header('Content-Disposition', `attachment; filename="parcelles-${corps.filiere}.csv"`)
+      .header('Content-Disposition', `attachment; filename="parcelles-${filtres.filiere}.csv"`)
       .send(csvResultats(resultats));
   });
 

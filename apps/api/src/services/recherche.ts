@@ -7,17 +7,20 @@
 
 import {
   COEFFICIENT_TRACE,
+  FILIERES,
   lineaireRaccordementKm,
+  STATUTS_PROSPECTION,
   type Feu,
   type Filiere,
   type StatutProspection,
   type TypeSol,
 } from '@enr/core';
+import { ErreurValidation, lecteur } from '../validation.js';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { requete } from '../bdd.js';
 import { normaliserNumero, normaliserSection } from '../connecteurs/cadastre.js';
-import type { Bbox } from '../geo.js';
+import { bboxValide, type Bbox } from '../geo.js';
 
 export interface ResultatRecherche {
   type: 'parcelle' | 'adresse' | 'commune' | 'coordonnees' | 'poste_source';
@@ -215,6 +218,27 @@ async function recherchePosteSource(q: string, limite: number): Promise<Resultat
 // Filtres parametrables par filiere
 // ---------------------------------------------------------------------------
 
+/**
+ * Plafond du nombre de resultats par appel.
+ *
+ * `limite` n'etait pas bornee : `{"limite": 100000}` etait accepte, soit une lecture de toute la
+ * table en un seul appel sur une base nationale. 1 000 couvre tous les usages de l'interface
+ * (la vue liste en demande 300) tout en gardant la reponse et la requete a une taille tenable.
+ */
+export const LIMITE_MAX = 1000;
+export const LIMITE_DEFAUT = 200;
+
+/**
+ * Plafond distinct pour les exports.
+ *
+ * Un export CSV a besoin de bien plus de lignes qu'une page de liste : c'est son objet. Le
+ * plafond doit donc etre EXPLICITE et non herite, sinon l'un des deux usages est mal servi —
+ * soit la liste laisse passer une lecture de toute la table, soit l'export est tronque en
+ * silence, ce qui est pire puisque le fichier parait complet.
+ */
+export const LIMITE_MAX_EXPORT = 20_000;
+export const LIMITE_DEFAUT_EXPORT = 5000;
+
 export interface FiltresParcelles {
   filiere: Filiere;
   bbox?: Bbox;
@@ -270,6 +294,11 @@ export interface LigneResultatFiltre {
  */
 export async function filtrerParcelles(
   f: FiltresParcelles,
+  /**
+   * Plafond du nombre de lignes. Passe explicitement par les exports, qui ont besoin de plus que
+   * la liste. Le defaut protege les appelants qui ne s'en preoccupent pas.
+   */
+  limiteMax: number = LIMITE_MAX,
 ): Promise<{ total: number; resultats: LigneResultatFiltre[] }> {
   const conditions: string[] = ['s.filiere = $1', `s.profil_ponderation = 'defaut'`];
   const params: unknown[] = [f.filiere];
@@ -351,7 +380,13 @@ export async function filtrerParcelles(
           ? `(sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric ASC NULLS LAST`
           : 's.score_global DESC NULLS LAST';
 
-  params.push(f.limite ?? 200, f.decalage ?? 0);
+  // Double garde. La validation du corps borne deja `limite`, mais `filtrerParcelles` est
+  // appelable depuis d'autres chemins (scripts, futurs appels internes) : le plafond doit tenir
+  // meme sans elle, sinon la protection depend de l'appelant.
+  params.push(
+    Math.min(limiteMax, Math.max(1, Math.floor(f.limite ?? LIMITE_DEFAUT))),
+    Math.max(0, Math.floor(f.decalage ?? 0)),
+  );
 
   const lignes = await requete<{
     idu: string;
@@ -404,3 +439,86 @@ export async function filtrerParcelles(
     })),
   };
 }
+
+/**
+ * Valide un corps de requete de filtrage et rend des filtres surs.
+ *
+ * Liste blanche integrale : chaque champ est lu avec son type, ses bornes et son ensemble de
+ * valeurs, et toute cle non reconnue est REFUSEE. Un filtre mal orthographie — `surfaceMinHA`,
+ * `exclureAOP` — serait sinon ignore en silence et la liste renverrait plus de parcelles que
+ * demande, ce qui est la reponse la plus trompeuse possible pour un outil de tri.
+ *
+ * Vit ici, a cote de `filtrerParcelles`, et non dans la route : les deux doivent evoluer
+ * ensemble, et une regle de validation eloignee du SQL qu'elle protege finit par en diverger.
+ */
+export function filtresValides(
+  corps: unknown,
+  /** Plafond applique a `limite`. Les exports en passent un plus haut. */
+  limiteMax: number = LIMITE_MAX,
+): FiltresParcelles {
+  const l = lecteur(corps, 'corps de filtrage');
+
+  const filiere = l.parmi('filiere', FILIERES);
+  if (!filiere) {
+    throw new ErreurValidation('filiere', `Champ \`filiere\` requis, parmi ${FILIERES.join(', ')}.`);
+  }
+
+  const filtres: FiltresParcelles = {
+    filiere,
+    bbox: l.bbox('bbox', (b) => bboxValide(b)),
+    codeDepartement: l.texte('codeDepartement', {
+      max: 3,
+      motif: /^(\d{2}|\d{3}|2A|2B)$/,
+      description: 'code departement a 2 ou 3 caracteres (ex. 28, 971, 2A)',
+    }),
+    codeInsee: l.texte('codeInsee', {
+      max: 5,
+      motif: /^\d{5}$|^\d[0-9AB]\d{3}$/,
+      description: 'code INSEE a 5 caracteres',
+    }),
+    surfaceMinHa: l.nombre('surfaceMinHa', { min: 0, max: 100_000 }),
+    surfaceMaxHa: l.nombre('surfaceMaxHa', { min: 0, max: 100_000 }),
+    distancePosteMaxKm: l.nombre('distancePosteMaxKm', { min: 0, max: 500 }),
+    capacitePosteMinMw: l.nombre('capacitePosteMinMw', { min: 0, max: 10_000 }),
+    penteMaxPct: l.nombre('penteMaxPct', { min: 0, max: 100 }),
+    scoreMin: l.nombre('scoreMin', { min: 0, max: 100 }),
+    statutsScore: l.listeParmi('statutsScore', FEUX_VALIDES),
+    statutsProspection: l.listeParmi('statutsProspection', STATUTS_PROSPECTION),
+    typesSol: l.listeParmi('typesSol', TYPES_SOL_VALIDES),
+    exclureNatura2000: l.booleen('exclureNatura2000'),
+    exclureZoneHumide: l.booleen('exclureZoneHumide'),
+    exclureAop: l.booleen('exclureAop'),
+    exclureKnockOuts: l.booleen('exclureKnockOuts'),
+    tri: l.parmi('tri', TRIS_VALIDES),
+    limite: l.nombre('limite', { min: 1, max: limiteMax, entier: true }),
+    decalage: l.nombre('decalage', { min: 0, max: 1_000_000, entier: true }),
+  };
+
+  l.refuserInconnus();
+
+  // Coherence entre bornes : un intervalle inverse ne renvoie rien, ce qui se lit comme
+  // « aucune parcelle ne correspond » alors que c'est la demande qui est contradictoire.
+  if (
+    filtres.surfaceMinHa != null &&
+    filtres.surfaceMaxHa != null &&
+    filtres.surfaceMinHa > filtres.surfaceMaxHa
+  ) {
+    throw new ErreurValidation(
+      'surfaceMinHa',
+      `Surface minimale (${filtres.surfaceMinHa} ha) superieure a la maximale (${filtres.surfaceMaxHa} ha) : aucune parcelle ne peut correspondre.`,
+    );
+  }
+
+  return filtres;
+}
+
+/** Valeurs closes acceptees par les filtres, alignees sur les types du domaine. */
+const FEUX_VALIDES = ['vert', 'orange', 'rouge', 'gris'] as const satisfies readonly Feu[];
+const TYPES_SOL_VALIDES = [
+  'artificialise',
+  'degrade',
+  'agricole_exploite',
+  'inculte',
+  'naturel_forestier',
+] as const satisfies readonly TypeSol[];
+const TRIS_VALIDES = ['score_desc', 'score_asc', 'surface_desc', 'distance_poste_asc'] as const;

@@ -11,6 +11,7 @@ import { journaliserStrict } from '../depots/sources.js';
 import {
   ErreurEmprise,
   estimerEmprise,
+  derniereCampagne,
   etatQualification,
   lancerQualificationEmprise,
   qualifierEmprise,
@@ -261,7 +262,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
     try {
     if (enArrierePlan) {
-      const issue = lancerQualificationEmprise(bbox, {
+      const issue = await lancerQualificationEmprise(bbox, {
         surfaceMinM2: corps.surfaceMinM2,
         filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
         forcer: corps.forcer,
@@ -304,8 +305,23 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     }
   });
 
-  /** Avancement de la qualification en arriere-plan. */
-  app.get('/api/qualification/etat', async () => etatQualification());
+  /**
+   * Avancement de la qualification en arriere-plan.
+   *
+   * Y compris la DERNIERE campagne connue, meme terminee ou interrompue. Sans elle, un
+   * redemarrage du serveur laissait l'etat a `phase: 'aucune', message: null` : l'utilisateur ne
+   * pouvait pas distinguer « ma campagne s'est arretee a 49 sur 1 500 » de « aucune campagne n'a
+   * jamais tourne », alors que la carte affichait bien 49 nouvelles parcelles. Un lot partiel
+   * ressemblait exactement a un lot complet — l'erreur precise que cette application existe pour
+   * ecarter. `derniereCampagne` etait ecrite depuis le troisieme audit et exposee nulle part.
+   */
+  app.get('/api/qualification/etat', async () => {
+    const etat = etatQualification();
+    // Inutile d'interroger la base pendant une campagne : l'etat en memoire est plus frais.
+    if (etat.enCours) return { ...etat, derniereCampagne: null };
+    const derniere = await derniereCampagne().catch(() => null);
+    return { ...etat, derniereCampagne: derniere };
+  });
 
   /** Volume et duree previsibles d'une emprise, avant de lancer la campagne. */
   app.post('/api/qualification/estimation', async (req, rep) => {

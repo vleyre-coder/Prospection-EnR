@@ -216,7 +216,13 @@ export interface Amorcage {
 }
 
 export interface Sante {
+  /** `ok`, `degrade` (base indisponible) ou `hors_service` (configuration fatale). */
   statut: string;
+  /**
+   * Configurations qui empechent l'instance de servir les routes protegees. Vide en
+   * fonctionnement normal ; non vide, l'instance ne doit pas recevoir de trafic.
+   */
+  configurationsFatales?: string[];
   version: string;
   versionMoteur: string;
   baseDeDonnees: string;
@@ -252,6 +258,21 @@ export interface EtatQualification {
    * suivantes attendent leur tour au lieu d'etre refusees.
    */
   fileAttente: DemandeEnAttente[];
+  /**
+   * Derniere campagne connue, lue en base. `null` pendant une campagne en cours.
+   *
+   * Indispensable apres un redemarrage : l'etat en memoire est alors vide, et sans cette
+   * information un lot arrete a 49 parcelles sur 1 500 est indiscernable d'un lot complet.
+   */
+  derniereCampagne?: {
+    debutLe: string;
+    finLe: string | null;
+    total: number;
+    traitees: number;
+    echecs: number;
+    interrompue: boolean;
+    message: string | null;
+  } | null;
 }
 
 export interface CoucheMeta {

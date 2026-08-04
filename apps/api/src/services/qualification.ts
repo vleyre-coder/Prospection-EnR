@@ -55,7 +55,15 @@ export function normaliserEmprise(bbox: Bbox): Bbox {
     );
   }
 
-  const etendue = (limitee[2] - limitee[0]) * (limitee[3] - limitee[1]);
+  // Arrondi avant comparaison. Sans lui, le test bascule sur le dernier bit de la soustraction :
+  // six emprises mathematiquement identiques de 1 deg x 0,5 deg donnaient des largeurs de
+  // 0,999 999 999 999 999 8 a 1,000 000 000 000 000 2, et seule celle-ci etait refusee « trop
+  // vaste ». Pour l'utilisateur, la meme vue de carte etait acceptee ou refusee selon une
+  // fraction de degre de panoramique, sans raison visible.
+  //
+  // Six decimales, soit environ 10 cm : bien en dessous de toute imprecision qui compterait sur
+  // une emprise de plusieurs dizaines de kilometres, et bien au-dessus du bruit binaire.
+  const etendue = Math.round((limitee[2] - limitee[0]) * (limitee[3] - limitee[1]) * 1e6) / 1e6;
   if (etendue > ETENDUE_MAX_DEG2) {
     throw new ErreurEmprise(
       "L'emprise affichee est trop vaste pour une qualification : zoomez sur votre zone de travail. " +
@@ -292,6 +300,7 @@ const etat: Omit<EtatQualification, 'fileAttente'> = {
 const FILE_MAX = 5;
 
 interface Attente {
+  /** Identifiant de la ligne `demande_qualification`, en texte pour l'exposition HTTP. */
   id: string;
   bbox: Bbox;
   options: OptionsCampagne;
@@ -299,8 +308,15 @@ interface Attente {
   nbParcellesEstime: number | null;
 }
 
+/**
+ * File en memoire, DOUBLEE d'une trace en base.
+ *
+ * La memoire sert au fonctionnement — elle est synchrone, donc `demarrerSuivanteSiLibre` reste
+ * atomique et deux campagnes ne peuvent pas partir en meme temps. La base sert a la SURVIE : au
+ * redemarrage, `restaurerFile` recharge ce qui n'avait pas demarre. Sans elle, trois demandes
+ * acceptees disparaissaient sans le dire a personne.
+ */
 const file: Attente[] = [];
-let compteurDemandes = 0;
 
 export function etatQualification(): EtatQualification {
   return {
@@ -456,16 +472,23 @@ export type IssueDemande =
  * L'emprise est normalisee ICI, avant la mise en file : une emprise irrecevable doit lever
  * tout de suite, et non echouer une heure plus tard au fond de la file.
  */
-export function lancerQualificationEmprise(bbox: Bbox, options: OptionsCampagne = {}): IssueDemande {
+export async function lancerQualificationEmprise(
+  bbox: Bbox,
+  options: OptionsCampagne = {},
+): Promise<IssueDemande> {
   const emprise = normaliserEmprise(bbox);
 
   if (file.length >= FILE_MAX) {
     return { accepte: false, motif: 'file_pleine', etat: etatQualification() };
   }
 
-  compteurDemandes += 1;
+  // Trace en base AVANT la mise en file : une demande acceptee doit survivre a un redemarrage,
+  // et il vaut mieux une ligne orpheline (nettoyee au demarrage suivant) qu'une demande acceptee
+  // dont il ne reste rien.
+  const id = await enregistrerDemande(emprise, options);
+
   const demande: Attente = {
-    id: `q${compteurDemandes}`,
+    id,
     bbox: emprise,
     options,
     demandeeLe: new Date().toISOString(),
@@ -495,7 +518,125 @@ function demarrerSuivanteSiLibre(): void {
   if (etat.enCours) return;
   const demande = file.shift();
   if (!demande) return;
+  // Volontairement sans `await` : le marquage est de la tracabilite, pas une condition du
+  // demarrage. `demarrerSuivanteSiLibre` doit rester SYNCHRONE de bout en bout, sinon deux
+  // appels concurrents pourraient franchir la garde `etat.enCours` avant que l'un ne la pose.
+  void marquerDemarree(demande.id);
   executerCampagne(demande);
+}
+
+// ---------------------------------------------------------------------------
+// Persistance de la file
+// ---------------------------------------------------------------------------
+
+/**
+ * Enregistre une demande acceptee et rend son identifiant.
+ *
+ * Un echec d'ecriture ne refuse PAS la demande : le travail est plus utile que sa trace, et
+ * l'application entiere est construite sur ce principe (cf. `ouvrirTache`). On perd alors la
+ * durabilite pour cette demande-la, ce que le journal signale.
+ */
+async function enregistrerDemande(bbox: Bbox, options: OptionsCampagne): Promise<string> {
+  const lignes = await requete<{ id: string }>(
+    `INSERT INTO demande_qualification (bbox, options, utilisateur_id)
+     VALUES ($1, $2, $3) RETURNING id::text`,
+    [
+      JSON.stringify(bbox),
+      JSON.stringify({
+        surfaceMinM2: options.surfaceMinM2 ?? null,
+        filieres: options.filieres ?? null,
+        forcer: options.forcer ?? null,
+      }),
+      options.utilisateurId ?? null,
+    ],
+  ).catch((err: unknown) => {
+    journal.warn(
+      { err },
+      'Demande de qualification non tracee en base : elle ne survivra pas a un redemarrage',
+    );
+    return [] as Array<{ id: string }>;
+  });
+  // `mem:` prefixe les identifiants sans trace en base, pour que `marquerDemarree` ne tente pas
+  // une mise a jour sur une ligne inexistante.
+  return lignes[0]?.id ?? `mem:${Date.now()}`;
+}
+
+async function marquerDemarree(id: string): Promise<void> {
+  if (id.startsWith('mem:')) return;
+  await requete(
+    `UPDATE demande_qualification SET demarree_le = now() WHERE id = $1::bigint`,
+    [id],
+  ).catch(() => undefined);
+}
+
+/**
+ * Recharge la file depuis la base, au demarrage.
+ *
+ * A appeler APRES `signalerCampagnesInterrompues` : une demande dont la campagne avait demarre
+ * porte `demarree_le` et ne doit pas repartir, c'est la campagne interrompue qui la represente.
+ * Seules les demandes jamais demarrees reviennent dans la file.
+ *
+ * Retourne le nombre de demandes restaurees, pour que le demarrage le journalise.
+ */
+export async function restaurerFile(): Promise<number> {
+  const lignes = await requete<{
+    id: string;
+    bbox: Bbox;
+    options: { surfaceMinM2: number | null; filieres: Filiere[] | null; forcer: boolean | null };
+    utilisateur_id: string | null;
+    demandee_le: string;
+  }>(
+    `SELECT id::text, bbox, options, utilisateur_id, demandee_le
+       FROM demande_qualification
+      WHERE demarree_le IS NULL AND abandonnee_le IS NULL
+      ORDER BY demandee_le
+      LIMIT $1`,
+    [FILE_MAX],
+  ).catch((err: unknown) => {
+    journal.warn({ err }, "Restauration de la file de qualification impossible");
+    return [] as never[];
+  });
+
+  for (const l of lignes) {
+    file.push({
+      id: l.id,
+      bbox: l.bbox,
+      options: {
+        surfaceMinM2: l.options?.surfaceMinM2 ?? undefined,
+        filieres: l.options?.filieres ?? undefined,
+        forcer: l.options?.forcer ?? undefined,
+        utilisateurId: l.utilisateur_id,
+      },
+      demandeeLe: l.demandee_le,
+      nbParcellesEstime: null,
+    });
+  }
+
+  /**
+   * Au-dela de FILE_MAX, les demandes excedentaires sont ABANDONNEES explicitement.
+   *
+   * Les garder en base sans les charger reviendrait a recreer le probleme que cette table
+   * corrige : une demande acceptee dont il ne se passe plus rien. Le motif est ecrit, pour que
+   * l'utilisateur sache pourquoi.
+   */
+  await requete(
+    `UPDATE demande_qualification
+        SET abandonnee_le = now(),
+            motif_abandon = 'File pleine au redemarrage : demande au-dela des '
+                            || $1 || ' plus anciennes. A relancer.'
+      WHERE demarree_le IS NULL AND abandonnee_le IS NULL
+        AND id::text <> ALL($2::text[])`,
+    [FILE_MAX, lignes.map((l) => l.id)],
+  ).catch(() => undefined);
+
+  if (lignes.length > 0) {
+    journal.info(
+      { restaurees: lignes.length },
+      'Demandes de qualification restaurees depuis la base : la file reprend ou elle en etait',
+    );
+    demarrerSuivanteSiLibre();
+  }
+  return lignes.length;
 }
 
 function executerCampagne(demande: Attente): void {

@@ -710,14 +710,38 @@ export const COURBE_PENTE: Record<Filiere, readonly Palier[]> = {
 const topo_pente: Evaluateur = (s, ctx) => {
   const p = s.topographie.pentePct;
   if (p == null) return indispo(SRC.alti);
+
+  /**
+   * Deux estimateurs possibles derriere ce nombre, et la distinction compte.
+   *
+   * La regression du plan des altitudes donne une pente MOYENNE. Quand le semis de points
+   * degenere — parcelle en laniere, altimetrie partielle — elle est ecartee au profit de la
+   * mesure par paires, qui retient la plus FORTE pente locale et majore donc la moyenne. Le
+   * dire evite qu'une parcelle prudemment estimee soit ecartee comme si elle etait mesuree.
+   *
+   * Le max n'est affiche que s'il differe de la valeur retenue : quand la pente vient deja des
+   * paires, les deux nombres sont identiques et les repeter n'informe personne.
+   */
+  const parPaires = s.topographie.penteEstimeeParPaires === true;
+  const max = s.topographie.penteMaxPct;
+  const afficheMax = max != null && !parPaires;
+
   return {
     note: paliers(p, COURBE_PENTE[ctx.filiere]),
     valeurBrute: p,
-    valeurAffichee: `${formatNombre(p, '%')}${s.topographie.penteMaxPct != null ? ` (max ${formatNombre(s.topographie.penteMaxPct, '%')})` : ''}`,
+    valeurAffichee:
+      `${formatNombre(p, '%')}` +
+      (afficheMax ? ` (max ${formatNombre(max, '%')})` : '') +
+      (parPaires ? ' (estimation majorante)' : ''),
     commentaire:
-      p > 12
+      (p > 12
         ? "Pente forte : surcouts de terrassement, contraintes d'acces engins et, pour le solaire, auto-ombrage."
-        : "Pente compatible avec une implantation standard.",
+        : 'Pente compatible avec une implantation standard.') +
+      (parPaires
+        ? " La regression du plan des altitudes n'etait pas exploitable sur cette parcelle (semis" +
+          ' de points trop aligne) : la valeur retenue est la plus forte pente locale mesuree' +
+          ' entre points distants, qui majore la pente moyenne reelle.'
+        : ''),
     sourceKey: SRC.alti,
   };
 };

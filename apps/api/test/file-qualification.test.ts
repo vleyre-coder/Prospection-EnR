@@ -167,3 +167,67 @@ test('le service reel porte bien les invariants testes ci-dessus', async () => {
     'la fonction ne doit plus pouvoir refuser par un null',
   );
 });
+
+// ---------------------------------------------------------------------------
+// Durabilite de la file
+// ---------------------------------------------------------------------------
+
+/**
+ * Correction du quatrieme audit. Mesure : trois demandes acceptees et en attente avant l'arret du
+ * serveur, ZERO apres le redemarrage — aucune trace en base, aucune ligne de journal, aucun
+ * message. Trois utilisateurs a qui l'API avait repondu 202 « votre demande demarrera seule »
+ * attendaient indefiniment.
+ *
+ * Le paradoxe etait net : la campagne EN COURS etait tracee et marquee interrompue au demarrage
+ * suivant, mais les demandes ACCEPTEES ne l'etaient nulle part.
+ */
+test('la file est persistee et restauree au demarrage', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const lire = (p: string): string =>
+    readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
+
+  const migration = lire('../../../db/migrations/012_file_qualification.sql');
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS demande_qualification/);
+  assert.match(migration, /demarree_le/, 'il faut distinguer une demande en attente d’une demarree');
+  assert.match(migration, /abandonnee_le/, "un abandon doit etre explicite et motive");
+
+  const service = lire('../src/services/qualification.ts');
+  assert.match(service, /INSERT INTO demande_qualification/, 'la mise en file doit ecrire en base');
+  assert.match(service, /export async function restaurerFile/);
+  assert.match(
+    service,
+    /UPDATE demande_qualification SET demarree_le = now\(\)/,
+    'une demande devenue campagne doit etre marquee, sinon elle repartirait au redemarrage',
+  );
+
+  const serveur = lire('../src/serveur.ts');
+  assert.match(serveur, /restaurerFile\(\)/, 'le demarrage doit recharger la file');
+  // L'ordre compte : cloturer la campagne interrompue AVANT de relancer la file, sinon
+  // `restaurerFile` demarrerait une demande alors que l'etat porte encore une campagne ouverte.
+  assert.ok(
+    serveur.indexOf('signalerCampagnesInterrompues()') < serveur.indexOf('restaurerFile()'),
+    'signalerCampagnesInterrompues doit preceder restaurerFile',
+  );
+});
+
+test('le demarrage d’une demande reste synchrone, pour interdire le double depart', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const service = readFileSync(
+    fileURLToPath(new URL('../src/services/qualification.ts', import.meta.url)),
+    'utf8',
+  );
+  // La persistance a introduit de l'asynchrone dans ce chemin. `demarrerSuivanteSiLibre` doit
+  // rester synchrone de bout en bout : un `await` entre la garde `etat.enCours` et sa pose
+  // laisserait deux appels concurrents demarrer deux campagnes, ce que le quota partage interdit.
+  const debut = service.indexOf('function demarrerSuivanteSiLibre');
+  // Commentaires retires avant l'analyse : ils PARLENT de `await` pour expliquer son absence, et
+  // les compter reviendrait a punir la documentation du choix.
+  const corps = service
+    .slice(debut, service.indexOf('\n}', debut))
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/\bawait\b/.test(corps), 'aucun await dans demarrerSuivanteSiLibre');
+  assert.match(corps, /void marquerDemarree/, 'le marquage doit etre lance sans etre attendu');
+});

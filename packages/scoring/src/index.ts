@@ -44,12 +44,17 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.4.0 : la pente n'est plus celle d'une regression mal conditionnee. Le critere de pente
+ *   notait des valeurs jusqu'a 1 666 % sur 14 % des parcelles reelles, ce qui le mettait a
+ *   0/100 au lieu de 99/100 — 8 a 12 points de score global, assez pour changer de couleur.
+ *   Les snapshots sont repares par la migration 011, les scores par ce changement de version.
+ *
  * 1.3.0 : les abscisses de COURBE_DISTANCE_POSTE sont recalees en kilometres de TRACE.
  *   Avant, le critere notait le lineaire majore de 35 % sur des courbes calibrees en vol
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.3.0';
+export const VERSION_CODE_MOTEUR = '1.4.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.
@@ -95,7 +100,7 @@ export const EMPREINTE_REFERENTIEL = empreinte(
 
 /**
  * Identifiant complet du calcul, ecrit dans `score_parcelle_filiere.version_moteur`.
- * Exemple : `1.3.0+3f2a91b7`.
+ * Exemple : `1.4.0+3f2a91b7`.
  */
 export const VERSION_MOTEUR = `${VERSION_CODE_MOTEUR}+${EMPREINTE_REFERENTIEL}`;
 

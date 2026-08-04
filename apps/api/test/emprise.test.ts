@@ -119,3 +119,35 @@ test('l’emprise nationale par defaut des routes reste acceptee', () => {
   // Valeur de repli utilisee par plusieurs routes cartographiques : elle doit passer.
   assert.notEqual(bboxDepuisChaine('-5.5,41,10,51.5'), null);
 });
+
+/**
+ * Correction du quatrieme audit : le seuil d'etendue etait compare sans marge.
+ *
+ * Six emprises MATHEMATIQUEMENT IDENTIQUES de 1 deg x 0,5 deg — soit exactement le seuil —
+ * donnaient des largeurs de 0,999 999 999 999 999 8 a 1,000 000 000 000 000 2 selon le decalage en
+ * longitude, et seule celle-ci etait refusee « trop vaste ». Pour l'utilisateur, la meme vue de
+ * carte etait acceptee ou refusee selon une fraction de degre de panoramique.
+ */
+test("le seuil d'etendue ne bascule plus sur le dernier bit du flottant", () => {
+  const refusees: string[] = [];
+  for (let i = 0; i <= 30; i += 1) {
+    const ouest = 1 + i / 100;
+    const bbox: [number, number, number, number] = [ouest, 48.1, ouest + 1, 48.6];
+    try {
+      normaliserEmprise(bbox);
+    } catch {
+      refusees.push(`[${ouest.toFixed(2)}, ${(ouest + 1).toFixed(2)}]`);
+    }
+  }
+  assert.deepEqual(
+    refusees,
+    [],
+    `31 emprises de 1 deg x 0,5 deg, toutes au seuil exact : aucune ne doit etre refusee. Refusees : ${refusees.join(', ')}`,
+  );
+});
+
+test("une emprise reellement trop vaste reste refusee", () => {
+  // Le seuil doit garder son role : on n'a pas rendu la garde inoperante en lui donnant une marge.
+  assert.throws(() => normaliserEmprise([1, 48, 3, 49]), /trop vaste/);
+  assert.throws(() => normaliserEmprise([-5, 42, 9, 51]), /trop vaste/);
+});

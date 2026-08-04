@@ -16,6 +16,7 @@ import {
 } from './amorcage.js';
 import {
   rescorerSiVersionObsolete,
+  restaurerFile,
   signalerCampagnesInterrompues,
 } from './services/qualification.js';
 import { purgerDonneesNominatives } from './depots/parcelles.js';
@@ -241,6 +242,18 @@ async function demarrer(): Promise<void> {
     // le lot est incomplet, et l'utilisateur doit pouvoir le constater.
     await signalerCampagnesInterrompues().catch((err: unknown) =>
       journal.warn({ err }, 'Verification des campagnes interrompues impossible'),
+    );
+
+    /**
+     * Puis rechargement de la file d'attente.
+     *
+     * L'ordre compte : `signalerCampagnesInterrompues` cloture d'abord la campagne qui tournait,
+     * ce qui evite que `restaurerFile` ne demarre une demande alors que l'etat porte encore une
+     * campagne ouverte. Sans ce rechargement, les demandes acceptees et repondues 202 « votre
+     * demande demarrera seule » disparaissaient a chaque redemarrage, sans trace ni message.
+     */
+    await restaurerFile().catch((err: unknown) =>
+      journal.warn({ err }, 'Restauration de la file de qualification impossible'),
     );
   }
   if (bdd) {

@@ -284,6 +284,37 @@ function OutilsCarte({
   /** Vrai pendant qu'une campagne tourne en arriere-plan : on suit son avancement. */
   const [suiviActif, setSuiviActif] = useState(false);
 
+  /**
+   * Au chargement, signaler une campagne restee inachevee.
+   *
+   * Un redemarrage du serveur vide l'etat en memoire : sans ce controle, l'utilisateur retrouvait
+   * une carte portant 49 nouvelles parcelles et aucun message, donc un lot partiel indiscernable
+   * d'un lot complet. La trace existait en base depuis le troisieme audit ; elle n'etait exposee
+   * a personne.
+   */
+  useEffect(() => {
+    void api
+      .etatQualification()
+      .then((e) => {
+        if (e.enCours) {
+          setSuiviActif(true);
+          return;
+        }
+        const d = e.derniereCampagne;
+        if (d?.interrompue) {
+          setQualification(
+            `Attention : la derniere campagne de qualification a ete interrompue a ` +
+              `${d.traitees} parcelle(s) sur ${d.total}. Le lot est INCOMPLET — les parcelles ` +
+              `manquantes n'ont pas ete interrogees, leur absence de la carte ne veut donc rien ` +
+              `dire. Relancez la qualification sur le meme secteur pour le completer.`,
+          );
+        }
+      })
+      .catch(() => undefined);
+    // Au montage uniquement : c'est un constat d'ouverture, pas un suivi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Recharge les tuiles : elles sont en cache navigateur et masqueraient le nouveau travail. */
   const rafraichirTuiles = (): void => {
     const m = carteRef.current;
@@ -316,6 +347,15 @@ function OutilsCarte({
                 }${attente}`
               : `${e.message ?? 'Qualification terminee'}. Carte mise a jour.`,
           );
+          // Une campagne interrompue ne doit pas se conclure par « Carte mise a jour » : le lot
+          // est incomplet et l'utilisateur doit le savoir avant de conclure sur son secteur.
+          const d = e.derniereCampagne;
+          if (!e.enCours && d?.interrompue) {
+            setQualification(
+              `Campagne INTERROMPUE a ${d.traitees} parcelle(s) sur ${d.total}. Le lot est ` +
+                `incomplet : relancez la qualification sur le meme secteur.`,
+            );
+          }
           // Le suivi continue tant que la file n'est pas vide : la campagne suivante demarre
           // seule, et l'arreter ici priverait l'utilisateur de la voir avancer.
           if (!e.enCours && e.fileAttente.length === 0) {

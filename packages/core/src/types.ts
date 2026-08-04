@@ -148,6 +148,15 @@ export interface OccupationSol {
 export interface Topographie {
   /** Pente moyenne en %. */
   pentePct: number | null;
+  /**
+   * Vrai lorsque la pente n'a PAS pu etre obtenue par regression du plan des altitudes et
+   * qu'elle est estimee par differences entre paires de points.
+   *
+   * La distinction doit remonter jusqu'a la fiche : la mesure par paires retient la plus forte
+   * pente locale, elle MAJORE donc la pente moyenne. Presenter les deux comme equivalentes
+   * ferait passer une approximation prudente pour une mesure.
+   */
+  penteEstimeeParPaires: boolean | null;
   /** Pente maximale en %. */
   penteMaxPct: number | null;
   /** Orientation dominante en degres (0 = nord, 180 = sud). */

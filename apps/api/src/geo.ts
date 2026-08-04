@@ -187,22 +187,34 @@ export function elargirBbox(b: Bbox, metres: number): Bbox {
  * Les bornes sont donc verifiees ici, une fois pour toutes : coordonnees dans le domaine
  * geographique, ordre correct, et etendue plafonnee a celle du territoire couvert.
  */
-export function bboxDepuisChaine(s: string): Bbox | null {
-  const p = s.split(',').map(Number);
-  if (p.length !== 4 || p.some((n) => !Number.isFinite(n))) return null;
-  const [minLon, minLat, maxLon, maxLat] = p as [number, number, number, number];
-
+/**
+ * Regle de validite d'une emprise, partagee par TOUS les points d'entree.
+ *
+ * Elle vivait a l'interieur de `bboxDepuisChaine` et ne s'appliquait donc qu'aux chemins en
+ * chaine de requete. Le corps JSON de la recherche — celui que l'interface utilise reellement —
+ * ne passait par aucun controle : une emprise couvrant le monde entier etait acceptee, et le
+ * plafond de deux fois la France ne servait a rien la ou il comptait.
+ */
+export function bboxValide(b: Bbox): boolean {
+  const [minLon, minLat, maxLon, maxLat] = b;
+  if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) return false;
   // Domaine geographique valide.
-  if (minLon < -180 || maxLon > 180 || minLat < -90 || maxLat > 90) return null;
+  if (minLon < -180 || maxLon > 180 || minLat < -90 || maxLat > 90) return false;
   // Ordre : une emprise inversee est une erreur d'appel, pas une emprise vide.
-  if (minLon >= maxLon || minLat >= maxLat) return null;
+  if (minLon >= maxLon || minLat >= maxLat) return false;
   // Etendue : au-dela du double de la France metropolitaine, la requete n'a pas de sens
   // pour cette application et ne ferait que peser sur la base.
   const largeurMaxDeg = (FRANCE_METRO[2] - FRANCE_METRO[0]) * 2;
   const hauteurMaxDeg = (FRANCE_METRO[3] - FRANCE_METRO[1]) * 2;
-  if (maxLon - minLon > largeurMaxDeg || maxLat - minLat > hauteurMaxDeg) return null;
+  if (maxLon - minLon > largeurMaxDeg || maxLat - minLat > hauteurMaxDeg) return false;
+  return true;
+}
 
-  return [minLon, minLat, maxLon, maxLat];
+export function bboxDepuisChaine(s: string): Bbox | null {
+  const p = s.split(',').map(Number);
+  if (p.length !== 4) return null;
+  const b = p as Bbox;
+  return bboxValide(b) ? b : null;
 }
 
 /**
@@ -277,15 +289,98 @@ export function cercle(centre: Position, rayonM: number, segments = 64): Polygon
 }
 
 /**
+ * Pente maximale physiquement plausible sur une parcelle cadastrale francaise, en pourcents.
+ *
+ * 100 % vaut 45 degres. Aucune parcelle cadastrale exploitable en France metropolitaine n'est
+ * a 45 degres de pente moyenne : au-dela, on est sur une falaise, pas sur un terrain. La borne
+ * ne sert donc pas a « corriger » une pente forte, elle sert a REFUSER un resultat de calcul
+ * qui ne decrit pas un terrain.
+ *
+ * Sans elle, une regression mal conditionnee produisait des valeurs jusqu'a 1 666 % — mesure
+ * sur 7 parcelles reelles sur 49 — et le critere de pente, qui pese 6,1 % du score solaire,
+ * tombait a 0/100 au lieu de 99/100. Soit 8 a 12 points de score global, assez pour faire
+ * changer une parcelle de couleur.
+ */
+const PENTE_MAX_PLAUSIBLE_PCT = 100;
+
+/**
+ * Conditionnement relatif minimal du systeme normal de la regression.
+ *
+ * Le determinant `sxx.syy - sxy^2` a la dimension de (m^2)^2 : sur une parcelle ordinaire il
+ * vaut 1e7 a 1e9. Le tester contre une constante ABSOLUE — c'etait `> 1e-6` — ne teste donc
+ * rien : un determinant de 14,6, soit un conditionnement relatif de 2,3e-9 et un systeme
+ * completement degenere, franchissait la garde avec sept ordres de grandeur de marge.
+ *
+ * Le rapport `det / (sxx.syy)` est lui sans dimension et vaut 1 pour un semis parfaitement
+ * reparti, 0 pour un semis aligne. 1e-4 ecarte les configurations ou la direction transverse
+ * est si etroite que le gradient qu'on y mesure n'a plus de sens — typiquement une parcelle en
+ * laniere dont la grille de sondage ne retient qu'une bande de points.
+ */
+const CONDITIONNEMENT_MIN = 1e-4;
+
+/**
+ * Etendue quadratique minimale du semis dans CHAQUE direction, en metres.
+ *
+ * Le conditionnement relatif ne suffit pas, et c'est contre-intuitif : quand toutes les
+ * latitudes du semis sont egales — degenerescence totale — `sxy` vaut 0 et le rapport
+ * `det / (sxx.syy)` vaut exactement 1, soit le MEILLEUR conditionnement possible. Le ratio
+ * mesure la correlation entre les deux directions, pas l'etendue de chacune.
+ *
+ * Il faut donc exiger separement que le nuage ait une extension reelle dans les deux
+ * directions. 8 m est le seuil en dessous duquel un gradient n'est de toute facon pas mesurable
+ * a partir du RGE ALTI : le pas du raster est metrique et les altitudes sont quantifiees au
+ * decimetre, donc sur 8 m le bruit domine le signal.
+ */
+const ETENDUE_MIN_M = 8;
+
+/**
+ * Tolerance du controle croise entre la regression et la mesure par paires.
+ *
+ * Pour un plan de gradient `g`, deux points quelconques donnent |dz|/d = g.|cos t| <= g : la
+ * plus forte pente locale mesuree entre paires APPROCHE `g` par le bas, et ne peut pas le
+ * depasser franchement. Une regression qui rend 6,5 % la ou les paires mesurent 0,9 % ne decrit
+ * donc pas un plan — c'est le cas reel qui produisait les pentes a 1 666 %.
+ *
+ * Le controle est asymetrique a dessein : le bruit altimetrique peut faire MONTER la mesure par
+ * paires au-dessus de `g` sans que ce soit anormal. On ne borne donc que le sens qui trahit une
+ * regression parasite.
+ */
+const TOLERANCE_CROISEE = 1.5;
+
+/**
  * Pente moyenne et maximale a partir d'un semis de points cotes.
- * La pente est estimee par regression du plan des altitudes : plus robuste que des
- * differences deux a deux sur un semis irregulier.
+ *
+ * DEUX ESTIMATEURS, et c'est delibere. La regression du plan des altitudes est la meilleure
+ * estimation quand le semis est bien reparti : elle utilise tous les points et lisse le bruit
+ * altimetrique. Mais elle devient arbitrairement fausse quand le semis degenere. La mesure par
+ * paires de points distants, elle, est grossiere mais ne peut pas exploser : elle est bornee
+ * par le denivele divise par la distance.
+ *
+ * On prend donc la regression quand elle est fiable, et on retombe sur la mesure par paires
+ * sinon — plutot que de publier un nombre dont on sait qu'il ne decrit rien. Le champ
+ * `penteEstimeeParPaires` dit lequel des deux a servi, pour que la fiche ne presente pas une
+ * approximation comme une regression.
  */
 export function penteDepuisSemis(
   points: Array<{ lon: number; lat: number; z: number }>,
-): { pentePct: number | null; penteMaxPct: number | null; orientationDeg: number | null; deniveleM: number | null } {
+): {
+  pentePct: number | null;
+  penteMaxPct: number | null;
+  orientationDeg: number | null;
+  deniveleM: number | null;
+  /** Vrai si la regression a ete ecartee et la pente estimee par paires de points. */
+  penteEstimeeParPaires: boolean;
+} {
   const valides = points.filter((p) => Number.isFinite(p.z));
-  if (valides.length < 3) return { pentePct: null, penteMaxPct: null, orientationDeg: null, deniveleM: null };
+  if (valides.length < 3) {
+    return {
+      pentePct: null,
+      penteMaxPct: null,
+      orientationDeg: null,
+      deniveleM: null,
+      penteEstimeeParPaires: false,
+    };
+  }
 
   const latRef = valides.reduce((a, p) => a + p.lat, 0) / valides.length;
   const mParDegLat = 111132.92 - 559.82 * Math.cos(2 * radians(latRef));
@@ -311,12 +406,27 @@ export function penteDepuisSemis(
     syz += y * z;
   }
   const det = sxx * syy - sxy * sxy;
-  let pentePct: number | null = null;
+
+  // Trois conditions, aucune suffisante seule (voir les constantes) :
+  //   1. etendue reelle du nuage dans les deux directions ;
+  //   2. conditionnement relatif, sans dimension ;
+  //   3. controle croise contre la mesure par paires, applique plus bas.
+  const nbPoints = valides.length;
+  const etendueX = Math.sqrt(sxx / nbPoints);
+  const etendueY = Math.sqrt(syy / nbPoints);
+  const echelle = sxx * syy;
+  const bienConditionne =
+    etendueX >= ETENDUE_MIN_M &&
+    etendueY >= ETENDUE_MIN_M &&
+    echelle > 0 &&
+    Math.abs(det) / echelle > CONDITIONNEMENT_MIN;
+
+  let penteRegression: number | null = null;
   let orientationDeg: number | null = null;
-  if (Math.abs(det) > 1e-6) {
+  if (bienConditionne) {
     const a = (sxz * syy - syz * sxy) / det; // dz/dx
     const b = (syz * sxx - sxz * sxy) / det; // dz/dy
-    pentePct = Math.round(Math.sqrt(a * a + b * b) * 1000) / 10;
+    penteRegression = Math.round(Math.sqrt(a * a + b * b) * 1000) / 10;
     // Azimut de la ligne de plus grande pente descendante : 0 = nord, 180 = sud.
     const azimut = (Math.atan2(-a, -b) * 180) / Math.PI;
     orientationDeg = Math.round(((azimut % 360) + 360) % 360);
@@ -325,23 +435,70 @@ export function penteDepuisSemis(
   const zs = valides.map((p) => p.z);
   const deniveleM = Math.round((Math.max(...zs) - Math.min(...zs)) * 10) / 10;
 
-  // Pente maximale locale : plus forte pente entre paires de points proches.
-  let penteMax = 0;
+  /**
+   * Pente par paires de points distants.
+   *
+   * Estimateur de repli, et estimateur de controle. Il est grossier — il retient la plus forte
+   * pente locale, donc majore la pente moyenne — mais il est BORNE par construction : le
+   * quotient d'un denivele reel par une distance d'au moins 10 m ne peut pas exploser.
+   *
+   * `etendueM` est conservee pour distinguer « aucune paire assez distante » (parcelle
+   * minuscule, on ne sait pas) de « toutes les paires sont a plat » (pente nulle, on sait).
+   */
+  let penteParPaires = 0;
+  let paires = 0;
   for (let i = 0; i < valides.length; i += 1) {
     for (let j = i + 1; j < valides.length; j += 1) {
       const p = valides[i]!;
       const q = valides[j]!;
       const d = distanceM([p.lon, p.lat], [q.lon, q.lat]);
       if (d < 10) continue;
+      paires += 1;
       const pente = (Math.abs(p.z - q.z) / d) * 100;
-      if (pente > penteMax) penteMax = pente;
+      if (pente > penteParPaires) penteParPaires = pente;
     }
+  }
+  const penteParPairesConnue = paires > 0 ? Math.round(penteParPaires * 10) / 10 : null;
+
+  /**
+   * Choix de l'estimateur publie. Trois conditions cumulatives.
+   *
+   * La plausibilite (<= 100 %) et le controle croise contre la mesure par paires sont des
+   * garde-fous SUR LE RESULTAT et non sur le conditionnement du systeme : ils attrapent les cas
+   * ou le systeme paraissait acceptable et ou le resultat ne decrit pourtant pas un terrain.
+   * C'est le controle croise qui fait le plus de travail — il compare deux estimations de la
+   * meme grandeur, ce qu'aucune inspection du systeme normal ne peut faire.
+   *
+   * Le plancher a 1 % dans le controle croise evite d'ecarter une regression legitime sur un
+   * terrain quasi plat, ou les deux estimateurs sont dans le bruit de l'altimetrie.
+   */
+  const regressionUtilisable =
+    penteRegression != null &&
+    penteRegression <= PENTE_MAX_PLAUSIBLE_PCT &&
+    (penteParPairesConnue == null ||
+      penteRegression <= Math.max(1, penteParPairesConnue * TOLERANCE_CROISEE));
+
+  let pentePct: number | null;
+  let parPaires: boolean;
+  if (regressionUtilisable) {
+    pentePct = penteRegression;
+    parPaires = false;
+  } else {
+    // Repli. `null` si meme la mesure par paires est indisponible : le critere sera GRIS,
+    // ce qui est le comportement correct — l'absence de donnee n'est pas une pente nulle.
+    pentePct = penteParPairesConnue;
+    parPaires = penteParPairesConnue != null;
+    // L'orientation vient de la meme regression : si elle est ecartee, l'orientation l'est aussi.
+    orientationDeg = null;
   }
 
   return {
     pentePct,
-    penteMaxPct: penteMax > 0 ? Math.round(penteMax * 10) / 10 : pentePct,
+    // La pente maximale reste la mesure par paires. Quand elle est indisponible, elle vaut la
+    // pente retenue plutot que d'inventer un maximum inferieur a la moyenne.
+    penteMaxPct: penteParPairesConnue ?? pentePct,
     orientationDeg,
     deniveleM,
+    penteEstimeeParPaires: parPaires,
   };
 }

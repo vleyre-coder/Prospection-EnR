@@ -61,11 +61,15 @@ export async function topographie(parcelle: GeoJsonGeometry): Promise<Partial<To
   const cotes = await altitudes(points.map((p) => [p[0], p[1]]));
   if (!cotes) return null;
 
-  const { pentePct, penteMaxPct, orientationDeg, deniveleM } = penteDepuisSemis(cotes);
+  const { pentePct, penteMaxPct, orientationDeg, deniveleM, penteEstimeeParPaires } =
+    penteDepuisSemis(cotes);
   const altitudeMoyenne = cotes.reduce((a, c) => a + c.z, 0) / cotes.length;
 
   return {
     pentePct,
+    // Remonte jusqu'au snapshot : la fiche doit pouvoir dire que la pente est une estimation
+    // majorante et non une regression, sans quoi une approximation passe pour une mesure.
+    penteEstimeeParPaires,
     penteMaxPct,
     orientationDeg,
     deniveleM,

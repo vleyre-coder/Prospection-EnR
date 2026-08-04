@@ -165,3 +165,60 @@ test('la limitation de debit annonce le delai a respecter', async () => {
     await app.close();
   }
 });
+
+/**
+ * Correction du quatrieme audit : la sonde de sante mentait sous configuration fatale.
+ *
+ * En production avec AUTH_DESACTIVEE, le serveur demarre, `/api/sante` repondait
+ * `statut: 'ok'` et toute route protegee renvoyait 500 `configuration_invalide`. Un deploiement
+ * passait au vert sur une instance entierement inoperante, et une bascule de trafic y envoyait
+ * les utilisateurs.
+ */
+test('la sonde de sante signale une configuration fatale', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const source = readFileSync(
+    fileURLToPath(new URL('../src/routes/referentiel.ts', import.meta.url)),
+    'utf8',
+  );
+
+  assert.match(source, /configurationsFatales/, 'la sonde doit exposer les configurations fatales');
+  assert.match(
+    source,
+    /hors_service/,
+    "un statut distinct de 'degrade' : degrade signifie « fonctionne moins bien », ici rien ne fonctionne",
+  );
+  assert.match(
+    source,
+    /config\.auth\.desactivee && config\.env === 'production'/,
+    'AUTH_DESACTIVEE en production est la configuration fatale a detecter',
+  );
+});
+
+test("le Shapefile distingue une parcelle ecartee d'une parcelle mal notee", async () => {
+  // Meme defaut que dans la liste et le CSV, survivant dans le format le plus souvent remis a un
+  // tiers — geometre, bureau d'etudes, consultant SIG.
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const routes = readFileSync(
+    fileURLToPath(new URL('../src/routes/divers.ts', import.meta.url)),
+    'utf8',
+  );
+  assert.match(routes, /nb_ko_bloq:/, 'le DBF doit porter le compteur de knock-outs bloquants');
+  assert.match(routes, /ecartee:/, 'et une colonne lisible sans calcul');
+  assert.match(
+    routes,
+    /filter\(\(k\) => !k\.derogeable\)/,
+    'seuls les knock-outs NON derogeables qualifient une parcelle d’ecartee',
+  );
+
+  const shapefile = readFileSync(
+    fileURLToPath(new URL('../src/services/shapefile.ts', import.meta.url)),
+    'utf8',
+  );
+  assert.match(
+    shapefile,
+    /NB_KO_BLOQ/,
+    'le LISEZ-MOI doit expliquer la difference : un DBF se lit sans documentation externe',
+  );
+});

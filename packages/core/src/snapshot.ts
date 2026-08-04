@@ -42,6 +42,7 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
     },
     topographie: {
       pentePct: null,
+      penteEstimeeParPaires: null,
       penteMaxPct: null,
       orientationDeg: null,
       altitudeM: null,
