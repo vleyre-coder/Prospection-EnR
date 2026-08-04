@@ -18,6 +18,7 @@ import {
   rescorerSiVersionObsolete,
   signalerCampagnesInterrompues,
 } from './services/qualification.js';
+import { purgerDonneesNominatives } from './depots/parcelles.js';
 import { appliquerMigrations } from './migrations.js';
 import { synchroniserReferentiel } from './depots/sources.js';
 import { routesReferentiel } from './routes/referentiel.js';
@@ -241,6 +242,27 @@ async function demarrer(): Promise<void> {
     await signalerCampagnesInterrompues().catch((err: unknown) =>
       journal.warn({ err }, 'Verification des campagnes interrompues impossible'),
     );
+  }
+  if (bdd) {
+    /**
+     * Purge des donnees nominatives echues : au demarrage, puis une fois par jour.
+     *
+     * La fonction SQL existait depuis la migration 006 et n'etait appelee nulle part. Le
+     * defaut etait invisible tant que la table restait vide, et le serait devenu grave au
+     * premier versement de donnees reelles : une donnee personnelle dont la date de purge est
+     * passee et qui reste en base est conservee illicitement.
+     *
+     * Le minuteur est `unref` : il ne doit pas empecher le processus de s'arreter.
+     */
+    const purger = async (): Promise<void> => {
+      const nb = await purgerDonneesNominatives().catch((err: unknown) => {
+        journal.error({ err }, 'Purge des donnees nominatives impossible — a verifier');
+        return 0;
+      });
+      if (nb > 0) journal.info({ lignes: nb }, 'Donnees nominatives echues purgees');
+    };
+    await purger();
+    setInterval(() => void purger(), 24 * 60 * 60 * 1000).unref();
   }
   if (bdd) {
     const n = await synchroniserReferentiel().catch((err: unknown) => {

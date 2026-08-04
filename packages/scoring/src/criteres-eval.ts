@@ -18,6 +18,7 @@ import {
   formatDistance,
   formatNombre,
   moyenne,
+  moyenneTracee,
   paliers,
   pire,
   type Palier,
@@ -430,12 +431,31 @@ const urb_zonage: Evaluateur = (s, ctx) => {
   const note = moyenne(noteZonage(dominant.typeZone ?? dominant.libelle, ctx.filiere), pire(...notes));
 
   const libelles = zonages.map((z) => z.libelle ?? z.typeZone ?? '?').join(', ');
+
+  /**
+   * Le classement par part de recouvrement suppose que cette part est connue.
+   *
+   * Quand elle ne l'est pas — echec du calcul d'intersection — le tri ne discrimine rien et
+   * le « dominant » n'est que le premier element dans l'ordre de reponse du service. Or ce
+   * zonage gouverne un knock-out : le presenter comme dominant sans reserve serait affirmer
+   * un fait tire de l'ordre d'un tableau. Le cas est benin sur une parcelle mono-zone, et
+   * determinant sur une parcelle a cheval sur deux zonages.
+   */
+  const partInconnue = zonages.length > 1 && zonages.every((z) => z.partRecouvrement == null);
+
   return {
     note,
     valeurBrute: dominant.typeZone ?? dominant.libelle,
-    valeurAffichee: `Zone ${libelles}${s.urbanisme.typeDocument ? ` (${s.urbanisme.typeDocument})` : ''}`,
+    valeurAffichee:
+      `Zone ${libelles}${s.urbanisme.typeDocument ? ` (${s.urbanisme.typeDocument})` : ''}` +
+      (partInconnue ? ' - zonage dominant indetermine' : ''),
     commentaire:
-      "La compatibilite reelle depend du reglement ecrit de la zone, que l'application ne lit pas automatiquement. Consultez le reglement lie avant tout demarchage.",
+      "La compatibilite reelle depend du reglement ecrit de la zone, que l'application ne lit pas automatiquement. Consultez le reglement lie avant tout demarchage." +
+      (partInconnue
+        ? ` La part de la parcelle couverte par chacun des ${zonages.length} zonages n'a pas pu etre` +
+          " calculee : celui retenu comme dominant l'est par l'ordre de reponse du service, pas par" +
+          ' sa surface. A verifier au reglement graphique avant toute conclusion.'
+        : ''),
     sourceKey: SRC.gpu,
   };
 };
@@ -1453,40 +1473,44 @@ const fonc_nb_proprietaires: Evaluateur = (s) => {
 };
 
 const fonc_maitrise: Evaluateur = (s) => {
-  const sousNotes: Array<number | null> = [];
-  if (s.foncier.nbProprietairesEstime != null) {
-    sousNotes.push(s.foncier.nbProprietairesEstime === 1 ? 100 : s.foncier.nbProprietairesEstime <= 3 ? 70 : 40);
-  }
-  if (s.foncier.indivisionProbable != null) sousNotes.push(s.foncier.indivisionProbable ? 35 : 90);
-  if (s.foncier.proprietairePublic != null) sousNotes.push(s.foncier.proprietairePublic ? 60 : 85);
-  const note = moyenne(...sousNotes);
+  /**
+   * Ce critere agrege trois indicateurs, dont chacun peut manquer.
+   *
+   * Les `null` sont passes TELS QUELS a `moyenneTracee` au lieu d'etre filtres en amont :
+   * c'est ce qui permet de connaitre le denominateur reel. Le comptage precedent codait le
+   * total en dur (`TOTAL_INDICATEURS = 3`), valeur qui aurait cesse d'etre juste au premier
+   * indicateur ajoute — sans que rien ne le signale.
+   *
+   * La moyenne des seuls indicateurs disponibles reste la bonne operation, mais elle est
+   * MUETTE sur ce qu'elle ignore : au niveau du critere, la couverture le compte comme
+   * pleinement renseigne alors qu'un seul des trois indicateurs a pu etre lu.
+   */
+  const { note, disponibles, total, suffixe } = moyenneTracee(
+    s.foncier.nbProprietairesEstime == null
+      ? null
+      : s.foncier.nbProprietairesEstime === 1
+        ? 100
+        : s.foncier.nbProprietairesEstime <= 3
+          ? 70
+          : 40,
+    s.foncier.indivisionProbable == null ? null : s.foncier.indivisionProbable ? 35 : 90,
+    s.foncier.proprietairePublic == null ? null : s.foncier.proprietairePublic ? 60 : 85,
+  );
   if (note == null) return indispo(SRC.foncier);
 
   const morceaux: string[] = [];
   if (s.foncier.proprietairePublic) morceaux.push('proprietaire public');
   if (s.foncier.indivisionProbable) morceaux.push('indivision probable');
 
-  /**
-   * Ce critere agrege jusqu'a trois indicateurs, en ignorant ceux qui manquent.
-   *
-   * La moyenne des seuls indicateurs disponibles reste la bonne operation, mais elle est
-   * MUETTE sur ce qu'elle ignore : au niveau du critere, la couverture le compte comme
-   * pleinement renseigne alors qu'un seul des trois indicateurs a pu etre lu. La fiche dit
-   * donc combien ont reellement servi.
-   */
-  const TOTAL_INDICATEURS = 3;
-  const partiel = sousNotes.length < TOTAL_INDICATEURS;
-
   return {
     note,
     valeurBrute: null,
     valeurAffichee:
-      (morceaux.length ? morceaux.join(' - ') : 'Configuration fonciere simple') +
-      (partiel ? ` (${sousNotes.length}/${TOTAL_INDICATEURS} indicateurs disponibles)` : ''),
+      (morceaux.length ? morceaux.join(' - ') : 'Configuration fonciere simple') + suffixe,
     commentaire:
       "Un proprietaire public impose une mise en concurrence (convention d'occupation, AOT) mais offre une meilleure securite juridique." +
-      (partiel
-        ? ` Note etablie sur ${sousNotes.length} indicateur(s) sur ${TOTAL_INDICATEURS} : elle est moins assuree que la couverture globale ne le laisse paraitre.`
+      (suffixe
+        ? ` Note etablie sur ${disponibles} indicateur(s) sur ${total} : elle est moins assuree que la couverture globale ne le laisse paraitre.`
         : ''),
     sourceKey: SRC.foncier,
   };

@@ -239,6 +239,14 @@ export function calculerScore(
   snapshot: ParcelleSnapshot,
   filiere: Filiere,
   options: OptionsScoring = {},
+  /**
+   * Horodatage du calcul. Injectable pour que deux calculs des MEMES entrees produisent le
+   * MEME objet : sans cela, `dateCalcul` differe a chaque appel et deux resultats ne peuvent
+   * pas etre compares par empreinte — ni pour detecter une derive du moteur, ni pour eviter
+   * une reecriture inutile en base. La valeur par defaut reste l'instant courant, qui est le
+   * comportement voulu en production.
+   */
+  dateCalcul: string = new Date().toISOString(),
 ): ResultatScore {
   const ponderation = resoudrePonderation(filiere, options.ponderation);
   const surfaceHa = surfaceHectares(snapshot);
@@ -454,7 +462,7 @@ export function calculerScore(
     regimeImplantation,
     ponderationsAppliquees: Object.fromEntries(criteres.map((c) => [c.id, c.poids])),
     versionMoteur: VERSION_MOTEUR,
-    dateCalcul: new Date().toISOString(),
+    dateCalcul,
     avertissements,
   };
 }
@@ -546,10 +554,28 @@ export function calculerScoreSite(
   }
   const scoreGlobal = poids === 0 ? null : borne(somme / poids);
 
-  // Penalite de fragmentation : un site dont une partie est ecartee perd en coherence.
-  // Coefficients empiriques : un site ampute de la moitie de sa surface perd 15 % de score.
+  /**
+   * Penalite de fragmentation : un site dont une partie est ecartee perd en coherence.
+   *
+   * `0,7 + 0,3 x part retenue` : un site intact garde 100 % de sa note, un site ampute de la
+   * moitie de sa surface en perd 15 %, un site reduit a rien tombe a 70 %.
+   *
+   * FONDEMENT : aucun, au sens ou le reste du moteur en a un. Ce n'est ni un seuil
+   * reglementaire, ni une mesure — c'est un jugement, et le seul du moteur a s'appliquer
+   * MULTIPLICATIVEMENT au score global plutot qu'a un critere. Il traduit l'idee qu'un
+   * perimetre troue coute en etudes, en negociation et en implantation, sans que ce cout ait
+   * ete chiffre. Le plancher a 0,7 borne la penalite pour qu'elle ne remplace pas les
+   * criteres : c'est un ajustement, pas un verdict.
+   *
+   * A confronter a des projets reels avant d'en tirer un classement fin. Cf.
+   * docs/CALIBRATION.md, section « jugement ».
+   */
+  const FRAGMENTATION_PLANCHER = 0.7;
   const partRetenue = surfaceTotaleHa === 0 ? 1 : surfaceRetenueHa / surfaceTotaleHa;
-  const scoreAjuste = scoreGlobal == null ? null : borne(scoreGlobal * (0.7 + 0.3 * partRetenue));
+  const scoreAjuste =
+    scoreGlobal == null
+      ? null
+      : borne(scoreGlobal * (FRAGMENTATION_PLANCHER + (1 - FRAGMENTATION_PLANCHER) * partRetenue));
 
   const ponderation = resoudrePonderation(filiere, options.ponderation);
 

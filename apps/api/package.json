@@ -13,7 +13,8 @@
     "seed": "tsx src/scripts/seeder.ts",
     "ingest": "tsx src/scripts/ingerer.ts",
     "rescorer": "tsx src/scripts/rescorer.ts",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "verser:proprietaires": "tsx src/scripts/verser-proprietaires.ts"
   },
   "dependencies": {
     "@enr/core": "0.1.0",

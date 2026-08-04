@@ -301,17 +301,27 @@ function OutilsCarte({
       void api
         .etatQualification()
         .then((e) => {
+          // La file doit rester visible pendant la campagne : sans elle, un utilisateur en
+          // attente ne distingue pas « ma demande est perdue » de « mon tour vient ».
+          const attente =
+            e.fileAttente.length > 0
+              ? ` — ${e.fileAttente.length} demande(s) en attente derriere`
+              : '';
           setQualification(
             e.enCours
               ? `${e.message ?? 'Qualification en cours…'}${
                   e.resteSecondes != null && e.resteSecondes > 0
                     ? ` — encore ${Math.ceil(e.resteSecondes / 60)} min environ`
                     : ''
-                }`
+                }${attente}`
               : `${e.message ?? 'Qualification terminee'}. Carte mise a jour.`,
           );
-          if (!e.enCours) {
+          // Le suivi continue tant que la file n'est pas vide : la campagne suivante demarre
+          // seule, et l'arreter ici priverait l'utilisateur de la voir avancer.
+          if (!e.enCours && e.fileAttente.length === 0) {
             setSuiviActif(false);
+            rafraichirTuiles();
+          } else if (!e.enCours) {
             rafraichirTuiles();
           }
         })
@@ -362,7 +372,12 @@ function OutilsCarte({
         return api.qualifierEmprise(bbox, etat.filiere).then((r) => {
           if (r.mode === 'arriere_plan') {
             setSuiviActif(true);
-            setQualification(r.etat?.message ?? 'Campagne lancee en arriere-plan…');
+            setQualification(
+              r.position != null && r.position > 0
+                ? `Demande enregistree en position ${r.position} : une campagne occupe deja les ` +
+                    `sources, limitees a une requete par seconde. La votre demarrera seule.`
+                : (r.etat?.message ?? 'Campagne lancee en arriere-plan…'),
+            );
           } else {
             setQualification(
               `${r.nbEnrichies ?? 0} parcelle(s) qualifiee(s) sur ${r.nbParcelles ?? 0}` +

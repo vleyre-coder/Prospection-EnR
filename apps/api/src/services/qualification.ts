@@ -246,9 +246,31 @@ export interface EtatQualification {
   message: string | null;
   /** Estimation du temps restant, en secondes. */
   resteSecondes: number | null;
+  /**
+   * Demandes en attente, dans l'ordre ou elles seront traitees.
+   *
+   * Les sources publiques sont limitees a une requete par seconde : deux campagnes
+   * simultanees ne vont pas deux fois plus vite, elles se partagent le meme debit. La
+   * concurrence n'a donc pas de sens ici — mais REFUSER la seconde demande n'en avait pas
+   * davantage. L'utilisateur devait revenir toutes les dix minutes voir si la voie etait
+   * libre, sans savoir combien de temps il restait ni qui occupait la place.
+   */
+  fileAttente: DemandeEnAttente[];
 }
 
-const etat: EtatQualification = {
+/** Demande de qualification acceptee mais pas encore demarree. */
+export interface DemandeEnAttente {
+  id: string;
+  /** Rang dans la file, 1 = prochaine a demarrer. */
+  position: number;
+  demandeeLe: string;
+  /** Auteur, pour que chacun reconnaisse sa demande dans la file. */
+  utilisateurId: string | null;
+  bbox: Bbox;
+  nbParcellesEstime: number | null;
+}
+
+const etat: Omit<EtatQualification, 'fileAttente'> = {
   enCours: false,
   phase: 'aucune',
   total: 0,
@@ -260,8 +282,38 @@ const etat: EtatQualification = {
   resteSecondes: null,
 };
 
+/**
+ * Demandes acceptees, non encore demarrees. Traitees en FIFO.
+ *
+ * Bornee : au-dela, la demande est refusee explicitement plutot que d'accumuler des
+ * campagnes que personne n'attend plus. Une file de cinq emprises departementales
+ * represente deja plusieurs heures de travail.
+ */
+const FILE_MAX = 5;
+
+interface Attente {
+  id: string;
+  bbox: Bbox;
+  options: OptionsCampagne;
+  demandeeLe: string;
+  nbParcellesEstime: number | null;
+}
+
+const file: Attente[] = [];
+let compteurDemandes = 0;
+
 export function etatQualification(): EtatQualification {
-  return { ...etat };
+  return {
+    ...etat,
+    fileAttente: file.map((a, i) => ({
+      id: a.id,
+      position: i + 1,
+      demandeeLe: a.demandeeLe,
+      utilisateurId: a.options.utilisateurId ?? null,
+      bbox: a.bbox,
+      nbParcellesEstime: a.nbParcellesEstime,
+    })),
+  };
 }
 
 /**
@@ -376,28 +428,79 @@ export async function derniereCampagne(): Promise<{
   };
 }
 
-/**
- * Lance la qualification d'une grande emprise et rend la main immediatement.
- *
- * Renvoie `null` si une qualification est deja en cours : en lancer deux en parallele
- * saturerait les sources publiques, limitees a une requete par seconde, et les deux
- * seraient plus lentes que l'une seule.
- */
-export function lancerQualificationEmprise(
-  bbox: Bbox,
-  options: {
-    surfaceMinM2?: number;
-    filieres?: Filiere[];
-    forcer?: boolean;
-    /** Auteur de la demande, trace en base pour savoir qui consomme le quota partage. */
-    utilisateurId?: string | null;
-  } = {},
-): EtatQualification | null {
-  if (etat.enCours) return null;
+export interface OptionsCampagne {
+  surfaceMinM2?: number;
+  filieres?: Filiere[];
+  forcer?: boolean;
+  /** Auteur de la demande, trace en base pour savoir qui consomme le quota partage. */
+  utilisateurId?: string | null;
+}
 
-  // L'emprise est normalisee AVANT de rendre la main : une emprise refusee doit produire une
-  // erreur immediate, pas un travail de fond qui echoue en silence.
+/** Issue d'une demande de qualification en arriere-plan. */
+export type IssueDemande =
+  | { accepte: true; id: string; position: number; etat: EtatQualification }
+  | { accepte: false; motif: 'file_pleine'; etat: EtatQualification };
+
+/**
+ * Accepte une demande de qualification de grande emprise et rend la main immediatement.
+ *
+ * UNE SEULE CAMPAGNE S'EXECUTE A LA FOIS, et ce n'est pas une limitation technique a lever :
+ * les sources publiques plafonnent a une requete par seconde, donc deux campagnes
+ * simultanees se partagent le meme debit et finissent toutes deux plus tard que l'une seule
+ * n'aurait fini. La serialisation est le bon comportement.
+ *
+ * Ce qui etait faux, c'etait de REFUSER la seconde demande. Un second utilisateur recevait un
+ * 409 et devait revenir a l'aveugle, sans savoir ni ce qui tournait, ni combien de temps il
+ * restait. Sa demande est desormais mise en file et demarre seule a la fin de la precedente.
+ *
+ * L'emprise est normalisee ICI, avant la mise en file : une emprise irrecevable doit lever
+ * tout de suite, et non echouer une heure plus tard au fond de la file.
+ */
+export function lancerQualificationEmprise(bbox: Bbox, options: OptionsCampagne = {}): IssueDemande {
   const emprise = normaliserEmprise(bbox);
+
+  if (file.length >= FILE_MAX) {
+    return { accepte: false, motif: 'file_pleine', etat: etatQualification() };
+  }
+
+  compteurDemandes += 1;
+  const demande: Attente = {
+    id: `q${compteurDemandes}`,
+    bbox: emprise,
+    options,
+    demandeeLe: new Date().toISOString(),
+    nbParcellesEstime: null,
+  };
+  file.push(demande);
+  demarrerSuivanteSiLibre();
+
+  // `demarrerSuivanteSiLibre` retire de la file la demande qu'elle demarre : si la notre n'y
+  // est plus, c'est qu'elle tourne. Sinon, sa position est son rang courant.
+  const rang = file.indexOf(demande);
+  return {
+    accepte: true,
+    id: demande.id,
+    position: rang === -1 ? 0 : rang + 1,
+    etat: etatQualification(),
+  };
+}
+
+/**
+ * Demarre la prochaine demande si aucune campagne n'occupe le debit.
+ *
+ * Appelee a la mise en file et a la fin de chaque campagne : c'est le seul point qui fait
+ * avancer la file, ce qui evite deux campagnes lancees par deux chemins differents.
+ */
+function demarrerSuivanteSiLibre(): void {
+  if (etat.enCours) return;
+  const demande = file.shift();
+  if (!demande) return;
+  executerCampagne(demande);
+}
+
+function executerCampagne(demande: Attente): void {
+  const emprise = demande.bbox;
+  const options = demande.options;
 
   etat.enCours = true;
   etat.phase = 'recuperation';
@@ -407,7 +510,10 @@ export function lancerQualificationEmprise(
   etat.debutLe = new Date().toISOString();
   etat.finLe = null;
   etat.resteSecondes = null;
-  etat.message = 'Recuperation du parcellaire au cadastre…';
+  etat.message =
+    file.length > 0
+      ? `Recuperation du parcellaire au cadastre… (${file.length} demande(s) ensuite)`
+      : 'Recuperation du parcellaire au cadastre…';
 
   void (async () => {
     const debut = Date.now();
@@ -476,11 +582,21 @@ export function lancerQualificationEmprise(
       etat.finLe = new Date().toISOString();
       etat.resteSecondes = null;
       await cloturerTache();
+
+      // Sans cet appel, une demande mise en file n'aurait jamais demarre. Il est dans le
+      // `finally` a dessein : une campagne interrompue par une erreur ne doit pas bloquer
+      // la file derriere elle.
+      if (file.length > 0) {
+        journal.info(
+          { restantes: file.length },
+          'Campagne terminee, demarrage de la demande suivante',
+        );
+      }
+      demarrerSuivanteSiLibre();
     }
   })();
-
-  return etatQualification();
 }
+
 
 /**
  * Estime le volume d'une emprise avant de lancer quoi que ce soit, pour que l'utilisateur

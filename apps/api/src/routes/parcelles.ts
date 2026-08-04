@@ -261,21 +261,31 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
     try {
     if (enArrierePlan) {
-      const lance = lancerQualificationEmprise(bbox, {
+      const issue = lancerQualificationEmprise(bbox, {
         surfaceMinM2: corps.surfaceMinM2,
         filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
         forcer: corps.forcer,
         utilisateurId: req.utilisateur?.id ?? null,
       });
-      if (!lance) {
+      if (!issue.accepte) {
         return erreur(
           rep,
-          409,
-          'qualification_en_cours',
-          'Une qualification est deja en cours. Attendez sa fin : les sources publiques sont limitees en debit et deux campagnes simultanees seraient plus lentes que l\'une seule.',
+          429,
+          'file_qualification_pleine',
+          "Cinq demandes de qualification sont deja en attente, soit plusieurs heures de travail. " +
+            "Les sources publiques etant limitees a une requete par seconde, en ajouter une ne la " +
+            "ferait pas traiter plus tot. Attendez que la file se vide.",
         );
       }
-      return { mode: 'arriere_plan', etat: lance };
+      // Une demande mise en file EST acceptee : elle demarrera seule. Le 202 le dit, la
+      // position permet a l'utilisateur de savoir combien de campagnes le precedent.
+      if (issue.position > 0) rep.code(202);
+      return {
+        mode: 'arriere_plan',
+        id: issue.id,
+        position: issue.position,
+        etat: issue.etat,
+      };
     }
 
     const resultat = await qualifierEmprise(bbox, {

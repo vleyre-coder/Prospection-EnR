@@ -192,6 +192,54 @@ donnée** (critère gris), jamais comme absence de contrainte.
 Le nombre de propriétaires affiché est une **estimation** dérivée de la structure parcellaire,
 pas une donnée de propriété.
 
+### 3.1 Obtenir et verser les données de propriété
+
+C'est la seule couche que l'application ne peut pas aller chercher elle-même. La chaîne
+complète existe côté lecture — habilitation, motif obligatoire, journalisation stricte,
+avertissements, purge automatique à échéance — mais la table reste vide jusqu'à ce que
+quelqu'un l'alimente. Voici comment.
+
+**1. Obtenir les données.** Deux voies, selon le besoin :
+
+- **Service de la publicité foncière (DGFiP)** — consultation du fichier immobilier au titre de
+  l'article L.107 A du code général des impôts. La demande porte sur des parcelles identifiées
+  et doit énoncer sa finalité. La réponse est nominative.
+- **Mairie** — les communes disposent de la matrice cadastrale et peuvent communiquer des
+  informations de propriété dans le cadre du code des relations entre le public et
+  l'administration. C'est souvent la voie la plus rapide sur un petit nombre de parcelles.
+
+Dans les deux cas, **conservez la référence de la demande** : c'est elle qui justifie la
+détention et qui permet de répondre à un exercice de droit d'accès.
+
+**2. Verser le résultat.** Le fichier reçu se met au format suivant, puis :
+
+```bash
+npm run verser:proprietaires --workspace @enr/api -- proprietaires-2026-05.csv
+```
+
+```csv
+idu;nb_comptes;indivision;proprietaire_public;nominatif;origine_donnee;purge_prevue_le
+283900000C0843;2;oui;non;{"noms":["DUPONT Jean"]};Demande DGFiP du 12/05/2026 ref 2026-0412;2027-05-12
+```
+
+Le script **refuse tout le fichier** si une seule ligne est irrecevable — un versement partiel
+de données personnelles laisserait la base dans un état que personne n'a décrit. Deux colonnes
+sont obligatoires et c'est délibéré :
+
+- `origine_donnee` : sans provenance documentée, la détention n'est pas justifiable.
+- `purge_prevue_le` : une donnée personnelle conservée sans échéance est conservée
+  illicitement. Alignez la date sur la durée de votre démarche de prospection.
+
+**3. La purge s'exécute seule.** Au démarrage du serveur puis une fois par jour, le champ
+`nominatif` des enregistrements arrivés à échéance est effacé. La provenance et les indicateurs
+non nominatifs (nombre de comptes, indivision) sont conservés, et la purge est inscrite au
+journal d'accès avec le nombre de lignes traitées.
+
+**Ce que l'application ne fera jamais.** Ces données ne sortent ni dans les tuiles
+vectorielles, ni dans les exports CSV, Shapefile, GeoJSON ou PDF, ni dans aucune réponse
+accessible à un utilisateur non habilité. Elles ne sont lisibles que sur une consultation
+explicite, avec motif saisi, et cette consultation est journalisée.
+
 ---
 
 ## 4. Indicateurs dérivés — à lire comme tels

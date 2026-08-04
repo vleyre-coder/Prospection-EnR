@@ -230,3 +230,19 @@ export async function nbScoresObsoletes(version: string): Promise<number> {
   );
   return lignes[0]?.n ?? 0;
 }
+
+/**
+ * Declenche la purge des donnees nominatives arrivees a echeance.
+ *
+ * La fonction SQL `purger_donnees_nominatives()` existait depuis la migration 006 mais
+ * n'etait appelee PAR AUCUN CODE. Tant que la table restait vide, l'oubli etait sans effet ;
+ * il aurait produit une conservation illicite des le premier versement de donnees reelles —
+ * exactement au moment ou plus personne ne l'aurait cherche.
+ *
+ * Appelee au demarrage puis une fois par jour. Le declencheur n'est pas critique en precision
+ * — une purge est due a la journee, pas a la seconde — mais il doit exister.
+ */
+export async function purgerDonneesNominatives(): Promise<number> {
+  const l = await requeteUne<{ nb: number }>(`SELECT purger_donnees_nominatives() AS nb`);
+  return l?.nb ?? 0;
+}

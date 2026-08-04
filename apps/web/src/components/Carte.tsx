@@ -1101,7 +1101,29 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
 
   return (
     <>
-      <div ref={conteneur} className="carte" role="application" aria-label="Carte de prospection" />
+      {/* Alternative accessible, annoncee.
+          `role="application"` indique aux technologies d'assistance que la zone capture le
+          clavier — mais aucun chemin clavier ne mene aux parcelles : la selection se fait au
+          pointeur. La vue liste, elle, est un tableau navigable qui porte les memes donnees et
+          ouvre les memes fiches. Elle EXISTAIT deja comme alternative ; rien ne le disait, ce
+          qui la rendait inutile a qui en avait besoin. Ce lien est le premier element
+          focalisable de la vue carte, a la maniere d'un lien d'evitement. */}
+      <a
+        href="#vue-liste"
+        className="lien-evitement"
+        onClick={(e) => {
+          e.preventDefault();
+          etatRef.current.definirVue('liste');
+        }}
+      >
+        Passer a la vue liste (alternative accessible au clavier)
+      </a>
+      <div
+        ref={conteneur}
+        className="carte"
+        role="application"
+        aria-label="Carte de prospection. La selection des parcelles se fait au pointeur ; utilisez la vue liste pour un acces au clavier."
+      />
 
       {/* Echec d'installation des couches metier.
           Le message etait capture par `setCouchesEnEchec` mais n'etait affiche nulle part :

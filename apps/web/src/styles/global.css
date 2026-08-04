@@ -1756,3 +1756,36 @@ button:focus-visible,
     opacity: 1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Lien d'evitement vers l'alternative accessible.
+
+   Il est present dans le flux et focalisable, mais hors champ visuel : un
+   lecteur d'ecran l'annonce en premier, une navigation au clavier le fait
+   apparaitre au premier Tab, et une navigation au pointeur ne le voit jamais.
+   `clip-path` plutot que `display: none` : ce dernier retire l'element de
+   l'ordre de tabulation, ce qui annulerait tout l'objet.
+   --------------------------------------------------------------------------- */
+.lien-evitement {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 30;
+  padding: 8px 12px;
+  background: var(--fond-eleve, #fff);
+  color: var(--texte, #111827);
+  border: 2px solid var(--accent, #2563eb);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lien-evitement:focus,
+.lien-evitement:focus-visible {
+  clip-path: none;
+  outline: 3px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}

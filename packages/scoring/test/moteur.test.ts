@@ -812,3 +812,91 @@ describe('contiguite d’un site', () => {
     );
   });
 });
+
+/**
+ * Points secondaires du troisieme audit.
+ */
+describe('reproductibilite et transparence', () => {
+  it('deux calculs des memes entrees produisent le meme objet', () => {
+    // `dateCalcul` rendait le resultat different a chaque appel : impossible de comparer deux
+    // calculs par empreinte, donc impossible de detecter une derive du moteur ou d'eviter une
+    // reecriture inutile en base.
+    const p = parcelleType();
+    const t = '2026-08-04T09:00:00.000Z';
+    const a = calculerScore(p, 'solaire_sol', {}, t);
+    const b = calculerScore(p, 'solaire_sol', {}, t);
+    assert.equal(JSON.stringify(a), JSON.stringify(b), 'le resultat doit etre reproductible');
+  });
+
+  it('sans horodatage impose, le calcul reste horodate a l’instant courant', () => {
+    const avant = Date.now();
+    const r = calculerScore(parcelleType(), 'solaire_sol');
+    const t = new Date(r.dateCalcul).getTime();
+    assert.ok(t >= avant && t <= Date.now(), `dateCalcul hors bornes : ${r.dateCalcul}`);
+  });
+
+  it('un critere composite dit combien d’indicateurs ont servi', () => {
+    const partiel = calculerScore(
+      parcelleType((p) => {
+        // Un seul des trois indicateurs de maitrise fonciere est renseigne.
+        p.foncier.nbProprietairesEstime = 1;
+        p.foncier.indivisionProbable = null;
+        p.foncier.proprietairePublic = null;
+      }),
+      'solaire_sol',
+    );
+    const c = partiel.criteres.find((x) => x.id === 'fonc_maitrise');
+    assert.ok(c, 'le critere doit etre evalue');
+    assert.match(c!.valeurAffichee, /1\/3 indicateurs disponibles/);
+    assert.match(c!.commentaire ?? '', /moins assuree/);
+  });
+
+  it('un critere composite complet n’ajoute aucune mention inutile', () => {
+    const complet = calculerScore(
+      parcelleType((p) => {
+        p.foncier.nbProprietairesEstime = 1;
+        p.foncier.indivisionProbable = false;
+        p.foncier.proprietairePublic = false;
+      }),
+      'solaire_sol',
+    );
+    const c = complet.criteres.find((x) => x.id === 'fonc_maitrise')!;
+    assert.ok(
+      !/indicateurs disponibles/.test(c.valeurAffichee),
+      'ne pas charger la lecture quand tout est renseigne',
+    );
+  });
+
+  it('un zonage dominant indetermine est signale comme tel', () => {
+    // Deux zonages, aucune part de recouvrement calculee : le « dominant » n'est alors que le
+    // premier dans l'ordre de reponse du service, et il gouverne un knock-out.
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.urbanisme.couvertParGpu = true;
+        p.urbanisme.zonages = [
+          { libelle: 'A', typeZone: 'A', destinationDominante: null, urlReglement: null, dateApprobation: null, partRecouvrement: null },
+          { libelle: 'N', typeZone: 'N', destinationDominante: null, urlReglement: null, dateApprobation: null, partRecouvrement: null },
+        ];
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'urb_zonage')!;
+    assert.match(c.valeurAffichee, /dominant indetermine/);
+    assert.match(c.commentaire ?? '', /ordre de reponse du service/);
+  });
+
+  it('un zonage dominant etabli sur les surfaces n’est pas signale', () => {
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.urbanisme.couvertParGpu = true;
+        p.urbanisme.zonages = [
+          { libelle: 'A', typeZone: 'A', destinationDominante: null, urlReglement: null, dateApprobation: null, partRecouvrement: 0.8 },
+          { libelle: 'N', typeZone: 'N', destinationDominante: null, urlReglement: null, dateApprobation: null, partRecouvrement: 0.2 },
+        ];
+      }),
+      'solaire_sol',
+    );
+    const c = r.criteres.find((x) => x.id === 'urb_zonage')!;
+    assert.ok(!/indetermine/.test(c.valeurAffichee));
+  });
+});

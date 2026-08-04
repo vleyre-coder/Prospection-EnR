@@ -226,6 +226,16 @@ export interface Sante {
 }
 
 /** Avancement d'une campagne de qualification menee en arriere-plan. */
+export interface DemandeEnAttente {
+  id: string;
+  /** Rang dans la file, 1 = prochaine a demarrer. */
+  position: number;
+  demandeeLe: string;
+  utilisateurId: string | null;
+  bbox: [number, number, number, number];
+  nbParcellesEstime: number | null;
+}
+
 export interface EtatQualification {
   enCours: boolean;
   phase: 'recuperation' | 'enrichissement' | 'terminee' | 'aucune';
@@ -236,6 +246,12 @@ export interface EtatQualification {
   finLe: string | null;
   message: string | null;
   resteSecondes: number | null;
+  /**
+   * Demandes acceptees mais pas encore demarrees. Une seule campagne s'execute a la fois,
+   * parce que les sources publiques plafonnent a une requete par seconde ; les demandes
+   * suivantes attendent leur tour au lieu d'etre refusees.
+   */
+  fileAttente: DemandeEnAttente[];
 }
 
 export interface CoucheMeta {
@@ -466,6 +482,10 @@ export const api = {
       /** `arriere_plan` pour une emprise etendue : suivre ensuite `etatQualification()`. */
       mode: 'immediat' | 'arriere_plan';
       etat?: EtatQualification;
+      /** Identifiant de la demande, pour la reconnaitre dans la file. */
+      id?: string;
+      /** 0 si la campagne a demarre tout de suite, sinon son rang dans la file. */
+      position?: number;
       nbParcelles?: number;
       nbEnrichies?: number;
       nbEchecs?: number;

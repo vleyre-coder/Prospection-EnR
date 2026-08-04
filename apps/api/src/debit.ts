@@ -23,11 +23,29 @@ interface Seau {
 
 const seaux = new Map<string, Seau>();
 
+/**
+ * Purge periodique, declenchee au comptage plutot que par un minuteur.
+ *
+ * Un `setInterval` maintiendrait le processus eveille et compliquerait les tests. Le
+ * declencheur precedent, `seaux.size % 500 === 0`, n'etait PAS garanti : la taille de la
+ * table peut franchir un multiple de 500 sans jamais valoir exactement ce multiple au moment
+ * du test, si des entrees ont ete supprimees entre-temps. La purge pouvait donc ne jamais
+ * s'executer. On compte desormais les creations, ce qui est monotone.
+ */
+const PURGE_TOUS_LES_N_SEAUX = 500;
+let creationsDepuisPurge = 0;
+
 /** Retire les seaux pleins et inactifs, pour que la table ne croisse pas indefiniment. */
 function purger(maintenant: number, intervalleMs: number): void {
+  creationsDepuisPurge = 0;
   for (const [cle, seau] of seaux) {
     if (maintenant - seau.dernierRemplissage > intervalleMs * 4) seaux.delete(cle);
   }
+}
+
+/** Nombre de seaux en memoire. Expose pour les tests de purge. */
+export function nbSeaux(): number {
+  return seaux.size;
 }
 
 /**
@@ -67,7 +85,8 @@ export function limiterDebit(options: OptionsDebit): preHandlerHookHandler {
     if (!seau) {
       seau = { jetons: max, dernierRemplissage: maintenant };
       seaux.set(cle, seau);
-      if (seaux.size % 500 === 0) purger(maintenant, fenetreMs);
+      creationsDepuisPurge += 1;
+      if (creationsDepuisPurge >= PURGE_TOUS_LES_N_SEAUX) purger(maintenant, fenetreMs);
     } else {
       const gagnes = (maintenant - seau.dernierRemplissage) / parJetonMs;
       if (gagnes >= 1) {
@@ -98,4 +117,5 @@ export function limiterDebit(options: OptionsDebit): preHandlerHookHandler {
 /** Remet les compteurs a zero. Reserve aux tests. */
 export function reinitialiserDebit(): void {
   seaux.clear();
+  creationsDepuisPurge = 0;
 }

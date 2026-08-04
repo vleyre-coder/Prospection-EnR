@@ -78,6 +78,36 @@ export function moyenne(...notes: Array<number | null>): number | null {
   return borne(valides.reduce((a, b) => a + b, 0) / valides.length);
 }
 
+/**
+ * Moyenne, ET la mention de ce qui a ete ignore.
+ *
+ * `moyenne` est muette sur les indicateurs absents : la moyenne de trois indicateurs dont un
+ * seul est renseigne se presente comme la moyenne de trois. Un critere composite peut ainsi
+ * afficher une note d'apparence solide construite sur un tiers de l'information, et rien dans
+ * la fiche ne le dit.
+ *
+ * Le suffixe est vide quand tout est renseigne : on ne charge pas la lecture pour rien.
+ */
+export function moyenneTracee(...notes: Array<number | null>): {
+  note: number | null;
+  disponibles: number;
+  total: number;
+  /** « (2/3 indicateurs disponibles) », ou chaine vide si tout est renseigne. */
+  suffixe: string;
+} {
+  const total = notes.length;
+  const disponibles = notes.filter((n) => n != null).length;
+  return {
+    note: moyenne(...notes),
+    disponibles,
+    total,
+    suffixe:
+      disponibles === total || disponibles === 0
+        ? ''
+        : ` (${disponibles}/${total} indicateurs disponibles)`,
+  };
+}
+
 /** Formate une distance en m ou km selon l'ordre de grandeur. */
 export function formatDistance(m: number | null | undefined): string {
   if (m == null) return 'donnee indisponible';
