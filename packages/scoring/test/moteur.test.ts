@@ -742,3 +742,73 @@ describe('surestimations corrigees : surface implantable et lineaire de raccorde
     );
   });
 });
+
+/**
+ * Correction C3. La deduction de surface d'un site supposait une contiguite que rien ne
+ * verifiait : le modele d'erosion perimetrale s'applique a UNE forme, et l'appliquer a la
+ * somme des surfaces suppose une emprise unique. Sur dix parcelles de 0,3 ha dispersees,
+ * l'erreur atteint 44 % — dans le sens de la surestimation, celui qui fait perdre des
+ * visites.
+ */
+describe('contiguite d’un site', () => {
+  const petites = (n: number): ParcelleSnapshot[] =>
+    Array.from({ length: n }, (_, i) =>
+      parcelleType((p) => {
+        p.identite.idu = `283900000C09${String(10 + i).padStart(2, '0')}`;
+        p.identite.contenanceM2 = 3000;
+        p.identite.surfaceCalculeeM2 = 3000;
+      }),
+    );
+
+  it('un site jointif garde le modele d’emprise unique', () => {
+    const site = calculerScoreSite(petites(10), 'solaire_sol', {}, 1);
+    assert.equal(site.nbGroupesContigus, 1);
+    assert.equal(site.surfaceTotaleHa, 3);
+    // Une seule bande perimetrale a deduire : environ 87 % de la surface cadastrale.
+    assert.ok(site.surfaceUtileHa > 2.5, `surface utile ${site.surfaceUtileHa}`);
+    assert.ok(
+      !site.limitesViabilite.some((l) => l.id === 'site_disperse' || l.id === 'contiguite_inconnue'),
+      'aucune reserve de dispersion sur un site jointif',
+    );
+  });
+
+  it('un site disperse deduit une bande par groupe, et le dit', () => {
+    const site = calculerScoreSite(petites(10), 'solaire_sol', {}, 10);
+    // Dix clotures, dix pistes : la surface implantable chute nettement.
+    assert.ok(site.surfaceUtileHa < 2, `surface utile ${site.surfaceUtileHa}`);
+    const reserve = site.limitesViabilite.find((l) => l.id === 'site_disperse');
+    assert.ok(reserve, 'la dispersion doit etre signalee');
+    assert.equal(reserve!.statutMaximal, 'orange');
+    // Le motif doit porter les deux chiffres : sans eux, la reserve n'est pas actionnable.
+    assert.match(reserve!.motif, /10 groupes/);
+    assert.match(reserve!.motif, /ha au cadastre/);
+  });
+
+  it('le site jointif offre plus de surface implantable que le meme site disperse', () => {
+    const jointif = calculerScoreSite(petites(10), 'solaire_sol', {}, 1);
+    const disperse = calculerScoreSite(petites(10), 'solaire_sol', {}, 10);
+    assert.equal(jointif.surfaceTotaleHa, disperse.surfaceTotaleHa);
+    assert.ok(
+      jointif.surfaceUtileHa > disperse.surfaceUtileHa * 1.3,
+      `l'ecart doit etre substantiel : ${jointif.surfaceUtileHa} vs ${disperse.surfaceUtileHa}`,
+    );
+  });
+
+  it('une contiguite inconnue est traitee comme dispersee, et signalee', () => {
+    const site = calculerScoreSite(petites(10), 'solaire_sol', {}, null);
+    const disperse = calculerScoreSite(petites(10), 'solaire_sol', {}, 10);
+    // Prudence : en l'absence d'information, on ne suppose pas la configuration favorable.
+    assert.equal(site.surfaceUtileHa, disperse.surfaceUtileHa);
+    const reserve = site.limitesViabilite.find((l) => l.id === 'contiguite_inconnue');
+    assert.ok(reserve, "l'ignorance doit etre dite, pas masquee");
+    assert.equal(reserve!.statutMaximal, 'orange');
+  });
+
+  it('une parcelle unique est contigue avec elle-meme, sans reserve', () => {
+    const site = calculerScoreSite([parcelleType()], 'solaire_sol', {}, 1);
+    assert.ok(
+      !site.limitesViabilite.some((l) => l.id === 'contiguite_inconnue'),
+      'une parcelle seule ne pose pas de question de contiguite',
+    );
+  });
+});

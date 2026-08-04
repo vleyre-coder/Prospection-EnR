@@ -38,7 +38,7 @@ import {
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
 import { borne } from './notes.js';
-import { BANDE_PERIMETRALE_M, surfaceUtileEstimee } from './implantation.js';
+import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './implantation.js';
 
 /**
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
@@ -196,14 +196,22 @@ function evaluerLimitesViabilite(
   filiere: Filiere,
   surfaceCadastraleHa: number | null,
   morcellementIndice: number | null = null,
+  /**
+   * Surface implantable imposee par l'appelant. Le score de SITE la calcule autrement — la
+   * deduction depend de la contiguite des parcelles, information que cette fonction n'a pas.
+   */
+  surfaceUtileHaImposee: number | null = null,
 ): LimiteViabilite[] {
   const limites: LimiteViabilite[] = [];
   if (surfaceCadastraleHa == null) return limites;
 
   // Le seuil economique porte sur la surface IMPLANTABLE, pas sur la surface cadastrale :
   // c'est elle qui determine la puissance installable, donc le chiffre d'affaires.
-  const utile = surfaceUtileEstimee(surfaceCadastraleHa, morcellementIndice, filiere);
-  const surfaceHa = utile?.netteHa ?? surfaceCadastraleHa;
+  const utile =
+    surfaceUtileHaImposee != null
+      ? null
+      : surfaceUtileEstimee(surfaceCadastraleHa, morcellementIndice, filiere);
+  const surfaceHa = surfaceUtileHaImposee ?? utile?.netteHa ?? surfaceCadastraleHa;
 
   const meta = FILIERES_META[filiere];
   const min = meta.surfaceUtileMinHa;
@@ -465,10 +473,20 @@ export function calculerScoreSite(
   snapshots: ParcelleSnapshot[],
   filiere: Filiere,
   options: OptionsScoring = {},
+  /**
+   * Nombre de groupes de parcelles jointives, calcule par l'appelant (qui seul dispose des
+   * geometries). 1 = une seule emprise. `null` = inconnu, traite comme disperse : la
+   * deduction de surface est alors prudente plutot que flatteuse.
+   */
+  nbGroupesContigus: number | null = null,
 ): {
   statut: Feu;
   scoreGlobal: number | null;
   surfaceTotaleHa: number;
+  /** Surface implantable estimee du site, deduite selon sa contiguite reelle. */
+  surfaceUtileHa: number;
+  /** Nombre de groupes de parcelles jointives, tel que fourni. */
+  nbGroupesContigus: number | null;
   parcelles: ResultatScore[];
   knockOutsConsolides: KnockOut[];
   /** Couverture moyenne des parcelles retenues, ponderee par la surface. */
@@ -477,7 +495,14 @@ export function calculerScoreSite(
   limitesViabilite: LimiteViabilite[];
 } {
   const parcelles = snapshots.map((s) => calculerScore(s, filiere, options));
-  const surfaceTotaleHa = snapshots.reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0);
+
+  // Arrondi a 4 decimales (le metre carre) : sommer dix parcelles de 0,3 ha en binaire
+  // produit 2,9999999999999996 ha, valeur qui ressortait telle quelle dans la reponse de
+  // l'API et dans les comparaisons de seuil.
+  const arrondiHa = (v: number): number => Math.round(v * 10000) / 10000;
+  const surfaceTotaleHa = arrondiHa(
+    snapshots.reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0),
+  );
 
   // Un knock-out sur une parcelle du site n'ecarte pas le site : il en retire la parcelle.
   // Le site est ecarte si les parcelles restantes ne suffisent plus a atteindre la surface utile.
@@ -489,15 +514,19 @@ export function calculerScoreSite(
   const knockOutsConsolides = parcelles.flatMap((p) => p.knockOuts.filter((k) => !k.derogeable));
   const estExclue = (p: ResultatScore): boolean => p.knockOuts.some((k) => !k.derogeable);
   const retenues = parcelles.filter((p) => !estExclue(p));
-  const surfaceRetenueHa = snapshots
-    .filter((_, i) => !estExclue(parcelles[i]!))
-    .reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0);
+  const surfaceRetenueHa = arrondiHa(
+    snapshots
+      .filter((_, i) => !estExclue(parcelles[i]!))
+      .reduce((acc, s) => acc + (surfaceHectares(s) ?? 0), 0),
+  );
 
   if (retenues.length === 0) {
     return {
       statut: 'rouge',
       scoreGlobal: null,
       surfaceTotaleHa,
+      surfaceUtileHa: 0,
+      nbGroupesContigus,
       parcelles,
       knockOutsConsolides,
       couvertureDonnees: 0,
@@ -549,7 +578,48 @@ export function calculerScoreSite(
    * site. Les autres limites - couverture, enjeux sans source - se propagent, car agreger
    * des parcelles n'apporte aucune information nouvelle sur ce que l'on ignore.
    */
-  const limitesViabilite: LimiteViabilite[] = evaluerLimitesViabilite(filiere, surfaceRetenueHa);
+  const indexRetenues = parcelles.map((p, i) => (estExclue(p) ? -1 : i)).filter((i) => i >= 0);
+  const utileSite = surfaceUtileSiteHa(
+    indexRetenues.map((i) => surfaceHectares(snapshots[i]!)),
+    indexRetenues.map((i) => snapshots[i]!.foncier.morcellementIndice),
+    filiere,
+    nbGroupesContigus,
+  );
+  const limitesViabilite: LimiteViabilite[] = evaluerLimitesViabilite(
+    filiere,
+    surfaceRetenueHa,
+    null,
+    utileSite.netteHa,
+  );
+
+  // Un site en plusieurs morceaux disjoints n'est pas une installation, c'en est plusieurs :
+  // chaque groupe porte son raccordement, sa cloture et son poste de livraison. Le dire, et
+  // plafonner a orange, plutot que de laisser un score eleve masquer la dispersion.
+  if (nbGroupesContigus != null && nbGroupesContigus > 1) {
+    limitesViabilite.push({
+      id: 'site_disperse',
+      libelle: `Site en ${nbGroupesContigus} groupes disjoints`,
+      motif:
+        `Les parcelles retenues ne forment pas une emprise continue mais ${nbGroupesContigus} ` +
+        `groupes separes. Chacun demanderait sa propre cloture, sa propre piste et son propre ` +
+        `raccordement : le site n'est pas un projet mais plusieurs. La surface implantable est ` +
+        `estimee groupe par groupe (${utileSite.netteHa.toFixed(2)} ha sur ` +
+        `${utileSite.bruteHa.toFixed(2)} ha au cadastre) et non comme une emprise unique, qui ` +
+        `l'aurait surestimee. A rapprocher d'un regroupement effectivement jointif.`,
+      statutMaximal: 'orange',
+    });
+  } else if (nbGroupesContigus == null && snapshots.length > 1) {
+    limitesViabilite.push({
+      id: 'contiguite_inconnue',
+      libelle: 'Contiguite des parcelles non verifiee',
+      motif:
+        `La disposition geometrique des parcelles n'a pas ete verifiee. La surface implantable ` +
+        `est donc deduite parcelle par parcelle (${utileSite.netteHa.toFixed(2)} ha sur ` +
+        `${utileSite.bruteHa.toFixed(2)} ha au cadastre), hypothese prudente : si les parcelles ` +
+        `sont jointives, la surface reelle est superieure.`,
+      statutMaximal: 'orange',
+    });
+  }
 
   const sansSource = [
     ...new Set(
@@ -598,6 +668,8 @@ export function calculerScoreSite(
     statut,
     scoreGlobal: scoreAjuste,
     surfaceTotaleHa,
+    surfaceUtileHa: utileSite.netteHa,
+    nbGroupesContigus,
     parcelles,
     knockOutsConsolides,
     couvertureDonnees,
@@ -615,6 +687,7 @@ export {
   deportPossibleM,
   lineaireRaccordementKm,
   surfaceUtileEstimee,
+  surfaceUtileSiteHa,
 } from './implantation.js';
 export * from './notes.js';
 export { SRC } from './sources.js';

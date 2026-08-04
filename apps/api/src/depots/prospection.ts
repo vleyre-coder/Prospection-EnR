@@ -398,3 +398,56 @@ export async function tableauDeBord(filiere: Filiere): Promise<{
     evolution,
   };
 }
+
+/**
+ * Nombre de groupes de parcelles JOINTIVES dans un site.
+ *
+ * Le score de site deduit une bande perimetrale de la surface. Applique a la somme des
+ * surfaces, ce modele suppose une emprise unique — et surestime donc la surface implantable
+ * d'un site disperse, jusqu'a 38 % sur un cas a trois parcelles. Cette fonction fournit
+ * l'information manquante : le moteur choisit alors entre le modele a une forme et une
+ * deduction parcelle par parcelle.
+ *
+ * TOLERANCE DE 10 METRES D'ECART. Deux parcelles separees par un chemin d'exploitation ou une
+ * voie communale sont exploitables comme une seule emprise : la liaison se pose sous la voirie
+ * et la cloture se prolonge. Sans tolerance, tout site traverse par un chemin serait declare
+ * disperse, ce qui est le cas le plus courant en milieu agricole. Au-dela, la separation
+ * devient une route large ou une parcelle tierce a negocier : deux emprises distinctes.
+ *
+ * Mise en oeuvre : chaque parcelle est dilatee de 5 m avant l'union, ce qui referme tout
+ * interstice de 10 m ou moins. Le buffer sert uniquement a compter les groupes ; aucune
+ * surface n'en est deduite.
+ *
+ * Projection Lambert-93 (EPSG:2154) et non WGS84 : un buffer en degres n'aurait pas de sens
+ * metrique et vaudrait 5 m en latitude pour environ 3,5 m en longitude a la latitude de la
+ * France.
+ *
+ * `null` si une geometrie manque : l'appelant traite l'inconnu comme disperse, ce qui est le
+ * sens prudent.
+ */
+export async function nbGroupesContigus(idus: string[]): Promise<number | null> {
+  if (idus.length === 0) return null;
+  if (idus.length === 1) return 1;
+
+  const l = await requeteUne<{ n: number | null; manquantes: number }>(
+    `WITH g AS (
+       SELECT geom FROM parcelle WHERE idu = ANY($1)
+     )
+     SELECT
+       CASE WHEN count(*) = 0 THEN NULL
+            ELSE ST_NumGeometries(
+                   ST_Multi(
+                     ST_Union(ST_Buffer(ST_Transform(geom, 2154), 5))
+                   )
+                 )
+       END AS n,
+       ($2::int - count(*))::int AS manquantes
+     FROM g`,
+    [idus, idus.length],
+  );
+
+  // Une parcelle absente de la table rendrait le compte faux dans le sens optimiste : on
+  // prefere rendre l'inconnu explicite.
+  if (!l || l.n == null || l.manquantes > 0) return null;
+  return l.n;
+}

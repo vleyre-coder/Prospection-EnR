@@ -10,7 +10,7 @@ import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
-import { partCouverte } from './distances.js';
+import { partsCouvertesExactes } from './distances.js';
 
 const CONNECTEUR = 'apicarto_gpu';
 
@@ -98,12 +98,21 @@ export async function urbanismeParcelle(
       destinationDominante: f.properties.destdomi ?? null,
       urlReglement: f.properties.urlfic ?? null,
       dateApprobation: f.properties.datappro ?? null,
-      // L'API renvoie la geometrie du zonage ENTIER, pas l'intersection : la part couverte
-      // s'estime donc par echantillonnage de points dans la parcelle. Ce champ designe le
-      // zonage dominant, qui gouverne un knock-out : il doit mesurer ce qu'il pretend
-      // mesurer. Voir `partCouverte`.
-      partRecouvrement: f.geometry ? partCouverte(geom, f.geometry as GeoJsonGeometry) : null,
+      // Renseigne juste apres, en une seule requete PostGIS pour toutes les zones.
+      partRecouvrement: null,
     }));
+
+    // L'API renvoie la geometrie du zonage ENTIER, pas l'intersection : la part couverte doit
+    // donc etre calculee. Ce champ designe le zonage DOMINANT, qui gouverne un knock-out : il
+    // doit mesurer ce qu'il pretend mesurer, et l'intersection exacte de PostGIS vaut mieux
+    // qu'un echantillonnage de 1 600 points execute sur la boucle d'evenements.
+    const parts = await partsCouvertesExactes(
+      geom,
+      zones.value.features.map((f) => (f.geometry as GeoJsonGeometry | null) ?? null),
+    );
+    for (let i = 0; i < (urbanisme.zonages?.length ?? 0); i += 1) {
+      urbanisme.zonages![i]!.partRecouvrement = parts[i] ?? null;
+    }
   } else {
     echecs.push('gpu/zone-urba');
   }

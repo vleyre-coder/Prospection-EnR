@@ -231,6 +231,9 @@ async function scorerSite(
   scoreGlobal: number | null;
   statutScore: string;
   surfaceTotaleHa: number;
+  surfaceUtileHa: number;
+  nbGroupesContigus: number | null;
+  limitesViabilite: unknown[];
   parcelles: unknown[];
   knockOutsConsolides: unknown[];
 } | Record<string, never>> {
@@ -244,10 +247,17 @@ async function scorerSite(
   }
   if (snapshots.length === 0) return {};
 
-  const consolide = calculerScoreSite(snapshots, filiere);
+  // La contiguite est une propriete des GEOMETRIES : le moteur ne les recoit pas, c'est donc
+  // ici qu'elle se mesure. Sans elle, il traite le site comme disperse — prudent, mais qui
+  // sous-estime un vrai regroupement jointif.
+  const groupes = await depot.nbGroupesContigus(site.idus);
+  const consolide = calculerScoreSite(snapshots, filiere, {}, groupes);
   await depot.majScoreSite(siteId, consolide.scoreGlobal, consolide.statut, {
     knockOuts: consolide.knockOutsConsolides,
     nbParcelles: snapshots.length,
+    nbGroupesContigus: consolide.nbGroupesContigus,
+    surfaceUtileHa: consolide.surfaceUtileHa,
+    limitesViabilite: consolide.limitesViabilite,
     filiere,
   });
 
@@ -255,6 +265,9 @@ async function scorerSite(
     scoreGlobal: consolide.scoreGlobal,
     statutScore: consolide.statut,
     surfaceTotaleHa: Math.round(consolide.surfaceTotaleHa * 100) / 100,
+    surfaceUtileHa: Math.round(consolide.surfaceUtileHa * 100) / 100,
+    nbGroupesContigus: consolide.nbGroupesContigus,
+    limitesViabilite: consolide.limitesViabilite,
     parcelles: consolide.parcelles,
     knockOutsConsolides: consolide.knockOutsConsolides,
   };

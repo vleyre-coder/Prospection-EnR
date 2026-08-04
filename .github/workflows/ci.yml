@@ -49,7 +49,7 @@ jobs:
         run: npm test
 
   migrations:
-    name: Migrations SQL sur PostGIS
+    name: Migrations SQL et calculs PostGIS
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -89,3 +89,14 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
         run: npm run migrate --workspace @enr/api
+
+      # Deux calculs metier vivent en SQL : la part de recouvrement d'un zonage (qui
+      # designe le zonage dominant, donc un knock-out) et le nombre de groupes de parcelles
+      # jointives d'un site (qui gouverne la surface implantable). Dans le job precedent ils
+      # sont ignores faute de base, et un test ignore protege de rien. C'est ici qu'ils
+      # tournent pour de vrai.
+      - name: Tester les calculs geometriques contre PostGIS
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: npx tsx --test test/postgis.test.ts
+        working-directory: apps/api

@@ -140,3 +140,49 @@ export function surfaceUtileEstimee(
 // COEFFICIENT_TRACE et lineaireRaccordementKm vivent desormais dans @enr/core : la carte
 // en a besoin autant que le moteur, et deux definitions auraient fini par diverger.
 export { COEFFICIENT_TRACE, lineaireRaccordementKm } from '@enr/core';
+
+/**
+ * Surface implantable d'un SITE, c'est-a-dire d'un ensemble de parcelles.
+ *
+ * POURQUOI CE N'EST PAS `surfaceUtileEstimee(surfaceTotale)`. Le modele d'erosion
+ * perimetrale raisonne sur UNE forme : il deduit une bande le long d'un seul contour. Applique
+ * a la somme des surfaces d'un site, il suppose donc implicitement que les parcelles sont
+ * jointives et forment une emprise unique. Si elles sont dispersees, chaque groupe porte sa
+ * propre cloture, sa propre piste et son propre acces : la deduction reelle est bien plus
+ * importante. Mesure sur un cas a trois parcelles, l'ecart atteignait 38 % — dans le sens de
+ * la SURESTIMATION, celui qui fait perdre du temps sur un site non finançable.
+ *
+ * Deux regimes, selon ce que l'on sait de la geometrie :
+ *   - `nbGroupesContigus === 1` : une seule emprise, le modele a une forme s'applique ;
+ *   - sinon (plusieurs groupes, ou contiguite inconnue) : la deduction est faite parcelle par
+ *     parcelle puis sommee. C'est exact pour des parcelles dispersees et prudent quand on
+ *     ignore la disposition — l'inverse du choix qui se paie en visites inutiles.
+ */
+export function surfaceUtileSiteHa(
+  surfacesParcellesHa: readonly (number | null)[],
+  morcellementIndices: readonly (number | null)[],
+  filiere: string,
+  nbGroupesContigus: number | null,
+): { netteHa: number; bruteHa: number; methode: 'emprise_unique' | 'par_parcelle' } {
+  // Arrondi au metre carre : la somme binaire de dix fois 0,3 ha vaut 2,9999999999999996.
+  const bruteHa =
+    Math.round(surfacesParcellesHa.reduce<number>((acc, ha) => acc + (ha ?? 0), 0) * 10000) / 10000;
+
+  if (nbGroupesContigus === 1) {
+    // Morcellement du site : le plus decoupe de ses composants gouverne, un site n'est pas
+    // plus compact que sa parcelle la plus tourmentee.
+    const indices = morcellementIndices.filter((i): i is number => i != null);
+    const morcellement = indices.length > 0 ? Math.max(...indices) : null;
+    const utile = surfaceUtileEstimee(bruteHa, morcellement, filiere);
+    return { netteHa: utile?.netteHa ?? bruteHa, bruteHa, methode: 'emprise_unique' as const };
+  }
+
+  let netteHa = 0;
+  for (let i = 0; i < surfacesParcellesHa.length; i += 1) {
+    const ha = surfacesParcellesHa[i] ?? null;
+    if (ha == null) continue;
+    const utile = surfaceUtileEstimee(ha, morcellementIndices[i] ?? null, filiere);
+    netteHa += utile?.netteHa ?? ha;
+  }
+  return { netteHa: Math.round(netteHa * 10000) / 10000, bruteHa, methode: 'par_parcelle' };
+}
