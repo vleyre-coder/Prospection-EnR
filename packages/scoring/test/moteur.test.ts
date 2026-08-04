@@ -640,3 +640,105 @@ describe('score de site : les garde-fous de la parcelle s’appliquent aussi', (
     );
   });
 });
+
+/**
+ * Corrections E3 et E4 : deux grandeurs surestimees, chacune pesant lourd dans le score.
+ *
+ * E3 - la surface notee etait la surface CADASTRALE, sans deduire reculs, piste
+ * peripherique ni acces des secours. L'ecart courant est de 15 a 30 %, d'autant plus fort
+ * que la parcelle est petite ou decoupee.
+ * E4 - la distance au poste etait celle du vol d'oiseau, alors qu'une liaison suit les
+ * emprises publiques. Le critere pese jusqu'a 17,7 % du score (stockage).
+ */
+describe('surestimations corrigees : surface implantable et lineaire de raccordement', () => {
+  it('deduit une bande perimetrale de la surface cadastrale', () => {
+    const r = calculerScore(parcelleType(), 'solaire_sol');
+    const surf = r.criteres.find((c) => c.id === 'surf_utile');
+    assert.ok(surf, 'le critere de surface doit etre evalue');
+    // 12 ha au cadastre, indice de morcellement 20 : la surface nette est inferieure.
+    assert.ok(
+      (surf.valeurBrute as number) < 12,
+      `surface notee ${surf.valeurBrute} ha, elle devrait etre inferieure aux 12 ha cadastraux`,
+    );
+    assert.match(surf.valeurAffichee, /implantables/);
+    assert.match(surf.valeurAffichee, /au cadastre/);
+  });
+
+  it('ne deduit rien en eolien, ou la surface se raisonne en positions de machines', () => {
+    const r = calculerScore(parcelleType(), 'eolien_terrestre');
+    const surf = r.criteres.find((c) => c.id === 'surf_utile');
+    assert.equal(surf?.valeurBrute, 12, "aucune bande perimetrale n'a de sens pour un parc");
+  });
+
+  it('penalise davantage une parcelle decoupee, a surface cadastrale egale', () => {
+    const compacte = calculerScore(
+      parcelleType((p) => {
+        p.foncier.morcellementIndice = 0;
+      }),
+      'solaire_sol',
+    );
+    const enLanieres = calculerScore(
+      parcelleType((p) => {
+        p.foncier.morcellementIndice = 100;
+      }),
+      'solaire_sol',
+    );
+    const a = compacte.criteres.find((c) => c.id === 'surf_utile')!.valeurBrute as number;
+    const b = enLanieres.criteres.find((c) => c.id === 'surf_utile')!.valeurBrute as number;
+    assert.ok(
+      b < a,
+      `une parcelle en lanieres (${b} ha) doit offrir moins que la meme compacte (${a} ha)`,
+    );
+  });
+
+  it('applique le seuil economique a la surface implantable, non a la surface cadastrale', () => {
+    // 0,65 ha au cadastre en solaire (minimum 1 ha) : brut = 65 % du seuil, donc aucune
+    // limite ; net = environ 0,57 ha, soit sous les 60 % qui declenchent le plafonnement.
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.identite.contenanceM2 = 6500;
+        p.identite.surfaceCalculeeM2 = 6500;
+      }),
+      'solaire_sol',
+    );
+    const limite = r.limitesViabilite.find((l) => l.id.startsWith('viab_surface'));
+    assert.ok(limite, 'le seuil doit se juger sur la surface implantable');
+    assert.match(limite.motif, /implantables/);
+    assert.match(limite.motif, /au cadastre/);
+  });
+
+  it('note le lineaire de raccordement estime, et non la distance a vol d’oiseau', () => {
+    const r = calculerScore(parcelleType(), 'bess');
+    const racc = r.criteres.find((c) => c.id === 'racc_distance_poste');
+    assert.ok(racc);
+    // 4,2 km a vol d'oiseau -> 5,67 km de trace estime.
+    assert.match(racc.valeurAffichee, /5,7 km de trace estime/);
+    assert.match(racc.valeurAffichee, /4,2 km a vol d'oiseau/);
+    // La valeur brute reste la mesure, pas l'estimation : c'est elle qui est tracable.
+    assert.equal(racc.valeurBrute, 4.2);
+  });
+
+  it('le lineaire majore abaisse la note par rapport au vol d’oiseau', () => {
+    // En stockage, la courbe est raide : 4,2 km note ~57, 5,67 km note ~45.
+    const proche = calculerScore(
+      parcelleType((p) => {
+        p.raccordement.posteLePlusProche!.distanceKm = 4.2;
+      }),
+      'bess',
+    );
+    const noteAvecTrace = proche.criteres.find((c) => c.id === 'racc_distance_poste')!.note!;
+    // Note qu'aurait donnee la distance a vol d'oiseau, obtenue en placant le poste
+    // suffisamment pres pour que le trace estime vaille 4,2 km : 4,2 / 1,35 = 3,11 km.
+    const equivalent = calculerScore(
+      parcelleType((p) => {
+        p.raccordement.posteLePlusProche!.distanceKm = 3.11;
+      }),
+      'bess',
+    );
+    const noteVolOiseau = equivalent.criteres.find((c) => c.id === 'racc_distance_poste')!.note!;
+    assert.ok(
+      noteAvecTrace < noteVolOiseau,
+      `le trace majore doit penaliser : ${noteAvecTrace} devrait etre sous ${noteVolOiseau}`,
+    );
+  });
+});

@@ -271,6 +271,8 @@ export interface Referentiel {
   ponderationsDefaut: Record<Filiere, ProfilPonderation>;
   reglementation: Record<string, Record<string, RegleReglementaire>>;
   libellesRegime: Record<string, string>;
+  /** Reserve a afficher avec le regime d'implantation : il est presume, non etabli. */
+  reserveRegime: string;
   referentielDerniereVerification: string;
   avertissements: Avertissement[];
   palette: {

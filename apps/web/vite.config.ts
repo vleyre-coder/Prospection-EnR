@@ -27,6 +27,25 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        /**
+         * Decoupage du paquet.
+         *
+         * Tout partait en un seul fragment de 1,1 Mo : le premier affichage attendait donc
+         * le telechargement de MapLibre entier avant le moindre pixel, y compris pour un
+         * utilisateur qui ouvre la vue liste. Les trois blocs isoles ici sont volumineux,
+         * stables d'une version a l'autre, et donc bien caches par le navigateur : une mise
+         * a jour de l'application ne les fait pas retelecharger.
+         */
+        manualChunks: {
+          // Le plus gros morceau, et le seul qui ne serve qu'a la carte.
+          maplibre: ['maplibre-gl'],
+          react: ['react', 'react-dom'],
+          requetes: ['@tanstack/react-query', 'zustand'],
+        },
+      },
+    },
   },
 });

@@ -895,6 +895,17 @@ button:focus-visible,
   margin-top: 2px;
 }
 
+/* Reserve attachee au regime d'implantation : lisible, mais visuellement en retrait du
+   regime lui-meme, qu'elle nuance sans le contredire. */
+.synthese-reserve {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--texte-faible);
+  margin-top: 4px;
+  padding-left: 7px;
+  border-left: 2px solid var(--bordure);
+}
+
 .jauge {
   height: 5px;
   border-radius: 3px;

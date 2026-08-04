@@ -23,7 +23,12 @@ import {
   type Palier,
 } from './notes.js';
 import { SRC } from './sources.js';
-import { deportPossibleM } from './implantation.js';
+import {
+  COEFFICIENT_TRACE,
+  deportPossibleM,
+  lineaireRaccordementKm,
+  surfaceUtileEstimee,
+} from './implantation.js';
 
 export interface ContexteEval {
   filiere: Filiere;
@@ -115,15 +120,24 @@ const COURBE_DISTANCE_POSTE: Record<Filiere, readonly Palier[]> = {
 const racc_distance_poste: Evaluateur = (s, ctx) => {
   const poste = s.raccordement.posteLePlusProche;
   if (!poste) return indispo(SRC.postes);
-  const note = paliers(poste.distanceKm, COURBE_DISTANCE_POSTE[ctx.filiere]);
+
+  // La note porte sur le LINEAIRE estime, pas sur la distance a vol d'oiseau : c'est le
+  // lineaire qui se paie. Les courbes ci-dessus sont calees sur des distances de trace.
+  const lineaire = lineaireRaccordementKm(poste.distanceKm);
+  const note = paliers(lineaire, COURBE_DISTANCE_POSTE[ctx.filiere]);
+
   return {
     note,
     valeurBrute: poste.distanceKm,
-    valeurAffichee: `${formatNombre(poste.distanceKm, 'km')} - ${poste.nom} (${poste.gestionnaire})`,
+    valeurAffichee:
+      `${formatNombre(lineaire, 'km')} de trace estime ` +
+      `(${formatNombre(poste.distanceKm, 'km')} a vol d'oiseau) - ${poste.nom} (${poste.gestionnaire})`,
     commentaire:
-      poste.distanceKm > 10
-        ? "Distance elevee : le cout de la liaison de raccordement risque de dominer le budget du projet."
-        : "Distance compatible avec un raccordement economiquement raisonnable, sous reserve de l'etude du gestionnaire.",
+      `Le lineaire est estime en majorant la distance a vol d'oiseau de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % : ` +
+      `une liaison suit les emprises publiques et contourne le bati. ` +
+      (lineaire > 10
+        ? "A ce lineaire, le cout de la liaison risque de dominer le budget du projet."
+        : "Lineaire compatible avec un raccordement economiquement raisonnable, sous reserve de l'etude du gestionnaire."),
     sourceKey: SRC.postes,
   };
 };
@@ -579,9 +593,13 @@ const sol_potentiel_agronomique: Evaluateur = (s) => {
       [100, 5],
     ]),
     valeurBrute: p,
-    valeurAffichee: `Indice ${formatNombre(p, '', 0)}/100`,
+    valeurAffichee: `Indice estime ${formatNombre(p, '', 0)}/100 (proxy RPG)`,
     commentaire:
-      "Critere inverse : plus le potentiel agronomique est eleve, plus le conflit d'usage et l'opposition de la profession agricole sont probables.",
+      "Critere inverse : plus le potentiel agronomique est eleve, plus le conflit d'usage et " +
+      "l'opposition de la profession agricole sont probables. ATTENTION : cet indice n'est pas " +
+      "une mesure de la qualite du sol. Il est DEDUIT du groupe de culture declare au RPG, qui " +
+      "reflete autant le choix de l'exploitant que l'aptitude du terrain. La qualite reelle " +
+      "releve des bases regionales IGCS, sans API nationale.",
     sourceKey: SRC.rpg,
   };
 };
@@ -753,8 +771,13 @@ const topo_altitude: Evaluateur = (s) => {
 // ---------------------------------------------------------------------------
 
 const surf_utile: Evaluateur = (s, ctx) => {
-  const ha = ctx.surfaceHa;
-  if (ha == null) return indispo(SRC.cadastre);
+  const brute = ctx.surfaceHa;
+  if (brute == null) return indispo(SRC.cadastre);
+
+  // La note porte sur la surface reellement IMPLANTABLE, pas sur la surface cadastrale :
+  // reculs, piste peripherique et acces des secours en retirent couramment 15 a 30 %.
+  const utile = surfaceUtileEstimee(brute, s.foncier.morcellementIndice, ctx.filiere);
+  const ha = utile?.netteHa ?? brute;
   const meta = FILIERES_META[ctx.filiere];
   const min = meta.surfaceUtileMinHa;
   const opt = meta.surfaceUtileOptimaleHa;
@@ -780,11 +803,19 @@ const surf_utile: Evaluateur = (s, ctx) => {
           [opt * 2.5, 100],
         ];
 
+  const deduction =
+    utile && utile.coefficient < 0.995
+      ? ` (${formatNombre(brute, 'ha', 2)} au cadastre, soit ${Math.round((1 - utile.coefficient) * 100)} % deduits)`
+      : '';
+
   return {
     note: paliers(ha, courbe),
     valeurBrute: ha,
-    valeurAffichee: `${formatNombre(ha, 'ha', 2)}`,
-    commentaire: `Seuil economique indicatif pour la filiere : ${formatNombre(min, 'ha', 1)} minimum, ${formatNombre(opt, 'ha', 0)} pour une pleine competitivite. Ces seuils sont economiques, non reglementaires.`,
+    valeurAffichee: `${formatNombre(ha, 'ha', 2)} implantables${deduction}`,
+    commentaire:
+      `${utile?.detail ?? ''} Seuil economique indicatif pour la filiere : ` +
+      `${formatNombre(min, 'ha', 1)} minimum, ${formatNombre(opt, 'ha', 0)} pour une pleine ` +
+      `competitivite. Ces seuils sont economiques, non reglementaires.`,
     sourceKey: SRC.cadastre,
   };
 };
@@ -836,11 +867,21 @@ const surf_compacite: Evaluateur = (s) => {
  * Note de proximite d'un zonage naturel. Le recouvrement est traite par les knock-outs
  * lorsqu'il s'agit d'une protection forte ; ici on note la PROXIMITE (effet sur l'instruction).
  */
+/**
+ * Rayon dans lequel les zonages naturels sont recherches (aligne sur le connecteur).
+ * Au-dela, l'application ne sait rien : elle ne conclut donc pas a l'absence, elle constate
+ * qu'aucun site n'a ete trouve DANS ce rayon.
+ */
+const RAYON_ANALYSE_ZONAGES_M = 10000;
+
 function noteProximiteZonage(
   z: { recouvre: boolean | null; distanceM: number | null; partRecouvrement: number | null },
   courbe: readonly Palier[],
 ): number | null {
   if (z.recouvre === true) return 5;
+  // `recouvre === false` avec une distance inconnue signifie que la recherche dans le rayon
+  // d'analyse n'a rien renvoye. La note reste volontairement en deça du maximum : le rayon
+  // est fini, et un zonage situe juste au-dela n'aurait pas ete vu.
   if (z.distanceM == null) return z.recouvre === false ? 90 : null;
   return paliers(z.distanceM, courbe);
 }
@@ -870,7 +911,7 @@ const env_proximite_natura2000: Evaluateur = (s) => {
         ? `Recouvrement Natura 2000${plusProche?.nom ? ` - ${plusProche.nom}` : ''}`
         : plusProche?.distanceM != null
           ? `${formatDistance(plusProche.distanceM)}${plusProche.nom ? ` - ${plusProche.nom}` : ''}`
-          : 'Aucun site a proximite',
+          : `Aucun site trouve dans un rayon de ${RAYON_ANALYSE_ZONAGES_M / 1000} km`,
     commentaire:
       "Toute proximite declenche une evaluation des incidences Natura 2000, meme sans recouvrement. Un recouvrement rend le projet tres difficile a autoriser.",
     sourceKey: SRC.nature,
@@ -1402,15 +1443,33 @@ const fonc_maitrise: Evaluateur = (s) => {
   if (s.foncier.proprietairePublic != null) sousNotes.push(s.foncier.proprietairePublic ? 60 : 85);
   const note = moyenne(...sousNotes);
   if (note == null) return indispo(SRC.foncier);
+
   const morceaux: string[] = [];
   if (s.foncier.proprietairePublic) morceaux.push('proprietaire public');
   if (s.foncier.indivisionProbable) morceaux.push('indivision probable');
+
+  /**
+   * Ce critere agrege jusqu'a trois indicateurs, en ignorant ceux qui manquent.
+   *
+   * La moyenne des seuls indicateurs disponibles reste la bonne operation, mais elle est
+   * MUETTE sur ce qu'elle ignore : au niveau du critere, la couverture le compte comme
+   * pleinement renseigne alors qu'un seul des trois indicateurs a pu etre lu. La fiche dit
+   * donc combien ont reellement servi.
+   */
+  const TOTAL_INDICATEURS = 3;
+  const partiel = sousNotes.length < TOTAL_INDICATEURS;
+
   return {
     note,
     valeurBrute: null,
-    valeurAffichee: morceaux.length ? morceaux.join(' - ') : 'Configuration fonciere simple',
+    valeurAffichee:
+      (morceaux.length ? morceaux.join(' - ') : 'Configuration fonciere simple') +
+      (partiel ? ` (${sousNotes.length}/${TOTAL_INDICATEURS} indicateurs disponibles)` : ''),
     commentaire:
-      "Un proprietaire public impose une mise en concurrence (convention d'occupation, AOT) mais offre une meilleure securite juridique.",
+      "Un proprietaire public impose une mise en concurrence (convention d'occupation, AOT) mais offre une meilleure securite juridique." +
+      (partiel
+        ? ` Note etablie sur ${sousNotes.length} indicateur(s) sur ${TOTAL_INDICATEURS} : elle est moins assuree que la couverture globale ne le laisse paraitre.`
+        : ''),
     sourceKey: SRC.foncier,
   };
 };

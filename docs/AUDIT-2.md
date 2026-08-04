@@ -42,6 +42,23 @@ simulations réelles.
 > | C6 état de qualification volatil | **corrigé** | table `tache_qualification`, campagnes interrompues signalées |
 > | C7 aucune limitation de débit | **corrigé** | seau à jetons sur connexion, qualification, exports — 2 tests |
 > | C8 deux « couverture » homonymes | **corrigé** | commentaires de colonnes, migration 009 |
+>
+> **Erreurs métier E3 à E7 et points secondaires (D), corrigés ensuite :**
+>
+> | Point | État | Vérification |
+> |---|---|---|
+> | E3 surface utile sans déduction | **corrigé** | érosion du contour, seuil économique sur la surface nette — 4 tests |
+> | E4 distance poste à vol d'oiseau | **corrigé** | linéaire majoré de 35 %, les deux valeurs affichées — 2 tests |
+> | E5 « aucun site à proximité » | **corrigé** | libellé « aucun site trouvé dans un rayon de 10 km » |
+> | E6 potentiel agronomique en indice | **corrigé** | affiché « indice estimé … (proxy RPG) », commentaire explicite |
+> | E7 régime PV déduit du seul type de sol | **corrigé** | libellés « présumé » + réserve affichée sous le régime |
+> | D validation des emprises de requête | **corrigé** | ordre, domaine et étendue vérifiés — 7 tests |
+> | D paquet frontend monolithique | **corrigé** | 1,12 Mo → 130 ko applicatif, MapLibre isolé et caché |
+> | D `moyenne()` muette sur ce qu'elle ignore | **corrigé** | `fonc_maitrise` affiche « n/3 indicateurs disponibles » |
+> | D accessibilité des états dynamiques | **corrigé** | `aria-live` sur l'avancement et les bandeaux de la carte |
+> | D échec d'installation des couches jamais affiché | **corrigé** | bandeau `role="alert"` — le message était capturé sans être rendu |
+>
+> **78 tests** (37 scoring, 41 API) contre 19 au moment du premier audit.
 
 **Périmètre mesuré :** 21 648 lignes (TypeScript, TSX), 8 migrations SQL (741 lignes),
 3 365 lignes de documentation, **4 fichiers de test (770 lignes, 41 tests)**, **0 intégration

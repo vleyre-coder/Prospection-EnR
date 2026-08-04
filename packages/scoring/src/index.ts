@@ -33,6 +33,7 @@ import { EVALUATEURS, type ContexteEval } from './criteres-eval.js';
 import { evaluerKnockOuts } from './knockouts.js';
 import { construireSeuilsProcedure } from './seuils-procedure.js';
 import { borne } from './notes.js';
+import { surfaceUtileEstimee } from './implantation.js';
 
 /**
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
@@ -144,11 +145,28 @@ export function determinerRegimeImplantation(s: ParcelleSnapshot, filiere: Filie
 }
 
 export const LIBELLES_REGIME: Record<string, string> = {
-  pv_sol_terrain_degrade: 'Photovoltaique au sol sur terrain degrade ou artificialise',
-  agrivoltaisme: 'Agrivoltaisme sur parcelle agricole exploitee',
+  pv_sol_terrain_degrade: 'Photovoltaique au sol sur terrain degrade ou artificialise (presume)',
+  agrivoltaisme: 'Agrivoltaisme sur parcelle agricole exploitee (presume)',
   pv_sol_document_cadre: 'Photovoltaique au sol sur terrain inculte (document-cadre departemental)',
   pv_sol_defrichement: 'Photovoltaique au sol avec defrichement (fortement penalise)',
 };
+
+/**
+ * Reserve attachee au regime d'implantation, affichee avec lui.
+ *
+ * Le regime est DEDUIT d'une classification d'occupation du sol. Or la qualification d'un
+ * terrain en « degrade » au sens du decret n° 2023-1408 du 29 decembre 2023 suppose
+ * d'etablir l'historique du site - ancienne carriere, decharge, friche industrielle, terrain
+ * pollue - ce qu'aucune couche d'occupation du sol ne dit. De meme, « exploitee » au sens du
+ * regime agrivoltaique s'apprecie sur l'activite agricole reelle, pas sur une declaration PAC.
+ *
+ * Le regime affiche oriente donc la lecture ; il ne la tranche pas.
+ */
+export const RESERVE_REGIME =
+  "Regime PRESUME, deduit de la nature du sol observee. Le classement en terrain degrade au " +
+  "sens du decret du 29 decembre 2023 suppose d'etablir l'historique du site (ancienne " +
+  "carriere, decharge, friche, pollution), et le caractere agricole exploite s'apprecie sur " +
+  "l'activite reelle. A confirmer avant tout depot.";
 
 /**
  * Limites de viabilite economique.
@@ -160,10 +178,16 @@ export const LIBELLES_REGIME: Record<string, string> = {
  */
 function evaluerLimitesViabilite(
   filiere: Filiere,
-  surfaceHa: number | null,
+  surfaceCadastraleHa: number | null,
+  morcellementIndice: number | null = null,
 ): LimiteViabilite[] {
   const limites: LimiteViabilite[] = [];
-  if (surfaceHa == null) return limites;
+  if (surfaceCadastraleHa == null) return limites;
+
+  // Le seuil economique porte sur la surface IMPLANTABLE, pas sur la surface cadastrale :
+  // c'est elle qui determine la puissance installable, donc le chiffre d'affaires.
+  const utile = surfaceUtileEstimee(surfaceCadastraleHa, morcellementIndice, filiere);
+  const surfaceHa = utile?.netteHa ?? surfaceCadastraleHa;
 
   const meta = FILIERES_META[filiere];
   const min = meta.surfaceUtileMinHa;
@@ -172,14 +196,14 @@ function evaluerLimitesViabilite(
     limites.push({
       id: 'viab_surface_tres_insuffisante',
       libelle: 'Surface tres insuffisante',
-      motif: `La parcelle mesure ${surfaceHa.toFixed(2)} ha, soit moins du quart de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet qu'agregee a des parcelles voisines au sein d'un site.`,
+      motif: `La parcelle offre environ ${surfaceHa.toFixed(2)} ha implantables (${surfaceCadastraleHa.toFixed(2)} ha au cadastre), soit moins du quart de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet qu'agregee a des parcelles voisines au sein d'un site.`,
       statutMaximal: 'rouge',
     });
   } else if (surfaceHa < min * 0.6) {
     limites.push({
       id: 'viab_surface_insuffisante',
       libelle: 'Surface insuffisante seule',
-      motif: `La parcelle mesure ${surfaceHa.toFixed(2)} ha, en dessous de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des parcelles voisines pour atteindre une taille finançable.`,
+      motif: `La parcelle offre environ ${surfaceHa.toFixed(2)} ha implantables (${surfaceCadastraleHa.toFixed(2)} ha au cadastre), en dessous de la surface minimale indicative de ${min} ha pour la filiere ${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des parcelles voisines pour atteindre une taille finançable.`,
       statutMaximal: 'orange',
     });
   }
@@ -200,7 +224,7 @@ export function calculerScore(
   // -- 1. Criteres redhibitoires -------------------------------------------
   const knockOuts: KnockOut[] = evaluerKnockOuts(snapshot, { filiere, options, surfaceHa });
   const bloquants = knockOuts.filter((k) => !k.derogeable);
-  const limitesViabilite = evaluerLimitesViabilite(filiere, surfaceHa);
+  const limitesViabilite = evaluerLimitesViabilite(filiere, surfaceHa, snapshot.foncier.morcellementIndice);
 
   // -- 2. Criteres ponderes ------------------------------------------------
   const criteres: EvaluationCritere[] = [];

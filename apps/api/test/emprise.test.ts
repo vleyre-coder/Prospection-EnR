@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decouperBbox, limiterAlaFrance, pointDansBbox, FRANCE_METRO } from '../src/geo.js';
+import { bboxDepuisChaine, decouperBbox, limiterAlaFrance, pointDansBbox, FRANCE_METRO } from '../src/geo.js';
 import { ErreurEmprise, normaliserEmprise } from '../src/services/qualification.js';
 import type { Bbox } from '../src/geo.js';
 
@@ -77,4 +77,45 @@ test('une emprise plus petite que la cellule produit une cellule unique', () => 
 
 test('limiterAlaFrance rend null pour une emprise disjointe', () => {
   assert.equal(limiterAlaFrance([20, 45, 22, 47]), null);
+});
+
+// ---------------------------------------------------------------------------
+// Analyse des emprises passees en parametre de requete
+// ---------------------------------------------------------------------------
+
+test('une emprise de requete bien formee est acceptee', () => {
+  assert.deepEqual(bboxDepuisChaine('1.73,48.14,1.79,48.18'), [1.73, 48.14, 1.79, 48.18]);
+});
+
+test('une emprise inversee est refusee, plutot que rendue vide en silence', () => {
+  // `ST_MakeEnvelope` accepte des bornes inversees et produit une enveloppe vide : la
+  // requete ne renvoie alors rien, ce qui est indiscernable d'un secteur sans objet.
+  assert.equal(bboxDepuisChaine('1.79,48.14,1.73,48.18'), null);
+  assert.equal(bboxDepuisChaine('1.73,48.18,1.79,48.14'), null);
+});
+
+test('une emprise degeneree est refusee', () => {
+  assert.equal(bboxDepuisChaine('1.73,48.14,1.73,48.18'), null);
+  assert.equal(bboxDepuisChaine('1.73,48.14,1.79,48.14'), null);
+});
+
+test('une emprise hors du domaine geographique est refusee', () => {
+  assert.equal(bboxDepuisChaine('-200,48,10,49'), null);
+  assert.equal(bboxDepuisChaine('1,-95,2,49'), null);
+  assert.equal(bboxDepuisChaine('1,48,2,95'), null);
+});
+
+test('une emprise mondiale est refusee avant d’atteindre la base', () => {
+  assert.equal(bboxDepuisChaine('-180,-90,180,90'), null);
+});
+
+test('une emprise malformee reste refusee', () => {
+  assert.equal(bboxDepuisChaine(''), null);
+  assert.equal(bboxDepuisChaine('1,2,3'), null);
+  assert.equal(bboxDepuisChaine('a,b,c,d'), null);
+});
+
+test('l’emprise nationale par defaut des routes reste acceptee', () => {
+  // Valeur de repli utilisee par plusieurs routes cartographiques : elle doit passer.
+  assert.notEqual(bboxDepuisChaine('-5.5,41,10,51.5'), null);
 });

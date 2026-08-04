@@ -202,7 +202,11 @@ présentés avec une valeur juridique `indicative` et un avertissement explicite
 | Indicateur | Mode de calcul | Ce qu'il ne remplace pas |
 |---|---|---|
 | Pré-enjeu espèces protégées | proximité et recouvrement des zonages d'inventaire et de protection | un cycle biologique complet d'inventaires de terrain |
-| Potentiel agronomique | proxy dérivé du groupe de culture RPG | la base sol régionale (IGCS), sans API nationale |
+| Potentiel agronomique | proxy dérivé du groupe de culture RPG — affiché « indice estimé … (proxy RPG) » | la base sol régionale (IGCS), sans API nationale |
+| Surface implantable | érosion du contour d'une bande périmétrale, périmètre reconstruit et majoré par le morcellement | un plan de masse et l'avis du SDIS |
+| Linéaire de raccordement | distance à vol d'oiseau majorée de 35 % | l'étude de raccordement du gestionnaire de réseau |
+| Part couverte par un zonage d'urbanisme | échantillonnage de ~400 points dans la parcelle | une intersection géométrique exacte |
+| Régime d'implantation photovoltaïque | déduit de la nature du sol observée, affiché « présumé » | l'examen de l'historique du site (décret du 29 décembre 2023) |
 | Indice de morcellement | rapport périmètre / périmètre du cercle équivalent | — |
 | Surface d'un seul tenant | agrégation des parcelles contiguës de même section | une analyse de propriété réelle |
 

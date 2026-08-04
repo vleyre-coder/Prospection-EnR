@@ -214,7 +214,13 @@ function Synthese({
   referentiel: Referentiel;
   personnalise: boolean;
 }): JSX.Element {
-  const couleur = referentiel.palette.couleursScore[score.statut];
+  // Un knock-out BLOQUANT ecarte la parcelle en droit ; un knock-out derogeable ne fait que
+  // plafonner. Seul le premier justifie la couleur et le libelle redhibitoires.
+  const redhibitoire = score.knockOuts.some((k) => !k.derogeable);
+  const couleur = redhibitoire
+    ? referentiel.palette.couleurRedhibitoire
+    : referentiel.palette.couleursScore[score.statut];
+  const reserveRegime = referentiel.reserveRegime;
   const surfaceHa =
     (fiche.parcelle.surfaceCalculeeM2 ?? fiche.parcelle.contenanceM2 ?? 0) / 10000;
 
@@ -235,12 +241,23 @@ function Synthese({
           )}
         </div>
         <div className="synthese-texte">
-          <div className="synthese-statut">{referentiel.palette.libellesScore[score.statut]}</div>
-          <div className="synthese-regime">
+          {/* Un rouge redhibitoire et un rouge de score faible portaient le meme libelle.
+              Le premier est definitif en l'etat du droit, le second est une question de
+              priorite : la fiche doit les nommer differemment, comme la carte les colore
+              differemment. */}
+          <div className="synthese-statut">
+            {redhibitoire
+              ? referentiel.palette.libelleRedhibitoire
+              : referentiel.palette.libellesScore[score.statut]}
+          </div>
+          <div className="synthese-regime" title={score.regimeImplantation ? reserveRegime : undefined}>
             {score.regimeImplantation
               ? (referentiel.libellesRegime[score.regimeImplantation] ?? score.regimeImplantation)
-              : referentiel.palette.descriptionsScore[score.statut]}
+              : redhibitoire
+                ? referentiel.palette.descriptionRedhibitoire
+                : referentiel.palette.descriptionsScore[score.statut]}
           </div>
+          {score.regimeImplantation && <div className="synthese-reserve">{reserveRegime}</div>}
           <div className="synthese-regime">
             {formatNombre(surfaceHa, 'ha', 2)}
             {personnalise && ' · ponderation personnalisee'}

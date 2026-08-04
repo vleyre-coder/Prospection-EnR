@@ -161,6 +161,36 @@ de lui-même. Le connecteur distingue pour cela « aucune couche » de « compta
 cette distinction, `count(*)` renvoyait 0 et la fiche affichait « 0 élevage à moins de
 10 km » comme un constat de terrain.
 
+### Surface implantable, et non surface cadastrale
+
+Le critère de surface notait la surface **cadastrale**, sans déduire les reculs, la piste
+périphérique ni la bande d'accès des secours. L'écart courant entre surface cadastrale et
+surface implantable va de 15 à 30 %, et il croît quand la parcelle rétrécit ou se découpe —
+c'est-à-dire précisément là où la décision est serrée.
+
+La surface notée est désormais estimée par **érosion du contour** d'une largeur dépendant de
+la filière : 5 m en solaire et méthanisation, 7 m en stockage (bande incendie plus large),
+**0 m en éolien** où la surface se raisonne en positions de machines et non en emprise
+continue. Le périmètre, absent du snapshot, est reconstruit à partir du cercle de même
+surface puis majoré par l'indice de morcellement : une parcelle en lanières perd davantage
+qu'une parcelle compacte de même surface.
+
+La fiche affiche les deux valeurs — « 11,32 ha implantables (12,00 ha au cadastre, soit 6 %
+déduits) » — et le **seuil économique s'applique à la surface nette**, puisque c'est elle qui
+détermine la puissance installable. Ce sont des ordres de grandeur de conception, pas des
+prescriptions : les valeurs réelles figurent dans l'avis du SDIS et l'arrêté ICPE applicable.
+
+### Linéaire de raccordement, et non distance à vol d'oiseau
+
+Une liaison de raccordement suit les emprises publiques, contourne le bâti et les parcelles
+dont le passage n'est pas négocié. Le rapport observé entre linéaire réel et distance à vol
+d'oiseau est de 1,3 à 1,6 ; **1,35** est retenu comme valeur prudente.
+
+L'enjeu n'est pas cosmétique : ce critère pèse 17,7 % du score en stockage et 9,2 % en
+solaire. Noter la distance à vol d'oiseau sous-estimait le coût de liaison d'un tiers, et
+faussait donc le classement entre parcelles. La fiche affiche « 5,7 km de tracé estimé
+(4,2 km à vol d'oiseau) » ; la valeur brute conservée reste la mesure, pas l'estimation.
+
 ## 4. Règles propres à chaque filière
 
 ### 4.1 Solaire au sol et agrivoltaïsme
@@ -250,7 +280,7 @@ sans date n'est pas exploitable pour décider.
 
 ## 8. Tests
 
-`packages/scoring/test/moteur.test.ts` — 31 tests couvrant :
+`packages/scoring/test/moteur.test.ts` — 37 tests couvrant :
 
 - une parcelle favorable notée verte pour les quatre filières ;
 - l'asymétrie des seuils d'éloignement (une habitation proche écarte l'éolien, pas le solaire) ;
@@ -262,6 +292,9 @@ sans date n'est pas exploitable pour décider.
   correcte, et distinction d'avec un comptage réellement nul ;
 - le score de site : parcelles grises → site gris, knock-out dérogeable → pas de vert,
   surface appréciée sur le site et non parcelle par parcelle ;
+- la déduction de surface implantable, y compris son absence en éolien et son aggravation
+  sur une parcelle en lanières ;
+- la majoration du linéaire de raccordement et son effet sur la note ;
 - AOP viticole, document-cadre départemental présent ou non ingéré ;
 - poste saturé avec et sans renforcement programmé (orange contre rouge) ;
 - bascule en gris sous le seuil de couverture ;
@@ -274,9 +307,9 @@ sans date n'est pas exploitable pour décider.
 npm run test -w @enr/scoring
 ```
 
-`apps/api/test/` — 34 tests : emprises de qualification, accès aux tuiles, données de
-démonstration, part de recouvrement des zonages, contrôle d'accès par rôle et limitation de
-débit.
+`apps/api/test/` — 41 tests : emprises de qualification (dont la validation des bbox de
+requête), accès aux tuiles, données de démonstration, part de recouvrement des zonages,
+contrôle d'accès par rôle et limitation de débit.
 
 L'ensemble est vérifié à chaque poussée par `.github/workflows/ci.yml`, qui enchaîne typage,
 construction et tests, puis rejoue les migrations SQL deux fois sur une base PostGIS jetable

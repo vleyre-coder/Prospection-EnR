@@ -1093,15 +1093,32 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     <>
       <div ref={conteneur} className="carte" role="application" aria-label="Carte de prospection" />
 
+      {/* Echec d'installation des couches metier.
+          Le message etait capture par `setCouchesEnEchec` mais n'etait affiche nulle part :
+          l'utilisateur voyait une carte sans parcelles ni scores, ce qui ressemble a une
+          absence de donnees et non a un defaut technique. C'est le cas le plus grave des
+          trois, d'ou `alert` plutot que `status`. */}
+      {couchesEnEchec && (
+        <div className="erreur-encart" style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 5 }} role="alert">
+          <strong>Couches cartographiques non installees</strong>
+          <p style={{ margin: '4px 0 0' }}>
+            Les parcelles, les scores et les contraintes ne peuvent pas s&apos;afficher :{' '}
+            {couchesEnEchec}. Rechargez la page ; si le probleme persiste, signalez ce message.
+          </p>
+        </div>
+      )}
+
+      {/* Ces bandeaux apparaissent sans interaction, a la suite d'un echec reseau : ils
+          doivent etre annonces, sinon l'information n'existe que visuellement. */}
       {fondInjoignable && (
-        <div className="indice-zoom" style={{ bottom: 68 }}>
+        <div className="indice-zoom" style={{ bottom: 68 }} role="status" aria-live="polite">
           Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
           l&apos;acces a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
         </div>
       )}
 
       {fondViaRelais && !fondInjoignable && (
-        <div className="indice-zoom" style={{ bottom: 68 }}>
+        <div className="indice-zoom" style={{ bottom: 68 }} role="status" aria-live="polite">
           Fond cartographique servi via le relais de l&apos;application : l&apos;acces direct a
           data.geopf.fr est bloque depuis ce poste.
         </div>

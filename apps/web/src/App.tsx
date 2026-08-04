@@ -416,8 +416,12 @@ function OutilsCarte({
         </button>
       </div>
 
+      {/* `aria-live` : l'avancement d'une campagne se met a jour toutes les 4 secondes sans
+          interaction. Sans cette annonce, un lecteur d'ecran ne signale jamais ni la
+          progression ni la fin du traitement. `polite` plutot que `assertive` : le message
+          n'est pas urgent, il ne doit pas couper la lecture en cours. */}
       {qualification && (
-        <div className="mesure-info" style={{ top: 58 }}>
+        <div className="mesure-info" style={{ top: 58 }} role="status" aria-live="polite">
           <span>{qualification}</span>
           <button type="button" className="bouton-discret" onClick={() => setQualification(null)}>
             Fermer

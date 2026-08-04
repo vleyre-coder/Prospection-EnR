@@ -23,7 +23,7 @@ import {
   STATUTS_PROSPECTION,
   STATUTS_PROSPECTION_META,
 } from '@enr/core';
-import { VERSION_MOTEUR, LIBELLES_REGIME } from '@enr/scoring';
+import { VERSION_MOTEUR, LIBELLES_REGIME, RESERVE_REGIME } from '@enr/scoring';
 import { bddDisponible, requeteUne } from '../bdd.js';
 import { config } from '../config.js';
 import { CALQUES } from '../calques.js';
@@ -111,6 +111,8 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       ponderationsDefaut: PONDERATIONS_DEFAUT,
       reglementation: REGLES,
       libellesRegime: LIBELLES_REGIME,
+      // Reserve attachee au regime : il est DEDUIT de la nature du sol, pas etabli.
+      reserveRegime: RESERVE_REGIME,
       referentielDerniereVerification: REFERENTIEL_DERNIERE_VERIFICATION,
       avertissements: AVERTISSEMENTS,
       palette: {

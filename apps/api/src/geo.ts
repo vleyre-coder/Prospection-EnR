@@ -175,10 +175,34 @@ export function elargirBbox(b: Bbox, metres: number): Bbox {
   return [b[0] - dLon, b[1] - dLat, b[2] + dLon, b[3] + dLat];
 }
 
+/**
+ * Analyse une emprise passee en parametre de requete.
+ *
+ * La validation ne se limitait qu'a « quatre nombres finis ». Une emprise inversee
+ * (`minLon > maxLon`) produisait alors une enveloppe PostGIS vide et un resultat
+ * silencieusement nul - indiscernable d'un secteur reellement sans objet. Une emprise
+ * mondiale, elle, declenchait un balayage que seul un `LIMIT` bornait, et pas sur toutes
+ * les routes.
+ *
+ * Les bornes sont donc verifiees ici, une fois pour toutes : coordonnees dans le domaine
+ * geographique, ordre correct, et etendue plafonnee a celle du territoire couvert.
+ */
 export function bboxDepuisChaine(s: string): Bbox | null {
   const p = s.split(',').map(Number);
   if (p.length !== 4 || p.some((n) => !Number.isFinite(n))) return null;
-  return [p[0]!, p[1]!, p[2]!, p[3]!];
+  const [minLon, minLat, maxLon, maxLat] = p as [number, number, number, number];
+
+  // Domaine geographique valide.
+  if (minLon < -180 || maxLon > 180 || minLat < -90 || maxLat > 90) return null;
+  // Ordre : une emprise inversee est une erreur d'appel, pas une emprise vide.
+  if (minLon >= maxLon || minLat >= maxLat) return null;
+  // Etendue : au-dela du double de la France metropolitaine, la requete n'a pas de sens
+  // pour cette application et ne ferait que peser sur la base.
+  const largeurMaxDeg = (FRANCE_METRO[2] - FRANCE_METRO[0]) * 2;
+  const hauteurMaxDeg = (FRANCE_METRO[3] - FRANCE_METRO[1]) * 2;
+  if (maxLon - minLon > largeurMaxDeg || maxLat - minLat > hauteurMaxDeg) return null;
+
+  return [minLon, minLat, maxLon, maxLat];
 }
 
 /**
