@@ -9,6 +9,7 @@ import type { Filiere } from '@enr/core';
 import { api, ErreurApi, type LigneListe, type Referentiel } from '../api/client.js';
 import { useEtat } from '../store/etat.js';
 import { formatNombre } from '../utils/geometrie.js';
+import { etiquetteStatut } from '../utils/affichage.js';
 
 type Tri = 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
 
@@ -182,27 +183,25 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                   </td>
                   <td className="num">{formatNombre(l.surfaceHa, 'ha', 2)}</td>
                   <td>
-                    {l.statutScore &&
-                      /* Un rouge de score faible et un rouge reglementaire portaient le meme
-                         libelle depuis que « Redhibitoire / ecarte » a ete renomme en
-                         « Score faible ». La liste etant l'outil de tri quotidien, elle
-                         doit distinguer les deux comme le fait la fiche. */
-                      (l.nbKnockOutsBloquants > 0 ? (
+                    {/* La decision « redhibitoire ou score faible » vit dans
+                        utils/affichage, pour etre testable : c'est la confusion des deux qui
+                        a produit le defaut le plus couteux du troisieme audit. */}
+                    {(() => {
+                      const e = etiquetteStatut(
+                        l.statutScore,
+                        l.nbKnockOutsBloquants,
+                        referentiel.palette,
+                      );
+                      return e == null ? null : (
                         <span
                           className="etiquette-statut"
-                          style={{ background: referentiel.palette.couleurRedhibitoire }}
-                          title={referentiel.palette.descriptionRedhibitoire}
+                          style={{ background: e.couleur }}
+                          title={e.titre}
                         >
-                          {referentiel.palette.libelleRedhibitoire}
+                          {e.libelle}
                         </span>
-                      ) : (
-                        <span
-                          className="etiquette-statut"
-                          style={{ background: referentiel.palette.couleursScore[l.statutScore] }}
-                        >
-                          {referentiel.palette.libellesScore[l.statutScore]}
-                        </span>
-                      ))}
+                      );
+                    })()}
                   </td>
                   <td className="num">{l.scoreGlobal == null ? '—' : Math.round(l.scoreGlobal)}</td>
                   {/* La colonne donne le trace estime — la grandeur notee et facturee — et

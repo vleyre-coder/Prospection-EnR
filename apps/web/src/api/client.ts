@@ -31,6 +31,7 @@ export const RACINE_API: string = (
 export const RACINE_ABSOLUE: string =
   RACINE_API || (typeof location !== 'undefined' ? location.origin : '');
 
+import { estSessionExpiree } from '../utils/affichage.js';
 import type {
   Avertissement,
   DefinitionCritere,
@@ -148,14 +149,10 @@ async function appeler<T>(
 
   const typeContenu = reponse.headers.get('content-type') ?? '';
   if (!reponse.ok) {
-    // Un 401 sur n'importe quelle route signifie que la session est finie : on le signale
-    // une fois pour toutes plutot que de laisser chaque appelant le decouvrir seul.
-    //
-    // Condition sur `jetonPresent` : sans elle, le tout premier appel de l'application
-    // (`/api/auth/moi`, emis avant toute connexion) repond 401 et affiche « Session
-    // expiree » a un visiteur qui n'a jamais eu de session. Une expiration n'a de sens
-    // que s'il y avait quelque chose a expirer — d'ou la lecture du jeton AVANT l'envoi.
-    if (reponse.status === 401 && jetonPresent && !chemin.startsWith('/api/auth/connexion')) {
+    // La regle est dans `estSessionExpiree`, ou elle est testee : un 401 n'est une
+    // EXPIRATION que s'il y avait une session, et la route de connexion repond 401 sur un
+    // mot de passe faux — ce qui n'est pas une expiration mais une erreur de saisie.
+    if (estSessionExpiree(reponse.status, jetonPresent, chemin)) {
       signalerSessionExpiree();
     }
     if (typeContenu.includes('json')) {
