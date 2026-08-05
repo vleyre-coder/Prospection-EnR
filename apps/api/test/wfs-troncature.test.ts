@@ -119,8 +119,64 @@ test('un usage renseigne mais non residentiel exclut l’habitation', () => {
 test('un batiment sans usage ni nature est compte comme habitation par prudence', () => {
   // Choix deliberement pessimiste : mieux vaut un eloignement sous-estime qu'un knock-out
   // reglementaire manque.
+  //
+  // AUTOCRITIQUE. Ce test existait des l'audit 5 et il passait — mais il couvrait un cas qui se
+  // produit 0,0 % du temps : BD TOPO n'ecrit jamais un usage vide, elle ecrit « Indifferencie ».
+  // Il validait donc l'intention du commentaire, pas le comportement sur la donnee reelle. Les
+  // tests qui suivent sont ecrits depuis la distribution mesuree, et non depuis le commentaire.
   assert.equal(estHabitation({}), true);
   assert.equal(estHabitation({ usage_1: null, usage_2: null, nature: null }), true);
+});
+
+/**
+ * Correction (audit 6, B2). Distribution mesuree sur 5000 batiments reels de BD TOPO (Aveyron) :
+ *
+ *   usage_1 = "Residentiel"          55,8 %   -> habitation
+ *   usage_1 = "Indifferencie"        33,9 %   -> ETAIT EXCLU, doit etre habitation
+ *   autre usage explicite            10,3 %   -> exclu, a juste titre
+ *   usage_1 ET usage_2 vides          0,0 %   -> le seul cas que couvrait la regle d'origine
+ *
+ * Le sens de l'erreur commande la regle : sous-compter les habitations SURESTIME la distance a
+ * l'habitation la plus proche, donc ameliore la note et peut empecher le recul de 500 m de
+ * l'article L.515-44 de se declencher. Sur-compter ne degrade qu'une note.
+ */
+test('« Indifferencie » est traite comme indetermine, donc comme habitation', () => {
+  assert.equal(estHabitation({ usage_1: 'Indifférencié', nature: 'Indifférenciée' }), true);
+  assert.equal(estHabitation({ usage_1: 'Indifferencie', nature: 'Indifferenciee' }), true);
+  // Combinaison la plus frequente apres le residentiel : 1291 batiments sur 5400 echantillonnes.
+  assert.equal(
+    estHabitation({ usage_1: 'Indifférencié', nature: 'Indifférenciée', nombre_de_logements: null }),
+    true,
+  );
+});
+
+test('un usage explicitement non residentiel exclut, meme sur nature indifferenciee', () => {
+  // Ces quatre cas representent les 10,3 % correctement exclus : la correction ne doit pas les
+  // requalifier en habitations, sans quoi toute parcelle en zone d'activite aurait une habitation
+  // mitoyenne.
+  for (const usage of ['Annexe', 'Commercial et services', 'Industriel', 'Agricole']) {
+    assert.equal(
+      estHabitation({ usage_1: usage, nature: 'Indifférenciée' }),
+      false,
+      `${usage} ne doit pas compter comme habitation`,
+    );
+  }
+});
+
+test('un usage indetermine mais une nature agricole ou industrielle exclut', () => {
+  assert.equal(estHabitation({ usage_1: 'Indifférencié', nature: 'Bâtiment agricole' }), false);
+  assert.equal(estHabitation({ usage_1: 'Indifférencié', nature: 'Bâtiment industriel' }), false);
+  assert.equal(estHabitation({ usage_1: 'Indifférencié', nature: 'Serre' }), false);
+});
+
+test('des logements declares emportent la decision sur tout le reste', () => {
+  // `nombre_de_logements > 0` est un fait, pas une presomption : il prime sur la nature.
+  assert.equal(estHabitation({ usage_1: 'Indifférencié', nombre_de_logements: 3 }), true);
+  assert.equal(estHabitation({ nature: 'Bâtiment agricole', nombre_de_logements: 2 }), true);
+});
+
+test('un usage secondaire residentiel suffit', () => {
+  assert.equal(estHabitation({ usage_1: 'Commercial et services', usage_2: 'Résidentiel' }), true);
 });
 
 // --- Invariant structurel -------------------------------------------------

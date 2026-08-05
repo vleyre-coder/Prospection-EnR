@@ -12,8 +12,19 @@
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { bboxDe, elargirBbox, surfaceM2, type Bbox, type GeoJsonGeometry } from '../geo.js';
+import type { ZonageNaturel } from '@enr/core';
 import type { FeatureCollection } from './base.js';
-import { distanceMinEntreGeometries, recouvrement } from './distances.js';
+import {
+  distanceDemontree,
+  distanceMinEntreGeometries,
+  recouvrement,
+  zonageDepuisFeatures,
+  RAYON_ZONAGES_NATURELS_M,
+} from './distances.js';
+
+// `distanceDemontree` vit desormais dans distances.ts, aux cotes des autres calculs de
+// distance ; reexportee ici parce que c'est de ce module qu'elle a ete introduite et testee.
+export { distanceDemontree } from './distances.js';
 
 /** Typenames verifies. */
 export const TYPENAMES = {
@@ -26,6 +37,9 @@ export const TYPENAMES = {
   aoc_viticole: 'AOC-VITICOLES:aire_parcellaire',
   znieff1: 'patrinat_znieff1:znieff1',
   rpg: 'RPG.LATEST:parcelles_graphiques',
+  // Arrete de protection de biotope. Absent du module Nature d'API Carto (404 sur les cinq
+  // orthographes plausibles) : c'est le WFS PatriNat qui le porte.
+  appb: 'patrinat_apb:apb',
 } as const;
 
 /** Plafond de `COUNT` impose par la Geoplateforme (verifie : au-dela, la valeur est ignoree). */
@@ -61,17 +75,6 @@ export function reponseTronquee(
   // Faute de total annonce, on considere qu'une reponse pleine au plafond est tronquee ;
   // c'est parfois un faux positif (exactement `plafond` objets), jamais un faux negatif.
   return total != null ? renvoyes < total : renvoyes >= plafond;
-}
-
-/**
- * Ne conserve une distance minimale que si l'emprise interrogee la demontre.
- *
- * Au-dela du rayon couvert, le minimum trouve n'est qu'un majorant : un objet plus proche
- * peut exister hors emprise. Or un majorant est ici optimiste — plus loin d'une habitation
- * ou d'un cours d'eau vaut une meilleure note — donc inexploitable.
- */
-export function distanceDemontree(d: number | null, rayonCouvertM: number): number | null {
-  return d != null && d <= rayonCouvertM ? d : null;
 }
 
 async function getFeature<P>(
@@ -168,18 +171,42 @@ interface ProprietesBatiment {
   nombre_de_logements?: number | null;
 }
 
-/** Un batiment compte-t-il comme habitation au sens de l'article L.515-44 ? */
+/**
+ * Un usage BD TOPO est-il indetermine ?
+ *
+ * BD TOPO n'ecrit presque jamais un usage vide : elle ecrit « Indifferencie ». Mesure sur
+ * 5000 batiments reels (Aveyron) : 0,0 % des batiments ont `usage_1` ET `usage_2` vides, et
+ * 33,9 % portent `usage_1 = "Indifferencie"`. Tester la chaine vide seule revenait donc a
+ * n'appliquer la regle de prudence a personne, et a exclure des habitations un tiers du bati.
+ */
+function usageIndetermine(u: string | null | undefined): boolean {
+  const v = (u ?? '').trim().toLowerCase();
+  return v === '' || v.startsWith('indiff');
+}
+
+/**
+ * Un batiment compte-t-il comme habitation au sens de l'article L.515-44 ?
+ *
+ * Le sens de l'erreur commande la regle. Sous-compter les habitations SURESTIME la distance a
+ * l'habitation la plus proche, donc ameliore la note et peut empecher le knock-out du recul de
+ * 500 m de se declencher : c'est l'erreur dangereuse. Sur-compter ne fait que degrader une note
+ * a tort, ce qui se rattrape a la lecture de la fiche. En cas de doute, on compte donc comme
+ * habitation.
+ */
 export function estHabitation(p: ProprietesBatiment): boolean {
   const usages = [p.usage_1, p.usage_2].map((u) => (u ?? '').toLowerCase());
   if (usages.some((u) => u.includes('habitation') || u.includes('résidentiel') || u.includes('residentiel'))) {
     return true;
   }
   if ((p.nombre_de_logements ?? 0) > 0) return true;
-  // Les batiments agricoles, industriels et les annexes ne sont pas des habitations,
-  // mais un batiment de nature indeterminee est traite comme habitation par prudence.
+  // Un usage explicitement non residentiel exclut, quelle que soit la nature : agricole,
+  // industriel, commercial, annexe, sportif, religieux...
+  if (usages.some((u) => u !== '' && !usageIndetermine(u))) return false;
+  // Reste le cas indetermine. La nature, quand elle discrimine, tranche.
   const nature = (p.nature ?? '').toLowerCase();
   if (nature.includes('agricole') || nature.includes('industriel') || nature.includes('serre')) return false;
-  return usages.every((u) => u === '');
+  // Usage et nature indetermines : habitation par prudence, conformement au sens de l'erreur.
+  return true;
 }
 
 /**
@@ -327,6 +354,54 @@ export async function distanceCoursEau(parcelle: GeoJsonGeometry): Promise<numbe
     const geoms = r.fc.features.map((f) => f.geometry as GeoJsonGeometry).filter(Boolean);
     if (geoms.length === 0) return null;
     return distanceDemontree(distanceMinEntreGeometries(parcelle, geoms), r.rayonCouvertM);
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Arrete de protection de biotope : protection ABSOLUE, non derogeable
+// ---------------------------------------------------------------------------
+
+/**
+ * Arretes de protection de biotope recouvrant la parcelle, ou situes a proximite.
+ *
+ * POURQUOI CE CONNECTEUR EXISTE. Le moteur porte depuis l'origine un knock-out APPB, mais
+ * aucun connecteur n'ecrivait `snapshot.milieux.appb` : le knock-out exigeant `recouvre ===
+ * true`, il ne pouvait mathematiquement jamais se declencher. Un APPB est pourtant une
+ * protection ABSOLUE au titre de l'article R.411-15 du code de l'environnement — contrairement
+ * a un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. Et
+ * l'absence de declenchement etait invisible : un knock-out ne s'affiche que lorsqu'il se
+ * declenche, donc rien n'indiquait que le controle n'avait pas eu lieu.
+ *
+ * La couche est absente du module Nature d'API Carto ; elle vient du WFS PatriNat, qui emploie
+ * `nom_site` (et non `sitename` comme les couches Natura 2000 d'API Carto).
+ */
+export async function appb(parcelle: GeoJsonGeometry): Promise<ZonageNaturel | null> {
+  try {
+    // Rayon aligne sur celui des autres zonages naturels : la proximite est un critere en
+    // soi, un APPB mitoyen conditionnant l'implantation sans la recouvrir.
+    const r = await getFeatureEtage<{ nom_site?: string | null; id_mnhn?: string | null }>(
+      TYPENAMES.appb,
+      parcelle,
+      'patrinat_appb',
+      [RAYON_ZONAGES_NATURELS_M, 2000],
+      COUNT_MAX_WFS,
+    );
+    if (!r) return null;
+    const feats = r.fc.features.filter((f) => f.geometry);
+    if (feats.length === 0) {
+      // Reponse complete et vide : c'est un constat d'absence, pas une donnee manquante.
+      return { recouvre: false, partRecouvrement: 0, distanceM: null, nom: null };
+    }
+    return zonageDepuisFeatures(
+      parcelle,
+      feats.map((f) => ({
+        geometry: f.geometry as GeoJsonGeometry,
+        nom: f.properties.nom_site ?? null,
+      })),
+      r.rayonCouvertM,
+    );
   } catch {
     return null;
   }

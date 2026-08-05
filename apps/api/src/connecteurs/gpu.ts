@@ -8,6 +8,7 @@
 import type { PrescriptionInfo, Urbanisme, ZoneUrbaInfo } from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
+import { journal } from '../journal.js';
 import { type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
 import { partsCouvertesExactes } from './distances.js';
@@ -32,11 +33,22 @@ interface ProprietesPrescription {
   nature?: string | null;
 }
 
+/**
+ * Proprietes du point d'entree `gpu/document`.
+ *
+ * Le type de document est dans **`du_type`**. Le connecteur lisait `typedoc`, qui n'existe pas
+ * dans la reponse : `typeDocument` etait donc TOUJOURS nul, et chaque fiche affichait
+ * « Document d'urbanisme : non renseigne ». Verifie sur six communes, `du_type` vaut `PLU` ou
+ * `PLUi` — exactement les valeurs que `TYPES_DOCUMENT` sait deja traduire.
+ *
+ * `datappro` et `nomreg` n'existent pas non plus sur ce point d'entree (la date d'approbation
+ * vient de `zone-urba`, qui la porte bien). `name` transporte un identifiant compose du type
+ * et de la date, par exemple `75056_PLU_20260616`.
+ */
 interface ProprietesDocument {
-  typedoc?: string | null;
-  datappro?: string | null;
+  du_type?: string | null;
+  name?: string | null;
   partition?: string | null;
-  nomreg?: string | null;
 }
 
 interface ProprietesMunicipality {
@@ -57,10 +69,18 @@ function estEmplacementReserve(typepsc: string | null | undefined): boolean {
   return typepsc != null && ['21', '22', '23'].includes(typepsc);
 }
 
+/**
+ * Correspondance des valeurs de `du_type` vers le type du snapshot.
+ *
+ * Les cles sont en MAJUSCULES parce que la valeur est normalisee avant la recherche : une cle
+ * `PLUi` serait inatteignable. `PLUi` (observe) arrive donc ici sous `PLUI`.
+ */
 const TYPES_DOCUMENT: Record<string, Urbanisme['typeDocument']> = {
+  // `PLU` et `PLUI` sont les deux seules valeurs observees sur le service ; `POS` et `CC`
+  // etaient deja prevues. Rien d'autre n'est ajoute ici sans avoir ete constate : un type non
+  // repertorie declenche un avertissement et reste non renseigne.
   PLU: 'PLU',
   PLUI: 'PLUi',
-  PLUi: 'PLUi',
   POS: 'POS',
   CC: 'CC',
 };
@@ -130,8 +150,17 @@ export async function urbanismeParcelle(
 
   if (documents.status === 'fulfilled') {
     const doc = documents.value.features[0]?.properties;
-    const brut = (doc?.typedoc ?? '').toUpperCase();
-    urbanisme.typeDocument = TYPES_DOCUMENT[brut] ?? (brut ? 'PLU' : null);
+    const brut = (doc?.du_type ?? '').trim().toUpperCase();
+    // Un type inconnu reste NUL et n'est pas requalifie en PLU. Le repli precedent l'aurait
+    // fait, et un PSMV ou un SCOT presente comme un PLU est une affirmation fausse sur un
+    // document transmis a un tiers — alors qu'un champ vide se lit comme ce qu'il est.
+    urbanisme.typeDocument = TYPES_DOCUMENT[brut] ?? null;
+    if (brut && !TYPES_DOCUMENT[brut]) {
+      journal.warn(
+        { du_type: doc?.du_type },
+        'Type de document d\'urbanisme inconnu : laisse non renseigne plutot que requalifie.',
+      );
+    }
   } else {
     echecs.push('gpu/document');
   }

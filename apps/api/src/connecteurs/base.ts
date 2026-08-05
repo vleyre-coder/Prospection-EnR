@@ -85,6 +85,17 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     avertissement:
       "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
   },
+  patrinat_appb: {
+    connecteur: 'patrinat_appb',
+    nom: 'INPN / PatriNat - arretes de protection de biotope (WFS Geoplateforme)',
+    url: 'https://data.geopf.fr/wfs/ows?TYPENAMES=patrinat_apb:apb',
+    modeAcces: 'api',
+    valeurJuridique: 'opposable',
+    couverture: 'nationale',
+    periodiciteJours: null,
+    avertissement:
+      "Un arrete de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement a un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'ou cette source distincte.",
+  },
   georisques: {
     connecteur: 'georisques',
     nom: 'Georisques (BRGM / MTE)',

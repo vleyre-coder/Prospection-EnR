@@ -126,6 +126,21 @@ curl -s "https://apicarto.ign.fr/api/cadastre/parcelle?code_insee=28390&_limit=2
   `insee` (**uniquement** sur `/municipality`), `categorie` (uniquement sur `assiette-sup-*` et
   `generateur-sup-*`, ex. `AC2`). **Pas de `_limit` / `_start` sur ce module.**
 
+> ⚠️ **`/document` : le type de document est dans `du_type`, pas dans `typedoc`.** Propriétés
+> réelles de ce point d'entrée : `du_type`, `gpu_doc_id`, `gpu_status`, `gpu_timestamp`,
+> `grid_name`, `grid_title`, `id`, `name`, `partition`. Ni `typedoc`, ni `datappro`, ni `nomreg`
+> n'y figurent — la date d'approbation vient de `zone-urba`, qui la porte bien sous `datappro`.
+>
+> Valeurs de `du_type` observées sur six communes : **`PLU`**, **`PLUi`**. Le champ `name`
+> transporte en outre le type et la date d'approbation, par exemple `75056_PLU_20260616`.
+>
+> Lire `typedoc` laissait `typeDocument` **toujours nul**, et chaque fiche affichait « Document
+> d'urbanisme : non renseigné ». Un type inconnu doit rester nul et non être requalifié en `PLU` :
+> un PSMV ou un SCOT présenté comme un PLU est une affirmation fausse sur un document transmis.
+>
+> `/municipality` : propriétés réelles `insee`, `is_coastline`, `is_deleted`, `is_rnu`, `name`.
+> Pas de `partition`.
+
 ### Chemins existants (17, tous testés → HTTP 200)
 
 `municipality`, `document`, `zone-urba`, `secteur-cc`, `prescription-surf`, `prescription-lin`,
@@ -390,6 +405,25 @@ renvoie **0 feature** (les coordonnées CQL sont interprétées dans le CRS nati
 | `/api/nature/rncf` (réserve nat. de chasse et faune sauvage) | ✔ vérifié | `id_mnhn` |
 | `/api/nature/site-inscrit` | ❌ **404** `Cannot GET /api/nature/site-inscrit` |
 | `/api/nature/site-classe` | ❌ **404** `Cannot GET /api/nature/site-classe` |
+| `/api/nature/appb`, `/apb`, `/biotope`, `/protection-biotope` | ❌ **404** — voir §8, la couche est au WFS PatriNat |
+
+> ⚠️ **Le nom du site n'est PAS dans le même champ selon la couche.** Piège vérifié sur le
+> service réel, et cause d'un défaut resté trois audits sans être vu :
+>
+> | Couche | Champ du nom | Champ identifiant |
+> |---|---|---|
+> | `natura-habitat`, `natura-oiseaux` | **`sitename`** | `sitecode` |
+> | `znieff1`, `znieff2`, `pn`, `pnr`, `rnn`, `rnc`, `rncf` | **`nom`** | `id_mnhn` |
+> | WFS PatriNat (`patrinat_*`, voir §8) | **`nom_site`** | `id_mnhn` |
+>
+> Ni `nom_site` ni `nom` n'existent sur les couches Natura 2000 : les lire rendait le nom du site
+> **toujours nul**, sans erreur ni journal — sur la contrainte qui décide précisément d'une
+> évaluation des incidences. De même, `url_fiche` n'existe pas sur ce module : le champ est `url`.
+>
+> Garde permanente : `apps/api/test/contrats-sources.test.ts` vérifie, contre des propriétés
+> capturées sur les services réels, que toute propriété déclarée par un connecteur existe
+> vraiment. **Ne jamais compléter la fixture à la main** : elle ne vaut que parce qu'elle vient
+> du service.
 
 Paramètres communs : `geom`, `_limit` (1–1000), `_start`, + `sitecode` (natura-*) ou `id_mnhn` (autres).
 
@@ -440,6 +474,14 @@ done
 `patrinat_rncfs:rncfs`, **`patrinat_sc:sc` (sites classés)**, `patrinat_apb:apb` (arrêtés de
 protection de biotope), `patrinat_ramsar:ramsar`, `patrinat_cen:cen`, `patrinat_cdl`,
 `patrinat_bios:bios`, `patrinat_zpr:zpr`, `patrinat_rb:rb`, `patrinat_geoparc`, `patrinat_inpg`.
+
+**`patrinat_apb:apb` est la SEULE source des arrêtés de protection de biotope**, le module Nature
+d'API Carto renvoyant 404 sur toutes les orthographes plausibles. C'est une contrainte majeure :
+un APPB est une protection **absolue** au titre de l'article R.411-15 du code de l'environnement,
+non dérogeable par une modification du document d'urbanisme, contrairement à un zonage N.
+Vérifié : `TYPENAMES=patrinat_apb:apb&BBOX=-1.80,48.00,-1.50,48.30,EPSG:4326` → `numberMatched=2`,
+`nom_site = "Nidification du balbuzard pêcheur en forêt de Rennes"`, `id_mnhn = "FR3801169"`.
+Attention, ce WFS emploie **`nom_site`** là où API Carto emploie `sitename` ou `nom` (voir §5).
 
 Vérifié : `TYPENAMES=patrinat_znieff1:znieff1&BBOX=4.54,43.49,4.56,43.51,EPSG:4326` →
 `numberMatched=1`, properties identiques + **`nom_site`** et **`url_fiche`** (au lieu de `nom`/`url`).

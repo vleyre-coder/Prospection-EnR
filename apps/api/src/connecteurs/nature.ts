@@ -11,19 +11,40 @@ import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { bboxDe, bboxEnPolygone, elargirBbox, type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
-import { recouvrement } from './distances.js';
+import {
+  zonageDepuisFeatures,
+  RAYON_ZONAGES_NATURELS_M,
+  type FeatureZonage,
+} from './distances.js';
 
 const CONNECTEUR = 'apicarto_nature';
 
-/** Rayon d'analyse de la proximite des zonages naturels, en metres. */
-const RAYON_ANALYSE_M = 10000;
+/**
+ * Rayon d'analyse de la proximite des zonages naturels, en metres.
+ * Repris de `distances.ts`, qui le partage avec le connecteur APPB et le moteur de scoring :
+ * la fiche annonce « aucun site trouve dans un rayon de N km », donc la valeur doit etre unique.
+ */
+const RAYON_ANALYSE_M = RAYON_ZONAGES_NATURELS_M;
 
+/**
+ * Proprietes du module Nature d'API Carto.
+ *
+ * ATTENTION, LE NOM DU SITE CHANGE DE CHAMP SELON LA COUCHE. Verifie sur le service reel :
+ *   - `natura-habitat` et `natura-oiseaux` : le nom est dans **`sitename`** ; ni `nom_site` ni
+ *     `nom` n'existent. Les lire laissait le nom du site Natura 2000 TOUJOURS nul, sur la
+ *     contrainte environnementale qui decide precisement d'une evaluation des incidences ;
+ *   - `znieff1`, `znieff2`, `pn`, `pnr`, `rnn`, `rnc`, `rncf` : le nom est dans **`nom`** ;
+ *   - le WFS PatriNat, lui, emploie `nom_site` — d'ou la confusion d'origine. Ce champ n'est
+ *     donc PAS declare ici : ce module n'interroge qu'API Carto.
+ */
 interface ProprietesInpn {
   id_mnhn?: string | null;
   sitecode?: string | null;
-  nom_site?: string | null;
+  /** Couches Natura 2000 d'API Carto. */
+  sitename?: string | null;
+  /** Couches d'inventaire et de protection d'API Carto. */
   nom?: string | null;
-  url_fiche?: string | null;
+  url?: string | null;
 }
 
 async function couche(chemin: string, geom: GeoJsonGeometry): Promise<FeatureCollection<ProprietesInpn>> {
@@ -31,24 +52,29 @@ async function couche(chemin: string, geom: GeoJsonGeometry): Promise<FeatureCol
   return jsonExterne<FeatureCollection<ProprietesInpn>>(url, { connecteur: CONNECTEUR });
 }
 
+/**
+ * Nom du site, quel que soit le champ dans lequel la couche le range.
+ *
+ * Deux champs et pas trois : `nom_site` n'existe sur AUCUNE couche d'API Carto — c'est le WFS
+ * PatriNat qui l'emploie, et le connecteur APPB le lit la-bas. Le declarer ici « au cas ou »
+ * etait la defensive speculative qui a masque le defaut d'origine : un champ inexistant se lit
+ * sans erreur, et rend simplement la valeur nulle pour toujours.
+ */
+function nomDuSite(p: ProprietesInpn): string | null {
+  return p.sitename ?? p.nom ?? null;
+}
+
 function zonageDepuis(
   parcelle: GeoJsonGeometry,
   fc: FeatureCollection<ProprietesInpn> | null,
 ): ZonageNaturel {
+  // `null` signifie « la couche n'a pas repondu » : ni recouvrement ni absence ne sont
+  // etablis. A distinguer d'une reponse vide, qui est un constat d'absence.
   if (!fc) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };
-  const geoms = fc.features.map((f) => f.geometry as GeoJsonGeometry).filter(Boolean);
-  const { recouvre, distanceM } = recouvrement(parcelle, geoms);
-  // Le site le plus proche, pour l'afficher dans la fiche.
-  const nom =
-    fc.features.length > 0
-      ? (fc.features[0]!.properties.nom_site ?? fc.features[0]!.properties.nom ?? null)
-      : null;
-  return {
-    recouvre,
-    partRecouvrement: recouvre ? 1 : 0,
-    distanceM,
-    nom,
-  };
+  const feats: FeatureZonage[] = fc.features
+    .filter((f) => f.geometry)
+    .map((f) => ({ geometry: f.geometry as GeoJsonGeometry, nom: nomDuSite(f.properties) }));
+  return zonageDepuisFeatures(parcelle, feats, RAYON_ANALYSE_M);
 }
 
 /**
@@ -72,6 +98,10 @@ export async function milieuxNaturels(
     'pnr',
     'rnn',
     'rnc',
+    // Reserves nationales de chasse et faune sauvage. L'en-tete de ce fichier les annonce
+    // comme verifiees depuis l'origine, mais elles n'etaient pas interrogees : la couche
+    // etait donc hors couverture alors que la documentation la disait couverte.
+    'rncf',
   ] as const;
 
   const resultats = await Promise.allSettled(chemins.map((c) => couche(c, emprise)));
@@ -86,15 +116,22 @@ export async function milieuxNaturels(
     }
   });
 
-  // Les reserves naturelles nationales, regionales et de Corse sont regroupees :
-  // toutes constituent une protection forte au sens du scoring.
-  const reserves: FeatureCollection<ProprietesInpn> | null =
-    parChemin['rnn'] || parChemin['rnc']
-      ? {
-          type: 'FeatureCollection',
-          features: [...(parChemin['rnn']?.features ?? []), ...(parChemin['rnc']?.features ?? [])],
-        }
-      : null;
+  // Les reserves naturelles nationales, de Corse, et de chasse et faune sauvage sont
+  // regroupees : toutes constituent une protection forte au sens du scoring.
+  //
+  // La fusion n'est consideree comme complete que si TOUTES les couches ont repondu. La
+  // version precedente se contentait d'une seule (`rnn' || 'rnc'`) : si `rnn` echouait et que
+  // `rnc` repondait a vide, la fusion produisait une collection vide traitee comme une reponse
+  // complete, donc `reserveNaturelle.recouvre = false` — une absence AFFIRMEE sur une donnee
+  // manquante, alors qu'une reserve naturelle nationale est un knock-out.
+  const cheminsReserves = ['rnn', 'rnc', 'rncf'] as const;
+  const reservesCompletes = cheminsReserves.every((c) => parChemin[c] != null);
+  const reserves: FeatureCollection<ProprietesInpn> | null = reservesCompletes
+    ? {
+        type: 'FeatureCollection',
+        features: cheminsReserves.flatMap((c) => parChemin[c]?.features ?? []),
+      }
+    : null;
 
   const milieux: Partial<MilieuxNaturels> = {
     natura2000Habitats: zonageDepuis(parcelle, parChemin['natura-habitat'] ?? null),

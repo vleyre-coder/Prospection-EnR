@@ -1028,9 +1028,28 @@ const env_zone_humide: Evaluateur = (s) => {
   };
 };
 
+/**
+ * Trame verte et bleue.
+ *
+ * `s.milieux.trameVerteBleue` n'est ecrit par AUCUN connecteur, et ce n'est pas un oubli : la
+ * trame verte et bleue est definie par les SRADDET regionaux (anciens SRCE), dont aucun n'est
+ * expose par une API nationale homogene. Le critere restait donc gris indefiniment, en pretendant
+ * dependre du module Nature qui ne porte pas cette donnee.
+ *
+ * On le declare desormais `sansSource` : la fiche dit explicitement que l'enjeu n'a pas ete
+ * regarde et ou le chercher, le critere ne penalise plus la couverture de donnees, et le statut
+ * est PLAFONNE A ORANGE — aucune parcelle ne peut etre declaree propice sur une continuite
+ * ecologique qui n'a pas ete examinee. Meme traitement que l'avifaune et les chiropteres.
+ */
 const env_tvb: Evaluateur = (s) => {
   const t = s.milieux.trameVerteBleue;
-  if (t.reservoir == null && t.corridor == null) return indispo(SRC.nature);
+  if (t.reservoir == null && t.corridor == null) {
+    return sansSource(
+      SRC.nature,
+      'La trame verte et bleue',
+      "Consultez le SRADDET de la region (volet continuites ecologiques) et le plan de zonage du PLU, qui la transcrit.",
+    );
+  }
   const note = t.reservoir ? 25 : t.corridor ? 55 : 95;
   return {
     note,

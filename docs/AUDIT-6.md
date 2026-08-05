@@ -430,3 +430,141 @@ exécutés dans cet audit et tous productifs, devraient devenir permanents :
 Ces trois contrôles ne demandent pas de couvrir 13 000 lignes de connecteurs. Ils demandent un jeu
 de réponses réelles enregistrées et trois assertions. C'est la réponse concrète à la boucle que les
 cinq audits précédents décrivaient sans la casser.
+
+---
+
+## Suite donnée — corrections de priorité 1 appliquées
+
+Les quatre corrections indispensables sont faites, vérifiées sur les services réels, et gardées par
+des tests dont l'échec a été vérifié par mutation. Deux contrôles mécaniques permanents ont été mis
+en place, ceux-là mêmes que la section « point de méthode » réclamait — et l'un d'eux a
+immédiatement trouvé un défaut supplémentaire.
+
+### 1. `estHabitation` applique désormais la prudence qu'il annonçait
+
+`usageIndetermine()` traite « Indifférencié » comme un usage indéterminé, au même titre que la
+chaîne vide. La règle est réordonnée : un usage explicitement non résidentiel exclut d'abord, la
+nature tranche ensuite, et l'indéterminé compte comme habitation en dernier ressort. Le
+raisonnement est écrit dans le code : **sous-compter surestime la distance, donc améliore la note et
+peut empêcher le recul de 500 m de se déclencher ; sur-compter ne dégrade qu'une note.**
+
+Effet mesuré sur parcelle réelle (283900000C0843, Tillay-le-Péneux) : **28 → 83 habitations dans les
+500 m**, soit le tiers de bâti qui était écarté. Et pour l'éolien, le knock-out
+`ko_eol_habitation_500` se déclenche — vérifié en exécution, statut rouge, score nul.
+
+Les tests de ce prédicat ont été **réécrits depuis la distribution mesurée** et non depuis le
+commentaire. L'ancien test, qui vérifiait `estHabitation({}) === true`, est conservé mais porte
+désormais son autocritique : il couvrait un cas qui se produit 0,0 % du temps.
+
+### 2. L'APPB est alimenté, et le knock-out peut se déclencher
+
+La couche est absente du module Nature d'API Carto — 404 sur `appb`, `apb`,
+`arrete-protection-biotope`, `protection-biotope`, `biotope`. Elle existe au WFS PatriNat sous
+`patrinat_apb:apb`. Nouveau connecteur `appb()` dans `wfs.ts`, emprise dégressive 10 km puis 2 km,
+source déclarée au catalogue avec son avertissement juridique (R.411-15 CE, protection absolue et
+non dérogeable). Le nombre de sources du référentiel passe de 18 à 19.
+
+Vérifié sur le service réel : forêt de Rennes → `recouvre=false, distance=3 226 m, nom="Nidification
+du balbuzard pêcheur en forêt de Rennes"`. En Beauce → réponse complète et vide, donc
+`recouvre=false, distance=null` : une **absence constatée**, et non plus un `null` indistinct.
+
+### 3. Deux champs renommés, et deux valeurs qui n'étaient jamais renseignées
+
+| Connecteur | Avant | Après | Effet vérifié |
+|---|---|---|---|
+| `gpu/document` | `typedoc` | **`du_type`** | `typeDocument = "PLUi"` ; la fiche affiche « Zone Ua (PLUi) » au lieu de « Zone Ua » |
+| `nature/natura-*` | `nom_site` puis `nom` | **`sitename`** puis `nom` | « Recouvrement Natura 2000 — Beauce et vallée de la Conie » au lieu du seul « Recouvrement Natura 2000 » |
+
+Le repli qui requalifiait tout type inconnu en `PLU` est supprimé : un type non répertorié reste
+nul et fait l'objet d'un avertissement journalisé. Présenter un PSMV ou un SCOT comme un PLU serait
+une affirmation fausse sur un document transmis à un tiers.
+
+`nom_site` a par ailleurs été **retiré** des propriétés déclarées par `nature.ts` : ce champ
+n'existe sur aucune couche d'API Carto, et le déclarer « au cas où » est exactement la défensive
+spéculative qui a masqué le défaut d'origine — un champ inexistant se lit sans erreur et rend la
+valeur nulle pour toujours. Le connecteur APPB, lui, le lit là où il existe vraiment.
+
+### 4. Le nom du zonage naturel vient du site le plus proche
+
+`zonageDepuisFeatures()` (dans `distances.ts`, partagée par le connecteur Nature et le connecteur
+APPB) calcule la distance entité par entité et retient le nom de celle qui réalise le minimum. Un
+recouvrement l'emporte et court-circuite. Le nom ne survit jamais seul : si la distance n'est pas
+démontrée par l'emprise couverte, les deux disparaissent ensemble — un nom sans distance
+désignerait un site sans dire où il est.
+
+Vérification sur les cas mêmes que l'audit avait mesurés comme faux :
+
+| Lieu | Avant (nom de `features[0]`) | Après (nom du plus proche) |
+|---|---|---|
+| Sologne (41), 1 846 m | ETANG DE MALZONE | **ETANG DES BROSSES** |
+| Camargue (13), 0 m | MARAIS DE MEYRANNE ET DES CHANOINES | **SYSTÈME DU VACCARÈS** |
+| Brenne (36), 0 m | Étangs Purais, Étang de la Touche | **Étangs du Ralé et Perculeux** |
+| Beauce (28), 2 072 m | TERRAIN MILITAIRE DE BOUARD ET VALLEE DE FONTENAY | **Pelouses sèches de Saint-Florentin** |
+
+Deux corrections secondaires ont été faites dans la même fonction : `partRecouvrement` ne vaut plus
+`1` dès qu'il y a un recouvrement — valeur fausse dès qu'une parcelle n'est qu'en partie dans le
+zonage — mais `null`, c'est-à-dire inconnu ; et `0` reste affirmé quand il n'y a pas de
+recouvrement, ce qui est exact.
+
+### Les deux contrôles permanents, et ce que l'un d'eux a trouvé
+
+**`apps/api/test/contrats-sources.test.ts`** — les champs déclarés existent-ils vraiment ? Une
+fixture (`fixtures/proprietes-sources.json`) porte les propriétés réellement renvoyées par
+quinze points d'entrée, capturées sur les services de production. Le test vérifie deux choses :
+que tout champ dont le code dépend y figure, et que **toute propriété déclarée par une interface
+`Proprietes*` existe dans au moins une réponse réelle** de ce connecteur.
+
+La seconde assertion a été ajoutée après une vérification par mutation qui a montré la faiblesse de
+la première : reverser le connecteur à `typedoc` ne faisait échouer que le typage, parce que le test
+s'appuyait sur une table tenue à la main. Les interfaces sont désormais des contrats vérifiés, pas
+des déclarations d'intention. Mutation rejouée : les deux dérives sont attrapées par le test seul.
+
+**`apps/api/test/champs-orphelins.test.ts`** — un champ dont dépend une décision est-il écrit par
+quelqu'un ? Contrôle sur les 25 chemins lus par les knock-outs et les 50+ lus par les évaluateurs.
+Ce test aurait attrapé l'APPB, et il aurait pu tourner dès le premier audit.
+
+Il a trouvé du premier coup un défaut que cet audit n'avait pas vu : **`s.milieux.trameVerteBleue`
+n'est écrit par aucun connecteur**, et le critère `env_tvb` restait donc gris indéfiniment, en
+prétendant dépendre du module Nature qui ne porte pas cette donnée. La trame verte et bleue est
+définie par les SRADDET régionaux, sans API nationale homogène : l'absence est structurelle. Le
+critère est désormais déclaré `sansSource`, mécanisme déjà présent dans le projet et fait pour ce
+cas — la fiche dit explicitement que l'enjeu n'a pas été regardé et où le chercher, le critère ne
+pénalise plus la couverture de données, et **le statut est plafonné à orange** : aucune parcelle ne
+peut ressortir propice sur une continuité écologique que personne n'a examinée. Vérifié en
+exécution : `criteres_sans_source` apparaît bien dans les limites de viabilité.
+
+Le test interdit que la liste des absences assumées devienne un tapis : toute entrée doit porter une
+raison de plus de soixante caractères **et** s'appuyer sur `sansSource`.
+
+> Ma première version de ce test signalait aussi `s.foncier.proprietairePublic` comme orphelin.
+> C'était un faux positif : il ne scannait que `connecteurs/` et `enrichissement.ts`, alors que ce
+> champ est alimenté par le versement manuel des données de propriété (`scripts/`) puis relu dans
+> `routes/`. Le périmètre a été élargi, et la raison est écrite dans le test.
+
+### Corrections secondaires prises au passage
+
+- **`rncf` est désormais interrogé.** L'en-tête de `nature.ts` l'annonçait comme vérifié depuis
+  l'origine sans qu'il figure dans la liste des chemins : les réserves nationales de chasse et faune
+  sauvage étaient hors couverture alors que la documentation les disait couvertes.
+- **La fusion des réserves n'affirme plus une absence sur une donnée manquante.** Elle exigeait
+  qu'une seule des couches réponde (`rnn || rnc`) : si `rnn` échouait et que `rnc` répondait à vide,
+  le résultat était `reserveNaturelle.recouvre = false` — une absence affirmée là où une réserve
+  naturelle nationale est un knock-out. Les trois couches doivent maintenant toutes avoir répondu.
+
+### État après corrections
+
+| | Avant | Après |
+|---|---|---|
+| Tests | 270 | **307** (46 core, 53 scoring, 193 api, 15 web) |
+| Habitations comptées dans les 500 m (parcelle réelle) | 28 | **83** |
+| Knock-out éolien des 500 m sur cette parcelle | ne se déclenchait pas | **se déclenche** |
+| Knock-out APPB | ne pouvait jamais se déclencher | alimenté, absence constatée distinguée du silence |
+| Type de document d'urbanisme | toujours nul | `PLUi` / `PLU` |
+| Nom du site Natura 2000 | toujours nul | renseigné |
+| Nom du zonage naturel affiché | site arbitraire (4 cas sur 5 faux) | site le plus proche |
+| Critère trame verte et bleue | gris silencieux | `sansSource`, statut plafonné à orange |
+| Sources déclarées au référentiel | 18 | 19 |
+
+Ce qui reste ouvert : les lignes 5 à 11 du tableau G. La pagination Géorisques (C3) n'a pas été
+traitée — son effet sur la note est nul et seule la valeur affichée est fausse — non plus que la
+duplication des deux catalogues de couches (C4) ni la couverture de l'interface (C5).

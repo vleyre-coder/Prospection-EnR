@@ -8,6 +8,7 @@
  * topographique au stade du dimensionnement.
  */
 
+import type { ZonageNaturel } from '@enr/core';
 import { distanceM, pointDansGeometrie, positions, type GeoJsonGeometry, type Position } from '../geo.js';
 import { requete } from '../bdd.js';
 
@@ -232,4 +233,97 @@ export async function partsCouvertesExactes(
     // la qualification est de toute facon a l'arret.
     return cibles.map((c) => (c == null ? null : partCouverte(reference, c)));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Agregation d'un zonage naturel
+// ---------------------------------------------------------------------------
+
+/**
+ * Rayon dans lequel les zonages naturels sont recherches, en metres.
+ *
+ * Partage par le connecteur Nature et le connecteur APPB, et repris a l'identique par le
+ * moteur de scoring : la fiche annonce « aucun site trouve dans un rayon de N km », donc les
+ * deux valeurs doivent etre la meme.
+ */
+export const RAYON_ZONAGES_NATURELS_M = 10000;
+
+/**
+ * Ne conserve une distance que si l'emprise interrogee la demontre.
+ *
+ * Au-dela du rayon couvert, le minimum trouve n'est qu'un majorant : un objet plus proche peut
+ * exister hors emprise. Or un majorant est ici optimiste — plus loin d'une habitation, d'un
+ * cours d'eau ou d'un zonage protege vaut une meilleure note — donc inexploitable.
+ */
+export function distanceDemontree(d: number | null, rayonCouvertM: number): number | null {
+  return d != null && d <= rayonCouvertM ? d : null;
+}
+
+/** Une entite de zonage : sa geometrie et son nom, quel que soit le champ source. */
+export interface FeatureZonage {
+  geometry: GeoJsonGeometry;
+  nom: string | null;
+}
+
+/**
+ * Reduit un ensemble d'entites de zonage a la synthese portee par le snapshot.
+ *
+ * POURQUOI CETTE FONCTION EXISTE. Le connecteur Nature prenait le nom sur `features[0]`, c'est-
+ * a-dire sur le premier element de l'ordre de reponse de l'API, sur une emprise de 10 km — tout
+ * en calculant la distance comme le minimum sur l'ensemble. La fiche concatenait ensuite les
+ * deux comme s'ils decrivaient le meme site. Mesure sur cinq localisations reelles, couche
+ * ZNIEFF de type I : 4 cas sur 5 ou le nom affiche designait un autre site que la distance
+ * affichee. Le nom doit donc venir de l'entite qui realise le minimum, et de nulle part ailleurs.
+ *
+ * `rayonCouvertM` est le rayon sur lequel la reponse est exhaustive. Un recouvrement constate
+ * reste vrai quel que soit ce rayon ; une distance, non.
+ */
+export function zonageDepuisFeatures(
+  parcelle: GeoJsonGeometry,
+  feats: readonly FeatureZonage[],
+  rayonCouvertM: number = RAYON_ZONAGES_NATURELS_M,
+): ZonageNaturel {
+  if (feats.length === 0) {
+    return { recouvre: false, partRecouvrement: 0, distanceM: null, nom: null };
+  }
+
+  let recouvrante: FeatureZonage | null = null;
+  let plusProche: FeatureZonage | null = null;
+  let distanceMin: number | null = null;
+
+  for (const f of feats) {
+    const { recouvre, distanceM: d } = recouvrement(parcelle, [f.geometry]);
+    if (recouvre) {
+      // Un seul recouvrement suffit a conclure, et sa distance vaut zero.
+      recouvrante = f;
+      break;
+    }
+    if (d != null && (distanceMin == null || d < distanceMin)) {
+      distanceMin = d;
+      plusProche = f;
+    }
+  }
+
+  if (recouvrante) {
+    return {
+      recouvre: true,
+      // La part reellement recouverte demanderait une intersection exacte, soit une requete
+      // PostGIS par couche et par parcelle. Aucun critere ne la lit pour les milieux naturels :
+      // on la laisse inconnue plutot que d'affirmer 100 %, ce qui etait faux des qu'une
+      // parcelle n'etait qu'en partie dans le zonage.
+      partRecouvrement: null,
+      distanceM: 0,
+      nom: recouvrante.nom,
+    };
+  }
+
+  const distanceRetenue = distanceDemontree(distanceMin, rayonCouvertM);
+  return {
+    recouvre: false,
+    partRecouvrement: 0,
+    distanceM: distanceRetenue,
+    // Le nom n'a de sens que s'il accompagne une distance demontree : sans elle, il
+    // designerait un site sans dire a quelle distance il se trouve.
+    nom: distanceRetenue == null ? null : (plusProche?.nom ?? null),
+  };
 }

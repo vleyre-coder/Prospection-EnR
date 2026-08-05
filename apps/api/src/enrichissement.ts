@@ -23,7 +23,7 @@ import { milieuxNaturels } from './connecteurs/nature.js';
 import { risquesEtEau } from './connecteurs/georisques.js';
 import { topographie } from './connecteurs/altimetrie.js';
 import { gisementComplet } from './connecteurs/gisement.js';
-import { acces, aocViticole, distanceCoursEau, distancesBati, foret, zoneHumide } from './connecteurs/wfs.js';
+import { acces, aocViticole, appb, distanceCoursEau, distancesBati, foret, zoneHumide } from './connecteurs/wfs.js';
 import { libelleCategorie, servitudes } from './connecteurs/servitudes.js';
 import {
   documentCadrePv,
@@ -102,6 +102,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     rPatrimoine,
     rZoneHabitat,
     rServitudes,
+    rAppb,
   ] = await Promise.all([
     urbanismeParcelle(geom, parcelle.surfaceCalculeeM2).catch((e) => {
       journal.warn({ err: e, idu: parcelle.idu }, 'Echec urbanisme');
@@ -124,6 +125,8 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     patrimoine(centroide).catch(() => null),
     distanceZoneHabitat(geom, bboxEnPolygone(elargirBbox(bboxDe(geom), 1000))),
     servitudes(geom).catch(() => null),
+    // Arrete de protection de biotope : le knock-out existait, la donnee non.
+    appb(geom),
   ]);
 
   // --- Urbanisme ------------------------------------------------------------
@@ -250,6 +253,16 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
       rForet?.recouvre == null ? null : rForet.recouvre && (rForet.partBoisee ?? 0) > 0.05;
   } else {
     echecs.add('apicarto_nature');
+  }
+
+  // --- Arrete de protection de biotope -------------------------------------
+  // Source distincte du module Nature (WFS PatriNat), donc echec distinct : une reserve
+  // naturelle indisponible ne doit pas faire passer l'APPB pour verifie, ni l'inverse.
+  if (rAppb) {
+    snapshot.milieux.appb = rAppb;
+    sources.patrinat_appb = sourceRef('patrinat_appb');
+  } else {
+    echecs.add('patrinat_appb');
   }
 
   // --- Patrimoine ----------------------------------------------------------
