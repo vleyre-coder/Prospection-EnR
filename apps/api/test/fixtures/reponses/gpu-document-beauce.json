@@ -1,0 +1,92 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "document.27015",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        1.47509,
+        48.11865
+       ],
+       [
+        1.58726,
+        48.22454
+       ],
+       [
+        1.55137,
+        48.30182
+       ],
+       [
+        1.75729,
+        48.37786
+       ],
+       [
+        1.93443,
+        48.3824
+       ],
+       [
+        1.90415,
+        48.44002
+       ],
+       [
+        1.97177,
+        48.38766
+       ],
+       [
+        1.96377,
+        48.29789
+       ],
+       [
+        1.9681,
+        48.21732
+       ],
+       [
+        1.87322,
+        48.09789
+       ],
+       [
+        1.71772,
+        48.06664
+       ],
+       [
+        1.54294,
+        48.05356
+       ],
+       [
+        1.47509,
+        48.11865
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "the_geom",
+   "properties": {
+    "id": "826c8132c96504da0e8cf83220f9dd12",
+    "grid_name": "200070159",
+    "grid_title": "PLUI COEUR DE BEAUCE",
+    "name": "200070159_PLUi_20260615",
+    "gpu_doc_id": "826c8132c96504da0e8cf83220f9dd12",
+    "gpu_status": "production",
+    "gpu_timestamp": "2026-08-05T10:16:26.183Z",
+    "partition": "DU_200070159",
+    "du_type": "PLUi"
+   }
+  }
+ ],
+ "totalFeatures": 1,
+ "numberMatched": 1,
+ "numberReturned": 1,
+ "timeStamp": "2026-08-05T14:18:51.737Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::4326"
+  }
+ }
+}

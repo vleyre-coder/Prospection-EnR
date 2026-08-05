@@ -1,0 +1,63 @@
+{
+ "totalElements": 1,
+ "totalPages": 1,
+ "pageNumber": 0,
+ "pageSize": 10,
+ "content": [
+  {
+   "idGaspar": "69DDT20200002",
+   "libPpr": "Vallée de la chimie",
+   "modeleProcedure": "PPRT",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "00",
+      "libelle": "Non Identifié",
+      "nom": "Réglementation s'appliquant aux logements existants en octobre 2016 : Recommandations de renforcement du bâti",
+      "codeZone": "3"
+     },
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "Zonage réglementaire des projets bleu foncé",
+      "codeZone": "B4 F"
+     },
+     {
+      "code": "03",
+      "libelle": "Interdiction",
+      "nom": "Zonage réglementaire des projets rouge clair",
+      "codeZone": "r1 SF"
+     },
+     {
+      "code": "04",
+      "libelle": "Interdiction stricte",
+      "nom": "Zonage réglementaire des projets rouge foncé",
+      "codeZone": "R SF"
+     },
+     {
+      "code": "05",
+      "libelle": "Délaissement possible",
+      "nom": "Secteur de délaissement \"Feyzin Mariniers\"",
+      "codeZone": "DE"
+     },
+     {
+      "code": "06",
+      "libelle": "Expropriation possible",
+      "nom": "Secteur d'expropriation \"Feyzin Stations Services\"",
+      "codeZone": "EX"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "69",
+    "libelleDepartementPilote": "RHONE"
+   },
+   "dateModification": "10/04/2025",
+   "listePprRevises": []
+  }
+ ]
+}

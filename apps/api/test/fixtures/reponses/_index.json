@@ -1,0 +1,20 @@
+{
+ "_capture": "2026-08-05",
+ "_note": "Reponses REELLES des services de production, tronquees a quelques objets et dont les geometries sont DECIMEES (une douzaine de sommets, 5 decimales) pour rester versionnables. Les PROPRIETES sont intactes : c'est la transformation proprietes -> snapshot que ces fixtures servent a verifier, pas l'exactitude geometrique, couverte par postgis.test.ts. Recapturer avec scripts/enregistrer-reponses.mjs si une source change de contrat.",
+ "urls": {
+  "gpu-document-beauce": "https://apicarto.ign.fr/api/gpu/document?geom=%7B%22type%22%3A%20%22Point%22%2C%20%22coordinates%22%3A%20%5B1.748%2C%2048.153%5D%7D",
+  "gpu-zone-urba-beauce": "https://apicarto.ign.fr/api/gpu/zone-urba?geom=%7B%22type%22%3A%20%22Point%22%2C%20%22coordinates%22%3A%20%5B1.748%2C%2048.153%5D%7D",
+  "gpu-municipality-beauce": "https://apicarto.ign.fr/api/gpu/municipality?geom=%7B%22type%22%3A%20%22Point%22%2C%20%22coordinates%22%3A%20%5B1.748%2C%2048.153%5D%7D",
+  "nature-natura-habitat-camargue": "https://apicarto.ign.fr/api/nature/natura-habitat?geom=%7B%22type%22%3A%20%22Polygon%22%2C%20%22coordinates%22%3A%20%5B%5B%5B4.5%2C%2043.5%5D%2C%20%5B4.6%2C%2043.5%5D%2C%20%5B4.6%2C%2043.6%5D%2C%20%5B4.5%2C%2043.6%5D%2C%20%5B4.5%2C%2043.5%5D%5D%5D%7D",
+  "nature-znieff1-camargue": "https://apicarto.ign.fr/api/nature/znieff1?geom=%7B%22type%22%3A%20%22Polygon%22%2C%20%22coordinates%22%3A%20%5B%5B%5B4.5%2C%2043.5%5D%2C%20%5B4.6%2C%2043.5%5D%2C%20%5B4.6%2C%2043.6%5D%2C%20%5B4.5%2C%2043.6%5D%2C%20%5B4.5%2C%2043.5%5D%5D%5D%7D",
+  "cadastre-parcelle-beauce": "https://apicarto.ign.fr/api/cadastre/parcelle?geom=%7B%22type%22%3A%20%22Point%22%2C%20%22coordinates%22%3A%20%5B1.748%2C%2048.153%5D%7D",
+  "rpg-v2-beauce": "https://apicarto.ign.fr/api/rpg/v2?geom=%7B%22type%22%3A%20%22Point%22%2C%20%22coordinates%22%3A%20%5B1.748%2C%2048.153%5D%7D&annee=2023&_limit=3",
+  "georisques-pprn-arles": "https://georisques.gouv.fr/api/v1/gaspar/pprn?codeInsee=13004&pageSize=5",
+  "georisques-pprn-aix": "https://georisques.gouv.fr/api/v1/gaspar/pprn?codeInsee=13001&pageSize=10",
+  "georisques-pprt-lyon": "https://georisques.gouv.fr/api/v1/gaspar/pprt?codeInsee=69123&pageSize=5",
+  "georisques-pprn-menton": "https://georisques.gouv.fr/api/v1/gaspar/pprn?codeInsee=06083&pageSize=20",
+  "georisques-rga-lille": "https://georisques.gouv.fr/api/v1/rga?latlon=3.0700,50.6300",
+  "wfs-batiment-village": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=40&TYPENAMES=BDTOPO_V3:batiment&BBOX=1.745,48.150,1.752,48.156,EPSG:4326",
+  "wfs-apb-rennes": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=5&TYPENAMES=patrinat_apb:apb&BBOX=-1.80,48.00,-1.50,48.30,EPSG:4326"
+ }
+}

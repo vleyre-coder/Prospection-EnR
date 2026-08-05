@@ -1,0 +1,261 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "znieff1.16554",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        4.45438,
+        43.46136
+       ],
+       [
+        4.45128,
+        43.4943
+       ],
+       [
+        4.47641,
+        43.51569
+       ],
+       [
+        4.48806,
+        43.53902
+       ],
+       [
+        4.49699,
+        43.56076
+       ],
+       [
+        4.55854,
+        43.56694
+       ],
+       [
+        4.60535,
+        43.56585
+       ],
+       [
+        4.64098,
+        43.53024
+       ],
+       [
+        4.60562,
+        43.49115
+       ],
+       [
+        4.60341,
+        43.45456
+       ],
+       [
+        4.53316,
+        43.45211
+       ],
+       [
+        4.49248,
+        43.45659
+       ],
+       [
+        4.45861,
+        43.46351
+       ],
+       [
+        4.45438,
+        43.46136
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "geom",
+   "properties": {
+    "id_local": "13136156",
+    "date_crea": "2024-12-19Z",
+    "modif_adm": "2024-11-21Z",
+    "modif_geo": "2023-06-07Z",
+    "surf_off": null,
+    "acte_deb": null,
+    "acte_fin": null,
+    "gest_site": "DREAL PACA",
+    "operateur": "DREAL PACA",
+    "precision": "25000",
+    "src_geom": "BD TOPO",
+    "src_annee": null,
+    "marin": "F",
+    "p1_nature": "T",
+    "p4_geologi": null,
+    "id_mnhn": "930012425",
+    "area_sig": 16088.44,
+    "cd_sig": "I032G2930012425",
+    "territoire": "METROP",
+    "url": "https://inpn.mnhn.fr/zone/znieff/930012425",
+    "nom": "SYSTÈME DU VACCARÈS"
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "znieff1.16567",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        4.44939,
+        43.57113
+       ],
+       [
+        4.47432,
+        43.5705
+       ],
+       [
+        4.47946,
+        43.59029
+       ],
+       [
+        4.49654,
+        43.58493
+       ],
+       [
+        4.49775,
+        43.57197
+       ],
+       [
+        4.48465,
+        43.56578
+       ],
+       [
+        4.46657,
+        43.55504
+       ],
+       [
+        4.48106,
+        43.53597
+       ],
+       [
+        4.45851,
+        43.53133
+       ],
+       [
+        4.42059,
+        43.55065
+       ],
+       [
+        4.42221,
+        43.5626
+       ],
+       [
+        4.42833,
+        43.56965
+       ],
+       [
+        4.4319,
+        43.5659
+       ],
+       [
+        4.44939,
+        43.57113
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        4.50191,
+        43.58679
+       ],
+       [
+        4.49425,
+        43.59799
+       ],
+       [
+        4.51983,
+        43.61617
+       ],
+       [
+        4.5442,
+        43.6068
+       ],
+       [
+        4.57019,
+        43.60421
+       ],
+       [
+        4.592,
+        43.6009
+       ],
+       [
+        4.60911,
+        43.60183
+       ],
+       [
+        4.61657,
+        43.58921
+       ],
+       [
+        4.60758,
+        43.58125
+       ],
+       [
+        4.58439,
+        43.57965
+       ],
+       [
+        4.56064,
+        43.5805
+       ],
+       [
+        4.53293,
+        43.58941
+       ],
+       [
+        4.50314,
+        43.58136
+       ],
+       [
+        4.50191,
+        43.58679
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "geom",
+   "properties": {
+    "id_local": "13136114",
+    "date_crea": "2024-12-19Z",
+    "modif_adm": "2024-11-21Z",
+    "modif_geo": "2010-12-21Z",
+    "surf_off": null,
+    "acte_deb": null,
+    "acte_fin": null,
+    "gest_site": "DREAL PACA",
+    "operateur": "DREAL PACA",
+    "precision": "25000",
+    "src_geom": "BD TOPO",
+    "src_annee": null,
+    "marin": "F",
+    "p1_nature": "T",
+    "p4_geologi": null,
+    "id_mnhn": "930012422",
+    "area_sig": 4546.59,
+    "cd_sig": "I032G2930012422",
+    "territoire": "METROP",
+    "url": "https://inpn.mnhn.fr/zone/znieff/930012422",
+    "nom": "MARAIS DE LA GRAND MAR, DES BRUNS ET DE LA SIGOULETTE"
+   }
+  }
+ ],
+ "totalFeatures": 2,
+ "numberMatched": 2,
+ "numberReturned": 2,
+ "timeStamp": "2026-08-05T14:18:56.734Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:CRS::84"
+  }
+ }
+}

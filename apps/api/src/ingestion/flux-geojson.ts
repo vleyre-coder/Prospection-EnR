@@ -26,24 +26,21 @@ export interface EntiteGeoJson {
  * @param url URL du fichier GeoJSON.
  * @param signal Permet d'interrompre le telechargement.
  */
-export async function* entitesDepuisFlux(
-  url: string,
-  signal?: AbortSignal,
+/**
+ * Automate d'extraction des entites d'un tableau `features`, sur un flux de morceaux.
+ *
+ * SEPARE DU TELECHARGEMENT, et c'est le point : c'est un analyseur JSON incremental ecrit a la
+ * main, avec un etat de chaine, d'echappement et de profondeur. Un defaut y corrompt 46 000
+ * objets en silence, et il n'etait couvert par aucun test parce qu'il etait soude a `fetch`.
+ * Sous cette forme, il se verifie avec des morceaux decoupes a la main — y compris aux endroits
+ * ou un tel automate casse : au milieu d'une chaine, d'un echappement, ou d'une accolade.
+ *
+ * Tolerant par choix : une entite illisible est ignoree plutot que d'interrompre l'ingestion
+ * entiere. Le compteur d'entites ignorees est de la responsabilite de l'appelant.
+ */
+export async function* entitesDepuisMorceaux(
+  morceaux: AsyncIterable<string>,
 ): AsyncGenerator<EntiteGeoJson> {
-  const reponse = await fetch(url, {
-    signal,
-    headers: {
-      Accept: 'application/geo+json, application/json',
-      'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
-    },
-  });
-  if (!reponse.ok || !reponse.body) {
-    throw new Error(`Telechargement impossible (${reponse.status}) : ${url}`);
-  }
-
-  const lecteur = reponse.body.getReader();
-  const decodeur = new TextDecoder();
-
   let tampon = '';
   let position = 0;
   let dansTableau = false;
@@ -52,14 +49,12 @@ export async function* entitesDepuisFlux(
   let dansChaine = false;
   let echappement = false;
   let termine = false;
+  let vu = false;
 
-  while (!termine) {
-    const { done, value } = await lecteur.read();
-    if (value) tampon += decodeur.decode(value, { stream: true });
-    if (done) {
-      tampon += decodeur.decode();
-      termine = true;
-    }
+  for await (const morceau of morceaux) {
+    if (termine) break;
+    vu = true;
+    tampon += morceau;
 
     // Localisation du tableau `features`, une seule fois.
     if (!dansTableau) {
@@ -67,7 +62,7 @@ export async function* entitesDepuisFlux(
       if (cle === -1) {
         // La cle n'est pas encore arrivee : on conserve un tampon borne, le temps qu'elle
         // apparaisse (l'en-tete d'un GeoJSON est court).
-        if (tampon.length > 1_000_000 && termine) {
+        if (tampon.length > 1_000_000) {
           throw new Error("Le document ne contient pas de tableau `features`");
         }
         continue;
@@ -135,6 +130,48 @@ export async function* entitesDepuisFlux(
       }
     }
   }
+
+  if (vu && !dansTableau) {
+    throw new Error("Le document ne contient pas de tableau `features`");
+  }
+}
+
+/** Morceaux de texte d'une reponse HTTP, decodes en UTF-8 au fil de l'eau. */
+async function* morceauxHttp(url: string, signal?: AbortSignal): AsyncGenerator<string> {
+  const reponse = await fetch(url, {
+    signal,
+    headers: {
+      Accept: 'application/geo+json, application/json',
+      'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
+    },
+  });
+  if (!reponse.ok || !reponse.body) {
+    throw new Error(`Telechargement impossible (${reponse.status}) : ${url}`);
+  }
+  const lecteur = reponse.body.getReader();
+  const decodeur = new TextDecoder();
+  for (;;) {
+    const { done, value } = await lecteur.read();
+    if (value) yield decodeur.decode(value, { stream: true });
+    if (done) {
+      const reste = decodeur.decode();
+      if (reste) yield reste;
+      return;
+    }
+  }
+}
+
+/**
+ * Entites d'un GeoJSON distant, lues EN FLUX.
+ *
+ * Le fichier national des monuments historiques pese environ 220 Mo pour 46 000 entites : le
+ * charger en memoire n'est pas envisageable.
+ */
+export async function* entitesDepuisFlux(
+  url: string,
+  signal?: AbortSignal,
+): AsyncGenerator<EntiteGeoJson> {
+  yield* entitesDepuisMorceaux(morceauxHttp(url, signal));
 }
 
 /**

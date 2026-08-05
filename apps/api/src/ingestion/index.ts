@@ -193,7 +193,7 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
   return { connecteur: 'reseau_gaz', nbPoints };
 }
 
-function extraireCoordonnees(r: Record<string, unknown>): [number, number] | null {
+export function extraireCoordonnees(r: Record<string, unknown>): [number, number] | null {
   for (const cle of ['geo_point_2d', 'geo_point', 'coordonnees', 'geolocalisation']) {
     const v = r[cle];
     if (v && typeof v === 'object' && 'lon' in v && 'lat' in v) {
@@ -210,10 +210,28 @@ function extraireCoordonnees(r: Record<string, unknown>): [number, number] | nul
   return lon != null && lat != null ? [lon, lat] : null;
 }
 
-function nombreOuNull(v: unknown): number | null {
+/**
+ * Convertit une valeur de jeu ouvert en nombre, ou `null`.
+ *
+ * ATTENTION AU PIEGE DE LA CHAINE VIDE. `Number('')` vaut **0**, et `0` est fini : sans garde
+ * explicite, un champ vide devenait donc `0` au lieu de « inconnu ». Deux consequences reelles,
+ * decouvertes par le test de ce module :
+ *   - une capacite d'injection gaz non renseignee ressortait a 0 m3/h, ce qui se lit comme
+ *     « aucune capacite » et non comme « capacite inconnue » ;
+ *   - surtout, une longitude ou une latitude vide donnait `[0, 0]` — un point dans le golfe de
+ *     Guinee, ingere en base comme une geometrie parfaitement valide, sur un jeu de 46 000
+ *     monuments. Les bornes de vraisemblance ne l'auraient pas vu : elles couvrent les grandeurs
+ *     du snapshot, pas les geometries ingerees.
+ *
+ * La virgule decimale francaise reste convertie : les jeux publies en France ecrivent « 1,75 ».
+ */
+export function nombreOuNull(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
   if (typeof v === 'string') {
-    const n = Number(v.replace(',', '.'));
+    const brut = v.trim();
+    // Chaine vide ou blanche : absence, pas zero.
+    if (brut === '') return null;
+    const n = Number(brut.replace(',', '.'));
     return Number.isFinite(n) ? n : null;
   }
   return null;
@@ -237,7 +255,7 @@ function nombreOuNull(v: unknown): number | null {
 const JEU_MONUMENTS = '65cb6f939898f97cedd0d6d4';
 
 /** Le champ `nature_de_la_protection` distingue classement et inscription. */
-function sousTypeProtection(p: Record<string, unknown>): string {
+export function sousTypeProtection(p: Record<string, unknown>): string {
   const texte = [p['typologie_de_la_protection'], p['date_et_typologie_de_la_protection']]
     .map((v) => String(v ?? '').toLowerCase())
     .join(' ');

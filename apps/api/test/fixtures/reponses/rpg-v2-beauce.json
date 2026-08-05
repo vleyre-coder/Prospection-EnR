@@ -1,0 +1,97 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "parcelles_graphiques.3166172",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        1.74301,
+        48.15464
+       ],
+       [
+        1.75017,
+        48.15407
+       ],
+       [
+        1.75015,
+        48.15389
+       ],
+       [
+        1.75014,
+        48.15337
+       ],
+       [
+        1.75018,
+        48.1531
+       ],
+       [
+        1.7502,
+        48.1529
+       ],
+       [
+        1.75016,
+        48.15275
+       ],
+       [
+        1.75004,
+        48.15258
+       ],
+       [
+        1.74885,
+        48.15271
+       ],
+       [
+        1.74626,
+        48.15299
+       ],
+       [
+        1.74536,
+        48.15311
+       ],
+       [
+        1.74514,
+        48.15316
+       ],
+       [
+        1.74351,
+        48.15361
+       ],
+       [
+        1.74277,
+        48.15383
+       ],
+       [
+        1.74301,
+        48.15464
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "geom",
+   "properties": {
+    "culture_d1": "",
+    "code_cultu": "BTH",
+    "code_group": "1",
+    "culture_d2": "",
+    "surf_parc": 7.93,
+    "id_parcel": "3188615"
+   }
+  }
+ ],
+ "totalFeatures": 1,
+ "numberMatched": 1,
+ "numberReturned": 1,
+ "timeStamp": "2026-08-05T14:18:58.782Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::4326"
+  }
+ }
+}

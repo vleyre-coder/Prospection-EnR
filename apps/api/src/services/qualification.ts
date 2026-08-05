@@ -7,7 +7,7 @@
  * Son snapshot et ses scores sont alors materialises, puis rafraichis par lot.
  */
 
-import { FILIERES, type Filiere, type ResultatScore } from '@enr/core';
+import { FILIERES, type Filiere, type ParcelleSnapshot, type ResultatScore } from '@enr/core';
 import { calculerScore, VERSION_MOTEUR } from '@enr/scoring';
 import { journal } from '../journal.js';
 import { config } from '../config.js';
@@ -19,6 +19,7 @@ import {
   parcelleParIdu as recupererParcelle,
 } from '../connecteurs/cadastre.js';
 import { couvertureSnapshot, enrichirParcelle } from '../enrichissement.js';
+import { journaliserVeille, veillerSurLot } from './veille-sources.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 
@@ -104,6 +105,14 @@ export async function qualifierIdus(
   const echecsParConnecteur: Record<string, number> = {};
   let nbEnrichies = 0;
   let nbEchecs = 0;
+  /**
+   * Snapshots fraichement enrichis, pour la veille sur la degradation des sources.
+   *
+   * Les trois defauts critiques des audits 5, 6 et 7 etaient des champs devenus toujours nuls
+   * sans qu'aucune erreur ne se declenche. Le seul signal qui les aurait montres est
+   * l'effondrement du taux de renseignement sur un lot. Voir services/veille-sources.ts.
+   */
+  const pourVeille: ParcelleSnapshot[] = [];
 
   const lot = idus.slice(0, config.qualification.lotMax);
 
@@ -149,6 +158,9 @@ export async function qualifierIdus(
         });
         snapshot = resultat.snapshot;
         echecs = resultat.connecteursEnEchec;
+        // Snapshots FRAICHEMENT enrichis seulement : un snapshot repris du cache ne dit rien de
+        // l'etat actuel des sources, et le compter diluerait le signal.
+        pourVeille.push(resultat.snapshot);
         await depotParcelles.enregistrerSnapshot(
           idu,
           snapshot,
@@ -177,6 +189,11 @@ export async function qualifierIdus(
     }
     options.onProgres?.(nbEnrichies + nbEchecs, lot.length, nbEchecs);
   }
+
+  // Veille sur la degradation silencieuse des sources : un champ tombe a zero sur tout un lot
+  // signale un contrat rompu, meme si chaque service a repondu HTTP 200. C'est le signal qui
+  // manquait aux audits 5, 6 et 7 — trois defauts critiques ou rien ne s'est allume.
+  journaliserVeille(veillerSurLot(pourVeille));
 
   return {
     nbParcelles: lot.length,

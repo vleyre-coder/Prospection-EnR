@@ -1,0 +1,79 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "parcelle.30357888",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        1.75016,
+        48.15316
+       ],
+       [
+        1.75018,
+        48.153
+       ],
+       [
+        1.75036,
+        48.15254
+       ],
+       [
+        1.75028,
+        48.15255
+       ],
+       [
+        1.74843,
+        48.15277
+       ],
+       [
+        1.74573,
+        48.15307
+       ],
+       [
+        1.74513,
+        48.15314
+       ],
+       [
+        1.74532,
+        48.15371
+       ],
+       [
+        1.75016,
+        48.15316
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "geom",
+   "properties": {
+    "gid": 28183674,
+    "numero": "0002",
+    "feuille": 1,
+    "section": "ZT",
+    "code_dep": "28",
+    "nom_com": "Tillay-le-Péneux",
+    "code_com": "390",
+    "com_abs": "000",
+    "code_arr": "000",
+    "idu": "28390000ZT0002",
+    "contenance": 24615,
+    "code_insee": "28390"
+   }
+  }
+ ],
+ "totalFeatures": 1,
+ "numberMatched": 1,
+ "numberReturned": 1,
+ "timeStamp": "2026-08-05T14:18:57.907Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::4326"
+  }
+ }
+}

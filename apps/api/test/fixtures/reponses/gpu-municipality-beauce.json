@@ -1,0 +1,92 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "municipality.12757532",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        1.78277,
+        48.18629
+       ],
+       [
+        1.79206,
+        48.17272
+       ],
+       [
+        1.79438,
+        48.16078
+       ],
+       [
+        1.79406,
+        48.1451
+       ],
+       [
+        1.79312,
+        48.13131
+       ],
+       [
+        1.77236,
+        48.13467
+       ],
+       [
+        1.75563,
+        48.14347
+       ],
+       [
+        1.74673,
+        48.13589
+       ],
+       [
+        1.74081,
+        48.14025
+       ],
+       [
+        1.72257,
+        48.14983
+       ],
+       [
+        1.73458,
+        48.16818
+       ],
+       [
+        1.73819,
+        48.17541
+       ],
+       [
+        1.75758,
+        48.18311
+       ],
+       [
+        1.78277,
+        48.18629
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "the_geom",
+   "properties": {
+    "insee": "28390",
+    "name": "TILLAY-LE-PENEUX",
+    "is_rnu": false,
+    "is_deleted": false,
+    "is_coastline": false
+   }
+  }
+ ],
+ "totalFeatures": 1,
+ "numberMatched": 1,
+ "numberReturned": 1,
+ "timeStamp": "2026-08-05T14:18:54.836Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::4326"
+  }
+ }
+}

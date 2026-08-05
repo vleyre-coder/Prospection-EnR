@@ -1,0 +1,83 @@
+{
+ "totalElements": 3,
+ "totalPages": 1,
+ "pageNumber": 0,
+ "pageSize": 10,
+ "content": [
+  {
+   "idGaspar": "06DDTM19870002",
+   "libPpr": "PER-Multi [ MVT & S ] - Menton 2001",
+   "modeleProcedure": "PPRN-Multi",
+   "libBassinRisques": "Mentonnais",
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "B_S",
+      "codeZone": "B_S"
+     },
+     {
+      "code": "03",
+      "libelle": "Interdiction",
+      "nom": "R_R",
+      "codeZone": "R_R"
+     },
+     {
+      "code": "07",
+      "libelle": "Non Identifié",
+      "nom": "NR_NR",
+      "codeZone": "NR_NR"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "06",
+    "libelleDepartementPilote": "ALPES-MARITIMES"
+   },
+   "dateModification": "01/12/2025",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "06DREAL20200002",
+   "libPpr": "PPRN-I - Menton 2020",
+   "modeleProcedure": "PPRN-I",
+   "libBassinRisques": "Mentonnais",
+   "etatRevision": false,
+   "supExists": false,
+   "zonageReglementaire": {
+    "zoneRegExists": false,
+    "listTypeReg": []
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "06",
+    "libelleDepartementPilote": "ALPES-MARITIMES"
+   },
+   "dateModification": "07/04/2025",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "PPRN-S_2025_0001",
+   "libPpr": "PPRN-S - Menton 2025",
+   "modeleProcedure": "PPRN-S",
+   "libBassinRisques": null,
+   "etatRevision": true,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": false,
+    "listTypeReg": []
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "06",
+    "libelleDepartementPilote": "ALPES-MARITIMES"
+   },
+   "dateModification": "01/12/2025",
+   "listePprRevises": [
+    "06DDTM19870002"
+   ]
+  }
+ ]
+}

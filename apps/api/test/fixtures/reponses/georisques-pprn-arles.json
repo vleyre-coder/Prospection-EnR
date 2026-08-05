@@ -1,0 +1,45 @@
+{
+ "totalElements": 1,
+ "totalPages": 1,
+ "pageNumber": 0,
+ "pageSize": 10,
+ "content": [
+  {
+   "idGaspar": "13DDTM20000134",
+   "libPpr": "PPRN-I - SUB marine - Arles 2015",
+   "modeleProcedure": "PPRN-I",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "BLEU",
+      "codeZone": "B2"
+     },
+     {
+      "code": "03",
+      "libelle": "Interdiction",
+      "nom": "PORTUAIRE",
+      "codeZone": "P"
+     },
+     {
+      "code": "04",
+      "libelle": "Interdiction stricte",
+      "nom": "ROUGE",
+      "codeZone": "RH"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "06/01/2026",
+   "listePprRevises": []
+  }
+ ]
+}

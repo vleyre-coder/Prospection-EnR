@@ -80,6 +80,18 @@ jobs:
       - run: npm ci
       - run: npm run build --workspace @enr/core --workspace @enr/scoring
 
+      # Le referentiel reglementaire porte une date de derniere verification. Une date n'a de
+      # valeur que si quelque chose la surveille : sans cette etape, elle vieillit en silence et
+      # l'application raisonne sur du droit perime dans des documents transmis a des tiers.
+      - name: Verifier la fraicheur du referentiel reglementaire
+        run: node scripts/verifier-fraicheur-referentiel.mjs
+
+      # Sept audits ont montre qu'un test peut passer sans rien proteger. Chaque mutation de ce
+      # script correspond a un defaut REELLEMENT survenu et doit faire echouer au moins un test :
+      # une mutation qui passe signale un test decoratif, ce qui est une regression a part entiere.
+      - name: Verifier par mutation que les gardes protegent vraiment
+        run: node scripts/mutation.mjs
+
       - name: Appliquer les migrations
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci

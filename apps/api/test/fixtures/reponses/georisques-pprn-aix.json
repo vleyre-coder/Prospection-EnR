@@ -1,0 +1,131 @@
+{
+ "totalElements": 6,
+ "totalPages": 1,
+ "pageNumber": 0,
+ "pageSize": 10,
+ "content": [
+  {
+   "idGaspar": "13DDTM19930136",
+   "libPpr": "PPRN-I - BV Arc [ Aix-en-Provence ] 2020",
+   "modeleProcedure": "PPRN-I",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "ZONE BLEU FONCE",
+      "codeZone": "BLEU FONCE"
+     },
+     {
+      "code": "03",
+      "libelle": "Interdiction",
+      "nom": "ZONE ROUGE",
+      "codeZone": "ROUGE"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "02/04/2025",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "13DDTM19980047",
+   "libPpr": "PPRN-MVT - Aix-en-Provence 2001",
+   "modeleProcedure": "PPRN-Mvt",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "BLEU",
+      "codeZone": "B2"
+     },
+     {
+      "code": "03",
+      "libelle": "Interdiction",
+      "nom": "ROUGE",
+      "codeZone": "R"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "05/02/2025",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "13DDTM20050001",
+   "libPpr": "PPRN-RGA - Aix-en-Provence 2012",
+   "modeleProcedure": "PPRN-RGA",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": true,
+    "listTypeReg": [
+     {
+      "code": "02",
+      "libelle": "Prescriptions",
+      "nom": "BLEU",
+      "codeZone": "B2"
+     }
+    ]
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "05/02/2025",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "13DDTM20210011",
+   "libPpr": "PPRN-IF - Aix-en-Provence 2021",
+   "modeleProcedure": "PPRN-IF",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": true,
+   "zonageReglementaire": {
+    "zoneRegExists": false,
+    "listTypeReg": []
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "15/07/2026",
+   "listePprRevises": []
+  },
+  {
+   "idGaspar": "PPRN-I_2025_0058",
+   "libPpr": "PPRN-I - BV Touloubre  [ Aix-en-Provence ] 2025",
+   "modeleProcedure": "PPRN-I",
+   "libBassinRisques": null,
+   "etatRevision": false,
+   "supExists": false,
+   "zonageReglementaire": {
+    "zoneRegExists": false,
+    "listTypeReg": []
+   },
+   "departementPilote": {
+    "codeDepartementPilote": "13",
+    "libelleDepartementPilote": "BOUCHES-DU-RHONE"
+   },
+   "dateModification": "19/05/2025",
+   "listePprRevises": []
+  }
+ ]
+}

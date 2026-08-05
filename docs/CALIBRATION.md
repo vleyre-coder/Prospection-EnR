@@ -137,3 +137,75 @@ Les courbes définies *à l'intérieur* d'un évaluateur (Natura 2000, argiles, 
 pas encore couvertes par l'empreinte : les remonter au niveau module, comme
 `COURBE_DISTANCE_POSTE`, est la façon de les y faire entrer. En attendant, une modification
 de l'une d'elles impose d'incrémenter `VERSION_CODE_MOTEUR` à la main.
+
+---
+
+## Emplacements de saisie pour une calibration réelle
+
+Cette section est la **partie exécutable** de la feuille de route de l'audit 7 (item 14). Chaque
+tableau ci-dessous attend des données réelles. Tant qu'ils sont vides, les valeurs du code restent
+des ordres de grandeur raisonnés — défendables en hiérarchisation, pas en chiffrage.
+
+**Ce que je ne peux pas produire, et pourquoi.** Un devis de raccordement Enedis ou RTE dépend du
+poste, de la puissance demandée, de l'état du S3REnR et de la date. Il ne se déduit d'aucune API
+publique : il faut l'avoir reçu. De même, un rendement agronomique local vient de la chambre
+d'agriculture ou de l'exploitant, et un tonnage d'intrants d'un contrat d'approvisionnement.
+
+**Comment remplir.** Une ligne par observation réelle, avec sa source et sa date. Ne rien
+extrapoler : dix lignes réelles valent mieux que cinquante estimées, parce qu'on peut les vérifier.
+
+### 14a. Coût de raccordement observé
+
+Sert à calibrer `COURBE_DISTANCE_POSTE` et `COEFFICIENT_TRACE`, aujourd'hui adossés à un
+raisonnement et non à des devis.
+
+| Date | Poste source | Gestionnaire | Distance vol d'oiseau (km) | Linéaire réel de tracé (km) | Puissance (MW) | Coût annoncé (k€) | Source du chiffre |
+|---|---|---|---|---|---|---|---|
+| | | | | | | | |
+
+> Ce qu'on en tirera : le **rapport linéaire réel / distance à vol d'oiseau**, qui est exactement ce
+> que `COEFFICIENT_TRACE` estime aujourd'hui à 1,35 sans mesure. Cinq à dix lignes suffisent à
+> confirmer ou corriger cette valeur.
+
+### 14b. Décision de gestionnaire de réseau
+
+Sert à calibrer les paliers de capacité résiduelle et de file d'attente.
+
+| Date | Poste source | Capacité résiduelle annoncée (MW) | Puissance demandée (MW) | Décision | Délai obtenu | Source |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+### 14c. Potentiel agronomique local
+
+Sert à remplacer la table dérivée du groupe de culture RPG, qui est une approximation nationale.
+
+| Date | Commune | Groupe de culture RPG | Rendement observé | Unité | Source (chambre d'agriculture, exploitant…) |
+|---|---|---|---|---|---|
+| | | | | | |
+
+### 14d. Gisement méthanisable contractualisé
+
+| Date | Unité de méthanisation | Rayon de collecte (km) | Tonnage annuel (t MS/an) | Nature des intrants | Source |
+|---|---|---|---|---|---|
+| | | | | | |
+
+### 14e. Revue réglementaire datée (item 15)
+
+Sert à transformer `REFERENTIEL_DERNIERE_VERIFICATION` d'une date auto-déclarée en une date
+validée. La CI échoue déjà si elle dépasse 180 jours
+(`scripts/verifier-fraicheur-referentiel.mjs`) — ce qu'elle ne peut pas vérifier, c'est **qui** a
+revu, et sur quels textes.
+
+| Date de revue | Règles revues | Textes confrontés | Validé par (nom, qualité) | Réserves émises |
+|---|---|---|---|---|
+| | | | | |
+
+### 14f. Test utilisateur (item 16)
+
+| Date | Profil du participant | Tâche demandée | Réussie sans aide ? | Point de blocage observé | Décision prise |
+|---|---|---|---|---|---|
+| | | | | | |
+
+> Méthode : trois prospecteurs, une tâche réelle (« trouve-moi trois parcelles à démarcher sur
+> cette commune »), aucune assistance, et on note ce qui bloque. Ce qui compte n'est pas l'avis
+> exprimé mais le point d'arrêt observé.

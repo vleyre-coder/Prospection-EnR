@@ -1,0 +1,164 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "sic.1230",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        4.54713,
+        43.70241
+       ],
+       [
+        4.35835,
+        43.54628
+       ],
+       [
+        4.36997,
+        43.49695
+       ],
+       [
+        4.32009,
+        43.55655
+       ],
+       [
+        4.31847,
+        43.48164
+       ],
+       [
+        4.31168,
+        43.47061
+       ],
+       [
+        4.37861,
+        43.3994
+       ],
+       [
+        4.50494,
+        43.34243
+       ],
+       [
+        4.63836,
+        43.29793
+       ],
+       [
+        4.81956,
+        43.27967
+       ],
+       [
+        4.83079,
+        43.35386
+       ],
+       [
+        4.73245,
+        43.49842
+       ],
+       [
+        4.54713,
+        43.70241
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        4.91383,
+        43.38376
+       ],
+       [
+        4.85322,
+        43.3844
+       ],
+       [
+        4.84301,
+        43.37606
+       ],
+       [
+        4.84564,
+        43.37278
+       ],
+       [
+        4.84728,
+        43.37298
+       ],
+       [
+        4.84944,
+        43.37249
+       ],
+       [
+        4.85071,
+        43.37549
+       ],
+       [
+        4.85336,
+        43.37392
+       ],
+       [
+        4.85793,
+        43.3683
+       ],
+       [
+        4.8624,
+        43.3686
+       ],
+       [
+        4.8657,
+        43.36529
+       ],
+       [
+        4.86671,
+        43.36969
+       ],
+       [
+        4.89552,
+        43.36879
+       ],
+       [
+        4.91383,
+        43.38376
+       ]
+      ]
+     ]
+    ]
+   },
+   "geometry_name": "geom",
+   "properties": {
+    "id_local": null,
+    "date_crea": "2003-07-31Z",
+    "modif_adm": "2022-08-29Z",
+    "modif_geo": "2013-06-12Z",
+    "surf_off": null,
+    "acte_deb": null,
+    "acte_fin": null,
+    "gest_site": "DREAL PACA",
+    "operateur": "DREAL PACA",
+    "precision": "25000",
+    "src_geom": "SCAN25",
+    "src_annee": null,
+    "marin": "M",
+    "p1_nature": "T",
+    "p4_geologi": null,
+    "area_sig": 113448.56,
+    "cd_sig": "I098FR9301592",
+    "territoire": "METROP",
+    "url": "https://inpn.mnhn.fr/site/natura2000/FR9301592",
+    "sitecode": "FR9301592",
+    "sitename": "Camargue"
+   }
+  }
+ ],
+ "totalFeatures": 1,
+ "numberMatched": 1,
+ "numberReturned": 1,
+ "timeStamp": "2026-08-05T14:18:55.660Z",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:CRS::84"
+  }
+ }
+}
