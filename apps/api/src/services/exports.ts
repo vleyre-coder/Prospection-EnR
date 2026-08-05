@@ -86,6 +86,20 @@ function net(s: string | null | undefined): string {
     .replace(/[^\u0000-\u00FF]/g, '');
 }
 
+/**
+ * Etat de l'arrete de protection de biotope, pour le rapport.
+ *
+ * Trois etats a distinguer, et la nuance porte : « aucun dans le rayon analyse » est un CONSTAT,
+ * « non renseigne » signale que la source n'a pas repondu. Confondre les deux ferait passer une
+ * panne de connecteur pour une absence de contrainte.
+ */
+function libelleAppb(a: { recouvre: boolean | null; distanceM: number | null; nom: string | null }): string {
+  if (a.recouvre === true) return `recouvrement${a.nom ? ` - ${a.nom}` : ''}`;
+  if (a.recouvre == null) return 'non renseigne';
+  if (a.distanceM == null) return 'aucun dans le rayon analyse';
+  return `${Math.round(a.distanceM)} m${a.nom ? ` - ${a.nom}` : ''}`;
+}
+
 type Doc = PDFKit.PDFDocument;
 
 function largeurUtile(doc: Doc): number {
@@ -497,6 +511,12 @@ export function ficheParcellePdf(
     ['Denivele', nb(snapshot.topographie.deniveleM, 'm')],
     ['Habitation la plus proche', nb(snapshot.bati.distanceHabitationM, 'm')],
     ['Zone d\'acceleration ENR', urba.zaer.present == null ? 'non renseigne' : ouiNon(urba.zaer.present)],
+    // L'arrete de protection de biotope figurait dans l'interface et PAS dans le rapport : un
+    // APPB a 200 m etait visible a l'ecran et absent du document transmis. Or c'est une
+    // protection absolue (art. R.411-15 du code de l'environnement), non derogeable par une
+    // modification du document d'urbanisme : elle ne peut pas manquer au livrable. Un
+    // recouvrement, lui, declenche un knock-out et apparait deja en tete de rapport.
+    ['Protection de biotope (APPB)', libelleAppb(snapshot.milieux.appb)],
   ]);
   if (zonagePrincipal?.urlReglement) {
     doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(net(`Reglement applicable : ${zonagePrincipal.urlReglement}`), MARGE, doc.y, { width: total });

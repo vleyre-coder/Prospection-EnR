@@ -697,12 +697,10 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
 
         {couchesIndisponibles > 0 && (
           <p className="legende-note" style={{ marginTop: 8 }}>
-            <strong>{couchesIndisponibles} couche(s) grisee(s) :</strong> aucune donnee ingeree pour
-            l&apos;instant, elles ne peuvent donc rien afficher sur la carte.{' '}
-            <strong>Cela ne fausse pas les scores</strong> : les criteres correspondants sont
-            evalues parcelle par parcelle en interrogeant directement les sources officielles au
-            moment de la qualification. Ces couches ne servent qu&apos;a la visualisation
-            d&apos;ensemble.
+            <strong>{couchesIndisponibles} couche(s) grisee(s) :</strong> l&apos;ingestion
+            correspondante n&apos;a pas encore ete lancee sur cette installation. Voir la section
+            « Calques cartographiques » ci-dessous, qui interroge les services officiels en direct
+            et ne depend pas de l&apos;ingestion.
           </p>
         )}
       </div>

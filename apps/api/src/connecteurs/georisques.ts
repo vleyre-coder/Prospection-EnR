@@ -10,7 +10,7 @@
  *     ce cas comme "alea nul" et non comme une erreur.
  */
 
-import type { Eau, Risques, Topographie } from '@enr/core';
+import type { Eau, Risques, SeveritePlanPpr, Topographie } from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { journal } from '../journal.js';
@@ -36,30 +36,111 @@ function latlon(pt: Position): string {
   return `${pt[0].toFixed(6)},${pt[1].toFixed(6)}`;
 }
 
-async function formeA<T>(
+/**
+ * Taille de page demandee a Georisques.
+ *
+ * Le service accepte davantage, mais une page trop grande allonge la reponse sans reduire le
+ * nombre de requetes dans les cas courants (la plupart des communes ont moins de 100 objets).
+ */
+const TAILLE_PAGE = 100;
+
+/**
+ * Nombre maximal de pages parcourues.
+ *
+ * Garde-fou de volumetrie : au-dela, on prefere une valeur MINOREE ET SIGNALEE a une rafale de
+ * requetes. Le cas ne se presente pas sur les compteurs du referentiel, dont les courbes de score
+ * saturent bien avant (8 mouvements de terrain, 12 cavites, 12 sites pollues).
+ */
+const PAGES_MAX = 10;
+
+/**
+ * Pagination des reponses Georisques.
+ *
+ * POURQUOI. Les longueurs de ces listes servent de COMPTEURS au snapshot
+ * (`mouvementsTerrain`, `cavitesProches`, `sitesPollues`). La version precedente demandait
+ * `page_size: 50` et renvoyait `rep.data ?? []` sans jamais lire `results` ni `total_pages` :
+ * Menton annoncait 148 mouvements de terrain pour 50 renvoyes, Lyon 214 sites pollues, Paris
+ * 199 ICPE. L'effet sur la note etait nul — les courbes saturent avant 50 — mais la fiche
+ * ecrivait « 50 mouvement(s) de terrain » la ou il y en avait 148, et ce meme 50 revenait a
+ * l'identique sur toutes les communes concernees.
+ *
+ * `complet` distingue les trois etats qui comptent : total atteint, total tronque par le
+ * garde-fou, ou source muette. Un compteur incomplet doit pouvoir etre signale comme minore.
+ */
+interface ListePaginee<T> {
+  objets: T[];
+  /** `true` si tous les objets annonces par le service ont ete recuperes. */
+  complet: boolean;
+  /** Total annonce par le service, `null` s'il ne l'annonce pas. */
+  totalAnnonce: number | null;
+}
+
+async function paginer<T>(
   chemin: string,
   params: Record<string, string | number | undefined>,
-): Promise<T[] | null> {
+  cle: 'data' | 'content',
+  paramPage: 'page' | 'pageNumber',
+  paramTaille: 'page_size' | 'pageSize',
+  /** Georisques numerote `page` a partir de 1, et `pageNumber` a partir de 0. */
+  premierePage: number,
+): Promise<ListePaginee<T> | null> {
   try {
-    const url = avecParams(`${config.sources.georisques}/v1/${chemin}`, { page_size: 50, ...params });
-    const rep = await jsonExterne<EnveloppeA<T>>(url, { connecteur: CONNECTEUR, timeoutMs: 25000 });
-    return rep.data ?? [];
+    const objets: T[] = [];
+    let totalAnnonce: number | null = null;
+    let complet = true;
+
+    for (let i = 0; i < PAGES_MAX; i += 1) {
+      const url = avecParams(`${config.sources.georisques}/v1/${chemin}`, {
+        ...params,
+        [paramTaille]: TAILLE_PAGE,
+        [paramPage]: premierePage + i,
+      });
+      const rep = await jsonExterne<EnveloppeA<T> & EnveloppeB<T>>(url, {
+        connecteur: CONNECTEUR,
+        timeoutMs: 25000,
+      });
+      const lot = (cle === 'data' ? rep.data : rep.content) ?? [];
+      objets.push(...lot);
+      totalAnnonce = rep.results ?? rep.totalElements ?? totalAnnonce;
+
+      // Fin normale : le service a annonce un total et on l'a atteint, ou la page est incomplete.
+      if (totalAnnonce != null && objets.length >= totalAnnonce) break;
+      if (lot.length < TAILLE_PAGE) break;
+      // Derniere iteration autorisee alors qu'il reste des objets : on le dit.
+      if (i === PAGES_MAX - 1) complet = false;
+    }
+
+    if (!complet) {
+      journal.warn(
+        { chemin, recuperes: objets.length, totalAnnonce },
+        `Pagination Georisques interrompue au garde-fou de ${PAGES_MAX} pages : le compte est minore.`,
+      );
+    }
+    return { objets, complet, totalAnnonce };
   } catch {
     return null;
   }
 }
 
-async function formeB<T>(chemin: string, codeInsee: string): Promise<T[] | null> {
-  try {
-    const url = avecParams(`${config.sources.georisques}/v1/${chemin}`, {
-      codeInsee,
-      pageSize: 50,
-    });
-    const rep = await jsonExterne<EnveloppeB<T>>(url, { connecteur: CONNECTEUR, timeoutMs: 25000 });
-    return rep.content ?? [];
-  } catch {
-    return null;
-  }
+/** Points d'entree a enveloppe `{results, page, total_pages, data}`. */
+async function formeA<T>(
+  chemin: string,
+  params: Record<string, string | number | undefined>,
+): Promise<ListePaginee<T> | null> {
+  return paginer<T>(chemin, params, 'data', 'page', 'page_size', 1);
+}
+
+/** Points d'entree a enveloppe `{totalElements, totalPages, pageNumber, content}`. */
+async function formeB<T>(
+  chemin: string,
+  codeInsee: string,
+): Promise<ListePaginee<T> | null> {
+  return paginer<T>(chemin, { codeInsee }, 'content', 'pageNumber', 'pageSize', 0);
+}
+
+/** Compte les objets d'une liste paginee, `null` si la source n'a pas repondu. */
+function compter(l: ListePaginee<unknown> | null): number | null {
+  return l == null ? null : l.objets.length;
 }
 
 /** Alea retrait-gonflement des argiles. Corps vide en HTTP 200 = hors zone argileuse. */
@@ -159,33 +240,67 @@ export type FamilleRisque =
  * L'ORDRE DES REGLES EST SIGNIFIANT : `IF`, `MVT`, `RGA` et `S` se testent avant `I`, dont ils
  * partagent le prefixe.
  */
-export function familleRisque(libelle: string | null | undefined): FamilleRisque | null {
+export function famillesRisque(libelle: string | null | undefined): FamilleRisque[] {
   const brut = (libelle ?? '').trim();
-  if (brut === '') return null;
-  // Normalisation : minuscules, et `_` rendu separateur pour que les limites de mot tiennent.
+  if (brut === '') return [];
+  // `_` est un caractere de MOT en regex : sans cette normalisation, `\bppri\b` ne matche pas
+  // `ppri_lez_mosson`. Et decouper le libelle pour en extraire un « sigle » detruirait les sigles
+  // composes : `'PPRN-I'.split(/[\s\-_]/)[0]` vaut `pprn`.
   const l = brut.toLowerCase().replace(/_/g, ' ');
+  const trouvees = new Set<FamilleRisque>();
 
-  // --- Sigles de type, du plus specifique au plus general -------------------
-  if (/\bppr[nt]?-?if\b|\bpprif\b/.test(l)) return 'incendie';
-  if (/\bppr[nt]?-?mvt\b|\bpprmvt\b/.test(l)) return 'mouvement';
-  if (/\bppr[nt]?-?rga\b/.test(l)) return 'argiles';
-  if (/\bppr[nt]?-?s\b/.test(l)) return 'seisme';
-  if (/\bpprt\b/.test(l)) return 'technologique';
+  // --- Sigles de type ------------------------------------------------------
+  // ACCUMULATIF et non exclusif : un meme plan peut couvrir plusieurs risques.
+  if (/\bppr[nt]?-?if\b|\bpprif\b/.test(l)) trouvees.add('incendie');
+  if (/\bppr[nt]?-?mvt\b|\bpprmvt\b/.test(l)) trouvees.add('mouvement');
+  if (/\bppr[nt]?-?rga\b/.test(l)) trouvees.add('argiles');
+  if (/\bppr[nt]?-?s\b/.test(l)) trouvees.add('seisme');
+  if (/\bpprt\b/.test(l)) trouvees.add('technologique');
   if (/\bppri\b|\bpprl\b|\bppr[nt]?-?i\b|\bppr[nt]?-?sm\b|\bper-?i\b/.test(l)) {
-    return 'inondation';
+    trouvees.add('inondation');
+  }
+
+  // --- Plans multirisques --------------------------------------------------
+  // Releve reel : « PER-Multi [ MVT & S ] - Menton 2001 ». Le type n'est pas dans le sigle de
+  // tete mais dans une liste entre crochets. Les jetons nus (`s`, `i`) ne sont interpretes QUE
+  // dans ce contexte : hors crochets, un `s` isole matcherait n'importe quel mot.
+  if (/multi/.test(l)) {
+    const JETONS: Record<string, FamilleRisque> = {
+      i: 'inondation', sm: 'inondation', l: 'inondation',
+      if: 'incendie', mvt: 'mouvement', rga: 'argiles', s: 'seisme', t: 'technologique',
+    };
+    for (const bloc of l.match(/\[([^\]]*)\]/g) ?? []) {
+      for (const jeton of bloc.replace(/[[\]]/g, '').split(/[&,+/]|\bet\b/)) {
+        const f = JETONS[jeton.trim()];
+        if (f) trouvees.add(f);
+      }
+    }
   }
 
   // --- Repli sur les mots entiers -----------------------------------------
-  if (/inondation|submersion|crue|littoral|d[eé]bordement|ruissellement/.test(l)) return 'inondation';
-  if (/for[eê]t|incendie|\bfeu/.test(l)) return 'incendie';
-  if (/technolog|industriel|seveso/.test(l)) return 'technologique';
-  if (/mouvement|glissement|[eé]boulement|effondrement|cavit/.test(l)) return 'mouvement';
-  if (/argile|retrait[- ]gonflement|s[eé]cheresse/.test(l)) return 'argiles';
-  if (/s[eé]isme|sismique/.test(l)) return 'seisme';
+  // N'intervient que si aucun sigle n'a parle : un libelle redige peut nommer plusieurs risques.
+  if (trouvees.size === 0) {
+    if (/inondation|submersion|crue|littoral|d[eé]bordement|ruissellement/.test(l)) trouvees.add('inondation');
+    if (/for[eê]t|incendie|\bfeu/.test(l)) trouvees.add('incendie');
+    if (/technolog|industriel|seveso/.test(l)) trouvees.add('technologique');
+    if (/mouvement|glissement|[eé]boulement|effondrement|cavit/.test(l)) trouvees.add('mouvement');
+    if (/argile|retrait[- ]gonflement|s[eé]cheresse/.test(l)) trouvees.add('argiles');
+    if (/s[eé]isme|sismique/.test(l)) trouvees.add('seisme');
+  }
 
-  // Indetermine : « PPR Bordeaux (revision) » n'a aucune nature lisible. On ne range pas au
-  // hasard : un plan de nature inconnue compte comme present sans famille.
-  return null;
+  // Vide : « PPR Bordeaux (revision) » n'a aucune nature lisible. On ne range pas au hasard.
+  return [...trouvees];
+}
+
+/**
+ * Famille unique d'un plan, ou `null`.
+ *
+ * Conservee pour les usages qui n'attendent qu'une reponse ; renvoie `null` des lors que le plan
+ * couvre plusieurs risques, car en choisir un serait arbitraire.
+ */
+export function familleRisque(libelle: string | null | undefined): FamilleRisque | null {
+  const f = famillesRisque(libelle);
+  return f.length === 1 ? f[0]! : null;
 }
 
 /**
@@ -202,7 +317,7 @@ export function familleRisque(libelle: string | null | undefined): FamilleRisque
  * materielle : le profil de risque n'est pas celui d'un plan limite a des prescriptions.
  */
 export function zonesReglementaires(ppr: PprBrut): {
-  severiteMax: 'interdiction_stricte' | 'interdiction' | 'prescriptions' | 'precaution' | null;
+  severiteMax: SeveritePlanPpr | null;
   libelles: string[];
 } {
   const liste = ppr.zonageReglementaire?.listTypeReg ?? [];
@@ -263,21 +378,23 @@ export async function risquesEtEau(
   const parFamille = new Map<FamilleRisque, PprBrut[]>();
   /** Plans dont le libelle ne permet pas de determiner la nature du risque. */
   const indetermines: PprBrut[] = [];
-  const classer = (p: PprBrut, f: FamilleRisque | null): void => {
-    if (!f) {
+  const classer = (p: PprBrut, familles: readonly FamilleRisque[]): void => {
+    if (familles.length === 0) {
       if (p.libPpr) indetermines.push(p);
       return;
     }
-    parFamille.set(f, [...(parFamille.get(f) ?? []), p]);
+    // Un plan multirisque compte dans CHACUNE de ses familles : « PER-Multi [ MVT & S ] »
+    // (Menton) releve du mouvement de terrain et du seisme, pas de l'un au choix.
+    for (const f of familles) parFamille.set(f, [...(parFamille.get(f) ?? []), p]);
   };
 
   // LA PROVENANCE EST UN CLASSIFIEUR, et le plus fiable des deux. Tout plan renvoye par
   // `gaspar/pprt` est technologique par construction du point d'entree, quel que soit son
   // libelle — « Vallee de la chimie » (Lyon) n'en porte aucun sigle, et fusionner les deux
   // listes avant de classer faisait perdre cette information : le PPRT de Lyon ressortait absent.
-  for (const p of pprt ?? []) classer(p, 'technologique');
+  for (const p of pprt?.objets ?? []) classer(p, ['technologique']);
   // Les plans naturels, eux, se classent au libelle : `gaspar/pprn` en melange les familles.
-  for (const p of pprn ?? []) classer(p, familleRisque(p.libPpr));
+  for (const p of pprn?.objets ?? []) classer(p, famillesRisque(p.libPpr));
   if (indetermines.length > 0) {
     // Un plan existe mais sa nature est illisible : ne pas le ranger au hasard, et ne pas le
     // taire non plus. `PPR Bordeaux (revision)` est le cas reel qui impose cette branche.
@@ -293,10 +410,15 @@ export async function risquesEtEau(
    * Severite maximale des zones d'une famille, si le plan l'expose.
    * `null` quand aucun plan de cette famille, ou quand aucun n'expose ses zones.
    */
-  const zonageDe = (f: FamilleRisque): string | null => {
+  const severiteDe = (f: FamilleRisque): SeveritePlanPpr | null => {
     const plans = parFamille.get(f) ?? [];
-    const ordre = ['interdiction_stricte', 'interdiction', 'prescriptions', 'precaution'] as const;
-    let pire: (typeof ordre)[number] | null = null;
+    const ordre: readonly SeveritePlanPpr[] = [
+      'interdiction_stricte',
+      'interdiction',
+      'prescriptions',
+      'precaution',
+    ];
+    let pire: SeveritePlanPpr | null = null;
     for (const plan of plans) {
       const { severiteMax } = zonesReglementaires(plan);
       if (severiteMax == null) continue;
@@ -305,28 +427,25 @@ export async function risquesEtEau(
     return pire;
   };
 
+  // `zonage` reste NUL, et ce n'est pas un oubli : l'API n'expose pas la geometrie des zones,
+  // donc la zone applicable a la parcelle est inconnue. La severite du plan va dans son propre
+  // champ. Les confondre reviendrait a faire lire au moteur une severite de plan la ou il attend
+  // une couleur de zone parcellaire — le glissement de sens qui a produit la moitie des defauts
+  // de ce projet.
+  const plan = (
+    liste: ListePaginee<PprBrut> | null,
+    famille: FamilleRisque,
+  ): { present: boolean | null; zonage: string | null; severitePlan: SeveritePlanPpr | null } =>
+    liste == null
+      ? { present: null, zonage: null, severitePlan: null }
+      : { present: parFamille.has(famille), zonage: null, severitePlan: severiteDe(famille) };
+
   const risques: Partial<Risques> = {
-    ppri:
-      pprn == null
-        ? { present: null, zonage: null }
-        : {
-            present: parFamille.has('inondation'),
-            // L'API expose les zones que le PLAN contient (`zonageReglementaire.listTypeReg`),
-            // et non la zone applicable a la parcelle : celle-la reste a lire sur le reglement
-            // graphique, ce que la fiche indique. Savoir qu'un plan comporte une zone
-            // d'interdiction stricte reste une information materielle.
-            zonage: zonageDe('inondation'),
-          },
-    pprif:
-      pprn == null
-        ? { present: null, zonage: null }
-        : { present: parFamille.has('incendie'), zonage: zonageDe('incendie') },
-    pprt:
-      pprt == null
-        ? { present: null, zonage: null }
-        : { present: parFamille.has('technologique'), zonage: zonageDe('technologique') },
-    sitesPollues: casias == null ? null : casias.length,
-    icpeProches: icpe == null ? null : icpe.length,
+    ppri: plan(pprn, 'inondation'),
+    pprif: plan(pprn, 'incendie'),
+    pprt: plan(pprt, 'technologique'),
+    sitesPollues: compter(casias),
+    icpeProches: compter(icpe),
     // Les servitudes aeronautiques et les radars ne sont pas exposes par Georisques :
     // ils relevent d'une ingestion dediee (DGAC, Meteo-France) non couverte a ce stade.
     radars: [],
@@ -344,12 +463,12 @@ export async function risquesEtEau(
       alea:
         triZonage == null && tri == null && pprn == null
           ? null
-          : (triZonage?.length ?? 0) > 0
+          : (triZonage?.objets.length ?? 0) > 0
             ? 'fort'
             : parFamille.has('inondation')
               ? 'moyen'
               : 'nul',
-      dansTri: tri == null ? null : tri.length > 0,
+      dansTri: tri == null ? null : tri.objets.length > 0,
     },
     // Les perimetres de protection de captage relevent des ARS et des SUP du GPU :
     // non exposes de facon homogene, laisses a null (critere gris) plutot qu'inventes.
@@ -359,8 +478,8 @@ export async function risquesEtEau(
 
   const topographie: Partial<Topographie> = {
     aleaArgiles: argiles,
-    cavitesProches: cavites == null ? null : cavites.length,
-    mouvementsTerrain: mvt == null ? null : mvt.length,
+    cavitesProches: compter(cavites),
+    mouvementsTerrain: compter(mvt),
   };
 
   return { risques, eau, topographie, echecs };

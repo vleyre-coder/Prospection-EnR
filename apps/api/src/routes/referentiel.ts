@@ -37,30 +37,24 @@ import {
 } from '../depots/sources.js';
 
 /** Couches cartographiques exposees au frontend, avec leur presentation. */
+/**
+ * Couches servies par le service de tuiles depuis la base, avec leur presentation.
+ *
+ * NE CONTIENT QUE CE QUI PEUT S'AFFICHER. Ce catalogue en comptait 21 entrees dont 18 restaient
+ * grisees, sous une note affirmant qu'elles « ne peuvent rien afficher » — alors que sept d'entre
+ * elles (Natura 2000 habitats et oiseaux, ZNIEFF 1 et 2, reserves naturelles, parcs nationaux et
+ * regionaux) etaient PLEINEMENT FONCTIONNELLES dans le panneau « Calques cartographiques », sous
+ * le meme nom, en interrogeant les services en direct. L'utilisateur voyait donc la meme couche
+ * deux fois : une fois desactivee avec une explication fausse, une fois active et utile.
+ *
+ * La regle est desormais simple : une couche ne figure ici que si une ingestion l'alimente. Tout
+ * le reste releve de `CALQUES` (voir `apps/api/src/calques.ts`), qui porte son propre etat, sa
+ * source et son millesime.
+ */
 export const COUCHES = [
   { id: 'postes_sources', libelle: 'Postes sources', groupe: 'reseaux', typeGeom: 'point', couleur: '#0f766e' },
   { id: 'reseau_gaz', libelle: 'Reseau gaz et injection', groupe: 'reseaux', typeGeom: 'ligne', couleur: '#a16207' },
-  { id: 'natura2000_habitats', libelle: 'Natura 2000 - habitats', groupe: 'environnement', typeGeom: 'polygone', couleur: '#15803d' },
-  { id: 'natura2000_oiseaux', libelle: 'Natura 2000 - oiseaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#22c55e' },
-  { id: 'znieff1', libelle: 'ZNIEFF de type I', groupe: 'environnement', typeGeom: 'polygone', couleur: '#65a30d' },
-  { id: 'znieff2', libelle: 'ZNIEFF de type II', groupe: 'environnement', typeGeom: 'polygone', couleur: '#a3e635' },
-  { id: 'reserve_naturelle', libelle: 'Reserves naturelles', groupe: 'environnement', typeGeom: 'polygone', couleur: '#166534' },
-  { id: 'appb', libelle: 'Protection de biotope (APPB)', groupe: 'environnement', typeGeom: 'polygone', couleur: '#14532d' },
-  { id: 'parc_national', libelle: 'Parcs nationaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#047857' },
-  { id: 'parc_naturel_regional', libelle: 'Parcs naturels regionaux', groupe: 'environnement', typeGeom: 'polygone', couleur: '#5eead4' },
-  { id: 'zone_humide', libelle: 'Zones humides (pre-reperage)', groupe: 'environnement', typeGeom: 'polygone', couleur: '#0891b2' },
   { id: 'monument_historique', libelle: 'Monuments historiques', groupe: 'patrimoine', typeGeom: 'point', couleur: '#7c3aed' },
-  { id: 'site_classe', libelle: 'Sites classes', groupe: 'patrimoine', typeGeom: 'polygone', couleur: '#6d28d9' },
-  { id: 'site_inscrit', libelle: 'Sites inscrits', groupe: 'patrimoine', typeGeom: 'polygone', couleur: '#a78bfa' },
-  { id: 'ppri', libelle: 'Risque inondation (PPRI)', groupe: 'risques', typeGeom: 'polygone', couleur: '#1d4ed8' },
-  { id: 'pprif', libelle: 'Risque incendie (PPRif)', groupe: 'risques', typeGeom: 'polygone', couleur: '#ea580c' },
-  { id: 'pprt', libelle: 'Risque technologique (PPRT)', groupe: 'risques', typeGeom: 'polygone', couleur: '#be123c' },
-  { id: 'radar', libelle: 'Radars et servitudes aeronautiques', groupe: 'risques', typeGeom: 'polygone', couleur: '#9f1239' },
-  { id: 'zaer', libelle: "Zones d'acceleration des ENR", groupe: 'urbanisme', typeGeom: 'polygone', couleur: '#0284c7' },
-  { id: 'document_cadre_pv', libelle: 'Document-cadre PV au sol', groupe: 'urbanisme', typeGeom: 'polygone', couleur: '#0369a1' },
-  { id: 'aoc_viticole', libelle: 'Aires AOP viticoles', groupe: 'agriculture', typeGeom: 'polygone', couleur: '#86198f' },
-  { id: 'elevage', libelle: "Exploitations d'elevage", groupe: 'agriculture', typeGeom: 'point', couleur: '#b45309' },
-  { id: 'industrie_agroalimentaire', libelle: 'Industries agroalimentaires', groupe: 'agriculture', typeGeom: 'point', couleur: '#92400e' },
 ] as const;
 
 export async function routesReferentiel(app: FastifyInstance): Promise<void> {

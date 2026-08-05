@@ -9,7 +9,7 @@
  *   - retourner `{ note: null, ... }`        -> donnee INDISPONIBLE (critere gris)
  */
 
-import type { Filiere, OptionsScoring, ParcelleSnapshot, TypeSol } from '@enr/core';
+import type { Filiere, OptionsScoring, ParcelleSnapshot, SeveritePlanPpr, TypeSol } from '@enr/core';
 import { FILIERES_META } from '@enr/core';
 import {
   booleen,
@@ -1185,25 +1185,74 @@ const pat_archeologie: Evaluateur = (s) => {
 // Risques
 // ---------------------------------------------------------------------------
 
-function noteZonagePpr(zonage: string | null, present: boolean | null): number | null {
+/**
+ * Note un plan de prevention, a partir des DEUX niveaux d'information disponibles.
+ *
+ * Ils ne disent pas la meme chose et ne doivent pas etre confondus :
+ *   - `zonage` est la zone applicable A LA PARCELLE (rouge, bleu...). Elle est la seule qui
+ *     permette de conclure, et l'API Georisques ne l'expose pas : elle reste donc nulle, et son
+ *     interpretation par couleur est conservee ici pour le jour ou une source la fournira ;
+ *   - `severitePlan` est la severite maximale des zones que le PLAN contient. Elle ne dit pas ou
+ *     tombe la parcelle, mais un plan comportant une zone d'interdiction stricte n'a pas le meme
+ *     profil qu'un plan limite a des prescriptions. La note en tient compte de facon MESUREE :
+ *     elle degrade sans conclure, parce que la parcelle peut etre en zone blanche du meme plan.
+ */
+function noteZonagePpr(
+  zonage: string | null,
+  present: boolean | null,
+  severitePlan: SeveritePlanPpr | null = null,
+): number | null {
   if (present == null && zonage == null) return null;
   if (present === false) return 100;
-  if (!zonage) return 45;
-  const z = zonage.toLowerCase();
-  if (z.includes('rouge') || z.startsWith('r')) return 5;
-  if (z.includes('bleu') || z.startsWith('b')) return 50;
-  if (z.includes('jaune') || z.includes('orange')) return 35;
-  if (z.includes('blanc') || z.includes('vert')) return 90;
+
+  // Zone parcellaire connue : elle tranche.
+  if (zonage) {
+    const z = zonage.toLowerCase();
+    if (z.includes('rouge') || z.startsWith('r')) return 5;
+    if (z.includes('bleu') || z.startsWith('b')) return 50;
+    if (z.includes('jaune') || z.includes('orange')) return 35;
+    if (z.includes('blanc') || z.includes('vert')) return 90;
+    return 45;
+  }
+
+  // Zone parcellaire inconnue : la severite du plan module, sans trancher. Les valeurs restent
+  // au-dessus du 5 d'une zone rouge constatee : on ne condamne pas une parcelle sur le seul fait
+  // que le plan qui la couvre comporte quelque part une zone d'interdiction.
+  if (severitePlan === 'interdiction_stricte') return 25;
+  if (severitePlan === 'interdiction') return 35;
+  if (severitePlan === 'prescriptions') return 50;
+  if (severitePlan === 'precaution') return 65;
+  // Plan present, severite inconnue : la valeur historique.
   return 45;
 }
 
+/** Phrase decrivant le plan, en disant explicitement ce qui reste a verifier. */
+function libellePlanPpr(
+  sigle: string,
+  p: { present: boolean | null; zonage: string | null; severitePlan: SeveritePlanPpr | null },
+): string {
+  if (p.present !== true) return '';
+  if (p.zonage) return `${sigle} zone ${p.zonage}`;
+  const severite: Record<SeveritePlanPpr, string> = {
+    interdiction_stricte: "le plan comporte une zone d'interdiction stricte",
+    interdiction: "le plan comporte une zone d'interdiction",
+    prescriptions: 'le plan comporte des zones de prescriptions',
+    precaution: 'le plan comporte une zone de precaution',
+  };
+  // La portee doit etre dite : ce n'est pas la zone de la parcelle.
+  return p.severitePlan
+    ? `${sigle} - ${severite[p.severitePlan]}, zone de la parcelle a verifier au reglement graphique`
+    : `${sigle} - zone de la parcelle a verifier au reglement graphique`;
+}
+
 const risq_inondation: Evaluateur = (s) => {
-  const parPpri = noteZonagePpr(s.risques.ppri.zonage, s.risques.ppri.present);
+  const parPpri = noteZonagePpr(s.risques.ppri.zonage, s.risques.ppri.present, s.risques.ppri.severitePlan);
   const parAlea = correspondance(s.eau.inondation.alea, { nul: 100, faible: 75, moyen: 45, fort: 12 });
   const note = pire(parPpri, parAlea);
   if (note == null) return indispo(SRC.georisques);
   const morceaux: string[] = [];
-  if (s.risques.ppri.present) morceaux.push(`PPRI${s.risques.ppri.zonage ? ` zone ${s.risques.ppri.zonage}` : ''}`);
+  const libellePpri = libellePlanPpr('PPRI', s.risques.ppri);
+  if (libellePpri) morceaux.push(libellePpri);
   if (s.eau.inondation.alea) morceaux.push(`alea ${s.eau.inondation.alea}`);
   if (s.eau.inondation.dansTri) morceaux.push('TRI');
   return {
@@ -1211,13 +1260,13 @@ const risq_inondation: Evaluateur = (s) => {
     valeurBrute: s.risques.ppri.zonage,
     valeurAffichee: morceaux.join(' - ') || 'Aucun risque inondation identifie',
     commentaire:
-      "Un zonage rouge de PPRI interdit en principe les constructions nouvelles. Un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher).",
+      "Un zonage rouge de PPRI interdit en principe les constructions nouvelles ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher). L'API ne donne pas la zone applicable a la parcelle, seulement les zones que le plan contient : le reglement graphique reste a consulter.",
     sourceKey: SRC.georisques,
   };
 };
 
 const risq_incendie: Evaluateur = (s) => {
-  const parPprif = noteZonagePpr(s.risques.pprif.zonage, s.risques.pprif.present);
+  const parPprif = noteZonagePpr(s.risques.pprif.zonage, s.risques.pprif.present, s.risques.pprif.severitePlan);
   const parOld = booleen(s.risques.obligationDebroussaillement, 55, 100);
   const note = pire(parPprif, parOld);
   if (note == null) return indispo(SRC.georisques);
@@ -1225,7 +1274,7 @@ const risq_incendie: Evaluateur = (s) => {
     note,
     valeurBrute: s.risques.pprif.zonage,
     valeurAffichee: s.risques.pprif.present
-      ? `PPRif${s.risques.pprif.zonage ? ` zone ${s.risques.pprif.zonage}` : ''}`
+      ? libellePlanPpr('PPRif', s.risques.pprif)
       : s.risques.obligationDebroussaillement
         ? 'Obligation legale de debroussaillement'
         : 'Aucun risque incendie identifie',
@@ -1236,14 +1285,12 @@ const risq_incendie: Evaluateur = (s) => {
 };
 
 const risq_technologique: Evaluateur = (s) => {
-  const note = noteZonagePpr(s.risques.pprt.zonage, s.risques.pprt.present);
+  const note = noteZonagePpr(s.risques.pprt.zonage, s.risques.pprt.present, s.risques.pprt.severitePlan);
   if (note == null) return indispo(SRC.georisques);
   return {
     note,
     valeurBrute: s.risques.pprt.zonage,
-    valeurAffichee: s.risques.pprt.present
-      ? `PPRT${s.risques.pprt.zonage ? ` zone ${s.risques.pprt.zonage}` : ''}`
-      : 'Hors PPRT',
+    valeurAffichee: s.risques.pprt.present ? libellePlanPpr('PPRT', s.risques.pprt) : 'Hors PPRT',
     commentaire: "Un PPRT restreint fortement l'implantation de nouvelles installations, a fortiori d'un stockage.",
     sourceKey: SRC.georisques,
   };

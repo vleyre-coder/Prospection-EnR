@@ -251,10 +251,37 @@ export interface Patrimoine {
   sensibiliteArcheologique: 'faible' | 'moyenne' | 'forte' | null;
 }
 
+/**
+ * Severite maximale des zones qu'un plan de prevention CONTIENT.
+ *
+ * A ne pas confondre avec la zone applicable a la parcelle : l'API Georisques expose la liste des
+ * zones du plan (`zonageReglementaire.listTypeReg`, codes 01 a 04), pas leur geometrie. Savoir
+ * qu'un plan comporte une zone d'interdiction stricte renseigne sur le profil de risque ; savoir
+ * dans laquelle tombe la parcelle exige le reglement graphique.
+ */
+export type SeveritePlanPpr =
+  | 'interdiction_stricte'
+  | 'interdiction'
+  | 'prescriptions'
+  | 'precaution';
+
+export interface PlanPrevention {
+  /** Un plan de cette famille existe-t-il sur la commune ? `null` si la source n'a pas repondu. */
+  present: boolean | null;
+  /**
+   * Zone reglementaire applicable A LA PARCELLE (rouge, bleu...). Reste `null` : l'API n'expose
+   * pas la geometrie des zones. Ne jamais y verser une severite de plan, que le moteur lit comme
+   * une couleur de zone.
+   */
+  zonage: string | null;
+  /** Severite maximale des zones que le plan contient. */
+  severitePlan: SeveritePlanPpr | null;
+}
+
 export interface Risques {
-  ppri: { present: boolean | null; zonage: string | null };
-  pprif: { present: boolean | null; zonage: string | null };
-  pprt: { present: boolean | null; zonage: string | null };
+  ppri: PlanPrevention;
+  pprif: PlanPrevention;
+  pprt: PlanPrevention;
   /** Radars (meteo, aviation civile, militaire) : distance au plus proche. */
   radars: Array<{ type: string; distanceKm: number; distanceMinRequiseKm: number | null }>;
   /** Servitudes aeronautiques : la parcelle est-elle dans un cone/degagement ? */

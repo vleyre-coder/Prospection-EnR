@@ -20,7 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { familleRisque, zonesReglementaires } from '../src/connecteurs/georisques.js';
+import { familleRisque, famillesRisque, zonesReglementaires } from '../src/connecteurs/georisques.js';
 
 // ---------------------------------------------------------------------------
 // Libelles reellement releves sur le service, commune par commune
@@ -171,12 +171,12 @@ test('les plans technologiques sont classes par leur PROVENANCE, pas par leur li
   const source = readFileSync(new URL('../src/connecteurs/georisques.ts', import.meta.url), 'utf8');
   assert.match(
     source,
-    /for \(const p of pprt \?\? \[\]\) classer\(p, 'technologique'\)/,
+    /for \(const p of pprt\?\.objets \?\? \[\]\) classer\(p, \['technologique'\]\)/,
     "les plans de gaspar/pprt doivent etre classes technologique sans consulter leur libelle",
   );
   assert.match(
     source,
-    /for \(const p of pprn \?\? \[\]\) classer\(p, familleRisque\(p\.libPpr\)\)/,
+    /for \(const p of pprn\?\.objets \?\? \[\]\) classer\(p, famillesRisque\(p\.libPpr\)\)/,
     'les plans de gaspar/pprn se classent au libelle, ce point d’entree melangeant les familles',
   );
   // Et le champ lu doit rester `libPpr` : c'est le defaut d'origine. On depouille les
@@ -188,4 +188,36 @@ test('les plans technologiques sont classes par leur PROVENANCE, pas par leur li
     'libelle_risque n’existe pas dans la reponse du service : le champ est libPpr',
   );
   assert.match(codeSeul, /libPpr/, 'le libelle doit etre lu dans libPpr');
+});
+
+// ---------------------------------------------------------------------------
+// Plans multirisques
+// ---------------------------------------------------------------------------
+
+test('un plan multirisque compte dans CHACUNE de ses familles', () => {
+  // Releve reel a Menton : « PER-Multi [ MVT & S ] - Menton 2001 ». Le type n'est pas dans le
+  // sigle de tete mais dans une liste entre crochets. La premiere version du classifieur
+  // renvoyait une famille unique et laissait donc ce plan indetermine — decouvert par le journal
+  // ajoute a la correction, sur une commune reelle.
+  assert.deepEqual(famillesRisque('PER-Multi [ MVT & S ] - Menton 2001').sort(), ['mouvement', 'seisme']);
+});
+
+test('les jetons nus ne sont interpretes que dans un contexte multirisque', () => {
+  // Hors crochets, un « s » isole matcherait n'importe quel mot : la regle doit rester confinee.
+  assert.deepEqual(famillesRisque('Plan de secteur s de la ville'), []);
+  assert.deepEqual(famillesRisque('PER-Multi [ I ] - ailleurs'), ['inondation']);
+  assert.deepEqual(famillesRisque('PPR-Multi [ IF, MVT ] - ailleurs').sort(), ['incendie', 'mouvement']);
+});
+
+test('familleRisque ne choisit pas arbitrairement parmi plusieurs familles', () => {
+  // Renvoyer « mouvement » pour un plan qui couvre aussi le seisme serait une affirmation
+  // partielle presentee comme complete.
+  assert.equal(familleRisque('PER-Multi [ MVT & S ] - Menton 2001'), null);
+  assert.equal(familleRisque('PPRN-MVT - Nice 2020'), 'mouvement');
+});
+
+test('le repli sur les mots entiers n’ecrase pas un sigle deja reconnu', () => {
+  // « PPRN-IF - incendie et inondation » : le sigle dit incendie. Le repli ne doit pas s'ajouter
+  // et faire croire a un plan inondation.
+  assert.deepEqual(famillesRisque('PPRN-IF - massif forestier'), ['incendie']);
 });

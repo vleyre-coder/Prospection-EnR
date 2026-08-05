@@ -83,9 +83,9 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
       sensibiliteArcheologique: null,
     },
     risques: {
-      ppri: { present: null, zonage: null },
-      pprif: { present: null, zonage: null },
-      pprt: { present: null, zonage: null },
+      ppri: { present: null, zonage: null, severitePlan: null },
+      pprif: { present: null, zonage: null, severitePlan: null },
+      pprt: { present: null, zonage: null, severitePlan: null },
       radars: [],
       servitudesAeronautiques: null,
       faisceauxHertziens: null,

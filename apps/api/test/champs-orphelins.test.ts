@@ -44,6 +44,45 @@ function sourcesEcrivant(): string {
   return texte;
 }
 
+/**
+ * Tout ce qui peut LIRE un champ du snapshot : moteur, exports, et interface.
+ *
+ * `.tsx` INCLUS, et ce n'est pas un detail. Un `grep --include=*.ts` exclut les composants React,
+ * donc toute l'interface. Cet angle mort m'a fait declarer a tort `icpeProches` et
+ * `reseauxEnterres` « collectes et jamais lus » dans deux audits consecutifs, alors que
+ * `FicheParcelle.tsx` les affiche l'un et l'autre. La meme cecite avait fausse un comptage de
+ * lignes. Elle est desormais impossible ici : les extensions sont explicites.
+ */
+function sourcesLisant(): string {
+  const cibles: Array<[string, readonly string[]]> = [
+    ['../../../packages/scoring/src/', ['.ts']],
+    ['../src/services/', ['.ts']],
+    ['../src/routes/', ['.ts']],
+    ['../../web/src/', ['.ts', '.tsx']],
+    ['../../web/src/components/', ['.ts', '.tsx']],
+  ];
+  let texte = '';
+  for (const [dossier, exts] of cibles) {
+    const base = new URL(dossier, import.meta.url);
+    let fichiers: string[] = [];
+    try {
+      fichiers = readdirSync(base);
+    } catch {
+      continue;
+    }
+    for (const f of fichiers) {
+      if (exts.some((e) => f.endsWith(e))) {
+        try {
+          texte += readFileSync(new URL(f, base), 'utf8');
+        } catch {
+          /* repertoire : ignore */
+        }
+      }
+    }
+  }
+  return texte;
+}
+
 /** Chemins `s.section.champ[.sous]` lus dans un fichier du moteur. */
 function cheminsLus(source: string): Array<{ section: string; champ: string; complet: string }> {
   const vus = new Map<string, { section: string; champ: string; complet: string }>();
@@ -136,4 +175,53 @@ test('toute absence assumee est declaree sansSource, et non simplement grisee', 
   // Verification nommee pour le seul cas actuel.
   const tvb = criteres.slice(criteres.indexOf('const env_tvb'), criteres.indexOf('const env_especes_protegees'));
   assert.match(tvb, /sansSource\(/, 'env_tvb doit se declarer sansSource et non indispo');
+});
+
+// ---------------------------------------------------------------------------
+// Sens inverse : de la donnee collectee que personne ne lit
+// ---------------------------------------------------------------------------
+
+/**
+ * Champs du snapshot ecrits par un connecteur et lus par PERSONNE.
+ *
+ * C'est le controle symetrique du precedent, et il valait d'etre ecrit : sans lui, la seule facon
+ * de detecter une collecte inutile est un `grep` a la main — et c'est precisement un `grep`
+ * incomplet (`--include=*.ts`, donc sans les `.tsx` de l'interface) qui m'a fait declarer a tort
+ * `icpeProches` et `reseauxEnterres` morts dans deux audits consecutifs.
+ *
+ * Une collecte inutile n'est pas benigne : chaque champ coute une requete externe par parcelle.
+ */
+const COLLECTES_ASSUMEES: Record<string, string> = {
+  // Renseignes pour l'affichage seul, sans critere associe : c'est un choix, pas un oubli.
+};
+
+test('aucun champ collecte n’est ignore de tous les lecteurs', () => {
+  const lecteurs = sourcesLisant();
+  assert.ok(lecteurs.length > 50_000, `les sources lisantes semblent incompletes (${lecteurs.length} caracteres)`);
+
+  // Champs ecrits explicitement dans le snapshot par l'enrichissement ou un connecteur.
+  const ecrits = new Set<string>();
+  for (const m of sourcesEcrivant().matchAll(/snapshot\.[a-zA-Z]+\.([a-zA-Z0-9]+)\s*=/g)) {
+    if (m[1]) ecrits.add(m[1]);
+  }
+  assert.ok(ecrits.size >= 5, `attendu au moins 5 champs ecrits, trouve ${ecrits.size}`);
+
+  const jamaisLus = [...ecrits].filter(
+    (champ) => !COLLECTES_ASSUMEES[champ] && !new RegExp(`\\b${champ}\\b`).test(lecteurs),
+  );
+  assert.deepEqual(
+    jamaisLus.sort(),
+    [],
+    'champ(s) collecte(s) que ni le moteur, ni les exports, ni l’interface ne lisent : chaque ' +
+      'champ coute une requete externe par parcelle. Supprimez la collecte, ou declarez-la dans ' +
+      'COLLECTES_ASSUMEES avec sa raison.',
+  );
+});
+
+test('les lecteurs incluent bien l’interface, `.tsx` compris', () => {
+  // Garde contre la regression de l'angle mort : si ce test passait sans les `.tsx`, le controle
+  // ci-dessus signalerait a tort tout champ affiche mais non score.
+  const lecteurs = sourcesLisant();
+  assert.match(lecteurs, /icpeProches/, 'FicheParcelle.tsx affiche icpeProches : il doit etre vu');
+  assert.match(lecteurs, /reseauxEnterres/, 'FicheParcelle.tsx affiche reseauxEnterres');
 });
