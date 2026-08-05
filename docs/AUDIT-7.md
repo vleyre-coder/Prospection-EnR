@@ -380,3 +380,116 @@ La conséquence pratique est l'item 3, et il est plus important que son gain de 
 laisse croire. Tant qu'un seul connecteur reste hors du contrôle de contrat, le huitième audit
 trouvera son défaut critique dans celui-là. J'en ai la démonstration : hier j'ai écrit ce contrôle,
 je l'ai limité à trois connecteurs, et le défaut du jour était dans le quatrième.
+
+---
+
+## Suite donnée — la feuille de route exécutée
+
+Les priorités 1, 2, 3 et 5 sont faites. Pour la priorité 4, qui demande des apports humains que je
+ne peux pas produire, j'ai livré les **instruments** qui la rendent exécutable, et je dis
+précisément ce qui reste à fournir.
+
+**Mesures d'ensemble.** 362 → **444 tests** (46 core, 53 scoring, 296 API, 49 interface), typage
+strict sur les quatre paquets, **7/7 mutations attrapées**. Ratio de test de l'interface : 0,03 →
+**0,08**. `src/ingestion` : 0 → 23 tests.
+
+### Priorité 1 — faite
+
+| # | Résultat vérifié |
+|---|---|
+| 1 | **PPR détectés.** Arles `ppri=true` sévérité *interdiction stricte*, Aix `ppri+pprif`, Nice `ppri+pprif`, Montpellier `ppri+pprif`, Lyon `ppri+pprt`. Et sans faux positif : Tillay-le-Péneux, sans PPR, reste à `false`, aléa nul. |
+| 2 | **Noms et liens des calques.** « Le Rhône aval », « Camargue » au lieu de « FR9301590 » ; liens `inpn.mnhn.fr` fonctionnels sur les six calques testés. |
+| 3 | **Contrôle de contrat sur 14 connecteurs** (contre 3), 29 points d'entrée capturés en production. Il a trouvé du premier coup le dernier champ fantôme (`idsup` dans `servitudes.ts`). |
+
+**Trois défauts supplémentaires trouvés en corrigeant**, tous par des gardes que j'avais mises en
+place et non par relecture :
+
+- le vocabulaire des PPR est **codé** (`PPRN-I`, `PPRIF`, `PPRN-MVT`…), donc renommer le champ ne
+  suffisait pas — le classifieur par mots entiers aurait raté la quasi-totalité des plans ;
+- **la provenance est un classifieur** : tout plan de `gaspar/pprt` est technologique par
+  construction. En fusionnant les deux points d'entrée avant de classer, le PPRT de Lyon
+  (« Vallée de la chimie », sans sigle) ressortait absent. Découvert par le journal que j'avais
+  ajouté à la correction ;
+- un plan peut être **multirisque** (`PER-Multi [ MVT & S ]`, Menton) : le classifieur est devenu
+  accumulatif.
+
+### Priorité 2 — faite
+
+| # | Résultat |
+|---|---|
+| 4 | **Zones réglementaires exploitées**, sans confondre deux niveaux : nouveau champ `severitePlan`, `zonage` garde son sens (zone de la parcelle, non exposée). La note module sans trancher et reste au-dessus d'une zone rouge constatée. Le libellé dit la portée : « le plan comporte une zone d'interdiction stricte, zone de la parcelle à vérifier au règlement graphique ». |
+| 5 | **Géorisques paginé** : Menton 148 mouvements de terrain (au lieu de 50), Lyon 214 sites pollués, Paris 239 ICPE. Un compte interrompu au garde-fou est journalisé comme minoré. |
+| 6 | **Catalogue de couches réduit** aux 3 couches qu'une ingestion alimente, contre 21 dont 18 grisées. |
+| 7 | **APPB dans le rapport PDF**, avec trois états distingués — « aucun dans le rayon » est un constat, « non renseigné » une panne de source. |
+| 8 | *Voir l'autocritique ci-dessous : il n'y avait rien à supprimer.* |
+
+### Priorité 3 — faite
+
+| # | Résultat |
+|---|---|
+| 9 | **Transformation testée sur réponses réelles** : 14 réponses capturées en production, géométries décimées (140 ko versionnables), propriétés intactes. 18 tests, hors réseau. |
+| 10 | **Interface : 15 → 49 tests.** Géométrie (valeurs de référence calculées indépendamment du code testé), état de l'application, accessibilité. |
+| 11 | **Ingestion : 0 → 23 tests.** L'automate de lecture en flux a été séparé de `fetch` pour devenir testable, et les tests le découpent là où un tel automate casse. |
+| 12 | **Mutation en CI**, 7 mutations correspondant à des défauts réellement survenus, chacune référencée à son audit. |
+
+**Un défaut réel trouvé par ces tests** : `nombreOuNull('')` renvoyait `0`, car `Number('')` vaut 0.
+Une coordonnée non renseignée produisait donc **`[0, 0]`** — un point dans le golfe de Guinée,
+ingéré comme une géométrie parfaitement valide, sur un jeu de 46 000 monuments. Les bornes de
+vraisemblance ne l'auraient pas vu : elles couvrent le snapshot, pas les géométries ingérées.
+
+### Priorité 5 — faite
+
+| # | Résultat |
+|---|---|
+| 18 | **CHANGELOG.md**, chaque correction de fiabilité portant la référence de l'audit qui l'a trouvée, et une méthode de publication en trois conditions. |
+| 19 | **La CI échoue** si `REFERENTIEL_DERNIERE_VERIFICATION` dépasse 180 jours. |
+| 21 | **Veille sur la dégradation silencieuse** des sources, câblée sur la file de qualification. Un champ dont le taux de renseignement s'effondre sur un lot signale un contrat rompu, même si tout répond HTTP 200. C'est le signal qui manquait aux audits 5, 6 et 7. |
+
+Item 20 (performance et charge) non traité : il demande une base peuplée à l'échelle nationale,
+que cette installation n'a pas.
+
+### Priorité 4 — instruments livrés, apports humains à fournir
+
+| # | Instrument livré | Ce qui reste à fournir |
+|---|---|---|
+| 13 | `scripts/campagne-validation.mjs` : choisit un échantillon, qualifie, produit un fichier de saisie pré-rempli (13 champs vérifiables, avec où vérifier chacun), puis dépouille et calcule le taux de concordance par champ. Vérifié de bout en bout sur 4 parcelles réelles. | **Le temps d'un expert ENR** : 30 à 50 parcelles à vérifier à la main. |
+| 14 | `docs/CALIBRATION.md` §14a à 14d : quatre tableaux de saisie (coût de raccordement observé, décision de gestionnaire, potentiel agronomique local, gisement contractualisé). | **Des devis Enedis/RTE réels** et des décisions de gestionnaire. Ils ne se déduisent d'aucune API. |
+| 15 | §14e : tableau de revue réglementaire datée, avec validateur et réserves. La CI surveille déjà la date. | **Une revue juridique** : la CI vérifie *quand*, pas *qui* ni *sur quels textes*. |
+| 16 | §14f : protocole de test utilisateur (trois prospecteurs, tâche réelle, aucune assistance, on note le point d'arrêt). | **Trois prospecteurs et une heure.** |
+| 17 | `apps/web/test/accessibilite.test.ts` : noms accessibles, libellés associés, niveaux de titre, régions live. | **Contraste rendu, ordre de tabulation, lecteur d'écran réel** — un test statique ne les couvre pas, et le test le dit. |
+
+### Deux autocritiques à acter
+
+**Mon constat « `icpeProches` et `reseauxEnterres` collectés et jamais lus » était faux**, dans les
+audits 6 et 7. `FicheParcelle.tsx` affiche les deux. La cause est un `grep --include=*.ts`, qui
+exclut les composants React — le même angle mort qui avait faussé un comptage de lignes à
+l'audit 6. Rien n'était à supprimer. La cause racine est traitée plutôt que le symptôme :
+`champs-orphelins.test.ts` porte désormais un contrôle en **sens inverse** — aucun champ collecté ne
+doit être ignoré de tous les lecteurs — et sa liste de lecteurs inclut explicitement les `.tsx`,
+avec un test nommé qui échoue si on les retire.
+
+**Deux de mes mesures d'accessibilité étaient fausses.** « 6 champs sans libellé » ignorait le motif
+`<label><input/>Texte</label>`, qui associe le libellé implicitement ; et mon extracteur de texte de
+bouton supprimait les expressions JSX, signalant comme muet un bouton dont le libellé est
+conditionnel. Aucun défaut dans les deux cas. Les critères sont corrigés et documentés dans le test.
+
+### Où en est la note
+
+Je ne redonne pas de note ici : elle serait auto-décernée sur mon propre travail du jour, ce qui
+n'a pas la même valeur qu'un audit conduit à froid. Ce qui est vérifiable est ceci :
+
+- les deux défauts critiques (B1, B2) sont corrigés et vérifiés sur les services réels ;
+- les cinq problèmes importants (C1 à C5) sont traités ;
+- quatre défauts supplémentaires, trouvés pendant les corrections par les gardes elles-mêmes, sont
+  corrigés ;
+- deux de mes propres constats erronés sont rectifiés, et leur cause racine verrouillée par un test.
+
+**Ce qui reste, et qui ne dépend plus du code** : la campagne de validation par un expert, la
+calibration sur devis réels, la revue juridique datée, le test utilisateur, et la mesure de charge
+à l'échelle nationale. Les instruments des quatre premiers sont en place et exécutables.
+
+**Sur la réponse à la question permanente.** L'audit disait « non, dans l'état, pour aucune
+filière », et pour un seul motif : B1. Ce motif est levé, vérifié sur cinq communes et sans faux
+positif. La réponse redevient donc celle de l'audit 6 — oui pour le solaire au sol, le stockage et
+l'éolien avec les réserves énoncées, non pour la méthanisation au-delà de la hiérarchisation. Mais
+c'est **un audit à froid qui doit le confirmer**, pas moi le jour où j'ai écrit la correction.
