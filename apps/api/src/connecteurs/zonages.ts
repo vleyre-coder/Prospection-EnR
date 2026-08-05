@@ -14,16 +14,33 @@ import { bboxEnPolygone, type Bbox } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
 import type { DefinitionCalque } from '../calques.js';
 
+/**
+ * Proprietes des objets servis par les calques.
+ *
+ * ATTENTION, LE NOM DU SITE ET L'URL CHANGENT DE CHAMP SELON LA COUCHE. Verifie sur les services
+ * reels, et cause de deux defauts corriges ici :
+ *   - `natura-habitat` et `natura-oiseaux` : le nom est dans **`sitename`**. Ni `nom_site` ni
+ *     `nom` n'existent. Le repli de `nomDe()` aboutissait donc sur `sitecode`, et la carte
+ *     etiquetait les sites Natura 2000 « FR9301590 » au lieu de « Camargue » ;
+ *   - `znieff1/2`, `pn`, `pnr`, `rnn`, `rnc`, `rncf` : le nom est dans **`nom`** ;
+ *   - l'URL de fiche est dans **`url`**, jamais `url_fiche`. Mesure : `null` sur les six calques
+ *     testes, sans exception — le lien vers la fiche INPN n'a jamais fonctionne.
+ *
+ * `nom_site` n'est PAS declare ici : il n'appartient qu'au WFS PatriNat, que ce module
+ * n'interroge pas.
+ */
 interface ProprietesZonage {
-  nom_site?: string | null;
+  /** Couches Natura 2000 d'API Carto. */
+  sitename?: string | null;
+  /** Couches d'inventaire et de protection d'API Carto. */
   nom?: string | null;
   sitecode?: string | null;
   id_mnhn?: string | null;
-  url_fiche?: string | null;
+  /** Fiche descriptive INPN. */
+  url?: string | null;
   /** Servitudes GPU. */
-  categorie?: string | null;
-  libelle?: string | null;
   nomsuplitt?: string | null;
+  nomass?: string | null;
 }
 
 export interface EntiteZonage {
@@ -37,16 +54,16 @@ export interface EntiteZonage {
   };
 }
 
-/** Nom lisible d'un objet : les services n'utilisent pas tous le meme attribut. */
+/**
+ * Nom lisible d'un objet : les services n'utilisent pas tous le meme attribut.
+ *
+ * `sitecode` reste en dernier recours, mais APRES les vrais noms. C'est ce repli qui produisait
+ * « FR9301590 » sur la carte : les quatre champs testes avant lui etaient tous absents des
+ * couches Natura 2000. Un code d'apparence technique passe pour une donnee, ce qui est pire
+ * qu'un « sans nom » explicite — d'ou l'ordre, et d'ou le test qui le verrouille.
+ */
 function nomDe(p: ProprietesZonage): string {
-  return (
-    p.nom_site ||
-    p.nom ||
-    p.nomsuplitt ||
-    p.libelle ||
-    p.sitecode ||
-    'sans nom'
-  );
+  return p.sitename || p.nom || p.nomsuplitt || p.nomass || p.sitecode || 'sans nom';
 }
 
 async function moduleNature(chemin: string, bbox: Bbox): Promise<FeatureCollection<ProprietesZonage>> {
@@ -110,7 +127,7 @@ export async function zonagesSurEmprise(
           nom: nomDe(f.properties),
           calque: calque.id,
           reference: f.properties.sitecode ?? f.properties.id_mnhn ?? null,
-          url: f.properties.url_fiche ?? null,
+          url: f.properties.url ?? null,
         },
       });
     }

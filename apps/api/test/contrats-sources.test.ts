@@ -55,25 +55,55 @@ const CHAMPS_LUS: Record<string, readonly string[]> = {
   'apicarto/gpu/document': ['du_type'],
   'apicarto/gpu/municipality': ['is_rnu'],
   'apicarto/gpu/prescription-surf': ['typepsc', 'libelle', 'txt', 'nature'],
-  'apicarto/gpu/assiette-sup-s': ['suptype', 'nomsuplitt'],
+  'apicarto/gpu/assiette-sup-s': ['suptype', 'nomsuplitt', 'idass'],
 
   // --- Nature (milieux naturels) ---
   // Le nom du site change de champ selon la couche : `sitename` pour Natura 2000, `nom` pour
-  // les couches d'inventaire et de protection. C'est precisement le piege corrige.
-  'apicarto/nature/natura-habitat': ['sitename'],
-  'apicarto/nature/natura-oiseaux': ['sitename'],
-  'apicarto/nature/znieff1': ['nom'],
-  'apicarto/nature/znieff2': ['nom'],
-  'apicarto/nature/pnr': ['nom'],
-  'apicarto/nature/rnn': ['nom'],
+  // les couches d'inventaire et de protection, `url` pour la fiche INPN. Ce sont les trois
+  // pieges corriges aux audits 6 et 7.
+  'apicarto/nature/natura-habitat': ['sitename', 'sitecode', 'url'],
+  'apicarto/nature/natura-oiseaux': ['sitename', 'sitecode', 'url'],
+  'apicarto/nature/znieff1': ['nom', 'id_mnhn', 'url'],
+  'apicarto/nature/znieff2': ['nom', 'id_mnhn', 'url'],
+  'apicarto/nature/pnr': ['nom', 'id_mnhn', 'url'],
+  'apicarto/nature/rnn': ['nom', 'id_mnhn', 'url'],
+
+  // --- Cadastre ---
+  'apicarto/cadastre/parcelle': [
+    'idu', 'numero', 'section', 'code_dep', 'nom_com', 'code_com', 'contenance', 'code_insee',
+  ],
+  'apicarto/cadastre/commune': ['nom_com', 'code_insee'],
+
+  // --- RPG ---
+  'apicarto/rpg/v2': ['code_cultu', 'code_group'],
+
+  // --- Georisques ---
+  // `libPpr` est le champ du libelle. Le connecteur lisait `libelle_risque_long` puis
+  // `libelle_risque`, qui n'existent pas : la detection des PPR ne fonctionnait pas du tout.
+  'georisques/gaspar/pprn': ['libPpr', 'zonageReglementaire'],
+  'georisques/gaspar/pprt': ['libPpr', 'zonageReglementaire'],
+  'georisques/rga': ['codeExposition'],
+  // Les points d'entree suivants ne servent qu'a COMPTER : aucun champ n'est lu sur les objets.
+  // Ils figurent ici pour que la fixture reste complete et que la troncature soit verifiable.
+  'georisques/gaspar/tri': [],
+  'georisques/tri_zonage': [],
+  'georisques/cavites': [],
+  'georisques/mvt': [],
+  'georisques/ssp/casias': [],
+  'georisques/installations_classees': [],
 
   // --- WFS Geoplateforme ---
   'wfs/BDTOPO_V3:batiment': ['usage_1', 'usage_2', 'nature', 'nombre_de_logements'],
   'wfs/BDTOPO_V3:troncon_de_route': ['nature', 'largeur_de_chaussee'],
-  // Le WFS PatriNat emploie `nom_site`, la ou API Carto emploie `sitename` ou `nom` : c'est
-  // l'origine de la confusion d'un connecteur a l'autre.
+  // Le WFS PatriNat emploie `nom_site`, la ou API Carto emploie `sitename` ou `nom`.
   'wfs/patrinat_apb:apb': ['nom_site'],
   'wfs/RPG.LATEST:parcelles_graphiques': ['code_cultu', 'code_group'],
+
+  // --- Altimetrie et gisement ---
+  'geoplateforme/alti/elevation': ['lon', 'lat', 'z'],
+  // La cle d'irradiation dans le plan des modules est litteralement « H(i)_y », parentheses
+  // incluses. C'est un nom de champ aussi fragile que les precedents : il est donc surveille.
+  'pvgis/PVcalc': ['H(i)_y', 'E_y'],
 };
 
 test('la fixture couvre tous les points d’entree surveilles', () => {
@@ -145,9 +175,44 @@ const INTERFACES_SURVEILLEES: ReadonlyArray<{
     ],
   },
   {
+    // Le connecteur des CALQUES interroge les memes services que `nature.ts`, plus les
+    // servitudes du GPU. C'est celui qui etiquetait les sites Natura 2000 par leur code.
+    fichier: '../src/connecteurs/zonages.ts',
+    interfaces: ['ProprietesZonage'],
+    endpoints: [
+      'apicarto/nature/natura-habitat',
+      'apicarto/nature/natura-oiseaux',
+      'apicarto/nature/znieff1',
+      'apicarto/nature/pnr',
+      'apicarto/nature/rnn',
+      'apicarto/gpu/assiette-sup-s',
+    ],
+  },
+  {
     fichier: '../src/connecteurs/wfs.ts',
     interfaces: ['ProprietesBatiment', 'ProprietesRoute'],
     endpoints: ['wfs/BDTOPO_V3:batiment', 'wfs/BDTOPO_V3:troncon_de_route'],
+  },
+  {
+    fichier: '../src/connecteurs/cadastre.ts',
+    interfaces: ['ProprietesParcelle'],
+    endpoints: ['apicarto/cadastre/parcelle', 'apicarto/cadastre/commune'],
+  },
+  {
+    fichier: '../src/connecteurs/rpg.ts',
+    interfaces: ['ProprietesRpg'],
+    endpoints: ['apicarto/rpg/v2'],
+  },
+  {
+    // Le connecteur ou la detection des PPR ne fonctionnait pas.
+    fichier: '../src/connecteurs/georisques.ts',
+    interfaces: ['PprBrut'],
+    endpoints: ['georisques/gaspar/pprn', 'georisques/gaspar/pprt'],
+  },
+  {
+    fichier: '../src/connecteurs/servitudes.ts',
+    interfaces: ['ProprietesSup'],
+    endpoints: ['apicarto/gpu/assiette-sup-s'],
   },
 ];
 

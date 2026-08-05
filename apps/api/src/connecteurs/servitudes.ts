@@ -27,8 +27,12 @@ const CONNECTEUR = 'apicarto_gpu';
 
 interface ProprietesSup {
   suptype?: string | null;
-  idsup?: string | null;
   nomsuplitt?: string | null;
+  /**
+   * Identifiant de l'assiette. `idsup` etait declare ici et n'existe pas dans la reponse : il
+   * n'etait pas lu, donc sans consequence, mais une propriete declaree qui n'existe pas fait
+   * croire a un contrat verifie. C'est le voisinage exact ou se cachait le defaut des PPR.
+   */
   idass?: string | null;
 }
 
