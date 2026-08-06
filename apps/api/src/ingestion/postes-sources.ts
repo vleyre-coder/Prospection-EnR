@@ -19,7 +19,8 @@
 import { jsonExterne } from '../http.js';
 import { journal } from '../journal.js';
 import { requete } from '../bdd.js';
-import { enregistrerIngestion } from '../depots/sources.js';
+import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
+import { oublierPresenceCouches } from '../connecteurs/couches.js';
 
 const BASE = 'https://www.capareseau.fr';
 
@@ -256,6 +257,50 @@ export async function ingererPostesSources(): Promise<{
       nbRegionsEnEchec += 1;
       journal.warn({ err, region }, 'Echec de l\'ingestion d\'une region Capareseau');
     }
+  }
+
+  /**
+   * RATTACHEMENT AU DEPARTEMENT ET COUVERTURE — audit 9, defaut A3.
+   *
+   * Capareseau ne publie pas le departement du poste, et l'insertion laissait donc
+   * `code_departement` vide : ce connecteur n'ecrivait AUCUNE ligne dans `couverture_ingestion`.
+   * Personne ne pouvait alors distinguer « aucun poste a moins de 90 km » de « la region n'a pas
+   * ete ingeree » — alors que la boucle ci-dessus tolere explicitement l'echec d'une region. Une
+   * region manquante faisait attribuer aux parcelles voisines le poste le plus proche de ceux
+   * qui restaient, a 90 ou 150 km, note comme une mesure : faux ROUGE sur le critere le plus
+   * lourd du profil.
+   *
+   * Le rattachement se fait par jointure spatiale sur `commune`, comme pour les sites proteges :
+   * c'est la seule methode fiable, un identifiant de poste ne portant pas de code geographique.
+   */
+  if (nbPostes > 0) {
+    const rattaches = await requete<{ n: number }>(
+      `WITH maj AS (
+         UPDATE poste_source p
+            SET code_insee = com.code_insee,
+                nom_commune = com.nom,
+                code_departement = com.code_departement
+           FROM commune com
+          WHERE p.connecteur = 'postes_sources'
+            AND ST_Intersects(com.geom, p.geom)
+          RETURNING 1
+       )
+       SELECT count(*)::int AS n FROM maj`,
+    );
+    const parDep = await requete<{ code_departement: string | null; n: number }>(
+      `SELECT code_departement, count(*)::int AS n FROM poste_source
+        WHERE connecteur = 'postes_sources' GROUP BY code_departement`,
+    );
+    for (const d of parDep) {
+      if (d.code_departement) {
+        await enregistrerCouverture('postes_sources', 'poste_source', d.code_departement, d.n);
+      }
+    }
+    oublierPresenceCouches();
+    journal.info(
+      { rattaches: rattaches[0]?.n ?? 0, departements: parDep.filter((d) => d.code_departement).length },
+      'Postes sources rattaches a leur departement',
+    );
   }
 
   const statut = nbPostes === 0 ? 'echec' : nbRegionsEnEchec > 0 ? 'partiel' : 'ok';

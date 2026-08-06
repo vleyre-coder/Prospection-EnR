@@ -99,7 +99,10 @@ const MUTATIONS = [
     audit: 'audit 8',
     quoi: 'une couche patrimoniale non ingeree redevient une absence constatee',
     fichier: 'apps/api/src/connecteurs/locales.ts',
-    de: "if (!presence[type]) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };",
+    // `presence` est devenu `exploitable` a l'audit 9 : le verdict porte desormais sur tout le
+    // disque de recherche et non sur le seul departement de la parcelle. L'invariant teste est le
+    // meme — une couche dont on ne sait rien ne produit pas d'absence constatee.
+    de: "if (!exploitable[type]) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };",
     vers: '// mutation',
     tests: ['apps/api/test/patrimoine-couches.test.ts'],
   },
@@ -168,6 +171,30 @@ const MUTATIONS = [
     de: 'ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326), id\n      LIMIT $3',
     vers: 'ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)\n      LIMIT $3',
     tests: ['apps/api/test/pagination-stable.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'une distance au plus proche est de nouveau rendue sur un disque partiellement ingere',
+    fichier: 'apps/api/src/connecteurs/locales.ts',
+    de: '  if (!(await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, pt, plusProche.distance_m))) {\n    return [];\n  }',
+    vers: '  void plusProche;',
+    tests: ['apps/api/test/couverture-disque.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'le patrimoine revient au controle du seul departement de la parcelle',
+    fichier: 'apps/api/src/connecteurs/locales.ts',
+    de: '  const typesIngeres = TYPES_PATRIMOINE.filter((t) => exploitable[t]);',
+    vers: '  const typesIngeres = TYPES_PATRIMOINE.filter((t) => presence[t] === true);',
+    tests: ['apps/api/test/patrimoine-couches.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'le disque de recherche est declare couvert sans verification',
+    fichier: 'apps/api/src/connecteurs/couches.ts',
+    de: '    if (traverses.length === 0) return false;\n    return traverses.every((l) => couverts.has(l.code_departement));',
+    vers: '    return true;',
+    tests: ['apps/api/test/couverture-disque.test.ts', 'apps/api/test/patrimoine-couches.test.ts'],
   },
 ];
 

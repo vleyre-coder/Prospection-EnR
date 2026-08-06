@@ -42,6 +42,14 @@ interface Entree {
 
 const cache = new Map<string, Entree>();
 
+interface EntreeEnsemble {
+  valeur: Set<string>;
+  expire: number;
+}
+
+/** Cache distinct : la valeur est un ensemble de departements, pas un verdict par type. */
+const cacheEnsembles = new Map<string, EntreeEnsemble>();
+
 function cle(prefixe: string, types: readonly string[], departement?: string): string {
   return `${prefixe}|${departement ?? ''}|${[...types].sort().join(',')}`;
 }
@@ -113,7 +121,108 @@ export async function couchesPresentesDansDepartement(
   }
 }
 
+/**
+ * Departements couverts pour un type, sous forme d'ensemble.
+ *
+ * Complete `couchesPresentesDansDepartement`, qui repond pour UN departement connu d'avance. Ici la
+ * question vient dans l'autre sens : on dispose d'une liste de departements — ceux qu'un rayon de
+ * recherche traverse — et il faut savoir s'ils sont TOUS couverts.
+ */
+async function departementsCouverts(type: string): Promise<Set<string>> {
+  const k = cle('ensemble', [type]);
+  const enCache = cacheEnsembles.get(k);
+  if (enCache && enCache.expire > Date.now()) return enCache.valeur;
+
+  try {
+    const lignes = await requete<{ code_departement: string }>(
+      `SELECT code_departement FROM couverture_ingestion
+        WHERE type = $1 AND nb_objets > 0
+        GROUP BY code_departement`,
+      [type],
+    );
+    const valeur = new Set(lignes.map((l) => l.code_departement));
+    cacheEnsembles.set(k, { valeur, expire: Date.now() + DUREE_CACHE_MS });
+    return valeur;
+  } catch {
+    // Base injoignable : aucun departement n'est declare couvert, donc rien ne sera affirme.
+    return new Set();
+  }
+}
+
+/**
+ * UNE DISTANCE AU PLUS PROCHE N'EST UNE MESURE QUE SI LE DISQUE QU'ELLE PARCOURT EST INGERE.
+ *
+ * POURQUOI CETTE FONCTION EXISTE — audit 9, defaut A3. `couchesPresentesDansDepartement` avait
+ * ferme le cas du « type non ingere du tout », mais pas celui de la RECHERCHE DE PROXIMITE, qui est
+ * different : chercher l'objet le plus proche d'un point revient a balayer un disque, et ce disque
+ * ne s'arrete pas a la frontiere du departement de la parcelle.
+ *
+ * Le cas concret. L'ingestion des postes sources parcourt les treize regions une par une et tolere
+ * l'echec de l'une d'elles — elle enregistre alors le statut « partiel ». Si l'Ile-de-France echoue,
+ * la table contient toute la France sauf huit departements. Une parcelle en Seine-et-Marne se voit
+ * alors attribuer le poste le plus proche... en region Centre, a 90 km, et cette distance est notee
+ * comme une mesure : la parcelle devient ROUGE sur le critere le plus lourd du profil, pour une
+ * raison de raccordement qui n'existe pas. C'est le defaut B1 de l'audit 8 retourne — non plus un
+ * faux vert par absence de donnee, mais un faux rouge par TROU dans la donnee.
+ *
+ * La regle est donc : la distance `d` mesuree depuis `pt` n'est exploitable que si tous les
+ * departements que le disque de rayon `d` autour de `pt` traverse sont couverts. Un departement
+ * non couvert dans ce disque pourrait contenir un objet plus proche : `d` n'est alors pas une
+ * distance, c'est une borne superieure, et le critere doit rester gris.
+ *
+ * Le disque est resolu sur `commune`, qui est ingeree pour la France entiere : un disque qui deborde
+ * en mer ou a l'etranger ne rapporte aucun departement de ce cote, ce qui est correct — il n'y a pas
+ * de poste source francais hors de France.
+ */
+export async function disqueEntierementCouvert(
+  type: string,
+  pt: readonly [number, number],
+  rayonM: number,
+): Promise<boolean> {
+  try {
+    const [couverts, traverses] = await Promise.all([
+      departementsCouverts(type),
+      requete<{ code_departement: string }>(
+        /**
+         * Recherche en ESPACE GEOMETRIQUE, avec une marge en degres, et non en geographie.
+         *
+         * `ST_DWithin(geom::geography, ...)` etait la formulation naturelle, et elle a ete mesuree :
+         * 3 434 ms par appel. La cause est le transtypage, qui interdit l'usage de l'index GiST pose
+         * sur `geom` et force la conversion des 34 875 multipolygones communaux a chaque parcelle.
+         * En espace geometrique, l'index sert : 4,4 ms, soit 780 fois moins. Sur un lot de 500
+         * parcelles, l'ecart est de 28 minutes.
+         *
+         * La marge est calculee sur le degre de LONGITUDE, le plus court aux latitudes francaises.
+         * Le disque en degres devient donc une ellipse allongee nord-sud qui CONTIENT le disque
+         * metrique demande : la verification porte sur un territoire un peu plus grand que
+         * necessaire, ce qui exige un peu plus de couverture — l'erreur va dans le sens prudent.
+         * Verifie sur ce point : a 45 km, la version geometrique retient 28, 41, 45, 78, 91 et
+         * ecarte le 77, dont le bord est a 51,4 km.
+         */
+        `SELECT code_departement FROM commune
+          WHERE code_departement IS NOT NULL
+            AND ST_DWithin(
+                  geom,
+                  ST_SetSRID(ST_MakePoint($1, $2), 4326),
+                  -- Le plancher sur le cosinus evite une marge infinie pres des poles ; aucun
+                  -- territoire francais n'y est, mais une fonction ne doit pas dependre de cela.
+                  $3 / (111320 * GREATEST(cos(radians($2)), 0.2))
+                )
+          GROUP BY code_departement`,
+        [pt[0], pt[1], rayonM],
+      ),
+    ]);
+    // Aucun departement traverse : le referentiel communal n'est pas ingere, ou le point est hors
+    // de France. Dans les deux cas on ne peut rien garantir.
+    if (traverses.length === 0) return false;
+    return traverses.every((l) => couverts.has(l.code_departement));
+  } catch {
+    return false;
+  }
+}
+
 /** Reinitialise le cache. A appeler apres toute ingestion. */
 export function oublierPresenceCouches(): void {
   cache.clear();
+  cacheEnsembles.clear();
 }

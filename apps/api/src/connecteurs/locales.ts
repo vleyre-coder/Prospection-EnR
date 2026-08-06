@@ -20,7 +20,16 @@ import type {
 } from '@enr/core';
 import { requete } from '../bdd.js';
 import type { Position } from '../geo.js';
-import { couchesPresentesDansDepartement } from './couches.js';
+import { couchesPresentesDansDepartement, disqueEntierementCouvert } from './couches.js';
+
+/**
+ * Types de `couverture_ingestion` correspondant aux couches interrogees par proximite.
+ *
+ * Nommes ici plutot qu'en clair dans chaque requete : le lien entre la table lue et la ligne de
+ * couverture qui l'autorise doit se voir d'un coup d'oeil.
+ */
+export const TYPE_COUVERTURE_POSTES = 'poste_source';
+export const TYPE_COUVERTURE_INJECTION = 'point_injection_gaz';
 
 // ---------------------------------------------------------------------------
 // Postes sources
@@ -64,8 +73,16 @@ function versPosteRef(l: LignePoste): PosteSourceRef {
 
 /**
  * Les postes sources les plus proches d'un point, tries par distance.
+ *
  * Les postes en projet sont inclus : un poste en construction peut etre la cible de
  * raccordement d'un projet dont le calendrier s'y aligne.
+ *
+ * RENVOIE UNE LISTE VIDE PLUTOT QU'UNE DISTANCE DOUTEUSE — audit 9, defaut A3. L'ingestion des
+ * postes parcourt les treize regions une a une et tolere l'echec de l'une d'elles. Il faut donc
+ * verifier que le disque balaye par la recherche est entierement ingere : sinon le poste trouve
+ * n'est pas le plus proche, seulement le plus proche de ceux qu'on a. La liste vide fait passer
+ * `postes_sources` dans les connecteurs en echec, et tous les criteres de raccordement au gris —
+ * ce qui est la reponse juste, la ou une distance inventee virait la parcelle au rouge.
  */
 export async function postesLesPlusProches(pt: Position, nombre = 4): Promise<PosteSourceRef[]> {
   const lignes = await requete<LignePoste>(
@@ -80,6 +97,14 @@ export async function postesLesPlusProches(pt: Position, nombre = 4): Promise<Po
       LIMIT $3`,
     [pt[0], pt[1], nombre],
   );
+  const plusProche = lignes[0];
+  if (!plusProche) return [];
+
+  // Le disque a verifier est celui de la distance RETENUE, et non un rayon fixe : c'est exactement
+  // l'etendue sur laquelle la reponse « c'est le plus proche » engage la donnee.
+  if (!(await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, pt, plusProche.distance_m))) {
+    return [];
+  }
   return lignes.map(versPosteRef);
 }
 
@@ -130,9 +155,15 @@ export async function reseauGaz(pt: Position): Promise<Raccordement['reseauGaz']
   const enKm = (m: number | undefined): number | null =>
     m == null ? null : Math.round((m / 1000) * 100) / 100;
 
+  // Meme regle que pour les postes sources (audit 9, defaut A3) : la distance au site d'injection le
+  // plus proche n'est une mesure que si le disque qu'elle parcourt est ingere. L'ingestion GRDF est
+  // paginee et une interruption en cours de pagination laisse une France partielle.
+  const injectionFiable =
+    inj == null ? false : await disqueEntierementCouvert(TYPE_COUVERTURE_INJECTION, pt, inj.distance_m);
+
   return {
     distanceCanalisationKm: enKm(can?.distance_m),
-    distanceSiteInjectionKm: enKm(inj?.distance_m),
+    distanceSiteInjectionKm: injectionFiable ? enKm(inj?.distance_m) : null,
     // Le gestionnaire de la canalisation prime : c'est lui qui instruira le raccordement. A defaut,
     // celui du site d'injection donne une indication du territoire.
     gestionnaire:
@@ -268,7 +299,35 @@ export async function patrimoine(
    * inscrit dans le rayon d'analyse », sur zero donnee.
    */
   const presence = await couchesPresentesDansDepartement(TYPES_PATRIMOINE, codeDepartement);
-  const typesIngeres = TYPES_PATRIMOINE.filter((t) => presence[t]);
+
+  /**
+   * ET LA COUVERTURE DU DISQUE, PAS SEULEMENT DU DEPARTEMENT — audit 9, defaut A3.
+   *
+   * Le controle par departement fermait le cas « couche jamais ingeree ici », mais la recherche
+   * porte sur un rayon de 10 km, qui franchit une frontiere departementale des que la parcelle en
+   * est a moins de 10 km — soit une grande partie du territoire. Un site classe situe a 3 km, de
+   * l'autre cote de la limite, dans un departement non ingere, restait invisible, et l'absence
+   * etait affirmee au lieu d'etre inconnue. Le disque est verifie type par type : une couche peut
+   * etre complete la ou une autre ne l'est pas.
+   */
+  const disques = await Promise.all(
+    TYPES_PATRIMOINE.map(async (t) =>
+      presence[t] === true ? disqueEntierementCouvert(t, pt, rayonM) : false,
+    ),
+  );
+  /**
+   * Verdict final par type : « on peut affirmer quelque chose sur cette couche ici ».
+   *
+   * C'est LUI et non `presence` qui commande les trois etats plus bas. Une premiere version de ce
+   * correctif ne changeait que le filtre des types interroges en laissant `presence` decider de
+   * l'affichage : la couche etait alors exclue de la requete tout en etant declaree presente, donc
+   * une liste vide devenait une absence constatee — le defaut de l'audit 8 reintroduit par sa
+   * propre correction.
+   */
+  const exploitable = Object.fromEntries(
+    TYPES_PATRIMOINE.map((t, i) => [t, disques[i] === true]),
+  ) as Record<(typeof TYPES_PATRIMOINE)[number], boolean>;
+  const typesIngeres = TYPES_PATRIMOINE.filter((t) => exploitable[t]);
   if (typesIngeres.length === 0) return null;
 
   /**
@@ -304,6 +363,18 @@ export async function patrimoine(
               ) AS rang
          FROM contrainte c, pt
         WHERE c.type = ANY($3)
+          -- PREFILTRE EN ESPACE GEOMETRIQUE, puis filtre metrique exact.
+          --
+          -- Le seul filtre geographique a ete mesure a 847 ms par parcelle sur 6 617 objets : le
+          -- transtypage en geography interdit l'usage de l'index GiST et force la conversion de
+          -- toute la table a chaque appel. Avec les monuments historiques ingeres nationalement,
+          -- l'ordre de grandeur passe a plusieurs secondes par parcelle. Le prefiltre en degres
+          -- utilise l'index et ramene le tout a 8,4 ms, soit cent fois moins.
+          --
+          -- La marge en degres est calculee sur le degre de longitude, le plus court aux latitudes
+          -- francaises : le prefiltre retient donc un peu PLUS que le rayon demande, jamais moins.
+          -- Le filtre metrique qui suit tranche exactement, sur ces quelques candidats.
+          AND ST_DWithin(c.geom, pt.g, $4 / (111320 * GREATEST(cos(radians($2)), 0.2)))
           AND ST_DWithin(c.geom::geography, pt.g::geography, $4)
      )
      SELECT type, nom, distance_m, contient, rang FROM proches
@@ -320,11 +391,11 @@ export async function patrimoine(
   /**
    * Trois etats, et non deux.
    *
-   * Couche non ingeree pour ce departement -> `recouvre: null` (critere GRIS). Couche ingeree et
-   * rien dans le rayon -> `recouvre: false` (absence constatee, feu vert legitime).
+   * Couche non exploitable sur le disque de recherche -> `recouvre: null` (critere GRIS). Couche
+   * complete sur tout le disque et rien dedans -> `recouvre: false` (absence constatee, vert legitime).
    */
   const zonage = (type: (typeof TYPES_PATRIMOINE)[number], l: typeof lignes) => {
-    if (!presence[type]) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };
+    if (!exploitable[type]) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };
     if (l.length === 0) return { recouvre: false, partRecouvrement: 0, distanceM: null, nom: null };
     return {
       recouvre: l[0]!.contient,
@@ -334,7 +405,7 @@ export async function patrimoine(
     };
   };
 
-  const mhIngere = presence['monument_historique'] === true;
+  const mhIngere = exploitable['monument_historique'];
   const distanceMhM = mh.length > 0 ? Math.round(mh[0]!.distance_m) : null;
 
   /**
@@ -350,8 +421,8 @@ export async function patrimoine(
    */
   const motifs: Array<boolean | null> = [
     mhIngere ? (distanceMhM != null && distanceMhM <= 500) : null,
-    presence['site_inscrit'] ? siteInscrit.some((s) => s.contient) : null,
-    presence['spr'] ? spr.some((s) => s.contient) : null,
+    exploitable['site_inscrit'] ? siteInscrit.some((s) => s.contient) : null,
+    exploitable['spr'] ? spr.some((s) => s.contient) : null,
   ];
   const avisAbfRequis = motifs.some((m) => m === true)
     ? true

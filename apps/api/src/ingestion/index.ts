@@ -17,6 +17,7 @@ import { journal } from '../journal.js';
 import { config } from '../config.js';
 import { requete } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
+import { oublierPresenceCouches } from '../connecteurs/couches.js';
 import { ingererSitesProteges, ingererZaer } from './wfs-national.js';
 import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 import { telechargerRaster } from '../connecteurs/vent.js';
@@ -117,6 +118,16 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
 
   let nbPoints = 0;
   let nbFermes = 0;
+  /**
+   * Pagination reellement terminee, ou interrompue en cours de route ?
+   *
+   * AUDIT 9, DEFAUT A4. Le `catch` ci-dessous entoure toute la boucle de pagination : une erreur a
+   * la page 3 sur 9 en sortait, et comme `nbPoints > 0` le statut enregistre etait « ok ». Un tiers
+   * des sites d'injection de France etait alors declare complet. La distance au site d'injection le
+   * plus proche — le critere de raccordement de la methanisation — se calculait sur ce tiers, en
+   * silence, et surestimait la distance sans que rien ne le signale.
+   */
+  let paginationComplete = false;
   for (const jeu of candidats) {
     try {
       let decalage = 0;
@@ -180,17 +191,45 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
         }
         decalage += PAGE;
       }
+      // Sortie normale de la boucle de pagination : toutes les pages annoncees ont ete lues.
+      paginationComplete = true;
       if (nbPoints > 0) break;
     } catch (err) {
       journal.debug({ err, jeu }, "Jeu de donnees GRDF indisponible, essai suivant");
     }
   }
 
+  /**
+   * Couverture departementale, et seulement si la pagination est allee au bout.
+   *
+   * C'est la condition qui autorise `reseauGaz()` a presenter la distance au site d'injection comme
+   * une mesure (audit 9, defaut A3). Une pagination interrompue ne l'autorise pas : le site le plus
+   * proche pourrait etre dans la moitie non lue. Aucune ligne de couverture n'est alors ecrite, et
+   * le critere reste gris — reponse juste, la ou une distance surestimee penalisait la parcelle.
+   */
+  let nbDepartements = 0;
+  if (nbPoints > 0 && paginationComplete) {
+    const parDep = await requete<{ code_departement: string | null; n: number }>(
+      `SELECT code_departement, count(*)::int AS n FROM point_injection_gaz
+        WHERE connecteur = 'reseau_gaz' GROUP BY code_departement`,
+    );
+    for (const d of parDep) {
+      if (d.code_departement) {
+        await enregistrerCouverture('reseau_gaz', 'point_injection_gaz', d.code_departement, d.n);
+        nbDepartements += 1;
+      }
+    }
+    oublierPresenceCouches();
+  }
+
+  const statut = nbPoints === 0 ? 'echec' : paginationComplete ? 'ok' : 'partiel';
   await enregistrerIngestion(
     'reseau_gaz',
-    nbPoints > 0 ? 'ok' : 'echec',
+    statut,
     nbPoints > 0
-      ? `${nbPoints} sites d'injection en service, ${nbFermes} sites fermes ecartes`
+      ? `${nbPoints} sites d'injection en service, ${nbFermes} sites fermes ecartes, ` +
+        `${nbDepartements} departement(s) couvert(s)` +
+        (paginationComplete ? '' : ' — PAGINATION INTERROMPUE, couverture non enregistree')
       : "Aucun jeu GRDF exploitable : verifier les identifiants de jeux sur opendata.grdf.fr",
     nbPoints,
   );

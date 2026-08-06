@@ -162,6 +162,19 @@ jobs:
         run: npx tsx --test test/patrimoine-couches.test.ts
         working-directory: apps/api
 
+      # Audit 9. Deux familles de defauts n'etaient visibles qu'en base :
+      #   - A1, les listes triees puis tronquees sans ordre total : 38 % des parcelles renvoyees
+      #     changeaient selon le plan choisi par PostgreSQL, et des parcelles du haut du classement
+      #     n'apparaissaient sur aucune page ;
+      #   - A3, la distance au plus proche calculee sur un disque partiellement ingere, qui virait
+      #     la parcelle au ROUGE sur le critere le plus lourd pour un trou dans la donnee.
+      # Les deux fichiers s'ignorent sans base, et un test ignore protege de rien.
+      - name: Tester la stabilite des listes et la couverture du disque contre PostGIS
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: npx tsx --test test/pagination-stable.test.ts test/couverture-disque.test.ts
+        working-directory: apps/api
+
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :
       # il ne tourne que sur la base jetable de la CI, et apres les tests PostGIS.
       - name: Tester la reprise d'une base privee de sa table de suivi

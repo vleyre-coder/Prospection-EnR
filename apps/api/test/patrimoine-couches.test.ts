@@ -15,9 +15,11 @@
  *      pouvaient etre entierement consommees par des monuments historiques, et les trois autres
  *      types etaient declares absents alors qu'ils avaient seulement ete tronques.
  *
- * Les tests s'executent sur une base jetable et n'y touchent qu'a travers un departement fictif
- * (`99`) et un connecteur fictif, pour ne jamais interferer avec des donnees reelles. Ils
- * s'ignorent proprement si aucune base n'est disponible.
+ * Le territoire de test est entierement fictif et place en pleine mer (voir
+ * `aides/communes-fictives.ts`) : deux departements imaginaires separes par une frontiere a 5 km du
+ * point, ce qui permet d'exercer la verification du DISQUE de recherche introduite a l'audit 9 sans
+ * lire ni ecrire aucune donnee reelle. Les tests s'ignorent proprement si aucune base n'est
+ * disponible.
  */
 
 import { test, before, after } from 'node:test';
@@ -25,18 +27,26 @@ import assert from 'node:assert/strict';
 import { pool, requete } from '../src/bdd.js';
 import { oublierPresenceCouches } from '../src/connecteurs/couches.js';
 import { patrimoine } from '../src/connecteurs/locales.js';
+import {
+  creerCommunesFictives,
+  declarerCouvertureFictive,
+  DEP_LOCAL,
+  DEP_VOISIN,
+  PT,
+  supprimerCommunesFictives,
+  versEst,
+  viderCouvertureFictive,
+} from './aides/communes-fictives.js';
 
-/** Departement fictif : aucune donnee reelle ne porte ce code. */
-const DEP = '99';
+/** Departement fictif portant la parcelle. Voir `aides/communes-fictives.ts`. */
+const DEP = DEP_LOCAL;
 const CONNECTEUR = 'patrimoine_culture';
-/** Un point quelconque, en Beauce, loin de toute donnee reelle du jeu de demonstration. */
-const PT: [number, number] = [1.75, 48.15];
 
 let baseDisponible = false;
 
 async function nettoyer(): Promise<void> {
   await requete(`DELETE FROM contrainte WHERE code_departement = $1`, [DEP]);
-  await requete(`DELETE FROM couverture_ingestion WHERE code_departement = $1`, [DEP]);
+  await viderCouvertureFictive();
   oublierPresenceCouches();
 }
 
@@ -62,8 +72,7 @@ async function inserer(
   metres: number,
   identifiant: string,
 ): Promise<void> {
-  // 1 degre de longitude vaut environ 74,4 km a 48 deg de latitude.
-  const dLon = metres / (111195 * Math.cos((48.15 * Math.PI) / 180));
+  const dLon = versEst(metres);
   await requete(
     `INSERT INTO contrainte (type, nom, identifiant_source, geom, connecteur, code_departement, date_donnee)
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6, $7, current_date)
@@ -72,14 +81,19 @@ async function inserer(
   );
 }
 
-/** Declare la couche `type` ingeree pour le departement de test. */
+/**
+ * Declare la couche `type` ingeree pour TOUT le disque de recherche, et non pour le seul
+ * departement de la parcelle.
+ *
+ * POURQUOI LES DEUX DEPARTEMENTS — audit 9, defaut A3. Le rayon vaut 10 km, et le disque franchit
+ * la frontiere du departement voisin (5 km a l'est du point de test). Une couche declaree pour le
+ * seul departement de la parcelle ne permet donc plus de conclure : c'est precisement ce que le
+ * dernier test de ce fichier verifie.
+ */
 async function declarerCouverture(type: string, nbObjets = 1): Promise<void> {
-  await requete(
-    `INSERT INTO couverture_ingestion (connecteur, type, code_departement, nb_objets)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (connecteur, type, code_departement) DO UPDATE SET nb_objets = EXCLUDED.nb_objets`,
-    [CONNECTEUR, type, DEP, nbObjets],
-  );
+  for (const dep of [DEP_LOCAL, DEP_VOISIN]) {
+    await declarerCouvertureFictive(CONNECTEUR, type, dep, nbObjets);
+  }
   oublierPresenceCouches();
 }
 
@@ -108,11 +122,15 @@ before(async () => {
     );
   }
   baseDisponible = true;
+  await creerCommunesFictives();
   await nettoyer();
 });
 
 after(async () => {
-  if (baseDisponible) await nettoyer();
+  if (baseDisponible) {
+    await nettoyer();
+    await supprimerCommunesFictives();
+  }
   await pool.end().catch(() => undefined);
 });
 
@@ -248,4 +266,36 @@ test('l’avis de l’ABF reste inconnu quand aucun motif n’est etabli ni ecar
 
   const r = await patrimoine(PT, DEP);
   assert.equal(r?.avisAbfRequis, null, 'un motif inconnu empeche de conclure a l’absence d’avis');
+});
+
+/**
+ * Le rayon de recherche franchit les frontieres departementales — audit 9, defaut A3.
+ *
+ * Le controle de couverture ne portait que sur le departement de la parcelle. Or le rayon vaut
+ * 10 km, et il franchit donc la frontiere des que la parcelle en est a moins de 10 km — soit une
+ * grande partie du territoire. Un site classe a 3 km de l'autre cote de la limite, dans un
+ * departement non ingere, restait invisible, et son absence etait AFFIRMEE : la parcelle repartait
+ * en vert sur `pat_sites`.
+ */
+test('une couche incomplete sur le disque de 10 km ne fait rien affirmer', async () => {
+  if (ignorer()) return;
+  await nettoyer();
+  await inserer('site_classe', 'Site classe de test', 3000, 'SC-DISQUE');
+
+  // Couverture declaree pour le seul departement de la parcelle : le voisin, que le disque de 10 km
+  // touche, reste inconnu.
+  await declarerCouvertureFictive(CONNECTEUR, 'site_classe', DEP_LOCAL);
+  oublierPresenceCouches();
+
+  assert.equal(
+    await patrimoine(PT, DEP),
+    null,
+    'aucun type exploitable sur tout le disque : la fonction doit refuser de repondre',
+  );
+
+  // Le departement voisin declare a son tour, la couche redevient exploitable et le site est vu.
+  await declarerCouverture('site_classe');
+  const apres = await patrimoine(PT, DEP);
+  assert.equal(apres?.siteClasse?.recouvre, false, 'le site est a 3 km, il ne recouvre pas');
+  distanceProche(apres?.siteClasse?.distanceM, 3000, 'site classe');
 });
