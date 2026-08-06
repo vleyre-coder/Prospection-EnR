@@ -1222,3 +1222,36 @@ Deux défauts dans mes propres tests au passage, tous deux attrapés en les exé
 s'arrêtait sur le paramètre de type générique de `jsonExterne` et ne voyait jamais l'objet d'options,
 et un `require` dans un module ESM. Et une correction trop large qui avait inséré l'option dans un
 objet de retour qui n'est pas un appel — rattrapée par relecture du diff.
+
+## T8. Le défaut B1 est clos par la DONNÉE, et la preuve est exécutable
+
+Toute la chaîne a été vérifiée de bout en bout sur cette instance :
+
+| Étape | Résultat mesuré |
+|---|---|
+| communes ingérées | 34 875, sur 101 départements |
+| sites classés et inscrits ingérés | 6 617 (2 612 classés, 4 005 inscrits) |
+| rattachement départemental par jointure spatiale | **6 522 sur 6 617**, 96 départements |
+| couverture enregistrée | 96 départements × 2 types |
+| ZAER ingérées | 58 321 retenues sur 1 089 671 traitées, 84 départements |
+
+Les 95 sites non rattachés (1,4 %) sont ceux dont le centroïde tombe hors de tout polygone communal —
+sites classés en mer ou dont le centre géométrique tombe dans l'eau. Ils restent à `null` : **aucune
+couverture n'est revendiquée pour eux**, ce qui est le comportement voulu.
+
+Puis, sur une parcelle réelle au cœur du site classé du Massif du Mont-Blanc (Haute-Savoie) :
+
+```
+PATRIMOINE  siteClasse.recouvre = true | nom = Massif du Mont-Blanc
+CRITERE     note = 5 | feu = rouge | « Site classe - Massif du Mont-Blanc »
+KNOCK-OUT   declenche = true | « La parcelle est en site classe (Massif du Mont-Blanc). Un parc
+                                eolien y est incompatible avec l'objectif de conservation du site. »
+```
+
+À comparer à ce que l'application affichait au même endroit avant cet audit :
+**90/100, feu VERT, « Aucun site classé ni inscrit dans le rayon d'analyse »**, et un knock-out qui ne
+pouvait pas se déclencher.
+
+Le trajet complet est donc vérifié : la couche est ingérée, les objets sont rattachés à leur
+département, la couverture est enregistrée, `patrimoine()` lit la vérité, le critère la note, et la
+règle réglementaire qui était structurellement inatteignable pendant huit audits **se déclenche**.
