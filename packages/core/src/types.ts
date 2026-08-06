@@ -101,7 +101,19 @@ export interface Urbanisme {
    * null = document-cadre non ingere pour ce departement (donnee indisponible, GRIS).
    */
   documentCadrePvSol: {
-    departementCouvert: boolean;
+    /**
+     * Le departement a-t-il arrete un document-cadre photovoltaique au sol ?
+     *
+     * TROIS ETATS, et non deux — audit 8, defaut D5. Ce champ etait un `boolean`, et son `false`
+     * portait deux sens incompatibles : « la couche n'a pas ete ingeree pour ce departement » et
+     * « ce departement n'a pas de document-cadre ». L'interface affichait « departement non
+     * ingere » dans les deux cas. Or seule une trentaine de departements en ont arrete un : pour
+     * tous les autres, l'absence de ligne est un FAIT VRAI presente comme un manque de donnees.
+     *
+     * `null` = on ne sait pas (couche non ingeree). `false` = le departement n'en a pas.
+     * `true` = il en a un.
+     */
+    departementCouvert: boolean | null;
     parcelleEligible: boolean | null;
     dateArrete: string | null;
   };
@@ -329,11 +341,38 @@ export interface Raccordement {
   /** Les 3 postes les plus proches, pour comparaison dans la fiche. */
   postesAlternatifs: PosteSourceRef[];
   /** Reseau gaz (methanisation en injection). */
+  /**
+   * Reseau de gaz — DEUX GRANDEURS DISTINCTES, et non une seule.
+   *
+   * POURQUOI CETTE SEPARATION — audit 8, defaut B6/E5. Il n'y avait qu'un `distanceKm`, alimente par
+   * « le point de raccordement le plus proche, poste d'injection existant ou canalisation ». Or la
+   * table `canalisation_gaz` n'est peuplee par AUCUN job : seuls les points d'injection le sont. La
+   * valeur retournee etait donc, en pratique, toujours la distance au SITE D'INJECTION DE BIOMETHANE
+   * EXISTANT le plus proche.
+   *
+   * Ce sont deux grandeurs sans rapport : il y a quelques centaines de sites d'injection en France et
+   * des dizaines de milliers de kilometres de canalisations. La distance retournee etait donc
+   * structurellement tres superieure a la distance pertinente, et la methanisation systematiquement
+   * penalisee sur le critere qui pese 11 % de sa note — sans que rien ne le signale.
+   *
+   * Les confondre etait le glissement de sens habituel de ce projet : deux choses differentes sous un
+   * meme nom. Elles portent desormais deux noms.
+   */
   reseauGaz: {
-    /** Distance a la canalisation ou au point d'injection le plus proche, en km. */
-    distanceKm: number | null;
+    /**
+     * Distance a la CANALISATION de gaz la plus proche, en km. C'est la grandeur pertinente pour un
+     * raccordement en injection. `null` quand la couche des canalisations n'est pas ingeree — ce qui
+     * est le cas par defaut : aucun job ne l'alimente.
+     */
+    distanceCanalisationKm: number | null;
+    /**
+     * Distance au SITE D'INJECTION de biomethane existant le plus proche, en km. Ce n'est PAS une
+     * distance de raccordement : c'est un indicateur de maturite de la filiere sur le territoire,
+     * utile a la prospection commerciale mais sans valeur pour dimensionner un raccordement.
+     */
+    distanceSiteInjectionKm: number | null;
     gestionnaire: 'GRDF' | 'GRTgaz' | 'Terega' | 'autre' | null;
-    /** Capacite d'injection disponible en Nm3/h. */
+    /** Capacite d'injection disponible en Nm3/h, sur le site d'injection le plus proche. */
     capaciteInjectionNm3h: number | null;
     /** Rebours necessaire pour injecter. */
     reboursNecessaire: boolean | null;

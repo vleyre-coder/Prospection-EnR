@@ -127,7 +127,11 @@ export function construireSeuilsProcedure(
       seuil(
         filiere,
         'injection',
-        s.raccordement.reseauGaz.distanceKm == null ? null : s.raccordement.reseauGaz.distanceKm <= 10,
+        // Le droit a l'injection s'apprecie sur la distance a la CANALISATION, pas au site
+        // d'injection existant (audit 8, E5). Sans canalisation ingeree, le seuil reste inconnu.
+        s.raccordement.reseauGaz.distanceCanalisationKm == null
+          ? null
+          : s.raccordement.reseauGaz.distanceCanalisationKm <= 10,
       ),
     );
   }

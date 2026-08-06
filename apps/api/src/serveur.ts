@@ -31,6 +31,7 @@ import statique from '@fastify/static';
 import compression from '@fastify/compress';
 import { optionsStatique, repertoireInterface } from './routes/statique.js';
 import { ErreurSource } from './http.js';
+import { ErreurValidation } from './validation.js';
 
 export interface UtilisateurCourant {
   id: string;
@@ -165,6 +166,24 @@ export async function construireServeur(options: OptionsServeur = {}) {
           code: 'source_indisponible',
           message: `La source ${err.connecteur} est momentanement indisponible. Les criteres concernes restent non evalues.`,
           details: { connecteur: err.connecteur, statut: err.statut },
+        },
+      });
+    }
+    /**
+     * Une erreur de VALIDATION est une faute d'appel, pas une panne du serveur.
+     *
+     * Sans cette branche, chaque route devait intercepter `ErreurValidation` elle-meme, et une seule
+     * le faisait : les autres laissaient remonter l'erreur jusqu'ici, ou elle devenait un
+     * 500 `erreur_interne` (audit 8, C7 et C8). Un client ne pouvait donc pas distinguer « j'ai mal
+     * appele » de « le serveur est casse », et le journal se remplissait de fausses erreurs internes.
+     */
+    if (err instanceof ErreurValidation) {
+      req.log.info({ champ: err.champ, message: err.message }, 'Requete refusee a la validation');
+      return rep.code(400).send({
+        erreur: {
+          code: 'requete_invalide',
+          message: err.message,
+          details: { champ: err.champ },
         },
       });
     }

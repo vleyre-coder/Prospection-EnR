@@ -78,6 +78,29 @@ export async function statutsParIdus(
   );
 }
 
+/**
+ * Scores COMPLETS pour un lot d'IDU, en une seule requete.
+ *
+ * POURQUOI — audit 8, defaut C9. Les exports GeoJSON et Shapefile appelaient `scoreParcelle` dans une
+ * boucle `for`, soit une requete SQL sequentielle PAR PARCELLE. Un export de 5 000 parcelles faisait
+ * 5 000 allers-retours, chacun avec sa latence : la duree croissait lineairement la ou une seule
+ * requete suffit. `statutsParIdus` existait deja pour la carte, mais ne renvoie que le statut et le
+ * score global — les exports ont besoin du detail complet (knock-outs, regime, couverture).
+ */
+export async function scoresParIdus(
+  idus: string[],
+  filiere: Filiere,
+  profil = PROFIL_DEFAUT,
+): Promise<Record<string, ResultatScore>> {
+  if (idus.length === 0) return {};
+  const lignes = await requete<{ idu: string; detail: ResultatScore }>(
+    `SELECT idu, detail FROM score_parcelle_filiere
+      WHERE idu = ANY($1) AND filiere = $2 AND profil_ponderation = $3`,
+    [idus, filiere, profil],
+  );
+  return Object.fromEntries(lignes.map((l) => [l.idu, l.detail]));
+}
+
 /** Invalide les scores calcules par une version anterieure du moteur. */
 export async function invaliderVersionsAnterieures(versionCourante: string): Promise<number> {
   const lignes = await requete<{ n: number }>(

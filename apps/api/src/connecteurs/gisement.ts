@@ -14,6 +14,7 @@ import type { Gisement } from '@enr/core';
 import { avecParams, jsonExterne } from '../http.js';
 import type { Position } from '../geo.js';
 import { requete } from '../bdd.js';
+import { couchesPresentes, oublierPresenceCouches } from './couches.js';
 import { ventA100m } from './vent.js';
 
 const CONNECTEUR = 'gisement';
@@ -71,66 +72,126 @@ export async function vent(pt: Position): Promise<number | null> {
   return ventA100m(pt);
 }
 
-/** Types de contraintes alimentant l'estimation du gisement methanisable. */
-const COUCHES_INTRANTS = ['elevage', 'industrie_agroalimentaire', 'surface_agricole_commune'];
+/**
+ * Types de contraintes alimentant l'estimation du gisement methanisable.
+ *
+ * Les TROIS sont independantes : chacune a son propre etat d'ingestion, et il faut le savoir couche
+ * par couche (voir `couchesIntrantsIngerees`).
+ */
+const COUCHES_INTRANTS = ['elevage', 'industrie_agroalimentaire', 'surface_agricole_commune'] as const;
 
 /**
- * Ces couches sont-elles ingerees ?
+ * Ces couches sont-elles ingerees ? UNE REPONSE PAR COUCHE.
  *
- * Question decisive, et distincte du comptage lui-meme : `count(*)` ne renvoie jamais
- * `null`, il renvoie 0. Sans ce test prealable, une base ou aucune couche d'elevages n'a
- * jamais ete chargee produisait « 0 elevage a moins de 10 km » - un constat de terrain,
- * alors que la bonne reponse est « on n'en sait rien ». Le prospecteur ecartait un secteur
- * sur une donnee inexistante.
+ * Question decisive, et distincte du comptage lui-meme : `count(*)` ne renvoie jamais `null`, il
+ * renvoie 0. Sans ce test prealable, une base ou aucune couche d'elevages n'a jamais ete chargee
+ * produisait « 0 elevage a moins de 10 km » — un constat de terrain, alors que la bonne reponse est
+ * « on n'en sait rien ». Le prospecteur ecartait un secteur sur une donnee inexistante.
  *
- * Le resultat est mis en cache : la reponse ne change qu'apres une ingestion, et la question
- * serait posee une fois par parcelle sur des lots de plusieurs centaines.
+ * CE RAISONNEMENT ETAIT JUSTE ET L'IMPLEMENTATION LE TRAHISSAIT (audit 8, D1). La version
+ * precedente posait UNE seule question pour TROIS couches :
+ *
+ *     SELECT EXISTS (SELECT 1 FROM contrainte WHERE type = ANY($1)) AS presente
+ *
+ * Une base ou une seule des trois couches serait ingeree repondait donc `true`, et le code affirmait
+ * alors « 0 IAA » et « 0 ha d'epandage » comme des absences reelles sur le territoire — exactement
+ * ce que le commentaire ci-dessus disait vouloir eviter. Une question posee globalement ne peut pas
+ * repondre par couche.
  */
-let cacheCouches: { valeur: boolean; expire: number } | null = null;
-
-export async function couchesIntrantsIngerees(): Promise<boolean> {
-  if (cacheCouches && cacheCouches.expire > Date.now()) return cacheCouches.valeur;
-  try {
-    const rows = await requete<{ presente: boolean }>(
-      `SELECT EXISTS (SELECT 1 FROM contrainte WHERE type = ANY($1)) AS presente`,
-      [COUCHES_INTRANTS],
-    );
-    const valeur = rows[0]?.presente === true;
-    cacheCouches = { valeur, expire: Date.now() + 5 * 60 * 1000 };
-    return valeur;
-  } catch {
-    // Base injoignable : on ne peut pas affirmer que la couche existe.
-    return false;
-  }
+export async function couchesIntrantsIngerees(): Promise<Record<string, boolean>> {
+  return couchesPresentes(COUCHES_INTRANTS);
 }
 
 /** Reinitialise le cache, apres une ingestion. */
 export function oublierCouchesIntrantes(): void {
-  cacheCouches = null;
+  oublierPresenceCouches();
 }
 
-/**
- * Gisement d'intrants methanisables et debouches, estimes a partir des couches locales
- * ingerees (elevages et industries agroalimentaires recensees en ICPE, RPG agrege par
- * commune).
- *
- * `sourcesIntrantsIngerees` distingue les deux situations que le moteur doit traiter
- * differemment : `false` = aucune couche, l'enjeu n'a pas ete regarde ; `true` avec des
- * comptages nuls = territoire reellement depourvu.
- */
-export async function intrantsMethanisation(
-  pt: Position,
-  codeInsee: string,
-): Promise<{
+/** Rendements documentes de l'estimation. Sortis du corps de fonction pour etre citables. */
+export const RENDEMENTS_INTRANTS = {
+  /** t MS/an d'effluents mobilisables par exploitation d'elevage. */
+  parElevage: 250,
+  /** t MS/an par industrie agroalimentaire. */
+  parIaa: 800,
+  /** t MS/an de CIVE par hectare de surface agricole a proximite. */
+  parHectare: 0.4,
+} as const;
+
+export interface Intrants {
   intrantsMethaTonnesMsAn: number | null;
   elevagesRayon10km: number | null;
   iaaRayon20km: number | null;
   surfacesEpandageHa: number | null;
   sourcesIntrantsIngerees: boolean | null;
-}> {
-  // Aucune couche ingeree : on ne compte rien, et on le dit. Un comptage a zero sur une
-  // table vide serait indiscernable d'un comptage a zero sur un territoire sans elevage.
-  if (!(await couchesIntrantsIngerees())) return vide(false);
+}
+
+/**
+ * Agrege les comptages en tenant compte de l'etat d'ingestion COUCHE PAR COUCHE.
+ *
+ * Fonction pure, exportee pour etre testable sans base : les deux defauts qu'elle corrige sont des
+ * confusions entre `null` et `0`, et le seul moyen de prouver qu'elles sont mortes est d'enumerer
+ * les combinaisons d'ingestion partielle.
+ *
+ * REGLE. Un comptage n'est retenu que si SA couche est ingeree — sinon il vaut `null`, jamais `0`.
+ * Et le total n'est calcule que si les TROIS couches le sont : un total partiel serait une borne
+ * inferieure presentee comme une estimation, ce qui est la meme faute sous une autre forme. Le
+ * detail des couches disponibles reste expose, parce qu'il informe sans rien affirmer de faux.
+ */
+export function agregerIntrants(
+  presence: Record<string, boolean>,
+  comptes: { elevages: number | null; iaa: number | null; surfacesHa: number | null },
+): Intrants {
+  const elevages = presence['elevage'] ? (comptes.elevages ?? 0) : null;
+  const iaa = presence['industrie_agroalimentaire'] ? (comptes.iaa ?? 0) : null;
+  // `sum()` renvoie NULL sur un ensemble vide, la ou `count()` renvoie 0 : sur une couche ingeree,
+  // une somme nulle est bien une absence de surface, et vaut donc 0. Sur une couche absente, elle
+  // vaut `null`. La version precedente ecrivait `surfaces == null ? 0 : ...`, ce qui rendait les
+  // deux cas indiscernables.
+  const surfaces = presence['surface_agricole_commune'] ? (comptes.surfacesHa ?? 0) : null;
+
+  const toutesIngerees = elevages != null && iaa != null && surfaces != null;
+  const total = toutesIngerees
+    ? Math.round(
+        elevages * RENDEMENTS_INTRANTS.parElevage +
+          iaa * RENDEMENTS_INTRANTS.parIaa +
+          surfaces * RENDEMENTS_INTRANTS.parHectare,
+      )
+    : null;
+
+  return {
+    intrantsMethaTonnesMsAn: total,
+    elevagesRayon10km: elevages,
+    iaaRayon20km: iaa,
+    surfacesEpandageHa: surfaces == null ? null : Math.round(surfaces),
+    sourcesIntrantsIngerees: toutesIngerees,
+  };
+}
+
+/** Aucune couche, aucun comptage : le releve vide, avec le motif. */
+function intrantsVides(sourcesIngerees: boolean | null): Intrants {
+  return {
+    intrantsMethaTonnesMsAn: null,
+    elevagesRayon10km: null,
+    iaaRayon20km: null,
+    surfacesEpandageHa: null,
+    sourcesIntrantsIngerees: sourcesIngerees,
+  };
+}
+
+/**
+ * Gisement d'intrants methanisables et debouches, estimes a partir des couches locales ingerees
+ * (elevages et industries agroalimentaires recensees en ICPE, RPG agrege par commune).
+ *
+ * `sourcesIntrantsIngerees` distingue les situations que le moteur doit traiter differemment :
+ * `false` = les trois couches ne sont pas toutes la, l'enjeu n'a pas ete regarde en entier ;
+ * `true` avec des comptages nuls = territoire reellement depourvu.
+ */
+export async function intrantsMethanisation(pt: Position, codeInsee: string): Promise<Intrants> {
+  void codeInsee;
+  const presence = await couchesPresentes(COUCHES_INTRANTS);
+  // Aucune des trois couches : rien a compter, et on le dit. Un comptage a zero sur une table vide
+  // serait indiscernable d'un comptage a zero sur un territoire sans elevage.
+  if (!COUCHES_INTRANTS.some((t) => presence[t])) return intrantsVides(false);
 
   try {
     const rows = await requete<{
@@ -149,48 +210,18 @@ export async function intrantsMethanisation(
       [pt[0], pt[1]],
     );
     const r = rows[0];
-    if (!r) return vide(true);
+    // Requete aboutie mais sans ligne : anomalie, pas une absence de couche.
+    if (!r) return intrantsVides(null);
 
-    // Les couches EXISTENT (verifie plus haut) : un comptage a zero est ici une vraie
-    // absence sur le territoire, et peut donc etre affiche comme telle.
-    const elevages = r.elevages ?? 0;
-    const iaa = r.iaa ?? 0;
-    const surfaces = r.surfaces_ha;
-
-    // Estimation grossiere et documentee : 250 t MS/an d'effluents mobilisables par
-    // exploitation d'elevage, 800 t MS/an par industrie agroalimentaire, et 0,4 t MS/ha
-    // de CIVE sur les surfaces agricoles a proximite.
-    const intrants =
-      elevages * 250 + iaa * 800 + (surfaces ?? 0) * 0.4;
-
-    return {
-      intrantsMethaTonnesMsAn: Math.round(intrants),
-      elevagesRayon10km: elevages,
-      iaaRayon20km: iaa,
-      surfacesEpandageHa: surfaces == null ? 0 : Math.round(surfaces),
-      sourcesIntrantsIngerees: true,
-    };
+    return agregerIntrants(presence, {
+      elevages: r.elevages,
+      iaa: r.iaa,
+      surfacesHa: r.surfaces_ha,
+    });
   } catch {
-    // Echec de la requete alors que les couches existent : donnee indisponible pour cette
-    // parcelle, ce qui n'est pas la meme chose qu'une source absente.
-    return vide(true);
-  }
-
-  function vide(sourcesIngerees: boolean): {
-    intrantsMethaTonnesMsAn: null;
-    elevagesRayon10km: null;
-    iaaRayon20km: null;
-    surfacesEpandageHa: null;
-    sourcesIntrantsIngerees: boolean;
-  } {
-    void codeInsee;
-    return {
-      intrantsMethaTonnesMsAn: null,
-      elevagesRayon10km: null,
-      iaaRayon20km: null,
-      surfacesEpandageHa: null,
-      sourcesIntrantsIngerees: sourcesIngerees,
-    };
+    // Echec de la requete alors que des couches existent : donnee indisponible pour cette parcelle,
+    // ce qui n'est pas la meme chose qu'une source absente.
+    return intrantsVides(null);
   }
 }
 

@@ -224,8 +224,30 @@ const racc_quote_part: Evaluateur = (s) => {
 };
 
 const racc_distance_reseau_gaz: Evaluateur = (s) => {
-  const d = s.raccordement.reseauGaz.distanceKm;
-  if (d == null) return indispo(SRC.gaz);
+  /**
+   * La distance de raccordement est celle d'une CANALISATION, jamais celle d'un site d'injection.
+   *
+   * Ce critere lisait `reseauGaz.distanceKm`, qui melangeait les deux (audit 8, B6/E5). Comme seuls
+   * les sites d'injection sont ingeres, il notait en realite la distance au site de biomethane
+   * existant le plus proche — quelques centaines de points en France — et penalisait donc
+   * systematiquement la methanisation sur 11 % de sa note.
+   *
+   * Tant que la couche des canalisations n'est pas ingeree, le critere est declare sans source. Le
+   * gris est ici le seul verdict honnete : la distance a une canalisation ne se devine pas.
+   */
+  const d = s.raccordement.reseauGaz.distanceCanalisationKm;
+  if (d == null) {
+    const injection = s.raccordement.reseauGaz.distanceSiteInjectionKm;
+    return sansSource(
+      SRC.gaz,
+      "La distance au reseau de gaz",
+      'A obtenir aupres de GRDF ou GRTgaz : le zonage de raccordement et la capacite d’injection ' +
+        'conditionnent le projet, et le trace des canalisations n’est pas ingere dans cette instance.' +
+        (injection != null
+          ? ` A titre indicatif, le site d’injection de biomethane existant le plus proche est a ${formatNombre(injection, 'km')} — ce n’est PAS une distance de raccordement.`
+          : ''),
+    );
+  }
   const base = paliers(d, [
     [0, 100],
     [1, 95],
@@ -341,15 +363,23 @@ const gis_intrants: Evaluateur = (s) => {
 };
 
 const gis_debouche_epandage: Evaluateur = (s) => {
-  if (s.gisement.sourcesIntrantsIngerees === false) {
+  const v = s.gisement.surfacesEpandageHa;
+  /**
+   * Ce critere depend de SA couche, pas de l'etat global des trois.
+   *
+   * Il testait `sourcesIntrantsIngerees === false`, un drapeau qui vaut maintenant `false` des lors
+   * que les trois couches ne sont pas toutes presentes. L'epandage serait donc declare sans source
+   * alors que sa propre couche (les surfaces agricoles communales) peut etre ingeree. Le connecteur
+   * distingue desormais les deux : `surfacesEpandageHa` vaut `null` si et seulement si SA couche
+   * manque, et `0` si elle est la et qu'il n'y a rien (audit 8, D1).
+   */
+  if (v == null) {
     return sansSource(
       SRC.gisement,
-      "Le debouche du digestat",
-      'A etablir par un plan d’epandage, ou par une filiere de sortie du statut de dechet (digestat norme).',
+      'Le debouche du digestat',
+      'A etablir par un plan d’epandage signe avec les exploitants voisins, ou par une filiere de sortie du statut de dechet (digestat norme). Les surfaces agricoles communales ne sont pas ingerees sur ce territoire.',
     );
   }
-  const v = s.gisement.surfacesEpandageHa;
-  if (v == null) return indispo(SRC.gisement);
   return {
     note: paliers(v, [
       [0, 0],
@@ -463,7 +493,18 @@ const urb_zonage: Evaluateur = (s, ctx) => {
 
 const urb_zaer: Evaluateur = (s, ctx) => {
   const z = s.urbanisme.zaer;
-  if (z.present == null) return indispo(SRC.zaer, "Aucune ZAER ingeree pour ce territoire : couverture nationale encore partielle.");
+  // Aucun job n'ingere de ZAER : les tables ne sont peuplees que par le jeu de demonstration,
+  // que les requetes ecartent. Le critere est donc gris en permanence, et doit le dire comme tel
+  // plutot que comme une indisponibilite passagere (audit 8, C1). Les ZAER sont l'argument
+  // reglementaire le plus utile de la prospection depuis la loi APER : le libelle doit renvoyer
+  // le prospecteur vers la source, non le laisser croire que la question a ete regardee.
+  if (z.present == null) {
+    return sansSource(
+      SRC.zaer,
+      "L'appartenance a une zone d'acceleration des ENR",
+      'A verifier sur la deliberation de la commune ou la cartographie departementale des ZAER (portail de la prefecture, ou cartographie ENR de l’IGN). Une ZAER change le portage politique du projet et allege l’instruction.',
+    );
+  }
   if (!z.present) {
     return {
       note: 45,
@@ -1142,7 +1183,31 @@ const pat_sites: Evaluateur = (s) => {
     noteProximiteZonage(s.patrimoine.siteClasse, courbe),
     noteProximiteZonage(s.patrimoine.siteInscrit, courbe),
   );
-  if (note == null) return indispo(SRC.patrimoine);
+  /**
+   * Distinguer « couche non ingeree » de « source en echec » — audit 8, defaut B1.
+   *
+   * Les couches sites classes / sites inscrits ne sont alimentees par aucun job d'ingestion. Le
+   * connecteur retourne desormais `recouvre: null`, ce qui rend `note` nulle et ne produit plus le
+   * 90/100 vert accompagne de la phrase « aucun site classe ni inscrit dans le rayon d'analyse ».
+   * Reste a le DIRE correctement : « non evalue - aucune source ingeree », et non « donnee
+   * indisponible », qui laisse croire a une panne passagere. `sansSource` exclut en outre le
+   * critere de la penalite de couverture, faute de quoi l'indicateur de couverture serait
+   * artificiellement degrade par une source qui n'existe pas.
+   */
+  if (note == null) {
+    const aucuneCouche =
+      s.patrimoine.siteClasse.recouvre == null &&
+      s.patrimoine.siteClasse.distanceM == null &&
+      s.patrimoine.siteInscrit.recouvre == null &&
+      s.patrimoine.siteInscrit.distanceM == null;
+    return aucuneCouche
+      ? sansSource(
+          SRC.patrimoine,
+          'Les sites classes et inscrits',
+          "A verifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou aupres de l'UDAP du departement. Un site classe impose une autorisation ministerielle speciale : son absence ici ne vaut PAS absence de site.",
+        )
+      : indispo(SRC.patrimoine);
+  }
 
   const distance = s.patrimoine.siteClasse.distanceM ?? s.patrimoine.siteInscrit.distanceM;
   // Lorsque la couche est ingeree et qu'aucun site n'est trouve dans le rayon d'analyse, la
@@ -1169,7 +1234,17 @@ const pat_sites: Evaluateur = (s) => {
 
 const pat_archeologie: Evaluateur = (s) => {
   const a = s.patrimoine.sensibiliteArcheologique;
-  if (a == null) return indispo(SRC.patrimoine);
+  // `sensibiliteArcheologique` est mis a `null` sans condition par le connecteur : les zones de
+  // presomption de prescription archeologique sont arretees par les DRAC et ne sont exposees par
+  // aucune API nationale. Le critere est gris en permanence : il doit etre declare sans source, et
+  // non presente comme une donnee momentanement indisponible (audit 8, C1).
+  if (a == null) {
+    return sansSource(
+      SRC.patrimoine,
+      'La sensibilite archeologique',
+      "A verifier aupres du service regional de l'archeologie (DRAC) : les zones de presomption de prescription sont arretees par arrete prefectoral et non publiees nationalement. Hors zone, une decouverte fortuite reste possible et peut suspendre le chantier.",
+    );
+  }
   const note = correspondance(a, { faible: 95, moyenne: 65, forte: 30 });
   return {
     note,
@@ -1366,8 +1441,17 @@ const risq_sites_pollues: Evaluateur = (s, ctx) => {
 
 const risq_aero_radar: Evaluateur = (s, ctx) => {
   if (ctx.filiere !== 'eolien_terrestre') return null;
+  // `radars: []` et `servitudesAeronautiques: null` sont ecrits sans condition par le connecteur :
+  // ni les radars Meteo-France et de la Defense, ni les servitudes aeronautiques de la DGAC ne
+  // sont exposes par Georisques. Ce critere pese 7 % de la note eolienne et est gris en permanence :
+  // il doit etre declare sans source (audit 8, C1). C'est le motif de refus le plus frequent des
+  // demandes d'autorisation eolienne : le taire serait pire que l'afficher gris.
   if (s.risques.radars.length === 0 && s.risques.servitudesAeronautiques == null) {
-    return indispo(SRC.georisques);
+    return sansSource(
+      SRC.georisques,
+      'Les radars et servitudes aeronautiques',
+      "A verifier par consultation prealable de Meteo-France, de la DGAC et de la zone aerienne de defense : les distances minimales aux radars (5 a 30 km selon la bande) et les servitudes de degagement sont opposables et constituent le premier motif de refus des projets eoliens.",
+    );
   }
   let note = 100;
   const details: string[] = [];
@@ -1410,7 +1494,16 @@ const risq_aero_radar: Evaluateur = (s, ctx) => {
 
 const risq_karst: Evaluateur = (s, ctx) => {
   if (ctx.filiere !== 'methanisation') return null;
-  if (s.eau.karst == null) return indispo(SRC.georisques);
+  // `karst: null` est ecrit sans condition par le connecteur Georisques : l'alea karstique n'est
+  // pas expose par son API. Gris en permanence, donc sans source (audit 8, C1). L'enjeu est reel
+  // pour une unite de methanisation : une cuve de digestat sur karst expose la nappe.
+  if (s.eau.karst == null) {
+    return sansSource(
+      SRC.georisques,
+      'Le contexte karstique',
+      "A verifier sur la carte geologique du BRGM (InfoTerre) et aupres de l'hydrogeologue agree : une fuite de digestat en contexte karstique atteint la nappe sans filtration.",
+    );
+  }
   return {
     note: booleen(s.eau.karst, 15, 100),
     valeurBrute: s.eau.karst,
@@ -1547,7 +1640,17 @@ const dist_captage: Evaluateur = (s) => {
 
 const fonc_nb_proprietaires: Evaluateur = (s) => {
   const n = s.foncier.nbProprietairesEstime;
-  if (n == null) return indispo(SRC.foncier);
+  // Aucune API publique n'expose le nombre de comptes cadastraux : la donnee s'obtient par demande
+  // documentee aupres de la DGFiP ou de la mairie, puis se verse dans `proprietaire_parcelle`. Le
+  // connecteur retourne donc `null` depuis l'audit 8 — il retournait `1` en dur. Le critere est gris
+  // en permanence tant que rien n'est verse : il doit le dire comme une source absente.
+  if (n == null) {
+    return sansSource(
+      SRC.foncier,
+      'Le nombre de proprietaires',
+      "A obtenir par demande de releve de propriete aupres du service de la publicite fonciere (DGFiP) ou de la mairie, puis a verser dans le registre de l'application. La maitrise fonciere est le premier facteur d'echec d'un projet : une parcelle en indivision peut compter dix ayants droit.",
+    );
+  }
   const base = paliers(n, [
     [1, 100],
     [2, 82],

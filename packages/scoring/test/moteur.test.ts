@@ -90,7 +90,10 @@ function parcelleType(overrides: (s: ParcelleSnapshot) => void = () => {}): Parc
     enProjet: false,
   };
   s.raccordement.reseauGaz = {
-    distanceKm: 3.5,
+    // Les deux distances sont distinctes depuis l'audit 8 : la canalisation gouverne le
+    // raccordement, le site d'injection existant n'est qu'un indicateur de territoire.
+    distanceCanalisationKm: 3.5,
+    distanceSiteInjectionKm: 18,
     gestionnaire: 'GRDF',
     capaciteInjectionNm3h: 250,
     reboursNecessaire: false,

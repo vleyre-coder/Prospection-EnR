@@ -138,6 +138,31 @@ export function resoudrePonderation(
   };
 }
 
+/**
+ * La source d'un critere fait-elle partie des connecteurs en echec ?
+ *
+ * Comparaison par prefixe dans les DEUX sens, chacun repondant a un cas reel :
+ *   - `georisques` (cle du critere) prefixe `georisques/gaspar/pprn` (echec signale) : le
+ *     connecteur precise le point d'entree fautif, le critere ne connait que le connecteur ;
+ *   - `zaer_local` (echec signale) prefixe `zaer_local/ingestion` si un jour un connecteur
+ *     signalait plus large que la cle du critere.
+ *
+ * La comparaison exige une frontiere de segment (`/`) pour ne pas faire correspondre `zaer_local`
+ * a un hypothetique `zaer_local_bis`.
+ */
+export function sourceEnEchec(
+  sourceKey: string | null | undefined,
+  enEchec: readonly string[],
+): boolean {
+  if (!sourceKey) return false;
+  return enEchec.some(
+    (e) =>
+      e === sourceKey ||
+      e.startsWith(`${sourceKey}/`) ||
+      sourceKey.startsWith(`${e}/`),
+  );
+}
+
 /** Surface retenue : geometrie projetee si disponible, sinon contenance cadastrale. */
 function surfaceHectares(s: ParcelleSnapshot): number | null {
   const m2 = s.identite.surfaceCalculeeM2 ?? s.identite.contenanceM2;
@@ -300,6 +325,15 @@ export function calculerScore(
   const limitesViabilite = evaluerLimitesViabilite(filiere, surfaceHa, snapshot.foncier.morcellementIndice);
 
   // -- 2. Criteres ponderes ------------------------------------------------
+  /**
+   * Les echecs de source, normalises une fois pour toutes les iterations.
+   *
+   * Les connecteurs signalent leurs echecs au point d'entree pres (`georisques/gaspar/pprn`), alors
+   * que les criteres portent la cle du connecteur (`georisques`). La comparaison se fait donc par
+   * prefixe, dans les deux sens : une cle de critere qui prefixe un echec, ou l'inverse.
+   */
+  const enEchec = (options.connecteursEnEchec ?? []).filter((e) => e.length > 0);
+
   const criteres: EvaluationCritere[] = [];
   const criteresSansSource: string[] = [];
   /** Denominateur d'AFFICHAGE : inclut les criteres sans source, pour que les parts affichees somment a 100 %. */
@@ -315,8 +349,32 @@ export function calculerScore(
     const evaluateur = EVALUATEURS[id];
     if (!definition || !evaluateur) continue;
 
-    const brut = evaluateur(snapshot, ctx);
-    if (brut === null) continue; // critere non applicable a cette filiere / configuration
+    const brutEvalue = evaluateur(snapshot, ctx);
+    if (brutEvalue === null) continue; // critere non applicable a cette filiere / configuration
+
+    /**
+     * GARDE GENERIQUE : un critere dont la source a echoue ne peut pas porter de note.
+     *
+     * Voir `OptionsScoring.connecteursEnEchec`. Cette garde ne remplace pas la correction des
+     * connecteurs — elle la rend non critique. Un connecteur qui laisse derriere lui une valeur
+     * par defaut ne peut plus la faire noter : le critere passe au gris avec un motif explicite.
+     *
+     * Un critere DEJA sans note n'est pas touche : il est deja gris, et son commentaire (« aucune
+     * source ingeree ») est plus informatif que « source en echec ».
+     */
+    const brut = brutEvalue.note != null && sourceEnEchec(brutEvalue.sourceKey, enEchec)
+      ? {
+          ...brutEvalue,
+          note: null,
+          valeurAffichee: 'non evalue - source en echec',
+          commentaire:
+            `La source ${brutEvalue.sourceKey} n'a pas repondu lors de la qualification de cette parcelle. ` +
+            `La valeur qui figurait dans le releve n'est pas retenue : une donnee par defaut notee ` +
+            `comme une mesure serait pire qu'une absence de note. Relancer la qualification lorsque ` +
+            `la source est de nouveau disponible.` +
+            (brutEvalue.commentaire ? ` — ${brutEvalue.commentaire}` : ''),
+        }
+      : brutEvalue;
 
     // Critere dont la SOURCE n'existe pas sur ce territoire : hors denominateur de
     // couverture (il manque identiquement a toutes les parcelles, il ne discrimine rien),
@@ -528,6 +586,15 @@ export function calculerScoreSite(
    * deduction de surface est alors prudente plutot que flatteuse.
    */
   nbGroupesContigus: number | null = null,
+  /**
+   * Connecteurs en echec, PAR PARCELLE (indexes par IDU).
+   *
+   * Une liste unique pour tout le site serait fausse dans les deux sens : appliquee a toutes les
+   * parcelles, elle grise des criteres qui ont bien ete mesures sur celles dont la source a repondu ;
+   * ignoree, elle laisse noter des valeurs par defaut. Un site se qualifie parcelle par parcelle, et
+   * ses echecs se suivent de la meme facon.
+   */
+  echecsParIdu: Readonly<Record<string, readonly string[]>> = {},
 ): {
   statut: Feu;
   scoreGlobal: number | null;
@@ -543,7 +610,12 @@ export function calculerScoreSite(
   /** Plafonds appliques au statut du site, avec leur motif. */
   limitesViabilite: LimiteViabilite[];
 } {
-  const parcelles = snapshots.map((s) => calculerScore(s, filiere, options));
+  const parcelles = snapshots.map((s) =>
+    calculerScore(s, filiere, {
+      ...options,
+      connecteursEnEchec: echecsParIdu[s.identite.idu] ?? options.connecteursEnEchec ?? [],
+    }),
+  );
 
   // Arrondi a 4 decimales (le metre carre) : sommer dix parcelles de 0,3 ha en binaire
   // produit 2,9999999999999996 ha, valeur qui ressortait telle quelle dans la reponse de

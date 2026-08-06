@@ -114,8 +114,15 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     def(
       'sol_potentiel_agronomique',
       'sol',
-      'Potentiel agronomique',
-      "Un sol a faible potentiel agronomique reduit le conflit d'usage et l'opposition de la profession agricole. Critere inverse : un tres bon sol penalise le projet.",
+      // NOMME POUR CE QU'IL EST — audit 8, defaut C3/E6. Le libelle etait « Potentiel agronomique »,
+      // ce qui annonce une qualite de sol. La valeur vient en realite d'une table nationale figee
+      // indexee sur le GROUPE DE CULTURE declare au RPG : deux parcelles voisines declarees
+      // « prairies permanentes », l'une sur limon profond et l'autre sur dalle calcaire, recoivent
+      // la meme note. Un groupe de culture est une declaration administrative pour une campagne ; le
+      // potentiel agronomique depend de la texture, de la profondeur, de la reserve utile et de
+      // l'hydromorphologie du sol, qu'aucune source nationale n'expose a la parcelle.
+      'Potentiel agronomique (d’apres la culture declaree)',
+      "Estime d'apres le GROUPE DE CULTURE declare au RPG, et non mesure sur le sol : c'est un proxy, non une analyse pedologique. Un sol a faible potentiel reduit le conflit d'usage et l'opposition de la profession agricole. Critere inverse : un tres bon sol penalise le projet. A confirmer par une etude de sol ou l'avis de la chambre d'agriculture.",
     ),
     def(
       'sol_foret',

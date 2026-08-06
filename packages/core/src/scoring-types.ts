@@ -195,4 +195,25 @@ export interface OptionsScoring {
   puissanceEnvisageeMw?: number | null;
   /** Tonnage envisage en t/j, pour la methanisation. */
   tonnageEnvisageTj?: number | null;
+  /**
+   * Connecteurs dont l'appel a ECHOUE pour cette parcelle.
+   *
+   * POURQUOI LE MOTEUR EN A BESOIN — audit 8, defaut B3. L'enrichissement tenait deja cette liste
+   * et la remontait fidelement jusqu'au PDF, ou elle s'imprimait sous la forme « les criteres qui
+   * en dependent sont restes non evalues ». Mais elle n'atteignait jamais le moteur de scoring :
+   * elle n'apparaissait dans aucun fichier de `packages/scoring`. Un connecteur pouvait donc
+   * echouer, laisser une valeur par defaut derriere lui, et cette valeur etait notee normalement.
+   * Le cas mesure : un echec de `gaspar/pprn` produisait « alea inondation nul », note 100/100 en
+   * VERT — dans le meme document que la note de bas de page annoncant l'echec. Les deux se
+   * contredisaient sur la meme page.
+   *
+   * Les defauts de ce type se corrigent un a un dans les connecteurs, et il faut le faire. Mais
+   * tant que la liste n'arrive pas au moteur, rien n'EMPECHE le suivant. Cette option est la garde
+   * generique : tout critere dont la source a echoue est ramene au gris, quelle que soit la valeur
+   * qui a survecu dans le snapshot.
+   *
+   * Les cles sont comparees par PREFIXE : `georisques` couvre `georisques/gaspar/pprn`, parce que
+   * les connecteurs signalent leurs echecs au point d'entree pres.
+   */
+  connecteursEnEchec?: readonly string[];
 }

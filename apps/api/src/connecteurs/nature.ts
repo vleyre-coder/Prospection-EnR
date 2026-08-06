@@ -143,10 +143,27 @@ export async function milieuxNaturels(
     parcNaturelRegional: zonageDepuis(parcelle, parChemin['pnr'] ?? null),
   };
 
-  // Pre-enjeu especes : indicateur derive, faute de donnee d'occurrence exploitable en
-  // temps reel. Il combine la proximite des zonages d'inventaire et de protection.
-  // C'est une ESTIMATION, signalee comme telle dans la fiche.
-  milieux.preEnjeuEspeces = preEnjeuDerive(milieux);
+  /**
+   * `preEnjeuEspeces` reste NUL, volontairement — audit 8, defaut C2/E9.
+   *
+   * Il valait `preEnjeuDerive(milieux)`, une agregation de la proximite de Natura 2000 habitats,
+   * Natura 2000 oiseaux, ZNIEFF 1, reserve naturelle et coeur de parc national. Or
+   * `env_proximite_natura2000` note DEJA les deux Natura 2000 (3,8 % du solaire, 4,7 % de l'eolien)
+   * et `env_znieff` note DEJA les ZNIEFF (2,3 %). Le critere `env_especes_protegees` etait donc, pour
+   * l'essentiel, une SECONDE LECTURE des memes couches sous un autre nom : 2,3 % (solaire) et 7,0 %
+   * (eolien) de ponderation en double comptage.
+   *
+   * Le commentaire ci-dessous montre que ce raisonnement avait deja ete mene : `sensibiliteAvifaune`
+   * et `sensibiliteChiropteres` valaient une COPIE de `preEnjeuEspeces` et ont ete mises a `null`
+   * pour cette raison. La correction s'etait arretee un cran trop tot — elle avait supprime les
+   * copies, pas l'original, qui est lui-meme une derivation.
+   *
+   * Le nom aggravait le probleme : « especes protegees » suggere un inventaire faune-flore, alors
+   * qu'aucune donnee d'espece n'etait lue. Un enjeu especes se determine par un inventaire sur un
+   * cycle biologique complet, ou a defaut par les atlas regionaux DREAL / LPO et l'INPN par maille —
+   * dont aucun n'est expose par une API nationale exploitable a la parcelle.
+   */
+  milieux.preEnjeuEspeces = null;
 
   // Avifaune et chiropteres restent NULS, volontairement.
   //
@@ -162,30 +179,3 @@ export async function milieuxNaturels(
   return { milieux, echecs };
 }
 
-/**
- * Indicateur 0-100 derive de la proximite des zonages naturels.
- * Volontairement prudent : en l'absence totale de donnee, il vaut null (critere gris).
- */
-function preEnjeuDerive(m: Partial<MilieuxNaturels>): number | null {
-  const zonages = [
-    m.natura2000Habitats,
-    m.natura2000Oiseaux,
-    m.znieff1,
-    m.reserveNaturelle,
-    m.coeurParcNational,
-  ].filter((z): z is ZonageNaturel => z != null && (z.recouvre != null || z.distanceM != null));
-
-  if (zonages.length === 0) return null;
-
-  let score = 0;
-  for (const z of zonages) {
-    if (z.recouvre) {
-      score += 40;
-    } else if (z.distanceM != null) {
-      if (z.distanceM < 500) score += 25;
-      else if (z.distanceM < 2000) score += 15;
-      else if (z.distanceM < 5000) score += 7;
-    }
-  }
-  return Math.min(100, score);
-}

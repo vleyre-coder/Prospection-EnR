@@ -13,6 +13,7 @@ import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 import * as depotProspection from '../depots/prospection.js';
 import { erreur } from './erreurs.js';
+import { entierRequete, nombreRequete } from '../validation.js';
 
 interface ParamsTuile {
   z: string;
@@ -232,8 +233,14 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     const filiere = filiereDepuis(q);
     const parcelles = await depotParcelles.parcellesDansEmprise(
       bbox,
-      q.surfaceMin ? Number(q.surfaceMin) : 0,
-      Math.min(Number(q.limite ?? config.carte.limiteParcelles), config.carte.limiteParcelles),
+      // `Number(q.surfaceMin)` valait NaN sur une saisie non numerique, et ce NaN partait en
+      // parametre SQL : erreur 500 la ou 400 est la reponse juste (audit 8, C7).
+      nombreRequete(q.surfaceMin, 'surfaceMin', { defaut: 0, max: 1e9 }),
+      entierRequete(q.limite, 'limite', {
+        defaut: config.carte.limiteParcelles,
+        min: 1,
+        max: config.carte.limiteParcelles,
+      }),
     );
     const idus = parcelles.map((p) => p.idu);
     const [scores, prospection] = await Promise.all([
@@ -327,7 +334,10 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     }));
 
     // Rayons de raccordement economique indicatifs, calcules a la demande.
-    const rayonKm = q.rayonKm ? Number(q.rayonKm) : null;
+    // Un rayon non numerique doit valoir 400, et non NaN puis 500. `0` sert de sentinelle
+    // « non demande », le rayon minimal utile etant strictement positif.
+    const rayonDemande = nombreRequete(q.rayonKm, 'rayonKm', { defaut: 0, max: 500 });
+    const rayonKm = rayonDemande > 0 ? rayonDemande : null;
     const rayons =
       rayonKm && rayonKm > 0
         ? {
@@ -404,9 +414,41 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * Types de contraintes que cette route accepte de servir.
+   *
+   * LISTE FERMEE — audit 8, defaut D6. Le type demande partait directement en parametre SQL : aucune
+   * injection n'etait possible, les requetes etant parametrees, mais rien ne bornait ce qu'un appelant
+   * pouvait extraire de la table `contrainte`. Les trois relais externes (fond de carte, glyphes,
+   * calques) ont tous une liste fermee, precisement pour ne pas devenir des proxys ouverts ; cette
+   * route interne, elle, servait la table entiere. Aujourd'hui `contrainte` ne porte que des
+   * monuments historiques, donc rien ne fuit — mais le jour ou elle portera une couche a diffusion
+   * restreinte, cette route la servirait sans habilitation.
+   *
+   * La liste est celle des couches effectivement affichables par l'interface. Y ajouter une entree
+   * doit etre un geste conscient.
+   */
+  const COUCHES_CARTE_AUTORISEES: ReadonlySet<string> = new Set([
+    'monument_historique',
+    'site_classe',
+    'site_inscrit',
+    'spr',
+    'elevage',
+    'industrie_agroalimentaire',
+  ]);
+
   // --- Couche de contraintes generique en GeoJSON -------------------------
   app.get<{ Params: { type: string } }>('/api/carte/couche/:type', async (req, rep) => {
     const q = req.query as { bbox?: string; limite?: string };
+    const type = req.params.type;
+    if (!COUCHES_CARTE_AUTORISEES.has(type)) {
+      return erreur(
+        rep,
+        404,
+        'couche_inconnue',
+        `Couche inconnue ou non diffusable : ${type}. Couches servies : ${[...COUCHES_CARTE_AUTORISEES].join(', ')}.`,
+      );
+    }
     const bbox = bboxDepuisChaine(q.bbox ?? '');
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Parametre `bbox` requis');
 
@@ -423,7 +465,14 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
          FROM contrainte
         WHERE type = $1 AND geom && ST_MakeEnvelope($2, $3, $4, $5, 4326)
         LIMIT $6`,
-      [req.params.type, bbox[0], bbox[1], bbox[2], bbox[3], Math.min(Number(q.limite ?? 2000), 5000)],
+      [
+        type,
+        bbox[0],
+        bbox[1],
+        bbox[2],
+        bbox[3],
+        entierRequete(q.limite, 'limite', { defaut: 2000, min: 1, max: 5000 }),
+      ],
     );
 
     return {

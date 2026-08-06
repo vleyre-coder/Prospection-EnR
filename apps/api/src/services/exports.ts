@@ -525,7 +525,9 @@ export function ficheParcellePdf(
 
   // =============================================================== raccordement
   const racc = snapshot.raccordement;
-  if (racc.posteLePlusProche || racc.postesAlternatifs.length > 0 || racc.reseauGaz.distanceKm != null) {
+  const gazRenseigne =
+    racc.reseauGaz.distanceCanalisationKm != null || racc.reseauGaz.distanceSiteInjectionKm != null;
+  if (racc.posteLePlusProche || racc.postesAlternatifs.length > 0 || gazRenseigne) {
     titreSection(doc, 'Raccordement');
     const postes = [racc.posteLePlusProche, ...racc.postesAlternatifs].filter(
       (p): p is NonNullable<typeof p> => p != null,
@@ -587,9 +589,23 @@ export function ficheParcellePdf(
       doc.fillColor(ENCRE);
       doc.y += 4;
     }
-    if (racc.reseauGaz.distanceKm != null) {
+    if (gazRenseigne) {
       grilleCles(doc, [
-        ['Reseau gaz le plus proche', nb(racc.reseauGaz.distanceKm, 'km', 1)],
+        // Les deux distances sont nommees pour ce qu'elles sont (audit 8, E5) : la canalisation
+        // gouverne le raccordement, le site d'injection existant n'est qu'un indicateur de
+        // territoire. Les confondre penalisait la methanisation de plusieurs kilometres.
+        [
+          'Canalisation de gaz la plus proche',
+          racc.reseauGaz.distanceCanalisationKm != null
+            ? nb(racc.reseauGaz.distanceCanalisationKm, 'km', 1)
+            : 'trace non ingere - a demander a GRDF / GRTgaz',
+        ],
+        [
+          'Site d\'injection existant le plus proche',
+          racc.reseauGaz.distanceSiteInjectionKm != null
+            ? `${nb(racc.reseauGaz.distanceSiteInjectionKm, 'km', 1)} (indicateur de filiere, non une distance de raccordement)`
+            : 'aucun recense',
+        ],
         ['Gestionnaire', racc.reseauGaz.gestionnaire ?? 'non renseigne'],
         ['Rebours necessaire', ouiNon(racc.reseauGaz.reboursNecessaire)],
         [

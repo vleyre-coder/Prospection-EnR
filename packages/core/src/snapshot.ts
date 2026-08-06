@@ -98,7 +98,8 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
       posteLePlusProche: null,
       postesAlternatifs: [],
       reseauGaz: {
-        distanceKm: null,
+        distanceCanalisationKm: null,
+        distanceSiteInjectionKm: null,
         gestionnaire: null,
         capaciteInjectionNm3h: null,
         reboursNecessaire: null,

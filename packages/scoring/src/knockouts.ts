@@ -168,7 +168,9 @@ const koDocumentCadre: RegleKo = (s) => {
   const t = s.occupationSol.typeSol;
   const dc = s.urbanisme.documentCadrePvSol;
   if (t !== 'inculte') return null;
-  if (!dc.departementCouvert) return null; // donnee non ingeree : ne pas ecarter a tort
+  // `null` = couche non ingeree, `false` = le departement n'a pas de document-cadre. Dans les deux
+  // cas il n'y a pas de liste d'eligibilite opposable, donc pas de knock-out (audit 8, D5).
+  if (dc.departementCouvert !== true) return null;
   if (dc.parcelleEligible === false) {
     return ko(
       'ko_hors_document_cadre',

@@ -67,7 +67,9 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
     let score = await depotScores.scoreParcelle(idu, filiere);
     if (!score) {
-      score = calculerScore(snapshot.snapshot, filiere);
+      score = calculerScore(snapshot.snapshot, filiere, {
+        connecteursEnEchec: snapshot.connecteursEnEchec,
+      });
       await depotScores.enregistrerScore(score);
     }
 
@@ -113,6 +115,9 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     return calculerScore(snapshot.snapshot, corps.filiere, {
       ...corps.options,
       ponderation: corps.ponderation,
+      // Non surchargeable par le client : un echec de source est un fait de la qualification,
+      // pas une option de simulation.
+      connecteursEnEchec: snapshot.connecteursEnEchec,
     });
   });
 

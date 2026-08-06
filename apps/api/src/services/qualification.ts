@@ -179,7 +179,12 @@ export async function qualifierIdus(
       }
 
       // 3. Scoring des filieres demandees, avec le profil par defaut.
-      const scores = filieres.map((f) => calculerScore(snapshot!, f));
+      //
+      // `connecteursEnEchec` est transmis au moteur, et pas seulement journalise : sans lui, une
+      // valeur laissee par un connecteur en echec serait notee comme une mesure (audit 8, B3).
+      const scores = filieres.map((f) =>
+        calculerScore(snapshot!, f, { connecteursEnEchec: echecs }),
+      );
       await depotScores.enregistrerScores(scores);
 
       nbEnrichies += 1;
@@ -796,7 +801,10 @@ export async function scorerAvecPonderation(
   for (const idu of idus) {
     const s = await depotParcelles.snapshotParIdu(idu);
     if (!s) continue;
-    out[idu] = calculerScore(s.snapshot, filiere, ponderation);
+    out[idu] = calculerScore(s.snapshot, filiere, {
+      ...ponderation,
+      connecteursEnEchec: s.connecteursEnEchec,
+    });
   }
   return out;
 }
@@ -822,7 +830,11 @@ export async function rescorerTout(
   for (const idu of idus) {
     const s = await depotParcelles.snapshotParIdu(idu);
     if (!s) continue;
-    const scores = filieres.map((f) => calculerScore(s.snapshot, f));
+    // Les echecs sont conserves avec le snapshot : un rescoring hors ligne doit les respecter,
+    // sinon un recalcul redonnerait une note a un critere dont la source avait echoue.
+    const scores = filieres.map((f) =>
+      calculerScore(s.snapshot, f, { connecteursEnEchec: s.connecteursEnEchec }),
+    );
     await depotScores.enregistrerScores(scores);
     nbScores += scores.length;
   }

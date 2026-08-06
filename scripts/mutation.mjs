@@ -18,7 +18,19 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
-/** @type {Array<{ audit: string, quoi: string, fichier: string, de: string, vers: string, tests: string[] }>} */
+/**
+ * `construire` : espace de travail a reconstruire avant de lancer les tests.
+ *
+ * Necessaire, et decouvert par ce script lui-meme. Les mutations portant sur `packages/core` ou
+ * `packages/scoring` n'etaient attrapees par personne : les tests importent `@enr/scoring`, qui
+ * resout vers `dist/`, si bien qu'une mutation de la SOURCE ne changeait rien au code execute. Les
+ * deux mutations concernees passaient donc, et signalaient a tort des tests decoratifs. Un script de
+ * verification par mutation qui se trompe sur son propre perimetre est le comble de l'ironie : il
+ * faut le dire, et le corriger.
+ *
+ * @type {Array<{ audit: string, quoi: string, fichier: string, de: string, vers: string,
+ *                construire?: string, tests: string[] }>}
+ */
 const MUTATIONS = [
   {
     audit: 'audit 5',
@@ -76,6 +88,71 @@ const MUTATIONS = [
     vers: '// mutation',
     tests: ['apps/api/test/ingestion.test.ts'],
   },
+
+  // --- Audit 8 : la famille « affirmer en l'absence de donnee » -------------
+  //
+  // Ces sept mutations retablissent chacune un des defauts de l'audit 8. Elles sont le seul moyen
+  // de savoir que les gardes ajoutees protegent vraiment : la particularite de cette famille de
+  // defauts est que le code fautif COMPILE, PASSE les tests, et ne plante jamais — il affirme
+  // simplement une chose fausse. Un test decoratif y serait indetectable autrement.
+  {
+    audit: 'audit 8',
+    quoi: 'une couche patrimoniale non ingeree redevient une absence constatee',
+    fichier: 'apps/api/src/connecteurs/locales.ts',
+    de: "if (!presence[type]) return { recouvre: null, partRecouvrement: null, distanceM: null, nom: null };",
+    vers: '// mutation',
+    tests: ['apps/api/test/patrimoine-couches.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'le critere des sites classes redonne 90/100 en vert sans donnee',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: 'return z.recouvre === false ? 90 : null;',
+    vers: 'return 90;',
+    construire: '@enr/scoring',
+    tests: ['apps/api/test/audit8-affirmations.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'le nombre de proprietaires redevient 1 en dur',
+    fichier: 'apps/api/src/connecteurs/cadastre.ts',
+    de: 'nbProprietairesEstime: null,',
+    vers: 'nbProprietairesEstime: 1,',
+    tests: ['apps/api/test/audit8-affirmations.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'un echec de source ne grise plus le critere qui en depend',
+    fichier: 'packages/scoring/src/index.ts',
+    de: 'const brut = brutEvalue.note != null && sourceEnEchec(brutEvalue.sourceKey, enEchec)',
+    vers: 'const brut = false',
+    construire: '@enr/scoring',
+    tests: ['apps/api/test/audit8-affirmations.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'un PPRI communal redevient un alea parcellaire mesure',
+    fichier: 'apps/api/src/connecteurs/georisques.ts',
+    de: "if (!args.pprnConnu || args.ppriSurLaCommune || args.planIndetermine) return null;",
+    vers: "if (args.ppriSurLaCommune) return 'moyen';",
+    tests: ['apps/api/test/audit8-affirmations.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'un PPRN illisible redevient une absence de PPRI',
+    fichier: 'apps/api/src/connecteurs/georisques.ts',
+    de: 'if (args.incertainSiIndetermine && args.aIndetermine) return null;',
+    vers: '// mutation',
+    tests: ['apps/api/test/audit8-affirmations.test.ts'],
+  },
+  {
+    audit: 'audit 8',
+    quoi: 'une couche d’intrants absente redevient un comptage a zero',
+    fichier: 'apps/api/src/connecteurs/gisement.ts',
+    de: "const iaa = presence['industrie_agroalimentaire'] ? (comptes.iaa ?? 0) : null;",
+    vers: 'const iaa = comptes.iaa ?? 0;',
+    tests: ['apps/api/test/gisement-intrants.test.ts'],
+  },
 ];
 
 let echecs = 0;
@@ -91,11 +168,21 @@ for (const m of MUTATIONS) {
   writeFileSync(m.fichier, original.replace(m.de, m.vers));
   let attrapee = false;
   try {
+    // Les paquets sont consommes construits : sans cette etape, muter la source ne change rien au
+    // code execute par les tests, et la mutation passe en signalant a tort un test decoratif.
+    if (m.construire) {
+      execFileSync('npm', ['run', 'build', '--workspace', m.construire], { stdio: 'pipe' });
+    }
     execFileSync('npx', ['tsx', '--test', ...m.tests], { stdio: 'pipe' });
   } catch {
     attrapee = true;
   } finally {
     writeFileSync(m.fichier, original);
+    // Restaurer la source ne suffit pas : le `dist/` mute survivrait a l'execution et fausserait
+    // toutes les mutations suivantes, ainsi que les tests lances ensuite.
+    if (m.construire) {
+      execFileSync('npm', ['run', 'build', '--workspace', m.construire], { stdio: 'pipe' });
+    }
   }
   if (attrapee) {
     console.log(`OK   (${m.audit}) ${m.quoi}`);

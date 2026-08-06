@@ -241,9 +241,34 @@ export async function contexteFoncier(
   const morcellementIndice = Math.max(0, Math.min(100, Math.round((1 - compacite) * 100)));
 
   return {
-    // Estimation prudente : au moins un proprietaire, et un de plus par tranche de
-    // 5 parcelles voisines de sections differentes.
-    nbProprietairesEstime: 1,
+    /**
+     * NULL, et non 1 — audit 8, defaut B2.
+     *
+     * Cette ligne valait `1`. Litteralement, pour toutes les parcelles de France. Le commentaire
+     * qui l'accompagnait decrivait un algorithme — « au moins un proprietaire, et un de plus par
+     * tranche de 5 parcelles voisines de sections differentes » — qui n'a jamais ete ecrit : les
+     * variables `voisines` et `memeSection` ne servent qu'a `surfaceBlocHa`. Le critere
+     * `fonc_nb_proprietaires` valait donc 100/100, feu VERT, « 1 proprietaire(s) estime(s) », sur
+     * chaque parcelle qualifiee.
+     *
+     * C'est le pire endroit possible pour un chiffre invente : la maitrise fonciere est le premier
+     * facteur de mortalite d'un projet ENR, et une parcelle en indivision successorale a onze
+     * ayants droit affichait la meme mention rassurante qu'une parcelle a proprietaire unique.
+     *
+     * POURQUOI PAS L'ALGORITHME PLUTOT QUE NULL. Le nombre de comptes cadastraux n'est pas
+     * deductible de la structure parcellaire : deux parcelles contigues de meme section
+     * appartiennent souvent au meme compte, mais souvent n'est pas toujours, et l'ecart n'est ni
+     * borne ni mesurable sans la donnee nominative. Un proxy dont on ne peut pas evaluer l'erreur
+     * n'a pas sa place sur ce critere. La donnee existe et s'obtient : elle se verse dans
+     * `proprietaire_parcelle` apres demande documentee aupres de la DGFiP ou de la mairie, et le
+     * critere est declare sans source jusque-la.
+     *
+     * Elle n'est deliberement PAS lue ici depuis `proprietaire_parcelle` : le snapshot alimente
+     * les tuiles et les exports, alors que l'acces aux donnees de propriete est reserve, motive et
+     * journalise. Faire entrer un comptage issu de cette table dans le snapshot contournerait tout
+     * le dispositif.
+     */
+    nbProprietairesEstime: null,
     indivisionProbable: null, // non determinable sans donnee nominative
     surfaceDunSeulTenantHa: Math.round(surfaceBlocHa * 100) / 100,
     morcellementIndice,

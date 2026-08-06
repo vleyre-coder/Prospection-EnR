@@ -195,14 +195,36 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
   },
   zaer_local: {
     connecteur: 'zaer_local',
-    nom: "Zones d'acceleration des ENR (deliberations communales)",
-    url: 'https://www.data.gouv.fr',
-    modeAcces: 'manuel',
+    nom: "Zones d'acceleration des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
+    url: 'https://data.geopf.fr/wfs/ows',
+    // Etait `manuel` avec la mention « aucune API nationale consolidee ». C'etait faux depuis la
+    // publication de la couche nationale, et cette croyance a laisse le critere gris pour toujours :
+    // le connecteur etait ecrit et correct, aucun job ne l'alimentait (audit 8, C1/E8).
+    modeAcces: 'ingestion',
     valeurJuridique: 'indicative',
-    couverture: 'partielle',
+    couverture: 'nationale',
     periodiciteJours: 90,
     avertissement:
-      "Aucune API nationale consolidee : ingestion territoire par territoire. L'absence d'information ne vaut pas absence de ZAER.",
+      "Une ZAER ne cree aucun droit a construire : elle allege l'instruction et signale un portage " +
+      'politique local. ATTENTION, la filiere de la zone doit etre lue : 68 % des ZAER ' +
+      'photovoltaiques recensees portent sur des TOITURES et ne concernent pas le foncier. Les ' +
+      'zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.',
+  },
+  patrimoine_sites: {
+    connecteur: 'patrimoine_sites',
+    nom: 'Sites classes et inscrits (WFS Geoplateforme, couches STE)',
+    url: 'https://data.geopf.fr/wfs/ows',
+    modeAcces: 'ingestion',
+    valeurJuridique: 'opposable',
+    couverture: 'nationale',
+    periodiciteJours: 180,
+    avertissement:
+      'Un site classe impose une autorisation ministerielle speciale (art. L. 341-10 du code de ' +
+      "l'environnement), jamais accordee pour un parc eolien ; un site inscrit, un avis de " +
+      "l'architecte des batiments de France (art. L. 341-1). Les labels « Grand Site de France » et " +
+      '« Patrimoine mondial » ne sont PAS ingeres comme des sites proteges : ils n\'ont pas de ' +
+      'portee reglementaire propre. Les sites patrimoniaux remarquables (SPR) ne sont pas couverts ' +
+      'par cette couche.',
   },
   document_cadre_local: {
     connecteur: 'document_cadre_local',

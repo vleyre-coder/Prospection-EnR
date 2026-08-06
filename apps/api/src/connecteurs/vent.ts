@@ -39,17 +39,74 @@ interface Raster {
 }
 
 let raster: Raster | null = null;
-let chargementEchoue = false;
+
+/**
+ * Instant avant lequel il est inutile de retenter l'ouverture.
+ *
+ * POURQUOI UNE DATE ET NON UN BOOLEEN — audit 8, defaut D2. La version precedente tenait un
+ * `chargementEchoue: boolean` mis a `true` au premier constat d'absence du fichier, et rien ne le
+ * remettait a `false` dans le processus SERVEUR : `telechargerRaster()` le reinitialisait bien, mais
+ * elle s'execute dans le processus d'INGESTION.
+ *
+ * La sequence fautive n'avait rien d'exceptionnel — c'est l'ordre naturel d'une premiere
+ * installation : le serveur demarre avant l'ingestion, un premier appel a `ventA100m` constate
+ * l'absence du fichier, l'ingestion telecharge ensuite les 55 Mo, et le serveur continue de
+ * repondre `null` indefiniment. `gis_vent` pese 10,9 % de la note eolienne : la filiere restait
+ * privee de son premier critere jusqu'au redemarrage suivant, sans aucun signal.
+ *
+ * Une nouvelle tentative periodique corrige cela sans rendre l'echec couteux : un `existsSync`
+ * coute infiniment moins qu'une lecture de tuile, et l'intervalle evite de journaliser en boucle.
+ */
+let prochaineTentative = 0;
+const DELAI_NOUVELLE_TENTATIVE_MS = 60 * 1000;
+
+/**
+ * Le geoereferencement du raster est-il celui que le calcul de pixel suppose ?
+ *
+ * `ventA100m` calcule `(pt[0] - origine[0]) / resolution[0]` en supposant des DEGRES WGS 84. Rien ne
+ * le verifiait (audit 8, defaut D3). Si le Global Wind Atlas republie son raster France en
+ * projection metrique — ce qui est courant et hors de notre controle —, l'indice de pixel sort de
+ * l'emprise et la fonction retourne `null` en silence, ou pire, designe un pixel valide mais faux.
+ * Le controle de telechargement portait sur la TAILLE du fichier, pas sur sa geoereference.
+ *
+ * Le test ne cherche pas a valider un code EPSG (les GeoTIFF du GWA n'en portent pas toujours un
+ * explicite) : il verifie que l'origine et la resolution sont plausibles en degres pour la France.
+ * Une origine a 500 000 ou une resolution de 250 sont sans ambiguite metriques.
+ */
+export function georeferencementPlausible(
+  origine: [number, number],
+  resolution: [number, number],
+): { ok: true } | { ok: false; motif: string } {
+  const [ox, oy] = origine;
+  const [rx, ry] = resolution;
+  if (!Number.isFinite(ox) || !Number.isFinite(oy) || !Number.isFinite(rx) || !Number.isFinite(ry)) {
+    return { ok: false, motif: 'origine ou resolution non finie' };
+  }
+  // La France metropolitaine et l'outre-mer restent dans les bornes du systeme geographique.
+  if (Math.abs(ox) > 180 || Math.abs(oy) > 90) {
+    return { ok: false, motif: `origine (${ox}, ${oy}) hors bornes geographiques : raster projete ?` };
+  }
+  // Le pas du GWA France vaut environ 0,0025 deg (250 m). Un pas superieur a 1 deg ne decrirait plus
+  // un raster utilisable, et un pas de 250 signalerait des metres.
+  const pas = Math.max(Math.abs(rx), Math.abs(ry));
+  if (pas === 0 || pas > 1) {
+    return { ok: false, motif: `resolution ${rx} x ${ry} incompatible avec des degres` };
+  }
+  return { ok: true };
+}
 
 async function ouvrirRaster(): Promise<Raster | null> {
   if (raster) return raster;
-  if (chargementEchoue) return null;
+  if (Date.now() < prochaineTentative) return null;
+  prochaineTentative = Date.now() + DELAI_NOUVELLE_TENTATIVE_MS;
+
   if (!existsSync(CHEMIN_RASTER)) {
-    // Raster non ingere : le critere restera gris, ce qui est le comportement attendu.
-    chargementEchoue = true;
+    // Raster non ingere : le critere restera gris, ce qui est le comportement attendu. La prochaine
+    // tentative aura lieu dans une minute, si bien qu'une ingestion posterieure au demarrage du
+    // serveur est prise en compte sans redemarrage.
     journal.debug(
       { chemin: CHEMIN_RASTER },
-      "Raster de vent absent : lancer `npm run ingest -- vent`",
+      "Raster de vent absent : lancer `npm run ingest -- vent_100m`",
     );
     return null;
   }
@@ -58,11 +115,26 @@ async function ouvrirRaster(): Promise<Raster | null> {
     const image = await fichier.getImage();
     const [ox, oy] = image.getOrigin();
     const [rx, ry] = image.getResolution();
+    const origine: [number, number] = [ox as number, oy as number];
+    const resolution: [number, number] = [rx as number, ry as number];
+
+    const verdict = georeferencementPlausible(origine, resolution);
+    if (!verdict.ok) {
+      // Un raster mal geoereference produirait des vitesses de vent PLAUSIBLES sur les mauvaises
+      // parcelles. Mieux vaut un critere gris qu'une valeur fausse : on refuse le fichier.
+      journal.error(
+        { chemin: CHEMIN_RASTER, origine, resolution, motif: verdict.motif },
+        'Raster de vent refuse : geoereferencement incompatible avec un echantillonnage en degres. ' +
+          'Le critere de gisement eolien restera non evalue.',
+      );
+      return null;
+    }
+
     raster = {
       fichier,
       image,
-      origine: [ox as number, oy as number],
-      resolution: [rx as number, ry as number],
+      origine,
+      resolution,
       largeur: image.getWidth(),
       hauteur: image.getHeight(),
     };
@@ -72,7 +144,6 @@ async function ouvrirRaster(): Promise<Raster | null> {
     );
     return raster;
   } catch (err) {
-    chargementEchoue = true;
     journal.warn({ err, chemin: CHEMIN_RASTER }, 'Raster de vent illisible');
     return null;
   }
@@ -128,9 +199,10 @@ export async function telechargerRaster(): Promise<{ octets: number; chemin: str
   await writeFile(temporaire, contenu);
   await rename(temporaire, CHEMIN_RASTER);
 
-  // Invalidation du handle en cache.
+  // Invalidation du handle en cache, et remise a zero du delai de nouvelle tentative : un
+  // telechargement reussi doit etre pris en compte immediatement, sans attendre la minute suivante.
   raster = null;
-  chargementEchoue = false;
+  prochaineTentative = 0;
 
   return { octets: contenu.length, chemin: CHEMIN_RASTER };
 }

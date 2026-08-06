@@ -724,8 +724,14 @@ function RubriquesDonnees({
           ],
           [
             'Document-cadre PV au sol',
-            !s.urbanisme.documentCadrePvSol.departementCouvert ? (
+            // Trois etats distincts, et non deux (audit 8, D5) : `null` = la couche n'a pas ete
+            // ingeree pour ce departement, `false` = le departement n'a pas arrete de document-cadre,
+            // ce qui est le cas de la majorite d'entre eux. Les confondre affichait « departement
+            // non ingere » sur un fait vrai.
+            s.urbanisme.documentCadrePvSol.departementCouvert == null ? (
               <span className="absent">departement non ingere</span>
+            ) : s.urbanisme.documentCadrePvSol.departementCouvert === false ? (
+              <>aucun document-cadre departemental</>
             ) : (
               <>
                 {s.urbanisme.documentCadrePvSol.parcelleEligible == null
@@ -978,7 +984,20 @@ function RubriquesDonnees({
               </>
             ),
           ],
-          ['Reseau gaz le plus proche', val(s.raccordement.reseauGaz.distanceKm, 'km')],
+          // Deux lignes et non une : la canalisation gouverne le raccordement, le site d'injection
+          // existant n'est qu'un indicateur de maturite de la filiere (audit 8, E5).
+          [
+            'Canalisation de gaz la plus proche',
+            s.raccordement.reseauGaz.distanceCanalisationKm != null ? (
+              val(s.raccordement.reseauGaz.distanceCanalisationKm, 'km')
+            ) : (
+              <span className="absent">trace non ingere</span>
+            ),
+          ],
+          [
+            'Site d’injection existant',
+            val(s.raccordement.reseauGaz.distanceSiteInjectionKm, 'km'),
+          ],
           ['Gestionnaire gaz', val(s.raccordement.reseauGaz.gestionnaire)],
           ['Capacite d’injection', val(s.raccordement.reseauGaz.capaciteInjectionNm3h, 'Nm³/h')],
           ['Rebours necessaire', val(s.raccordement.reseauGaz.reboursNecessaire)],

@@ -122,7 +122,9 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     reseauGaz(centroide).catch(() => null),
     zaer(centroide, parcelle.codeDepartement).catch(() => null),
     documentCadrePv(centroide, parcelle.codeDepartement).catch(() => null),
-    patrimoine(centroide).catch(() => null),
+    // Le departement est indispensable : la couverture d'ingestion patrimoniale est
+    // departementale, et sans lui `patrimoine()` affirmerait sur un secteur non ingere.
+    patrimoine(centroide, parcelle.codeDepartement).catch(() => null),
     distanceZoneHabitat(geom, bboxEnPolygone(elargirBbox(bboxDe(geom), 1000))),
     servitudes(geom).catch(() => null),
     // Arrete de protection de biotope : le knock-out existait, la donnee non.

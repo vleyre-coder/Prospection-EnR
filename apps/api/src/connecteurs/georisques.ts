@@ -252,11 +252,16 @@ export function famillesRisque(libelle: string | null | undefined): FamilleRisqu
   // --- Sigles de type ------------------------------------------------------
   // ACCUMULATIF et non exclusif : un meme plan peut couvrir plusieurs risques.
   if (/\bppr[nt]?-?if\b|\bpprif\b/.test(l)) trouvees.add('incendie');
-  if (/\bppr[nt]?-?mvt\b|\bpprmvt\b/.test(l)) trouvees.add('mouvement');
+  // `mt` est un sigle de mouvement de terrain releve a cote de `mvt` : « PPRN-MT - ... ».
+  if (/\bppr[nt]?-?mvt\b|\bpprmvt\b|\bppr[nt]?-?mt\b/.test(l)) trouvees.add('mouvement');
   if (/\bppr[nt]?-?rga\b/.test(l)) trouvees.add('argiles');
   if (/\bppr[nt]?-?s\b/.test(l)) trouvees.add('seisme');
   if (/\bpprt\b/.test(l)) trouvees.add('technologique');
-  if (/\bppri\b|\bpprl\b|\bppr[nt]?-?i\b|\bppr[nt]?-?sm\b|\bper-?i\b/.test(l)) {
+  // `pi` et `pprnpi` sont deux ecritures de l'inondation relevees dans Gaspar : « PPRNPi - ... »
+  // (plan de prevention des risques naturels previsibles inondation) et « ... - Pi - ... ».
+  if (
+    /\bppri\b|\bpprl\b|\bppr[nt]?-?i\b|\bppr[nt]?-?sm\b|\bper-?i\b|\bpprn-?pi\b|\bpi\b/.test(l)
+  ) {
     trouvees.add('inondation');
   }
 
@@ -345,6 +350,68 @@ export function zonesReglementaires(ppr: PprBrut): {
  * PPR, mais ne peut pas determiner le zonage reglementaire applicable a la parcelle
  * (rouge / bleu). Le zonage reste a lire sur le reglement du PPR, ce que la fiche indique.
  */
+/**
+ * Une famille de risque est-elle presente, absente, ou inconnue ?
+ *
+ * Extraite de `risquesEtEau` pour etre TESTABLE : la logique vivait dans une fermeture au milieu
+ * d'une fonction qui fait quinze appels reseau, si bien qu'aucun test ne pouvait l'atteindre. C'est
+ * une des raisons pour lesquelles le defaut B5 a survecu a l'audit 7, ou il avait pourtant ete
+ * decrit.
+ */
+export function presenceFamille(args: {
+  /** La liste des plans a-t-elle ete recue ? `false` = appel en echec. */
+  listeRecue: boolean;
+  /** Au moins un plan a-t-il ete range dans cette famille ? */
+  aFamille: boolean;
+  /** Au moins un plan existe-t-il dont le libelle n'a pas pu etre classe ? */
+  aIndetermine: boolean;
+  /** Le classement de cette famille repose-t-il sur le libelle, donc faillible ? */
+  incertainSiIndetermine: boolean;
+}): boolean | null {
+  if (!args.listeRecue) return null;
+  if (args.aFamille) return true;
+  // Rien dans cette famille. Est-ce une absence, ou une ignorance ? Un plan illisible venant de
+  // `gaspar/pprn` peut etre un PPRI : affirmer `false` serait nier ce qu'on vient de lire.
+  if (args.incertainSiIndetermine && args.aIndetermine) return null;
+  return false;
+}
+
+/**
+ * Alea d'inondation a l'echelle de la PARCELLE.
+ *
+ * Extraite pour la meme raison que `presenceFamille`, et parce que les deux defauts qu'elle corrige
+ * (B3 et B4 de l'audit 8) sont des erreurs de logique booleenne : le seul moyen de prouver qu'elles
+ * sont mortes est d'enumerer les combinaisons.
+ *
+ * La seule donnee PARCELLAIRE disponible est le zonage TRI, qui est une geometrie. Le PPR est un
+ * fait COMMUNAL : il ne peut ni etablir ni ecarter un alea sur une parcelle donnee. Il peut
+ * seulement empecher de conclure a l'absence.
+ */
+export function aleaInondation(args: {
+  /** Le zonage TRI (geometrie) a-t-il repondu ? */
+  zonageTriConnu: boolean;
+  /** La parcelle est-elle dans un zonage TRI ? */
+  dansZonageTri: boolean;
+  /** La liste des TRI de la commune a-t-elle repondu ? */
+  triConnu: boolean;
+  /** La liste des PPRN de la commune a-t-elle repondu ? */
+  pprnConnu: boolean;
+  /** Un PPR d'inondation pese-t-il sur la commune ? */
+  ppriSurLaCommune: boolean;
+  /** Un plan existe-t-il dont la famille n'a pas pu etre determinee ? */
+  planIndetermine: boolean;
+}): 'nul' | 'moyen' | 'fort' | null {
+  // Un zonage TRI contenant la parcelle est un fait parcellaire etabli.
+  if (args.dansZonageTri) return 'fort';
+  // Sans le fait parcellaire, aucune conclusion possible.
+  if (!args.zonageTriConnu || !args.triConnu) return null;
+  // Le zonage TRI ne contient pas la parcelle. Conclure a un alea nul exige de savoir qu'aucun plan
+  // de prevention d'inondation ne pese sur la commune : sinon la parcelle est peut-etre en zone
+  // d'alea du reglement graphique, que l'application ne lit pas.
+  if (!args.pprnConnu || args.ppriSurLaCommune || args.planIndetermine) return null;
+  return 'nul';
+}
+
 export async function risquesEtEau(
   centroide: Position,
   codeInsee: string,
@@ -435,15 +502,38 @@ export async function risquesEtEau(
   const plan = (
     liste: ListePaginee<PprBrut> | null,
     famille: FamilleRisque,
-  ): { present: boolean | null; zonage: string | null; severitePlan: SeveritePlanPpr | null } =>
-    liste == null
-      ? { present: null, zonage: null, severitePlan: null }
-      : { present: parFamille.has(famille), zonage: null, severitePlan: severiteDe(famille) };
+    /**
+     * Un plan non classable rend-il cette famille INCERTAINE ?
+     *
+     * Corrige a l'audit 8 (B5). `present` valait `parFamille.has(famille)`, donc `false` des lors
+     * qu'aucun plan n'etait range dans la famille — y compris quand un plan EXISTAIT sans que son
+     * libelle permette de le classer. Mesure de l'audit 7 : 30 % des communes ayant un PPRN ont au
+     * moins un plan dont le libelle n'est pas classable. Sur celles-la, l'application affirmait
+     * « pas de PPRI » a propos d'un plan qu'elle venait elle-meme de lire.
+     *
+     * La regle juste depend de la PROVENANCE, pas de la famille :
+     *   - `gaspar/pprn` melange les familles naturelles et se classe au libelle. Un libelle
+     *     illisible rend donc chaque famille naturelle INCERTAINE : `null`, et non `false`.
+     *   - `gaspar/pprt` est technologique par construction du point d'entree. Aucun libelle n'entre
+     *     dans la decision, donc aucun plan illisible ne peut rendre la famille incertaine.
+     */
+    incertainSiIndetermine: boolean,
+  ): { present: boolean | null; zonage: string | null; severitePlan: SeveritePlanPpr | null } => {
+    const present = presenceFamille({
+      listeRecue: liste != null,
+      aFamille: parFamille.has(famille),
+      aIndetermine: indetermines.length > 0,
+      incertainSiIndetermine,
+    });
+    // La severite n'a de sens que sur un plan effectivement identifie dans la famille.
+    return { present, zonage: null, severitePlan: present === true ? severiteDe(famille) : null };
+  };
 
   const risques: Partial<Risques> = {
-    ppri: plan(pprn, 'inondation'),
-    pprif: plan(pprn, 'incendie'),
-    pprt: plan(pprt, 'technologique'),
+    ppri: plan(pprn, 'inondation', true),
+    pprif: plan(pprn, 'incendie', true),
+    // Provenance = classifieur : aucun libelle n'entre dans la decision, donc aucune incertitude.
+    pprt: plan(pprt, 'technologique', false),
     sitesPollues: compter(casias),
     icpeProches: compter(icpe),
     // Les servitudes aeronautiques et les radars ne sont pas exposes par Georisques :
@@ -455,19 +545,46 @@ export async function risquesEtEau(
     obligationDebroussaillement: parFamille.has('incendie') ? true : null,
   };
 
+  /**
+   * L'ALEA D'INONDATION — deux defauts corriges ici, audit 8 (B3 et B4).
+   *
+   * Ancienne expression :
+   *
+   *     alea: triZonage == null && tri == null && pprn == null ? null
+   *         : (triZonage?.objets.length ?? 0) > 0 ? 'fort'
+   *         : parFamille.has('inondation') ? 'moyen'
+   *         : 'nul'
+   *
+   * DEFAUT 1 — les trois conditions du `null` etaient liees par `&&`. Il fallait que les TROIS
+   * appels aient echoue pour que l'alea soit inconnu. Si l'appel TRI reussissait et que l'appel
+   * `gaspar/pprn` echouait, `parFamille` etait vide et l'expression tombait sur `'nul'` : un echec
+   * de source produisait « alea nul », note 100/100 en VERT. C'est la direction dangereuse de
+   * l'erreur — un silence devient une affirmation favorable. Chaque source repond desormais de son
+   * seul perimetre, et il faut que TOUTES aient repondu pour conclure a une absence.
+   *
+   * DEFAUT 2 — `'moyen'` etait deduit de `parFamille`, construit a partir des plans de prevention
+   * recenses par Georisques A L'ECHELLE DE LA COMMUNE. L'existence d'un PPRI communal devenait donc
+   * « alea moyen » sur CHAQUE parcelle de la commune, y compris sur un plateau a trois kilometres du
+   * moindre cours d'eau. 85 % des communes francaises ont un PPRN : le critere passait a 45/100,
+   * feu orange, presque partout, et apparaissait en point de vigilance sur la quasi-totalite des
+   * parcelles — un signal present partout n'est plus un signal.
+   *
+   * Un alea est une grandeur PARCELLAIRE. L'application ne dispose, a l'echelle de la parcelle, que
+   * du zonage TRI (une geometrie, donc un fait parcellaire). Le PPR communal n'est pas jete pour
+   * autant : il reste expose par `risques.ppri`, ou il est a sa juste echelle et correctement
+   * qualifie. Ce qui disparait, c'est la traduction abusive d'un fait communal en mesure locale.
+   */
   const eau: Partial<Eau> = {
     inondation: {
       zonagePpri: null,
-      // Le PPR d'inondation pese maintenant reellement : avant la correction du champ `libPpr`,
-      // `parFamille` etait toujours vide et cette branche ne pouvait produire que 'nul' ou 'fort'.
-      alea:
-        triZonage == null && tri == null && pprn == null
-          ? null
-          : (triZonage?.objets.length ?? 0) > 0
-            ? 'fort'
-            : parFamille.has('inondation')
-              ? 'moyen'
-              : 'nul',
+      alea: aleaInondation({
+        zonageTriConnu: triZonage != null,
+        dansZonageTri: (triZonage?.objets.length ?? 0) > 0,
+        triConnu: tri != null,
+        pprnConnu: pprn != null,
+        ppriSurLaCommune: parFamille.has('inondation'),
+        planIndetermine: indetermines.length > 0,
+      }),
       dansTri: tri == null ? null : tri.objets.length > 0,
     },
     // Les perimetres de protection de captage relevent des ARS et des SUP du GPU :

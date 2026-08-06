@@ -196,3 +196,70 @@ export function lecteur(corps: unknown, ou = 'corps de requete'): Lecteur {
   }
   return new Lecteur(corps as Record<string, unknown>);
 }
+
+// ---------------------------------------------------------------------------
+// Parametres de requete (chaine de requete)
+// ---------------------------------------------------------------------------
+
+/**
+ * Entier borne lu dans la chaine de requete.
+ *
+ * POURQUOI CETTE FONCTION EXISTE — audit 8, defaut C7. Six routes ecrivaient
+ * `Math.min(Number(q.limite ?? 2000), 5000)`. Or `Number('abc')` vaut `NaN`, `Math.min(NaN, 5000)`
+ * vaut `NaN`, et ce `NaN` partait tel quel en parametre SQL. Verifie contre le serveur PostgreSQL :
+ *
+ *     valeur NaN       -> invalid input syntax for type bigint: "NaN"
+ *     valeur Infinity  -> invalid input syntax for type bigint: "Infinity"
+ *     valeur -5        -> LIMIT must not be negative
+ *
+ * L'erreur `pg` ne porte pas de `statusCode`, si bien que le gestionnaire global repondait
+ * **500 erreur_interne** la ou 400 est la reponse juste. Aucune injection n'etait possible — les
+ * requetes sont parametrees — mais un parametre malforme ne doit pas produire une erreur serveur.
+ *
+ * Le plafond est applique en SILENCE et non par un refus : un client qui demande 100 000 lignes
+ * exprime une intention legitime, mal calibree. En revanche une valeur qui n'est pas un entier est
+ * une ERREUR d'appel, et se signale comme telle — la confondre avec la valeur par defaut cacherait
+ * une faute de programmation cote client.
+ */
+export function entierRequete(
+  brut: unknown,
+  champ: string,
+  options: { defaut: number; min?: number; max: number },
+): number {
+  if (brut === undefined || brut === null || brut === '') return options.defaut;
+  if (typeof brut !== 'string' && typeof brut !== 'number') {
+    return refus(champ, 'entier attendu', brut);
+  }
+  // `Number(' ')` vaut 0 et `Number([])` vaut 0 : on exige une ecriture explicite d'entier.
+  const texte = String(brut).trim();
+  if (!/^-?\d+$/.test(texte)) {
+    return refus(champ, 'entier attendu (chiffres uniquement)', brut);
+  }
+  const v = Number(texte);
+  if (!Number.isSafeInteger(v)) return refus(champ, 'entier hors des bornes representables', brut);
+  const min = options.min ?? 0;
+  if (v < min) return refus(champ, `valeur minimale ${min}`, brut);
+  return Math.min(v, options.max);
+}
+
+/**
+ * Nombre fini borne lu dans la chaine de requete.
+ * Meme raisonnement que `entierRequete`, pour les grandeurs continues (rayons, surfaces).
+ */
+export function nombreRequete(
+  brut: unknown,
+  champ: string,
+  options: { defaut: number; min?: number; max: number },
+): number {
+  if (brut === undefined || brut === null || brut === '') return options.defaut;
+  if (typeof brut !== 'string' && typeof brut !== 'number') {
+    return refus(champ, 'nombre attendu', brut);
+  }
+  const texte = String(brut).trim();
+  if (!/^-?\d+(\.\d+)?$/.test(texte)) return refus(champ, 'nombre attendu', brut);
+  const v = Number(texte);
+  if (!Number.isFinite(v)) return refus(champ, 'nombre fini attendu', brut);
+  const min = options.min ?? 0;
+  if (v < min) return refus(champ, `valeur minimale ${min}`, brut);
+  return Math.min(v, options.max);
+}

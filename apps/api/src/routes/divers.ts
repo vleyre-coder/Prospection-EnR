@@ -14,7 +14,7 @@ import {
   LIMITE_DEFAUT_EXPORT,
   LIMITE_MAX_EXPORT,
 } from '../services/recherche.js';
-import { ErreurValidation } from '../validation.js';
+import { entierRequete, ErreurValidation } from '../validation.js';
 import { csvResultats, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -35,7 +35,10 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   // --- Recherche unifiee ---------------------------------------------------
   app.get('/api/recherche', async (req) => {
     const q = req.query as { q?: string; limite?: string };
-    const resultats = await rechercher(q.q ?? '', q.limite ? Number(q.limite) : 10);
+    const resultats = await rechercher(
+      q.q ?? '',
+      entierRequete(q.limite, 'limite', { defaut: 10, min: 1, max: 50 }),
+    );
     return { resultats };
   });
 
@@ -94,12 +97,14 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   };
 
   app.post('/api/exports/geojson', debitExport, async (req, rep) => {
-    const corps = req.body as { idus?: string[]; filiere?: string };
-    if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
-      return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
-    }
+    const corps = req.body as { idus?: unknown; filiere?: string };
     const filiere: Filiere = estFiliere(corps.filiere) ? corps.filiere : 'solaire_sol';
-    const donnees = await chargerPourExport(corps.idus, filiere);
+    const donnees = await chargerPourExport(idusValides(corps.idus, LIMITE_MAX_EXPORT), filiere);
+    // Meme comportement que le Shapefile : un fichier qui s'ouvre sur rien, sans message, laisse
+    // croire a un export reussi (audit 8, D7).
+    if (donnees.length === 0) {
+      return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiee dans la selection');
+    }
     await journaliser('export_geojson', {
       utilisateurId: req.utilisateur?.id,
       email: req.utilisateur?.email,
@@ -112,12 +117,9 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/exports/shapefile', debitExport, async (req, rep) => {
-    const corps = req.body as { idus?: string[]; filiere?: string };
-    if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
-      return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
-    }
+    const corps = req.body as { idus?: unknown; filiere?: string };
     const filiere: Filiere = estFiliere(corps.filiere) ? corps.filiere : 'solaire_sol';
-    const donnees = await chargerPourExport(corps.idus, filiere);
+    const donnees = await chargerPourExport(idusValides(corps.idus, LIMITE_MAX_EXPORT), filiere);
     if (donnees.length === 0) {
       return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiee dans la selection');
     }
@@ -408,7 +410,9 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
 
   app.get('/api/admin/journal', admin, async (req) => {
     const q = req.query as { limite?: string };
-    return { entrees: await lireJournal(q.limite ? Number(q.limite) : 200) };
+    return {
+      entrees: await lireJournal(entierRequete(q.limite, 'limite', { defaut: 200, min: 1, max: 5000 })),
+    };
   });
 
   app.post('/api/admin/utilisateurs', admin, async (req, rep) => {
@@ -480,14 +484,50 @@ function exigerRole(role: 'admin' | 'prospection'): preHandlerHookHandler {
   };
 }
 
-async function chargerPourExport(idus: string[], filiere: Filiere) {
-  const parcelles = await depotParcelles.parcellesParIdus(idus.map((i) => i.toUpperCase()));
-  const resultat = [];
-  for (const parcelle of parcelles) {
-    const score = await depotScores.scoreParcelle(parcelle.idu, filiere);
-    resultat.push({ parcelle, score });
+/**
+ * Valide et normalise une liste d'IDU recue dans un corps d'export.
+ *
+ * TROIS DEFAUTS EN UNE LIGNE — audit 8, C9. Les routes GeoJSON et Shapefile se contentaient de
+ * `Array.isArray(corps.idus) && corps.idus.length > 0` :
+ *
+ *   1. AUCUN PLAFOND, alors que `/api/exports/csv` en a un. La limitation de debit (30 requetes par
+ *      10 minutes) borne la FREQUENCE, pas la TAILLE : un seul appel pouvait demander 500 000 IDU et
+ *      epuiser la memoire du serveur.
+ *   2. AUCUN CONTROLE DE TYPE des elements. `idus.map((i) => i.toUpperCase())` sur un element
+ *      non-chaine leve un `TypeError` non intercepte, donc une erreur 500 sur une faute d'appel.
+ *   3. Les doublons n'etaient pas ecartes : une liste repetant mille fois le meme IDU faisait mille
+ *      fois le travail.
+ */
+function idusValides(brut: unknown, maximum: number): string[] {
+  if (!Array.isArray(brut) || brut.length === 0) {
+    throw new ErreurValidation('idus', 'Champ `idus` requis : tableau non vide d’identifiants de parcelle.');
   }
-  return resultat;
+  if (brut.length > maximum) {
+    throw new ErreurValidation(
+      'idus',
+      `Champ \`idus\` : ${brut.length} identifiants demandes, maximum ${maximum}. ` +
+        'Restreignez la selection, ou exportez en plusieurs lots.',
+    );
+  }
+  const vus = new Set<string>();
+  for (const [i, v] of brut.entries()) {
+    if (typeof v !== 'string' || v.trim() === '') {
+      throw new ErreurValidation('idus', `Champ \`idus\` : l’element ${i} n’est pas un identifiant.`);
+    }
+    vus.add(v.trim().toUpperCase());
+  }
+  return [...vus];
+}
+
+async function chargerPourExport(idus: string[], filiere: Filiere) {
+  const parcelles = await depotParcelles.parcellesParIdus(idus);
+  // Une seule requete pour tous les scores, au lieu d'une par parcelle : la boucle precedente
+  // faisait un aller-retour SQL par element de la selection (audit 8, C9).
+  const scores = await depotScores.scoresParIdus(
+    parcelles.map((p) => p.idu),
+    filiere,
+  );
+  return parcelles.map((parcelle) => ({ parcelle, score: scores[parcelle.idu] ?? null }));
 }
 
 /** Empreinte du referentiel, utilisee pour invalider les caches clients. */

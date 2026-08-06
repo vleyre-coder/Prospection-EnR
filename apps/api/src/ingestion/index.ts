@@ -17,6 +17,7 @@ import { journal } from '../journal.js';
 import { config } from '../config.js';
 import { requete } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
+import { ingererSitesProteges, ingererZaer } from './wfs-national.js';
 import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 import { telechargerRaster } from '../connecteurs/vent.js';
 export { ingererPostesSources } from './postes-sources.js';
@@ -418,6 +419,12 @@ export const JOBS: Record<string, () => Promise<Record<string, unknown>>> = {
   reseau_gaz: ingererReseauGaz,
   patrimoine_culture: ingererPatrimoine,
   vent_100m: ingererVent,
+  // Ajoutes a l'audit 8 : ces deux couches etaient LUES par l'application et ecrites par personne.
+  // `patrimoine_sites` ferme le defaut B1 par la donnee plutot que par le gris, et rend le knock-out
+  // eolien du site classe reellement atteignable. `zaer_local` rend renseigne l'argument
+  // reglementaire le plus utile de la prospection depuis la loi APER.
+  patrimoine_sites: ingererSitesProteges,
+  zaer_local: ingererZaer,
 };
 
 export async function lancerIngestion(connecteur: string): Promise<Record<string, unknown>> {

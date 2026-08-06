@@ -13,6 +13,7 @@ import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 import { journaliser } from '../depots/sources.js';
 import { erreur } from './erreurs.js';
+import { entierRequete } from '../validation.js';
 
 function estStatut(v: unknown): v is StatutProspection {
   return typeof v === 'string' && (STATUTS_PROSPECTION as readonly string[]).includes(v);
@@ -26,7 +27,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
       filiere: estFiliere(q.filiere) ? q.filiere : undefined,
       statuts: q.statut?.split(',').filter(estStatut),
       assigneA: q.assigneA,
-      limite: q.limite ? Number(q.limite) : undefined,
+      limite: entierRequete(q.limite, 'limite', { defaut: 200, min: 1, max: 1000 }),
     });
   });
 
@@ -241,9 +242,15 @@ async function scorerSite(
   if (!site || site.idus.length === 0) return {};
 
   const snapshots = [];
+  // Les echecs sont suivis PAR PARCELLE : une liste unique pour le site griserait des criteres
+  // reellement mesures sur les parcelles dont la source a repondu (audit 8, B3).
+  const echecsParIdu: Record<string, readonly string[]> = {};
   for (const idu of site.idus) {
     const s = await depotParcelles.snapshotParIdu(idu);
-    if (s) snapshots.push(s.snapshot);
+    if (s) {
+      snapshots.push(s.snapshot);
+      echecsParIdu[s.snapshot.identite.idu] = s.connecteursEnEchec;
+    }
   }
   if (snapshots.length === 0) return {};
 
@@ -251,7 +258,7 @@ async function scorerSite(
   // ici qu'elle se mesure. Sans elle, il traite le site comme disperse — prudent, mais qui
   // sous-estime un vrai regroupement jointif.
   const groupes = await depot.nbGroupesContigus(site.idus);
-  const consolide = calculerScoreSite(snapshots, filiere, {}, groupes);
+  const consolide = calculerScoreSite(snapshots, filiere, {}, groupes, echecsParIdu);
   await depot.majScoreSite(siteId, consolide.scoreGlobal, consolide.statut, {
     knockOuts: consolide.knockOutsConsolides,
     nbParcelles: snapshots.length,
