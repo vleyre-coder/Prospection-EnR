@@ -9,6 +9,7 @@
  *   - retourner `{ note: null, ... }`        -> donnee INDISPONIBLE (critere gris)
  */
 
+import { FILIERES_HORS_ZAER } from '@enr/core';
 import type { Filiere, OptionsScoring, ParcelleSnapshot, SeveritePlanPpr, TypeSol } from '@enr/core';
 import { FILIERES_META } from '@enr/core';
 import {
@@ -493,16 +494,51 @@ const urb_zonage: Evaluateur = (s, ctx) => {
 
 const urb_zaer: Evaluateur = (s, ctx) => {
   const z = s.urbanisme.zaer;
-  // Aucun job n'ingere de ZAER : les tables ne sont peuplees que par le jeu de demonstration,
-  // que les requetes ecartent. Le critere est donc gris en permanence, et doit le dire comme tel
-  // plutot que comme une indisponibilite passagere (audit 8, C1). Les ZAER sont l'argument
-  // reglementaire le plus utile de la prospection depuis la loi APER : le libelle doit renvoyer
-  // le prospecteur vers la source, non le laisser croire que la question a ete regardee.
+  /**
+   * Le dispositif des ZAER ne couvre pas le stockage — et c'est l'INGESTION qui rend cette garde
+   * necessaire.
+   *
+   * Tant qu'aucune ZAER n'etait ingeree, ce critere etait gris pour toutes les filieres et la question
+   * ne se posait pas. Avec la couche nationale, une parcelle de projet de batterie recevrait
+   * « Hors zone d'acceleration » (45/100), ou au mieux « En ZAER, mais pour d'autres filieres »
+   * (60/100) : une penalite FABRIQUEE, tiree d'un dispositif qui ne concerne pas la filiere.
+   *
+   * Rendre une couche disponible peut donc creer un defaut la ou son absence n'en creait pas. C'est la
+   * forme la plus insidieuse de la famille corrigee a l'audit 8 : la donnee existe, elle est juste, et
+   * c'est son application a un objet qu'elle ne decrit pas qui produit un chiffre faux.
+   */
+  //
+  // `null` ET NON `sansSource` : la distinction n'est pas cosmetique.
+  //
+  // Premiere ecriture : `sansSource`. Un test existant l'a immediatement prise en defaut — une
+  // parcelle de stockage exemplaire tombait de vert a orange (76,5). C'est le mecanisme meme de
+  // `sansSource`, qui PLAFONNE le statut a orange : un enjeu non regarde ne doit pas produire un feu
+  // vert. Le raisonnement est juste, mais il ne s'applique pas ici. Un enjeu non REGARDE et un enjeu
+  // non APPLICABLE sont deux choses differentes : le premier laisse une incertitude, le second n'en
+  // laisse aucune. Plafonner toute la filiere a orange pour toujours aurait ete un defaut plus grave
+  // que la penalite de 45 points que cette garde supprime.
+  //
+  // `null` retire le critere de l'evaluation, comme le fait `risq_aero_radar` hors eolien. Le poids
+  // declare est retire en meme temps du profil `bess`, faute de quoi le catalogue annoncerait un
+  // critere qu'il n'evalue pas.
+  if (FILIERES_HORS_ZAER.includes(ctx.filiere)) return null;
+  /**
+   * `null` signifie desormais « ce DEPARTEMENT n'est pas ingere », et non « la couche n'existe pas ».
+   *
+   * La distinction compte pour le libelle. Avant l'ingestion nationale, le critere etait gris pour
+   * toujours et le disait ainsi. La couche `zaer:zaer` du WFS Geoplateforme etant desormais ingeree,
+   * un gris ne veut plus dire la meme chose : il signale un territoire non encore charge, ce qui se
+   * corrige par une commande. Laisser l'ancien libelle enverrait le prospecteur consulter la
+   * prefecture alors que la donnee est a portee d'ingestion.
+   */
   if (z.present == null) {
     return sansSource(
       SRC.zaer,
       "L'appartenance a une zone d'acceleration des ENR",
-      'A verifier sur la deliberation de la commune ou la cartographie departementale des ZAER (portail de la prefecture, ou cartographie ENR de l’IGN). Une ZAER change le portage politique du projet et allege l’instruction.',
+      'La couche nationale des ZAER n’est pas encore ingeree pour ce departement : lancer ' +
+        '`npm run ingest -- zaer_local`. En attendant, la deliberation de la commune ou la ' +
+        'cartographie departementale font foi. Une ZAER ne cree aucun droit a construire, mais elle ' +
+        'allege l’instruction et signale un portage politique local.',
     );
   }
   if (!z.present) {
@@ -1396,8 +1432,12 @@ const risq_argiles_cavites: Evaluateur = (s) => {
   if (note == null) return indispo(SRC.georisques);
   const morceaux: string[] = [];
   if (s.topographie.aleaArgiles) morceaux.push(`argiles : alea ${s.topographie.aleaArgiles}`);
-  if (s.topographie.cavitesProches != null) morceaux.push(`${s.topographie.cavitesProches} cavite(s) < 500 m`);
-  if (s.topographie.mouvementsTerrain != null) morceaux.push(`${s.topographie.mouvementsTerrain} mouvement(s) de terrain`);
+  // Le rayon annonce est celui reellement interroge. Il valait « < 500 m » ici pour une requete a
+  // 1 000 m, et « < 1 km » sur la fiche : le meme nombre portait trois perimetres differents.
+  if (s.topographie.cavitesProches != null) morceaux.push(`${s.topographie.cavitesProches} cavite(s) < 1 km`);
+  if (s.topographie.mouvementsTerrain != null) {
+    morceaux.push(`${s.topographie.mouvementsTerrain} mouvement(s) de terrain < 1 km`);
+  }
   return {
     note,
     valeurBrute: s.topographie.aleaArgiles,

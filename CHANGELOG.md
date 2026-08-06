@@ -11,6 +11,19 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Sécurité
+
+- **La limitation de débit était contournable par un simple en-tête** (audit 8, seconde passe). Le
+  serveur déclarait `trustProxy: true`, ce qui fait prendre à Fastify l'entrée la plus à gauche de
+  `X-Forwarded-For` — entièrement fournie par le client. Or la limitation indexe ses seaux sur
+  `req.ip` pour les appels non authentifiés. Mesuré sur la route de connexion : **429 après 11
+  tentatives** en conditions normales, **jamais en 60** en variant l'en-tête. C'était la seule
+  protection de la seule route qu'un attaquant non authentifié peut marteler. `trustProxy: 1` ne
+  suffisait pas non plus : sans relais réel, `X-Forwarded-For` ne contient qu'une entrée, celle du
+  client. Le nombre de relais de confiance est désormais configurable
+  (`RELAIS_DE_CONFIANCE`) et vaut **0 par défaut** : `req.ip` est alors l'adresse de la connexion
+  TCP, non falsifiable. Un déploiement derrière un reverse proxy doit déclarer ses sauts.
+
 ### Ajouté — sources de données
 
 - **Les zones d'accélération des ENR et les sites classés / inscrits sont désormais ingérés**
@@ -75,6 +88,32 @@ calcul, et aucun test écrit d'après le code ne pouvait les voir.
   vide ; un « potentiel agronomique » renommé pour ce qu'il est, un proxy du groupe de culture
   déclaré ; et une chaîne d'espaces qui s'affichait comme une cellule vide plutôt que comme une
   absence.
+
+### Corrigé — seconde passe, après les corrections de l'audit 8
+
+- **Les mouvements de terrain étaient comptés par COMMUNE et notés comme une mesure locale** (audit 8,
+  seconde passe). Le champ est documenté « à proximité » et noté sur une échelle locale — 1 mouvement
+  vaut 75/100, 8 en valent 20 — mais le connecteur interrogeait Géorisques par code commune. Mesuré
+  sur Nice : **28 mouvements à l'échelle de la commune contre un seul dans le kilomètre**, soit
+  55 points d'écart sur le critère, sur chaque parcelle de la commune. Le point d'entrée accepte un
+  rayon, comme celui des cavités.
+- **Trois rayons étaient annoncés pour le même nombre de cavités** : 1 000 m demandé au service, 500 m
+  documenté dans le type, « < 500 m » affiché par le moteur donc par le PDF, « < 1 km » affiché à
+  l'écran. Le rapport transmis à un tiers et l'écran donnaient deux périmètres différents pour un seul
+  chiffre. Le rayon est maintenant une constante utilisée par la requête et par les libellés.
+- **Une chaîne d'espaces s'affichait comme une cellule vide** plutôt que comme une absence : la garde
+  était `v === ''`, qui ne rattrape pas `'   '`, et plusieurs sources produisent l'espace.
+- **L'ingestion des ZAER allait fabriquer une pénalité sur la filière stockage.** Aucune ZAER ne vise
+  une batterie — la loi APER porte sur la production — mais avec la couche ingérée, chaque parcelle de
+  projet de stockage aurait reçu « Hors zone d'accélération » (45/100). Rendre une couche disponible
+  peut donc créer un défaut là où son absence n'en créait pas. Le critère est retiré du profil de la
+  filière : `null`, et non `sansSource`, qui aurait plafonné toute la filière à orange — un enjeu non
+  regardé et un enjeu non applicable sont deux choses différentes.
+- **Deux défauts d'ingestion trouvés à l'exécution réelle** : `unnest` sur un tableau
+  multidimensionnel aplatit les listes, si bien qu'aucune filière de ZAER n'était insérée ; et une
+  reprise de sept secondes sur un service qui répond 503 sous charge faisait abandonner toute
+  l'ingestion après zéro objet. Les paliers vont désormais jusqu'à deux minutes, avec une respiration
+  entre les pages pour ne pas provoquer la surcharge.
 
 ### Ajouté — contrôles permanents
 

@@ -812,7 +812,7 @@ function RubriquesDonnees({
           ['Denivele', val(s.topographie.deniveleM, 'm')],
           ['Alea retrait-gonflement des argiles', val(s.topographie.aleaArgiles)],
           ['Cavites souterraines (< 1 km)', val(s.topographie.cavitesProches)],
-          ['Mouvements de terrain', val(s.topographie.mouvementsTerrain)],
+          ['Mouvements de terrain (< 1 km)', val(s.topographie.mouvementsTerrain)],
         ]}
       />
 

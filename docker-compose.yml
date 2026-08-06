@@ -51,6 +51,14 @@ services:
       ADMIN_MOT_DE_PASSE: ${ADMIN_MOT_DE_PASSE:-}
       # Mettre a false pour piloter l'ingestion par un ordonnanceur externe.
       AMORCAGE_AUTO: ${AMORCAGE_AUTO:-true}
+      # Nombre de relais de confiance DEVANT l'API. Cette pile expose l'API directement, donc 0 :
+      # `req.ip` est alors l'adresse de la connexion TCP, non falsifiable. Derriere un reverse proxy
+      # (nginx, Traefik, un equilibreur de charge), mettre le nombre reel de sauts — sans quoi la
+      # limitation de debit indexerait tous les appels non authentifies sur l'adresse du relais, donc
+      # sur un seul seau partage. Et JAMAIS plus que le nombre reel : chaque saut de trop redonne au
+      # client la maitrise d'une entree de `X-Forwarded-For`, ce qui rend la limitation contournable
+      # par un simple en-tete (mesure : 60 tentatives sur 60 passees avant correction).
+      RELAIS_DE_CONFIANCE: ${RELAIS_DE_CONFIANCE:-0}
       REPERTOIRE_DONNEES: /app/donnees
       NIVEAU_LOG: ${NIVEAU_LOG:-info}
       # Derriere un proxy d'entreprise : Node ignore HTTPS_PROXY sans NODE_USE_ENV_PROXY.

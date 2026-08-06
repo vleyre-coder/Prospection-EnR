@@ -892,3 +892,160 @@ d'audit — c'est exactement le biais d'auto-complaisance que l'audit 1 signalai
 vérifiable et suffit : **14/14 mutations rattrapées, zéro échec sur la suite, et trois contrôles
 mécaniques permanents qui échouent si l'un des défauts revient.** Un audit 9 conduit à froid dira le
 reste.
+
+---
+
+# Seconde passe — défauts trouvés après les corrections
+
+Demandée explicitement : *« une fois que tu as fini, recherche tous les défauts restants et
+traite-les »*. Cette passe a relu en priorité **le code écrit pendant les corrections**, parce que
+c'est là que les audits 4 à 7 ont chaque fois trouvé des régressions de ma main. Elle a produit neuf
+défauts, dont un de sécurité.
+
+## S1. La limitation de débit était contournable par un en-tête — sécurité
+
+Le serveur déclarait `trustProxy: true`. Fastify prend alors l'entrée **la plus à gauche** de
+`X-Forwarded-For`, c'est-à-dire une valeur entièrement fournie par le client. Or la limitation de
+débit indexe ses seaux sur `req.ip` pour les appels non authentifiés.
+
+**Mesuré sur la route de connexion :**
+
+```
+429 sans forger l'en-tete : apres 11 tentatives
+429 en variant X-Forwarded-For : JAMAIS sur 60 tentatives
+```
+
+C'était la seule protection de la seule route qu'un attaquant non authentifié peut marteler — celle
+dont le commentaire de `acces-roles.test.ts` dit qu'elle a été ajoutée précisément pour cela.
+
+**`trustProxy: 1` ne suffit pas**, et c'est le piège : sans relais réel, `X-Forwarded-For` ne contient
+qu'une entrée — celle du client — et un saut de confiance la retient. Mesuré : 60 tentatives sur 60
+passent encore. La valeur par défaut est donc **0** (`req.ip` = adresse de la connexion TCP, non
+falsifiable), et un déploiement derrière un relais doit déclarer combien il en a
+(`RELAIS_DE_CONFIANCE`). La pile livrée expose l'API directement, donc 0 y est correct.
+
+Choisir `1` par défaut « parce que la pile a nginx » aurait été la même faute sous une forme plus
+discrète : **la configuration sûre doit être celle qu'on obtient sans rien déclarer.**
+
+## S2. Les mouvements de terrain étaient comptés par commune et notés comme une mesure locale
+
+`topographie.mouvementsTerrain` est documenté « recensés à proximité » et noté sur une échelle
+locale : 1 mouvement vaut 75/100, 3 valent 50, 8 valent 20. Le connecteur interrogeait Géorisques avec
+`{ code_insee }`.
+
+**Mesuré sur Nice :**
+
+| Requête | Résultat |
+|---|---|
+| `mvt?code_insee=06088` | **28** mouvements |
+| `mvt?latlon=7.42,43.74&rayon=1000` | **1** mouvement |
+
+Le critère notait donc **20/100 là où la proximité réelle valait 75** — 55 points d'écart, sur chaque
+parcelle de la commune, sur un fait qui ne dit rien de la parcelle : une commune de montagne accumule
+des éboulements historiques répartis sur cinquante kilomètres carrés.
+
+C'est exactement le défaut B4, sur un autre critère et avec un effet plus fort. Le point d'entrée
+accepte `latlon` et `rayon`, comme celui des cavités : il n'y avait aucune raison de s'en priver.
+
+## S3. Trois rayons annoncés pour un seul nombre
+
+`cavitesProches` était :
+
+| Endroit | Rayon annoncé |
+|---|---|
+| la requête au service | 1 000 m |
+| la documentation du type | 500 m |
+| le libellé du moteur, donc le PDF | « < 500 m » |
+| la fiche à l'écran | « < 1 km » |
+
+Le rapport transmis à un tiers et l'écran affichaient donc deux périmètres différents pour le même
+chiffre, et aucun des deux n'était garanti juste. Un chiffre dont le périmètre n'est pas celui annoncé
+est inexploitable : le lecteur ne peut pas savoir ce qu'il compte. Le rayon est désormais une
+constante exportée, utilisée par la requête **et** par les libellés.
+
+## S4. L'ingestion des ZAER allait fabriquer une pénalité sur la filière stockage
+
+Trouvé **avant** la mise en service, en se demandant ce que la nouvelle donnée changerait pour chaque
+filière. La loi APER crée des zones d'accélération pour la *production* : aucune ne vise une batterie.
+Avec les ZAER ingérées, chaque parcelle de projet de stockage aurait reçu « Hors zone d'accélération »
+(45/100), ou au mieux « En ZAER, mais pour d'autres filières » (60/100).
+
+**Rendre une couche disponible peut donc créer un défaut là où son absence n'en créait pas.** C'est la
+forme la plus insidieuse de la famille de l'audit 8 : la donnée existe, elle est juste, et c'est son
+application à un objet qu'elle ne décrit pas qui produit un chiffre faux.
+
+## S5. `sansSource` sur un critère non applicable condamnait la filière
+
+Corollaire immédiat de S4, et **attrapé par un test existant** : ma première correction déclarait le
+critère `sansSource` pour le stockage. Une parcelle de stockage exemplaire est alors tombée de vert à
+orange (76,5). C'est le mécanisme même de `sansSource`, qui **plafonne** le statut : un enjeu non
+regardé ne doit pas produire un feu vert.
+
+Le raisonnement est juste, mais il ne s'applique pas ici. **Un enjeu non regardé et un enjeu non
+applicable sont deux choses différentes** : le premier laisse une incertitude, le second n'en laisse
+aucune. Plafonner toute une filière à orange pour toujours aurait été un défaut plus grave que la
+pénalité de 45 points que la correction supprimait. Le critère retourne donc `null` — non évalué — et
+son poids est retiré du profil de la filière, faute de quoi le catalogue annoncerait un critère qu'il
+n'évalue pas.
+
+## S6. Les filières des ZAER n'étaient jamais insérées
+
+`unnest($4::text[][])` ne fonctionne pas : PostgreSQL **aplatit** les tableaux multidimensionnels dans
+`unnest`, si bien qu'un tableau de listes de filières devient une seule longue liste sans frontières
+de lignes. L'erreur réelle — « column filieres is of type text[] but expression is of type text » —
+signalait le type, pas la cause. Trouvé à l'exécution : 500 objets traités, zéro inséré.
+
+## S7. Sept secondes d'attente ne sont pas une attente
+
+La reprise sur échec transitoire attendait 1 s, 2 s puis 4 s. L'ingestion des ZAER a reçu quatre 503
+d'affilée et **a abandonné au bout de seize secondes, après zéro objet**. Un 503 n'est pas une erreur
+de requête : c'est un service qui demande d'attendre. Sur une couche de 1,09 million d'objets,
+rencontrer une surcharge est certain, et jeter tout le travail pour cela est inacceptable. Les paliers
+vont désormais jusqu'à deux minutes, et une respiration de 400 ms entre les pages évite de provoquer
+la surcharge qu'il faudrait ensuite absorber.
+
+## S8. Mon propre contrôle d'alimentation avait un périmètre trop étroit
+
+`typesEcrits()` ne voyait que les types écrits **en littéral** dans un `INSERT INTO contrainte`.
+C'était suffisant tant qu'un seul job écrivait un seul type ; l'ingestion des sites passe le type en
+paramètre, et les ZAER vont dans leur propre table. Ces couches auraient donc été signalées comme non
+ingérées alors qu'elles le sont.
+
+C'est le défaut de mon propre contrôle, du même genre que ceux qu'il traque : **un périmètre plus
+étroit que ce qu'il annonce**. Une table complémentaire le comble, avec deux vérifications
+symétriques — le type doit apparaître dans le job nommé, et une couche ingérée ne doit plus figurer
+parmi les absences déclarées. **La seconde a immédiatement signalé que `zaer` restait déclarée
+absente**, ce qui aurait laissé son critère gris sur une donnée disponible : la faute de l'audit 8
+dans l'autre sens.
+
+## S9. Une chaîne d'espaces s'affichait comme une cellule vide
+
+La garde était `v === ''`, qui ne rattrape pas `'   '`. Plusieurs sources produisent l'espace plutôt
+que la chaîne vide (`gestnom` des sites, `commentaire` des ZAER, plusieurs champs de Géorisques). Une
+cellule visuellement vide est indiscernable d'un défaut de rendu.
+
+## État de l'ingestion
+
+Les sites protégés sont chargés (6 617). Les ZAER se chargent au rythme d'environ 10 000 zones par
+minute ; 83 % des zones de la source sont écartées à juste titre — toitures, solaire thermique,
+géothermie, hydroélectricité, biomasse non méthanogène — donc environ 185 000 zones seront retenues
+sur 1,09 million. Les trois filières concernées sont alimentées, et **aucune zone ne produit `bess`**,
+comme le vérifie un test qui balaie tout le vocabulaire de la source.
+
+## Ce que cette seconde passe apprend
+
+Les neuf défauts se répartissent en trois groupes, et les proportions sont instructives :
+
+- **quatre viennent du code écrit pendant les corrections** (S4, S5, S6, S7) — dont deux qu'aucune
+  relecture n'aurait vus, trouvés par l'exécution réelle de l'ingestion sur un million d'objets ;
+- **deux viennent de mes dispositifs de contrôle** (S8, et le durcissement du test de base signalé
+  plus haut) ;
+- **trois étaient là depuis l'origine** (S1, S2, S3) et ont été trouvés en appliquant à des zones
+  encore intactes les trois lentilles de l'audit 8 : *absence affirmée*, *fait à la mauvaise échelle*,
+  *chiffre dont le périmètre n'est pas celui annoncé*.
+
+La leçon utile n'est pas qu'il restait des défauts — il en restera toujours. C'est que **les lentilles
+se transportent** : une fois nommée, chaque classe se cherche mécaniquement ailleurs, et deux des
+trois défauts anciens ont été trouvés par une simple question posée à un fichier jamais suspecté.
+S1 y ajoute une quatrième lentille, qui manquait aux huit audits : *quelle valeur cette garde
+prend-elle si l'attaquant contrôle son entrée ?*

@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import {
   dateFrancaiseEnIso,
   filieresZaer,
-  FILIERES_SANS_ZAER,
+  FILIERES_HORS_ZAER,
   typeSite,
 } from '../src/ingestion/wfs-national.js';
 
@@ -92,7 +92,7 @@ test('le stockage n’est couvert par aucune ZAER, et c’est documente', () => 
    * filiere `bess` ne pourra donc jamais etre renseigne par cette source, quelle que soit la qualite
    * de l'ingestion — ce n'est pas un defaut, et il faut que ce soit ecrit quelque part de verifiable.
    */
-  assert.ok(FILIERES_SANS_ZAER.includes('bess'));
+  assert.ok(FILIERES_HORS_ZAER.includes('bess'));
   // Aucune valeur de la source ne doit produire `bess`.
   const valeurs = [
     'SOLAIRE_PV', 'EOLIEN', 'BIOMASSE', 'BIOMETHANE', 'SOLAIRE_THERMIQUE', 'GEOTHERMIE',

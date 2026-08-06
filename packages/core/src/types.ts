@@ -178,9 +178,21 @@ export interface Topographie {
   deniveleM: number | null;
   /** Alea retrait-gonflement des argiles : faible / moyen / fort. */
   aleaArgiles: 'nul' | 'faible' | 'moyen' | 'fort' | null;
-  /** Nombre de cavites souterraines recensees dans un rayon de 500 m. */
+  /**
+   * Nombre de cavites souterraines recensees dans un rayon de 1 km.
+   *
+   * Le rayon reel est celui de `RAYON_CAVITES_M` cote connecteur. Cette documentation disait 500 m
+   * alors que la requete en demandait 1 000, et le moteur affichait « < 500 m » quand la fiche
+   * affichait « < 1 km » : trois valeurs annoncees pour un seul nombre (audit 8, suites).
+   */
   cavitesProches: number | null;
-  /** Mouvements de terrain recenses a proximite. */
+  /**
+   * Mouvements de terrain recenses dans un rayon de 1 km.
+   *
+   * PAR PROXIMITE depuis les suites de l'audit 8. Le connecteur interrogeait Georisques par CODE
+   * COMMUNE et le moteur notait le resultat sur une echelle locale : mesure sur Nice, 28 mouvements a
+   * l'echelle de la commune contre UN SEUL dans le kilometre, soit 55 points d'ecart sur le critere.
+   */
   mouvementsTerrain: number | null;
 }
 

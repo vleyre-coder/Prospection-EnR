@@ -203,6 +203,18 @@ interface PprBrut {
  */
 type CompteSeul = Record<string, unknown>;
 
+/**
+ * Rayons d'interrogation des comptages de proximite, en metres.
+ *
+ * NOMMES ET EXPORTES parce qu'ils doivent etre AFFICHES. Le rayon des cavites etait ecrit en dur a
+ * 1 000 m dans la requete, documente « dans un rayon de 500 m » dans le type, affiche « cavite(s)
+ * < 500 m » par le moteur et « Cavites souterraines (< 1 km) » par la fiche : trois valeurs annoncees
+ * pour un seul nombre, dont deux fausses. Un chiffre dont le perimetre n'est pas celui annonce est
+ * inexploitable — le lecteur ne peut pas savoir ce qu'il compte.
+ */
+export const RAYON_CAVITES_M = 1000;
+export const RAYON_MOUVEMENTS_M = 1000;
+
 export type FamilleRisque =
   | 'inondation'
   | 'incendie'
@@ -425,8 +437,25 @@ export async function risquesEtEau(
 
   const [argiles, cavites, mvt, pprn, pprt, tri, triZonage, casias, icpe] = await Promise.all([
     aleaArgiles(centroide),
-    formeA<CompteSeul>('cavites', { latlon: latlon(centroide), rayon: 1000 }),
-    formeA<CompteSeul>('mvt', { code_insee: codeInsee }),
+    formeA<CompteSeul>('cavites', { latlon: latlon(centroide), rayon: RAYON_CAVITES_M }),
+    /**
+     * PAR PROXIMITE, ET NON PAR COMMUNE.
+     *
+     * Cet appel valait `{ code_insee: codeInsee }`, et son resultat alimentait
+     * `topographie.mouvementsTerrain`, presente comme « mouvements de terrain recenses A PROXIMITE » et
+     * note sur une echelle locale : 1 mouvement vaut 75/100, 3 valent 50, 8 valent 20.
+     *
+     * Un comptage COMMUNAL sur une echelle LOCALE, c'est la faute corrigee pour l'alea d'inondation a
+     * l'audit 8, avec un effet plus fort. Mesure sur Nice : 28 mouvements a l'echelle de la commune,
+     * mais UN SEUL dans un rayon de 1 km autour d'un point donne. Le critere notait donc 20/100 la ou
+     * la proximite reelle valait 75 — 55 points d'ecart, sur chaque parcelle de la commune, sur un fait
+     * qui ne dit rien de la parcelle : une commune de montagne accumule des eboulements historiques
+     * repartis sur cinquante kilometres carres.
+     *
+     * Le point d'entree accepte `latlon` et `rayon`, exactement comme celui des cavites. Il n'y avait
+     * aucune raison de s'en priver.
+     */
+    formeA<CompteSeul>('mvt', { latlon: latlon(centroide), rayon: RAYON_MOUVEMENTS_M }),
     formeB<PprBrut>('gaspar/pprn', codeInsee),
     formeB<PprBrut>('gaspar/pprt', codeInsee),
     formeA<CompteSeul>('gaspar/tri', { code_insee: codeInsee }),

@@ -256,7 +256,15 @@ const POIDS_DEFAUT: Record<Filiere, Record<string, number>> = {
     env_zone_humide: 3,
     env_proximite_natura2000: 2,
     pat_monuments: 2,
-    urb_zaer: 2,
+    // `urb_zaer` N'EST PAS AU PROFIL DU STOCKAGE, et son retrait est un choix documente.
+    //
+    // La loi APER cree des zones d'acceleration pour la PRODUCTION d'energies renouvelables : aucune
+    // ne vise une batterie. Le critere valait 2 points de ponderation, et avec l'ingestion nationale
+    // des ZAER il aurait produit « Hors zone d'acceleration » (45/100) sur chaque parcelle de projet
+    // de stockage — une penalite fabriquee, tiree d'un dispositif qui ne concerne pas la filiere.
+    //
+    // Le declarer ici tout en le rendant non applicable dans le moteur ferait annoncer au catalogue
+    // un critere qu'il n'evalue pas, et les parts affichees ne sommeraient plus a 100 %.
     fonc_nb_proprietaires: 3,
   },
   methanisation: {

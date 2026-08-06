@@ -61,6 +61,19 @@ const TAILLE_PAGE = 5000;
 /** Garde-fou : au-dela, quelque chose ne va pas dans la pagination plutot que dans les donnees. */
 const PAGES_MAX = 400;
 
+/**
+ * Attentes entre deux tentatives, en millisecondes.
+ *
+ * Calibrees sur le comportement REEL du service, et non sur une progression theorique. Un 503 signale
+ * une surcharge, pas une erreur de requete : il demande d'attendre, et sept secondes ne sont pas une
+ * attente. La derniere tentative intervient donc apres plus de trois minutes cumulees, ce qui est
+ * negligeable devant une ingestion d'une heure et evite de jeter tout le travail.
+ */
+const ATTENTES_MS = [5_000, 15_000, 45_000, 120_000] as const;
+
+/** Respiration entre deux pages, pour ne pas provoquer la surcharge qu'on devrait ensuite absorber. */
+const PAUSE_ENTRE_PAGES_MS = 400;
+
 interface Entite {
   properties: Record<string, unknown> | null;
   geometry: unknown;
@@ -92,12 +105,19 @@ async function* objetsWfs(typeName: string): AsyncGenerator<Entite> {
      * metropolitaine, le service a repondu 400 sur la premiere page de la couche suivante — et la
      * meme requete a reussi quelques secondes plus tard. Sans reprise, l'ingestion abandonnait les
      * trois couches d'outre-mer et se declarait terminee : le critere serait reste faussement
-     * silencieux en Guadeloupe, en Martinique, en Guyane et a La Reunion. Une ingestion partielle
-     * qui se croit complete est precisement le defaut que ce fichier corrige.
+     * silencieux en Guadeloupe, en Martinique, en Guyane et a La Reunion. Une ingestion partielle qui
+     * se croit complete est precisement le defaut que ce fichier corrige.
+     *
+     * ATTENTES RECALIBREES A LA SECONDE EXECUTION REELLE. La premiere version attendait 1 s, 2 s puis
+     * 4 s : sept secondes en tout. L'ingestion des ZAER a recu quatre 503 d'affilee et a abandonne au
+     * bout de seize secondes, apres zero objet. Un 503 n'est pas une erreur de requete, c'est un
+     * service qui demande d'attendre : sept secondes ne sont pas une attente. Sur une couche de
+     * 1,09 million d'objets, rencontrer une surcharge est certain, et abandonner tout le travail pour
+     * cela est inacceptable. Les paliers vont donc jusqu'a deux minutes.
      */
     let recus = 0;
     let derniereErreur: unknown = null;
-    for (let tentative = 0; tentative < 4; tentative += 1) {
+    for (let tentative = 0; tentative < ATTENTES_MS.length + 1; tentative += 1) {
       recus = 0;
       try {
         for await (const entite of entitesDepuisFlux(url)) {
@@ -109,18 +129,29 @@ async function* objetsWfs(typeName: string): AsyncGenerator<Entite> {
       } catch (err) {
         derniereErreur = err;
         if (recus > 0) {
-          // Des objets ont deja ete emis : rejouer la page les dupliquerait dans le lot. L'insertion
-          // etant idempotente sur la cle naturelle, ce n'est pas grave, mais il faut le dire.
+          // Des objets ont deja ete emis : rejouer la page les reemettra. L'insertion est idempotente
+          // sur la cle naturelle et le lot est dedoublonne, donc c'est sans consequence — mais il faut
+          // le dire, sinon un decompte superieur au nombre reel d'objets resterait inexplique.
           journal.warn({ typeName, page, recus, err }, 'Page WFS interrompue en cours de flux');
         }
-        // Attente croissante : 1 s, 2 s, 4 s. Le service repond 400 sous charge, pas 429.
-        await new Promise((r) => setTimeout(r, 1000 * 2 ** tentative));
+        const attente = ATTENTES_MS[tentative];
+        if (attente == null) break;
+        journal.warn(
+          { typeName, page, tentative: tentative + 1, attenteMs: attente },
+          'Page WFS en echec : nouvelle tentative apres attente',
+        );
+        await new Promise((r) => setTimeout(r, attente));
       }
     }
     if (derniereErreur) throw derniereErreur;
 
     journal.debug({ typeName, page, recus }, 'Page WFS ingeree');
     if (recus < TAILLE_PAGE) return;
+
+    // Respiration entre les pages. Sans elle, une couche de 218 pages est demandee aussi vite que le
+    // reseau le permet, ce qui declenche precisement les 503 que la reprise doit ensuite absorber.
+    // Mieux vaut ne pas les provoquer.
+    await new Promise((r) => setTimeout(r, PAUSE_ENTRE_PAGES_MS));
   }
   // Sortir par la borne de pages est une anomalie : la dire, plutot que produire un jeu tronque
   // qu'on prendrait pour complet.
@@ -145,6 +176,25 @@ const COUCHE_ZAER = 'zaer:zaer';
  * ferait ressortir des parkings dans une recherche de terres.
  */
 const DETAILS_PV_AU_SOL = new Set(['SOL', 'SURFACE']);
+
+/**
+ * Vocabulaires non reconnus rencontres, avec leur nombre d'occurrences.
+ *
+ * Comptes plutot que journalises un par un : voir la branche `default` de `filieresZaer`. Le
+ * decompte est restitue par `vocabulairesInconnus()` en fin d'ingestion, ce qui donne l'information
+ * utile — QUOI et COMBIEN — sans le bruit.
+ */
+const inconnus = new Map<string, number>();
+
+/** Vocabulaires non reconnus rencontres depuis le dernier `oublierVocabulairesInconnus()`. */
+export function vocabulairesInconnus(): Record<string, number> {
+  return Object.fromEntries(inconnus);
+}
+
+/** Remet le decompte a zero. Appele au debut de chaque ingestion. */
+export function oublierVocabulairesInconnus(): void {
+  inconnus.clear();
+}
 
 /**
  * Traduit une ZAER en filieres de l'application.
@@ -185,24 +235,23 @@ export function filieresZaer(
       // Champ vide : 1 zone sur 600. Indeterminee, donc ecartee.
       return [];
     default:
-      journal.warn(
-        { filiere: f, detail: d },
-        'Filiere ZAER inconnue : zone ignoree plutot que rangee par defaut. Ajouter la ' +
-          'correspondance dans filieresZaer() si la filiere entre dans le perimetre.',
-      );
+      // AGREGE et non journalise par zone : sur 1,09 million de zones, un changement de vocabulaire
+      // cote source produirait un million de lignes de journal, ce qui noierait tout le reste et
+      // saturerait le disque. Le decompte est restitue une fois, en fin d'ingestion.
+      inconnus.set(`${f} / ${d}`, (inconnus.get(`${f} / ${d}`) ?? 0) + 1);
       return [];
   }
 }
 
 /**
- * Le stockage n'est PAS couvert par les ZAER, et il faut le dire.
+ * Le stockage n'est PAS couvert par les ZAER, et la regle est PARTAGEE avec le moteur.
  *
- * La loi APER porte sur les zones d'acceleration de la PRODUCTION d'energies renouvelables. Une
- * batterie n'est pas un moyen de production : aucune ZAER ne la vise. Le critere `urb_zaer` de la
- * filiere `bess` ne pourra donc jamais etre renseigne par cette source, et doit rester declare sans
- * source pour cette filiere — ce n'est pas un defaut d'ingestion.
+ * Reexportee depuis `@enr/core` et non redefinie ici : une regle metier ecrite deux fois se
+ * desynchronise. Le moteur s'en sert pour declarer le critere sans source pour cette filiere ; ce
+ * fichier s'en sert pour documenter qu'aucune correspondance de `filieresZaer` ne peut la produire —
+ * ce qu'un test verifie en balayant tout le vocabulaire de la source.
  */
-export const FILIERES_SANS_ZAER: readonly Filiere[] = ['bess'];
+export { FILIERES_HORS_ZAER } from '@enr/core';
 
 export async function ingererZaer(): Promise<{
   connecteur: string;
@@ -214,8 +263,10 @@ export async function ingererZaer(): Promise<{
   let nbObjets = 0;
   let nbSansGeometrie = 0;
   let nbSansFiliere = 0;
+  oublierVocabulairesInconnus();
 
-  type Ligne = [string, string | null, string | null, string[], string, string | null, string];
+  // Les filieres sont portees par une CHAINE et non un tableau : voir le commentaire dans la requete.
+  type Ligne = [string, string | null, string | null, string, string, string | null, string];
   const lot: Ligne[] = [];
 
   const viderLot = async (): Promise<void> => {
@@ -224,10 +275,26 @@ export async function ingererZaer(): Promise<{
       `INSERT INTO zaer
          (identifiant_source, code_insee, code_departement, filieres, geom, date_deliberation,
           attributs, source_document, est_demonstration)
-       SELECT d.identifiant, d.insee, d.dep, d.filieres,
+       -- DISTINCT ON : une page rejouee apres un echec transitoire reemet ses objets, et
+       -- ON CONFLICT DO UPDATE refuse de toucher deux fois la meme ligne dans une seule commande
+       -- (« cannot affect row a second time »). Le defaut s'est produit sur l'ingestion des sites, ou
+       -- la source elle-meme repete la cle ; ici il ne surviendrait qu'apres une reprise, donc de
+       -- facon intermittente, le pire cas a diagnostiquer.
+       SELECT DISTINCT ON (d.identifiant)
+              d.identifiant, d.insee, d.dep,
+              -- LES FILIERES PASSENT EN CHAINE, PUIS SONT REDECOUPEES.
+              --
+              -- Passer un text[][] a unnest ne fonctionne pas : PostgreSQL APLATIT les tableaux
+              -- multidimensionnels, si bien qu'un tableau de listes de filieres devient une seule
+              -- longue liste sans frontieres de lignes. L'erreur reelle etait « column filieres is of
+              -- type text[] but expression is of type text » : le type signalait la faute, pas sa
+              -- cause. Une chaine par ligne, redecoupee ici, est univoque. Les valeurs de filiere ne
+              -- contiennent pas de virgule, par construction de filieresZaer, qui ne produit que des
+              -- identifiants du domaine.
+              string_to_array(d.filieres, ','),
               ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(d.geom), 4326)),
               d.valid_date::date, d.attributs::jsonb, 'WFS Geoplateforme zaer:zaer', false
-         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[][], $5::text[], $6::text[], $7::text[])
+         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[])
               AS d(identifiant, insee, dep, filieres, geom, valid_date, attributs)
        ON CONFLICT (identifiant_source) WHERE identifiant_source IS NOT NULL DO UPDATE SET
          code_insee = EXCLUDED.code_insee,
@@ -280,7 +347,7 @@ export async function ingererZaer(): Promise<{
         `${COUCHE_ZAER}/${String(p['id'] ?? `${insee}-${nbObjets}`)}`,
         insee,
         dep,
-        filieres,
+        filieres.join(','),
         JSON.stringify(g),
         typeof p['valid_date'] === 'string' && p['valid_date'] !== '' ? p['valid_date'] : null,
         JSON.stringify({
@@ -318,6 +385,18 @@ export async function ingererZaer(): Promise<{
     }
   }
   oublierPresenceCouches();
+
+  // Les vocabulaires non reconnus sont restitues UNE fois, avec leur decompte. Un changement de
+  // vocabulaire cote source se voit ici, et nulle part ailleurs : sans cette ligne, des zones
+  // disparaitraient en silence de l'ingestion suivante.
+  const nonReconnus = vocabulairesInconnus();
+  if (Object.keys(nonReconnus).length > 0) {
+    journal.warn(
+      { nonReconnus },
+      'Vocabulaires de filiere ZAER non reconnus : ces zones ont ete ignorees plutot que rangees par ' +
+        'defaut. Completer filieresZaer() si l’une de ces filieres entre dans le perimetre.',
+    );
+  }
 
   await enregistrerIngestion(
     'zaer_local',

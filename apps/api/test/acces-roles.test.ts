@@ -222,3 +222,57 @@ test("le Shapefile distingue une parcelle ecartee d'une parcelle mal notee", asy
     'le LISEZ-MOI doit expliquer la difference : un DBF se lit sans documentation externe',
   );
 });
+
+// ---------------------------------------------------------------------------
+// La limitation de debit ne doit pas etre contournable par un en-tete
+// ---------------------------------------------------------------------------
+
+test('la limitation de debit resiste a un X-Forwarded-For forge', async () => {
+  /**
+   * DEFAUT TROUVE APRES L'AUDIT 8, par relecture des zones nouvellement corrigees.
+   *
+   * Le serveur declarait `trustProxy: true`, ce qui fait prendre a Fastify l'entree la PLUS A GAUCHE
+   * de `X-Forwarded-For` — c'est-a-dire une valeur entierement fournie par le client. La limitation de
+   * debit indexe ses seaux sur `req.ip` pour les appels non authentifies : elle etait donc
+   * contournable en changeant un en-tete a chaque requete.
+   *
+   * MESURE AVANT CORRECTION : 429 apres 11 tentatives en conditions normales, JAMAIS en 60 tentatives
+   * en variant `X-Forwarded-For`. C'etait la seule protection de la seule route qu'un attaquant non
+   * authentifie peut marteler — celle dont le commentaire en tete de ce fichier dit qu'elle a ete
+   * ajoutee precisement pour cela.
+   *
+   * `trustProxy: 1` ne suffisait PAS : sans relais reel, `X-Forwarded-For` ne contient qu'une entree,
+   * celle du client, et un saut de confiance la retient. La valeur sure par defaut est donc 0, et un
+   * deploiement derriere un relais doit declarer combien il en a.
+   */
+  const app = await serveur();
+  reinitialiserDebit();
+  const corps = { email: 'inexistant@local', motDePasse: 'faux' };
+
+  let refuseeApres = 0;
+  for (let i = 0; i < 60; i += 1) {
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/api/auth/connexion',
+      payload: corps,
+      // Une adresse differente a chaque tentative : si elle etait prise en compte, chaque requete
+      // aurait son propre seau et le quota ne serait jamais atteint.
+      headers: { 'x-forwarded-for': `203.0.113.${i}` },
+    });
+    if (rep.statusCode === 429) {
+      refuseeApres = i + 1;
+      break;
+    }
+  }
+  await app.close();
+
+  assert.ok(
+    refuseeApres > 0,
+    'la limitation de debit n’a jamais refuse en 60 tentatives avec un X-Forwarded-For variable : ' +
+      'elle est contournable par un en-tete, et ne protege donc pas la route de connexion.',
+  );
+  assert.ok(
+    refuseeApres <= 20,
+    `refus au bout de ${refuseeApres} tentatives : le quota doit etre celui d’un seul appelant.`,
+  );
+});

@@ -64,6 +64,38 @@ export const config = {
    * n'a alors qu'un seul port a ouvrir et une seule commande a lancer.
    */
   web: {
+    /**
+     * Nombre de relais de confiance devant l'API, pour determiner l'adresse REELLE de l'appelant.
+     *
+     * POURQUOI CE REGLAGE EXISTE, ET POURQUOI IL N'EST PAS `true`. Le serveur declarait
+     * `trustProxy: true`, ce qui fait prendre a Fastify l'entree la PLUS A GAUCHE de
+     * `X-Forwarded-For` — c'est-a-dire une valeur entierement fournie par le client. La limitation de
+     * debit indexe ses seaux sur `req.ip` pour les appels non authentifies : elle etait donc
+     * contournable en changeant un en-tete a chaque requete.
+     *
+     * MESURE : 429 apres 11 tentatives sur la route de connexion en conditions normales,
+     * JAMAIS en 60 tentatives en variant `X-Forwarded-For`. C'est la seule protection de la seule
+     * route qu'un attaquant non authentifie peut marteler, et elle ne protegeait rien.
+     *
+     * Avec un nombre de sauts, Fastify compte depuis la DROITE : l'entree retenue est celle qu'a
+     * ecrite le relais de confiance le plus proche, et les entrees ajoutees par le client, a gauche,
+     * sont ignorees.
+     *
+     * LA VALEUR PAR DEFAUT EST 0, et c'est un choix. Mettre 1 par defaut « parce que la pile livree a
+     * nginx » serait la meme faute sous une forme plus discrete : une API exposee directement, sans
+     * relais, ne recoit qu'UNE entree dans `X-Forwarded-For` — celle du client — et un saut de
+     * confiance suffit alors a la retenir. Mesure faite : avec 1 saut et aucun relais reel, la
+     * limitation reste contournable en 60 tentatives sur 60.
+     *
+     * A 0, `req.ip` est l'adresse de la connexion TCP : non falsifiable, quelle que soit
+     * l'exposition. Un deploiement derriere un relais DOIT declarer combien il en a, et la pile
+     * docker-compose livree le fait (`RELAIS_DE_CONFIANCE=1`). La configuration sure est celle qu'on
+     * obtient sans rien declarer.
+     *
+     * Ne PAS mettre une valeur superieure au nombre reel de relais : chaque saut de trop redonne au
+     * client la maitrise d'une entree.
+     */
+    relaisDeConfiance: nombre('RELAIS_DE_CONFIANCE', 0),
     repertoireStatique: texte('REPERTOIRE_WEB', ''),
     servirStatique: booleen('SERVIR_WEB', true),
     /**

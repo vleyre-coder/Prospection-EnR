@@ -74,12 +74,10 @@ function concatener(dossiers: readonly string[], nu = true): string {
  * laissez-passer : c'est la contrepartie explicite de l'absence.
  */
 const COUCHES_NON_INGEREES: Record<string, string> = {
-  site_classe:
-    'Atlas des patrimoines / INPN, non ingere. `patrimoine()` retourne `recouvre: null` et le ' +
-    'critere pat_sites est declare `sansSource`. Le knock-out eolien reste ecrit et sera atteignable ' +
-    "des l'ingestion : un test nomme verifie qu'il se declenche.",
-  site_inscrit: 'Meme source et meme traitement que site_classe.',
-  spr: 'Sites patrimoniaux remarquables : meme source et meme traitement que site_classe.',
+  spr:
+    'Sites patrimoniaux remarquables : ABSENTS de la couche STE du WFS Geoplateforme, qui ne porte que ' +
+    'les sites classes et inscrits. Ils relevent d’un autre jeu (Atlas des patrimoines). ' +
+    '`patrimoine()` retourne `recouvre: null` pour ce type.',
   elevage:
     'Inventaire ICPE, non ingere. `agregerIntrants` retourne `null` par couche absente, et ' +
     'gis_intrants est declare `sansSource`.',
@@ -87,16 +85,71 @@ const COUCHES_NON_INGEREES: Record<string, string> = {
   surface_agricole_commune:
     'RPG agrege par commune, non ingere. `surfacesEpandageHa` vaut `null` et ' +
     'gis_debouche_epandage est declare `sansSource`.',
-  zaer:
-    'Zones d’acceleration des ENR : deliberations communales publiees par les prefectures, aucun job ' +
-    'd’ingestion. `zaer()` retourne `present: null` et urb_zaer est declare `sansSource`. C’est ' +
-    'l’argument reglementaire le plus utile de la prospection depuis la loi APER : la couche est a ' +
-    'ingerer en priorite, et son absence doit rester visible d’ici la.',
   document_cadre_pv:
     'Documents-cadres departementaux PV au sol : arretes prefectoraux, aucun job d’ingestion. ' +
     '`documentCadrePv()` retourne `departementCouvert: null` — distingue de `false`, qui signifie ' +
     'que le departement n’en a pas — et le knock-out ne se declenche que sur `true`.',
 };
+
+/**
+ * Couches qu'un job d'ingestion alimente, et le job qui le fait.
+ *
+ * POURQUOI CETTE SECONDE TABLE. `typesEcrits()` ne voit que les types ecrits en LITTERAL dans un
+ * `INSERT INTO contrainte`. C'etait suffisant tant qu'un seul job ecrivait un seul type ; ce n'est
+ * plus vrai : l'ingestion des sites passe le type en parametre (`d.type`), et les ZAER vont dans leur
+ * propre table. Ces couches auraient donc ete signalees comme non ingerees alors qu'elles le sont.
+ *
+ * Le defaut est celui de mon propre controle, et il est du meme genre que ceux qu'il traque : un
+ * perimetre plus etroit que ce qu'il annonce. La table ci-dessous le complete, et les deux tests
+ * suivants la verifient dans les DEUX SENS — le type doit apparaitre dans le job nomme, et une couche
+ * ingeree ne doit plus figurer dans `COUCHES_NON_INGEREES`.
+ */
+const TYPES_INGERES_PAR: Record<string, { fichier: string; fonction: string }> = {
+  monument_historique: { fichier: '../src/ingestion/index.ts', fonction: 'ingererPatrimoine' },
+  site_classe: { fichier: '../src/ingestion/wfs-national.ts', fonction: 'typeSite' },
+  site_inscrit: { fichier: '../src/ingestion/wfs-national.ts', fonction: 'typeSite' },
+  zaer: { fichier: '../src/ingestion/wfs-national.ts', fonction: 'ingererZaer' },
+};
+
+test('chaque couche declaree ingeree l’est bien par le job nomme', () => {
+  // Sans cette verification, la table ci-dessus deviendrait une liste de vœux : on y inscrirait une
+  // couche, le controle la considererait alimentee, et personne ne l'ingererait.
+  for (const [type, { fichier, fonction }] of Object.entries(TYPES_INGERES_PAR)) {
+    const source = sansCommentaires(lire(fichier));
+    assert.match(
+      source,
+      new RegExp(`function\\s+${fonction}\\b`),
+      `${fichier} doit definir ${fonction}(), declare comme ingerant ${type}`,
+    );
+    assert.match(
+      source,
+      new RegExp(`'${type}'`),
+      `${fonction}() doit mentionner le type '${type}' qu'il est declare ingerer`,
+    );
+  }
+});
+
+test('une couche desormais ingeree ne reste pas declaree absente', () => {
+  /**
+   * LE CONTROLE QUI SE PERIME LE PLUS VITE, donc celui qu'il faut automatiser.
+   *
+   * `zaer`, `site_classe` et `site_inscrit` figuraient dans `COUCHES_NON_INGEREES` avec un motif juste
+   * — aucun job ne les alimentait. Deux jobs les alimentent maintenant, et laisser la declaration en
+   * place ferait croire au controle que l'absence est assumee, alors que la donnee est la. Le critere
+   * resterait declare `sansSource`, donc gris, sur une donnee disponible : la faute de l'audit 8 dans
+   * l'autre sens.
+   */
+  const doublement = Object.keys(TYPES_INGERES_PAR)
+    .filter((t) => COUCHES_NON_INGEREES[t])
+    .sort();
+  assert.deepEqual(
+    doublement,
+    [],
+    'ces couches sont a la fois declarees ingerees et declarees absentes. Retirez-les de ' +
+      'COUCHES_NON_INGEREES, et retirez `sansSource` du critere correspondant, sinon la fiche restera ' +
+      'grise sur une donnee disponible.',
+  );
+});
 
 /** Types lus dans la table `contrainte`, tous emplacements confondus. */
 function typesLus(source: string): Set<string> {
@@ -153,7 +206,9 @@ test('toute couche lue dans `contrainte` est ingeree, ou son absence est declare
   assert.ok(lus.size >= 6, `attendu au moins 6 types lus, trouve ${lus.size} : le motif ne lit plus rien`);
   assert.ok(ecrits.has('monument_historique'), 'les monuments historiques doivent etre ingeres');
 
-  const nonAlimentes = [...lus].filter((t) => !ecrits.has(t) && !COUCHES_NON_INGEREES[t]).sort();
+  const nonAlimentes = [...lus]
+    .filter((t) => !ecrits.has(t) && !TYPES_INGERES_PAR[t] && !COUCHES_NON_INGEREES[t])
+    .sort();
 
   assert.deepEqual(
     nonAlimentes,

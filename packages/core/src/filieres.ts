@@ -144,3 +144,25 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
 export function estFiliere(v: unknown): v is Filiere {
   return typeof v === 'string' && (FILIERES as readonly string[]).includes(v);
 }
+
+/**
+ * Filieres qu'aucune zone d'acceleration ne peut viser.
+ *
+ * POURQUOI CETTE CONSTANTE EXISTE, et pourquoi elle vit dans `@enr/core`. La loi APER cree des zones
+ * d'acceleration pour la PRODUCTION d'energies renouvelables. Une batterie n'est pas un moyen de
+ * production : aucune ZAER ne la vise, et aucune ne la visera.
+ *
+ * Tant que les ZAER n'etaient pas ingerees, le critere `urb_zaer` etait gris pour toutes les filieres
+ * et la question ne se posait pas. L'ingestion nationale la pose : sans cette garde, une parcelle de
+ * projet de stockage recevrait « Hors zone d'acceleration » (45/100) ou « En ZAER, mais pour d'autres
+ * filieres » (60/100) — une PENALITE fabriquee, tiree d'un dispositif qui ne concerne pas la filiere.
+ *
+ * C'est la forme la plus insidieuse du defaut corrige a l'audit 8 : ici la donnee EXISTE et est juste,
+ * et c'est son application a un objet qu'elle ne decrit pas qui produit un chiffre faux. Rendre une
+ * couche disponible peut donc creer un defaut la ou son absence n'en creait pas.
+ *
+ * Partagee entre le moteur (qui doit declarer le critere sans source) et l'ingestion (qui documente
+ * qu'aucune correspondance ne produit cette filiere) : une regle metier ecrite deux fois se
+ * desynchronise.
+ */
+export const FILIERES_HORS_ZAER: readonly Filiere[] = ['bess'];

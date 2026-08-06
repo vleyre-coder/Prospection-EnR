@@ -61,7 +61,12 @@ export async function construireServeur(options: OptionsServeur = {}) {
     // (instance pino deja construite) : ici, l'instance partagee de l'application.
     loggerInstance: journal,
     bodyLimit: 8 * 1024 * 1024,
-    trustProxy: true,
+    /**
+     * Le nombre de relais, et non `true`. Voir `config.web.relaisDeConfiance` : `true` fait prendre a
+     * Fastify l'entree la plus a gauche de `X-Forwarded-For`, donc une valeur fournie par le client,
+     * ce qui rendait la limitation de debit contournable par un simple en-tete.
+     */
+    trustProxy: config.web.relaisDeConfiance,
   });
 
   // CORS : tout ouvert en developpement ; en production, les origines locales plus celles
