@@ -11,6 +11,69 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Corrigé — fiabilité de ce qui est rendu à l'écran (audit 9)
+
+- **Une liste triée puis tronquée n'était pas une liste, c'était un tirage** (audit 9, défaut B1).
+  Aucun des tris de l'application ne portait de départage : le tri s'arrêtait au score, à la surface
+  ou à la date. Or le score est arrondi au dixième — 1 001 valeurs possibles sur 0-100 — donc les
+  parcelles ex æquo se comptent par centaines dès qu'une campagne départementale est lancée. Mesuré
+  sur 200 000 lignes, requête et données identiques, seul le plan PostgreSQL différant : **113 des
+  300 parcelles rendues changent (38 %)** entre plan séquentiel et plan parallèle, 107 changent après
+  la simple création d'un index. En pagination, **20 des 25 parcelles de la page 2 étaient déjà sur la
+  page 1, et 21 des 50 meilleures n'apparaissaient sur aucune des deux**. Deux prospecteurs aux mêmes
+  filtres n'obtenaient donc pas les mêmes parcelles, et le CSV exporté n'était pas reproductible.
+  Départage par une colonne unique partout où un tri est tronqué ; coût mesuré : 0,95 ms → 1,01 ms sur
+  200 000 lignes. Un garde structurel refuse désormais tout littéral SQL qui trie et tronque sans
+  ordre total.
+
+- **Un instantané ne vieillissait que par son âge, jamais par l'arrivée de la donnée** (audit 9,
+  défaut B2). Le scoring ne lit pas les couches, il lit le snapshot figé à l'enrichissement. Ni la
+  règle des 30 jours ni l'empreinte du moteur — qui couvre le code, le référentiel et les barèmes,
+  mais pas la donnée — ne pouvaient voir une ingestion. Mesuré : **438 parcelles portant un snapshot
+  de 11 h 48, sites classés et inscrits ingérés à 19 h 38**, aucune détection possible. Le sens de
+  l'erreur n'est pas toujours prudent : un snapshot pris quand la couche existait déjà affirme une
+  absence, et un site nouvellement classé ne sera jamais vu — une parcelle devenue rédhibitoire reste
+  verte. `couverture_ingestion.date_ingestion` sert désormais de signal : la qualification et la fiche
+  parcelle réenrichissent, `/api/sante` publie le retard, `POST /api/qualification/rafraichir` le
+  résorbe par lots bornés, et l'interface l'affiche. Vérifié de bout en bout : **411 des 438 parcelles
+  ont été reprises** par une campagne réelle, et le critère patrimonial est passé de « aucune source
+  ingérée » à une absence réellement constatée.
+
+- **La fiche parcelle n'appliquait pas la règle de péremption des 30 jours** (audit 9, défaut B2).
+  Elle ne réenrichissait que si la parcelle était absente du cache ou si le rafraîchissement était
+  demandé explicitement : une parcelle consultée une fois pouvait afficher indéfiniment l'état des
+  sources à la date de sa première consultation.
+
+- **Une distance au plus proche n'était pas une mesure** (audit 9, défaut B3). Chercher l'objet le
+  plus proche revient à balayer un disque, et ce disque franchit les frontières départementales :
+  mesuré sur le référentiel communal réel, 10 km couvrent deux départements, 60 km en couvrent six.
+  L'ingestion des postes sources parcourt les treize régions et tolère l'échec de l'une d'elles, sans
+  écrire aucune ligne de couverture — Capareseau ne publie pas le département. Une région manquante
+  faisait donc attribuer aux parcelles voisines un poste à 90 ou 150 km, **noté comme une mesure** :
+  faux ROUGE sur le critère le plus lourd du profil, l'inverse du défaut B1 de l'audit 8. Même faille
+  pour le site d'injection gaz et pour le patrimoine au-delà d'une limite départementale, et cas
+  extrême en outre-mer, que Capareseau ne couvre pas du tout. La distance n'est désormais rendue que
+  si tous les départements traversés par le disque sont couverts ; l'ingestion des postes les rattache
+  à leur commune par jointure spatiale et enregistre sa couverture.
+
+- **Une pagination interrompue était enregistrée comme complète** (audit 9, défaut C1). L'ingestion
+  des sites d'injection GRDF entoure toute sa pagination d'un seul `try/catch` : une erreur à la
+  page 3 sur 9 en sortait et le statut enregistré restait « ok ». Un tiers des sites d'injection de
+  France était déclaré complet, et la distance au site le plus proche — critère de raccordement de la
+  méthanisation — se calculait dessus. Le statut devient « partiel » et aucune couverture n'est
+  écrite.
+
+### Performance (audit 9)
+
+- **Les filtres de proximité empêchaient l'usage des index qu'ils avaient** (audit 9, défaut C2).
+  Écrits `ST_DWithin(geom::geography, …)`, ils forçaient le parcours complet de la table et la
+  conversion de chaque géométrie. Mesures par appel, et ces requêtes sont appelées une fois par
+  parcelle : **3 434 ms → 4,4 ms** pour les départements d'un disque sur 34 875 communes, **847 ms →
+  8,4 ms** pour les objets patrimoniaux dans 10 km. Sur un lot de 500 parcelles, l'écart dépasse la
+  demi-heure. Un préfiltre en espace géométrique précède désormais le filtre métrique exact ; la marge
+  en degrés est calculée sur le degré de longitude, donc le préfiltre retient toujours un peu plus que
+  le rayon demandé, jamais moins.
+
 ### Sécurité
 
 - **La limitation de débit était contournable par un simple en-tête** (audit 8, seconde passe). Le

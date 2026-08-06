@@ -229,6 +229,15 @@ export interface Sante {
   amorcage?: Amorcage;
   sources: EtatSource[];
   sourcesPerimees: string[];
+  /**
+   * Parcelles dont le snapshot est absent, perime par l'age, ou ANTERIEUR a la derniere ingestion
+   * touchant leur departement. `null` si la base n'a pas repondu.
+   *
+   * Audit 9, defaut A2 : ce retard etait invisible. Un snapshot ne vieillissait que par son age, et
+   * l'empreinte du moteur ne couvre pas la donnee — apres une ingestion, la carte et les listes
+   * continuaient d'afficher l'etat d'avant sans que rien ne l'indique.
+   */
+  parcellesARafraichir?: number | null;
 }
 
 /** Avancement d'une campagne de qualification menee en arriere-plan. */
@@ -514,6 +523,19 @@ export const api = {
     }>('/api/qualification/emprise', { methode: 'POST', corps: { bbox, filiere, surfaceMinM2 } }),
 
   etatQualification: () => appeler<EtatQualification>('/api/qualification/etat'),
+
+  /**
+   * Reprend un lot de parcelles en retard sur la donnee (audit 9, defaut A2).
+   *
+   * Le lot est borne cote serveur et la route partage la limitation de debit de la qualification :
+   * un rafraichissement consomme le quota des API publiques comme une campagne. `restant` indique
+   * s'il faut rappeler.
+   */
+  rafraichirParcelles: (limite?: number) =>
+    appeler<{ nbParcelles: number; nbEnrichies?: number; nbEchecs?: number; restant: number }>(
+      '/api/qualification/rafraichir',
+      { methode: 'POST', corps: limite == null ? {} : { limite } },
+    ),
 
   /** Zonages d'un calque vectoriel sur l'emprise visible. */
   zonage: (id: string, bbox: [number, number, number, number]) =>

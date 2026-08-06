@@ -196,7 +196,11 @@ export function App(): JSX.Element {
 
       {sante.data?.amorcage && <BandeauAmorcage amorcage={sante.data.amorcage} />}
 
-      <BandeauAvertissements referentiel={ref} sourcesPerimees={sante.data?.sourcesPerimees ?? []} />
+      <BandeauAvertissements
+        referentiel={ref}
+        sourcesPerimees={sante.data?.sourcesPerimees ?? []}
+        parcellesARafraichir={sante.data?.parcellesARafraichir ?? null}
+      />
 
       {sante.isError && (
         <div className="bandeau erreur">
@@ -584,16 +588,21 @@ function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | nu
 function BandeauAvertissements({
   referentiel,
   sourcesPerimees,
+  parcellesARafraichir,
 }: {
   referentiel: Parameters<typeof Carte>[0]['referentiel'];
   sourcesPerimees: string[];
+  parcellesARafraichir: number | null;
 }): JSX.Element | null {
   const etat = useEtat();
+  const clientRequetes = useQueryClient();
+  const [rafraichissementEnCours, setRafraichissementEnCours] = useState(false);
   const globaux = referentiel.avertissements.filter(
     (a) => a.portee === 'global' && !etat.avertissementsMasques.includes(a.id),
   );
 
-  if (globaux.length === 0 && sourcesPerimees.length === 0) return null;
+  const enRetard = parcellesARafraichir != null && parcellesARafraichir > 0;
+  if (globaux.length === 0 && sourcesPerimees.length === 0 && !enRetard) return null;
 
   return (
     <>
@@ -621,6 +630,45 @@ function BandeauAvertissements({
             periodicite de mise a jour ({sourcesPerimees.join(', ')}). Les criteres concernes
             peuvent etre obsoletes ou indisponibles.
           </p>
+        </div>
+      )}
+      {/*
+        Retard entre la donnee ingeree et les parcelles deja qualifiees — audit 9, defaut A2.
+
+        Le score ne se calcule pas sur les couches, mais sur le snapshot fige a l'enrichissement.
+        Une ingestion de sites proteges, de ZAER ou de postes sources n'atteignait donc pas les
+        parcelles deja qualifiees : leur snapshot restait valide au sens de l'age, et le recalcul par
+        version de moteur le relisait fidelement. La carte affichait l'etat d'avant l'ingestion, sans
+        que rien ne le dise. Ouvrir une fiche repare la parcelle concernee ; ce bandeau permet de
+        reprendre le lot, et surtout de SAVOIR que le retard existe.
+      */}
+      {enRetard && (
+        <div className="bandeau">
+          <Icone nom="alerte" />
+          <p>
+            <strong>Parcelles en retard sur la donnee.</strong> {parcellesARafraichir} parcelle(s)
+            ont ete qualifiees avant la derniere ingestion de leur departement : la carte et les
+            listes affichent pour elles l&apos;etat d&apos;avant. Ouvrir une fiche met la parcelle a
+            jour ; le bouton reprend un lot.
+          </p>
+          <button
+            type="button"
+            className="bouton-discret"
+            disabled={rafraichissementEnCours}
+            onClick={() => {
+              setRafraichissementEnCours(true);
+              void api
+                .rafraichirParcelles()
+                .catch(() => undefined)
+                .finally(() => {
+                  setRafraichissementEnCours(false);
+                  // La sante porte le compteur, les scores portent la carte : les deux changent.
+                  void clientRequetes.invalidateQueries();
+                });
+            }}
+          >
+            {rafraichissementEnCours ? 'Rafraichissement…' : 'Rafraichir un lot'}
+          </button>
         </div>
       )}
     </>

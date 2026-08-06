@@ -139,8 +139,23 @@ export async function qualifierIdus(
       let snapshot = existant?.snapshot;
       let echecs = existant?.connecteursEnEchec ?? [];
 
+      /**
+       * Trois motifs de reprendre l'enrichissement, et non deux — audit 9, defaut A2.
+       *
+       * Le troisieme est l'arrivee de la donnee. Sans lui, une ingestion de sites proteges, de
+       * ZAER ou de postes sources n'atteignait jamais les parcelles deja qualifiees : leur
+       * snapshot restait valide au sens de l'age, et le rescoring par version de moteur le
+       * relisait fidelement. Mesure : 438 parcelles portant un snapshot anterieur de huit heures
+       * a l'ingestion des sites, et rien pour le detecter.
+       */
       const doitEnrichir =
-        options.forcer === true || !existant || depotParcelles.snapshotPerime(existant.dateSnapshot);
+        options.forcer === true ||
+        !existant ||
+        depotParcelles.snapshotPerime(existant.dateSnapshot) ||
+        (await depotParcelles.snapshotDepasseParDonnee(
+          existant.dateSnapshot,
+          enBase.codeDepartement,
+        ));
 
       if (doitEnrichir) {
         const resultat = await enrichirParcelle({

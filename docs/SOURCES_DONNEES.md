@@ -336,6 +336,48 @@ produit un critère GRIS**, jamais un critère favorable. Conséquences visibles
 - les connecteurs en échec sont listés en bas de la fiche ;
 - un knock-out ne se déclenche jamais sur une donnée absente.
 
+### 5.1 Une distance au plus proche n'est une mesure que si le disque est ingéré
+
+Ajouté à l'audit 9. La règle ci-dessus se posait par couche et par département. Elle ne suffit pas
+pour une **recherche de proximité** : chercher l'objet le plus proche d'un point revient à balayer un
+disque, et ce disque ne s'arrête pas à la frontière du département de la parcelle. Mesuré sur le
+référentiel communal réel, depuis un point de Beauce : **10 km couvrent deux départements, 45 km en
+couvrent cinq, 60 km en couvrent six.**
+
+La règle est donc étendue : la distance `d` mesurée depuis un point n'est exploitable que si **tous
+les départements que le disque de rayon `d` traverse** sont couverts pour cette couche. Un département
+non couvert dans ce disque pourrait contenir un objet plus proche : `d` n'est alors pas une distance,
+c'est une borne supérieure, et le critère reste gris.
+
+Ce que cela ferme concrètement :
+
+| Couche | Situation partielle réellement possible | Conséquence avant l'audit 9 |
+|---|---|---|
+| Postes sources | l'ingestion parcourt 13 régions et tolère l'échec de l'une d'elles (statut « partiel ») | poste attribué à 90 ou 150 km, noté comme une mesure : **faux rouge** sur le critère le plus lourd |
+| Postes sources (outre-mer) | Capareseau ne couvre pas les DOM | poste métropolitain à plus de 6 000 km, noté comme une mesure |
+| Sites d'injection gaz | pagination interrompue en cours de route, statut enregistré « ok » | distance surestimée sur une fraction du jeu |
+| Sites classés / inscrits, SPR, monuments | rayon de 10 km franchissant une limite départementale | site à 3 km de l'autre côté invisible, et son absence **affirmée** |
+
+Le mécanisme n'est pas un refus des grandes distances : la même distance redevient exploitable dès que
+tout le disque est déclaré couvert. C'est un contrôle de la donnée, pas du résultat.
+
+### 5.2 Un instantané périmé est une absence de donnée déguisée
+
+Ajouté à l'audit 9. Le score ne se calcule jamais sur les couches, mais sur le **snapshot** figé au
+moment de l'enrichissement. Une ingestion réussie n'atteignait donc pas les parcelles déjà qualifiées :
+ni la règle de péremption par l'âge (30 jours) ni l'empreinte du moteur — qui couvre le code, le
+référentiel et les barèmes, explicitement pas la donnée — ne pouvaient la voir.
+
+`couverture_ingestion.date_ingestion` sert désormais de signal : un snapshot antérieur à la dernière
+ingestion touchant son département est dépassé. La qualification et la fiche parcelle réenrichissent,
+`/api/sante` publie le nombre de parcelles en retard, et `POST /api/qualification/rafraichir` reprend
+un lot borné.
+
+**Conséquence d'exploitation.** Après chaque ingestion, le bandeau « parcelles en retard sur la
+donnée » indique combien de parcelles affichent encore l'état d'avant. Le rafraîchissement reste
+déclenché par l'utilisateur, et non en tâche de fond : il consomme le quota des API publiques
+exactement comme une campagne de qualification.
+
 ### 3.2 Intrants méthanisables — recherche de source menée, et pourquoi elle n'aboutit pas
 
 Cette section existe pour qu'on ne refasse pas la recherche. `gis_intrants` pèse **16,5 % de la note

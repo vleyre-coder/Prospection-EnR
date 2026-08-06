@@ -172,7 +172,9 @@ jobs:
       - name: Tester la stabilite des listes et la couverture du disque contre PostGIS
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
-        run: npx tsx --test test/pagination-stable.test.ts test/couverture-disque.test.ts
+        run: >-
+          npx tsx --test test/pagination-stable.test.ts test/couverture-disque.test.ts
+          test/snapshot-perime-par-donnee.test.ts
         working-directory: apps/api
 
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :

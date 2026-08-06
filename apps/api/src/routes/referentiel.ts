@@ -28,6 +28,7 @@ import { bddDisponible, requeteUne } from '../bdd.js';
 import { config } from '../config.js';
 import { CALQUES } from '../calques.js';
 import { etatAmorcage } from '../amorcage.js';
+import { nbARafraichir } from '../depots/parcelles.js';
 import { empreinteReferentiel } from './divers.js';
 import {
   compterContraintes,
@@ -59,10 +60,18 @@ export const COUCHES = [
 
 export async function routesReferentiel(app: FastifyInstance): Promise<void> {
   app.get('/api/sante', async () => {
-    const [bdd, sources, perimees] = await Promise.all([
+    const [bdd, sources, perimees, aRafraichir] = await Promise.all([
       bddDisponible(),
       etatSources().catch(() => []),
       sourcesPerimees().catch(() => []),
+      /**
+       * Parcelles en retard sur la donnee — audit 9, defaut A2.
+       *
+       * Ce retard etait purement invisible : un snapshot ne vieillissait que par son age, et
+       * l'empreinte du moteur ne couvre pas la donnee. Apres une ingestion, la carte et les listes
+       * continuaient d'afficher l'etat d'avant, sans qu'aucun indicateur ne l'indique.
+       */
+      nbARafraichir().catch(() => null),
     ]);
     const amorcage = etatAmorcage();
 
@@ -100,6 +109,14 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       amorcage,
       sources,
       sourcesPerimees: perimees,
+      /**
+       * Nombre de parcelles dont le snapshot est absent, perime par l'age, ou anterieur a la
+       * derniere ingestion touchant leur departement. `null` si la base n'a pas repondu.
+       *
+       * Non nul apres une ingestion : les parcelles concernees affichent l'etat d'avant jusqu'a
+       * leur prochaine consultation ou un appel a `POST /api/qualification/rafraichir`.
+       */
+      parcellesARafraichir: aRafraichir,
     };
   });
 

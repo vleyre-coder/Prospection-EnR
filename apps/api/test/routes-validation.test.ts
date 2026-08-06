@@ -705,3 +705,39 @@ test('les charges utiles exactes de l’interface sont acceptées', async () => 
     );
   }
 });
+
+/**
+ * La route de rafraichissement valide son corps AVANT de lancer le moindre travail.
+ *
+ * AUDIT 9, DEFAUT A2. `POST /api/qualification/rafraichir` reprend un lot de parcelles en retard sur
+ * la donnee. Elle n'est PAS ajoutee au rejeu des appels du client ci-dessus, et la raison merite
+ * d'etre ecrite : un appel accepte declenche une qualification reelle, donc des centaines de
+ * requetes vers les API publiques. La premiere version de ce test l'a fait, et la suite ne rendait
+ * plus la main — un test ne doit pas consommer le quota d'une equipe pour verifier un code de retour.
+ *
+ * Ce qui est verifie ici est donc la seule chose verifiable sans effet de bord : un corps fautif est
+ * refuse a la validation, avant tout acces a la base et tout appel sortant.
+ */
+test('A2 : la route de rafraichissement refuse un corps fautif avant tout travail', async () => {
+  const app = await serveur();
+  const fautifs: Array<{ corps: unknown; motif: string }> = [
+    { corps: { limite: 'abc' }, motif: 'limite non numerique' },
+    { corps: { limite: 0 }, motif: 'limite sous le minimum' },
+    { corps: { limite: 1_000_000 }, motif: 'limite au-dela du plafond' },
+    { corps: { filiere: 'nucleaire' }, motif: 'filiere hors liste' },
+    { corps: { inconnu: 1 }, motif: 'champ inconnu' },
+  ];
+  for (const { corps, motif } of fautifs) {
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/api/qualification/rafraichir',
+      headers: entetes(app, 'prospection'),
+      payload: corps as never,
+    });
+    assert.equal(
+      rep.statusCode,
+      400,
+      `${motif} : attendu 400, obtenu ${rep.statusCode} — ${rep.body.slice(0, 200)}`,
+    );
+  }
+});

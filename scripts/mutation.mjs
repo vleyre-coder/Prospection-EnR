@@ -196,6 +196,22 @@ const MUTATIONS = [
     vers: '    return true;',
     tests: ['apps/api/test/couverture-disque.test.ts', 'apps/api/test/patrimoine-couches.test.ts'],
   },
+  {
+    audit: 'audit 9',
+    quoi: 'un snapshot redevient insensible a l’arrivee de la donnee',
+    fichier: 'apps/api/src/depots/parcelles.ts',
+    de: '  return new Date(dateSnapshot).getTime() < derniere;',
+    vers: '  return false;',
+    tests: ['apps/api/test/snapshot-perime-par-donnee.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'le lot a rafraichir oublie de comparer le snapshot a la derniere ingestion',
+    fichier: 'apps/api/src/depots/parcelles.ts',
+    de: ' OR s.date_snapshot < (\n      SELECT max(ci.date_ingestion) FROM couverture_ingestion ci\n       WHERE ci.code_departement = p.code_departement\n    )',
+    vers: '',
+    tests: ['apps/api/test/snapshot-perime-par-donnee.test.ts'],
+  },
 ];
 
 let echecs = 0;

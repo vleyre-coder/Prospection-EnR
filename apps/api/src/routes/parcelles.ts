@@ -104,7 +104,28 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     let parcelle = await depotParcelles.parcelleParIdu(idu);
     let snapshot = parcelle ? await depotParcelles.snapshotParIdu(idu) : null;
 
-    if (!parcelle || !snapshot || forcer) {
+    /**
+     * La fiche ne servait JAMAIS une donnee perimee sans le savoir, elle la servait sans le dire.
+     *
+     * AUDIT 9, DEFAUT A2. Cette route ne re-enrichissait que si la parcelle etait absente du cache
+     * ou si le rafraichissement etait demande explicitement. La regle des 30 jours, appliquee par
+     * `qualifierIdus`, n'etait donc pas appliquee ici : une parcelle qualifiee une fois pouvait
+     * afficher indefiniment l'etat des sources a la date de sa premiere consultation. Et une
+     * ingestion survenue depuis ne changeait rien non plus.
+     *
+     * Le cout est assume : re-enrichir a l'ouverture d'une fiche prend quelques secondes. Servir
+     * un fait obsolete en le presentant comme actuel coute plus cher.
+     */
+    const depasse =
+      snapshot != null &&
+      parcelle != null &&
+      (depotParcelles.snapshotPerime(snapshot.dateSnapshot) ||
+        (await depotParcelles.snapshotDepasseParDonnee(
+          snapshot.dateSnapshot,
+          parcelle.codeDepartement,
+        )));
+
+    if (!parcelle || !snapshot || forcer || depasse) {
       await qualifierIdus([idu], { forcer, filieres: [filiere] });
       parcelle = await depotParcelles.parcelleParIdu(idu);
       snapshot = parcelle ? await depotParcelles.snapshotParIdu(idu) : null;
@@ -412,5 +433,38 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     c.refuserInconnus();
     if (!idus?.length) return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
     return qualifierIdus(idus, { forcer, filieres: filiere ? [filiere] : undefined });
+  });
+
+  /**
+   * Rafraichit les parcelles en retard sur la donnee — audit 9, defaut A2.
+   *
+   * `idusARafraichir` existait depuis longtemps et n'etait appelee par PERSONNE : c'etait le
+   * quatrieme mecanisme ecrit puis oublie du projet. Son commentaire annonçait « pour les jobs de
+   * rafraichissement », et ces jobs n'existaient pas — rien ne reprenait donc jamais une parcelle
+   * dont la donnee avait vieilli, sauf a la consulter une par une.
+   *
+   * Le lot est BORNE et la route est soumise a la meme limitation de debit que la qualification :
+   * un rafraichissement consomme le quota des API publiques exactement comme une campagne. Le
+   * declenchement reste une decision de l'utilisateur, qui voit le retard dans `/api/sante`, plutot
+   * qu'un travail de fond qui viendrait concurrencer ses propres campagnes sur le meme quota.
+   */
+  app.post('/api/qualification/rafraichir', debitQualification, async (req, rep) => {
+    const c = lecteur(req.body ?? {});
+    const limite = c.nombre('limite', { min: 1, max: MAX_PARCELLES_PAR_APPEL });
+    const filiere = c.parmi('filiere', FILIERES);
+    c.refuserInconnus();
+
+    const idus = await depotParcelles.idusARafraichir(limite ?? 100);
+    if (idus.length === 0) {
+      return { nbParcelles: 0, restant: 0, message: 'Aucune parcelle en retard sur la donnee' };
+    }
+    const resultat = await qualifierIdus(idus, {
+      // `forcer` est inutile : ces parcelles sont deja selectionnees parce qu'elles doivent etre
+      // reprises. Le laisser a faux evite de re-enrichir celles qu'un autre appel vient de traiter.
+      filieres: filiere ? [filiere] : undefined,
+    });
+    // Le reste apres traitement : l'utilisateur doit savoir s'il faut rappeler la route.
+    const restant = await depotParcelles.nbARafraichir().catch(() => 0);
+    return { ...resultat, restant };
   });
 }

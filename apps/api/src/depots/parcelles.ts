@@ -187,18 +187,123 @@ export function snapshotPerime(dateSnapshot: string): boolean {
   return age > config.cache.snapshotMaxAgeJours * 24 * 3600 * 1000;
 }
 
-/** IDU dont le snapshot est absent ou perime, pour les jobs de rafraichissement. */
+/**
+ * UN SNAPSHOT VIEILLIT AUSSI PAR L'ARRIVEE DE LA DONNEE, ET PAS SEULEMENT PAR SON AGE.
+ *
+ * POURQUOI — audit 9, defaut A2. Le scoring ne lit jamais les couches : il lit le SNAPSHOT, fige au
+ * moment de l'enrichissement. Deux mecanismes seulement le renouvelaient, et aucun des deux ne
+ * pouvait voir un changement de donnee :
+ *
+ *   - `snapshotPerime` regarde l'AGE (30 jours par defaut). Une ingestion faite ce matin ne rend
+ *     pas plus vieux un snapshot d'hier ;
+ *   - `VERSION_MOTEUR` empreinte le CODE, le referentiel reglementaire et les baremes — son
+ *     commentaire dit explicitement qu'elle ne couvre pas la donnee. Le rescoring qu'elle declenche
+ *     recalcule fidelement a partir du meme snapshot perime, donc il reproduit la meme valeur.
+ *
+ * Mesure faite sur cette base : 438 parcelles du departement 28 portaient un snapshot de 11 h 48,
+ * les sites classes et inscrits ont ete ingeres a 19 h 38 — huit heures plus tard — et rien dans
+ * l'application ne pouvait le detecter. Ces parcelles continuaient a repondre « aucune source
+ * ingeree » sur le patrimoine alors que la donnee etait la.
+ *
+ * Le sens de l'erreur n'est pas toujours prudent, et c'est ce qui rend le defaut grave. Un snapshot
+ * pris AVANT l'arrivee d'une couche dit « inconnu », ce qui est honnete ; mais un snapshot pris
+ * quand la couche existait deja dit `recouvre: false` — une absence CONSTATEE — et un site
+ * nouvellement classe, une ZAER nouvellement deliberee ou un poste source nouvellement construit ne
+ * seront jamais vus. Une parcelle devenue redhibitoire reste verte.
+ *
+ * `couverture_ingestion.date_ingestion` est le signal qui manquait : la table est deja tenue par
+ * departement et par type. Un snapshot antorieur a la derniere ingestion touchant son departement
+ * est donc depasse par la donnee, sans qu'aucun schema nouveau soit necessaire.
+ */
+export async function snapshotDepasseParDonnee(
+  dateSnapshot: string,
+  codeDepartement: string | null,
+): Promise<boolean> {
+  if (!codeDepartement) return false;
+  const derniere = await derniereIngestionDepartement(codeDepartement);
+  if (derniere == null) return false;
+  return new Date(dateSnapshot).getTime() < derniere;
+}
+
+/**
+ * Date de la derniere ingestion touchant un departement, en millisecondes.
+ *
+ * Mise en cache : la question est posee une fois par parcelle sur des lots de plusieurs centaines,
+ * et la reponse ne change qu'a l'ingestion suivante. Le cache est volontairement court — une
+ * ingestion en cours doit etre prise en compte sans redemarrer le serveur.
+ */
+const DUREE_CACHE_INGESTION_MS = 60 * 1000;
+const cacheIngestion = new Map<string, { valeur: number | null; expire: number }>();
+
+async function derniereIngestionDepartement(codeDepartement: string): Promise<number | null> {
+  const enCache = cacheIngestion.get(codeDepartement);
+  if (enCache && enCache.expire > Date.now()) return enCache.valeur;
+
+  const lignes = await requete<{ derniere: Date | null }>(
+    `SELECT max(date_ingestion) AS derniere FROM couverture_ingestion WHERE code_departement = $1`,
+    [codeDepartement],
+  ).catch(() => [] as Array<{ derniere: Date | null }>);
+  const brut = lignes[0]?.derniere ?? null;
+  const valeur = brut == null ? null : brut.getTime();
+  cacheIngestion.set(codeDepartement, { valeur, expire: Date.now() + DUREE_CACHE_INGESTION_MS });
+  return valeur;
+}
+
+/** Vide le cache des dates d'ingestion. Utilise par les tests et apres une ingestion. */
+export function oublierDatesIngestion(): void {
+  cacheIngestion.clear();
+}
+
+/**
+ * Condition SQL commune a `idusARafraichir` et `nbARafraichir` : snapshot absent, trop vieux, ou
+ * anterieur a la derniere ingestion touchant le departement de la parcelle.
+ *
+ * Ecrite une fois et partagee, pour que le compteur affiche par `/api/sante` et la population
+ * effectivement traitee ne puissent pas diverger.
+ */
+const CONDITION_A_RAFRAICHIR = `
+    s.idu IS NULL
+ OR s.date_snapshot < now() - ($1 || ' days')::interval
+ OR s.date_snapshot < (
+      SELECT max(ci.date_ingestion) FROM couverture_ingestion ci
+       WHERE ci.code_departement = p.code_departement
+    )`;
+
+/**
+ * IDU dont le snapshot est absent, perime par l'age, ou depasse par une ingestion.
+ *
+ * Les parcelles les plus en retard d'abord : un lot borne doit traiter en priorite celles dont
+ * l'ecart avec la donnee est le plus grand.
+ */
 export async function idusARafraichir(limite = 500): Promise<string[]> {
   const lignes = await requete<{ idu: string }>(
     `SELECT p.idu
        FROM parcelle p
        LEFT JOIN parcelle_snapshot s ON s.idu = p.idu
-      WHERE s.idu IS NULL
-         OR s.date_snapshot < now() - ($1 || ' days')::interval
+      WHERE ${CONDITION_A_RAFRAICHIR}
+      ORDER BY s.date_snapshot ASC NULLS FIRST, p.idu ASC
       LIMIT $2`,
     [config.cache.snapshotMaxAgeJours, limite],
   );
   return lignes.map((l) => l.idu);
+}
+
+/**
+ * Combien de parcelles attendent un rafraichissement.
+ *
+ * Expose par `/api/sante`. Sans ce compteur, le retard entre la donnee ingeree et les parcelles
+ * deja qualifiees etait purement invisible : l'utilisateur n'avait aucun moyen de savoir que sa
+ * carte affichait l'etat d'avant l'ingestion.
+ */
+export async function nbARafraichir(): Promise<number> {
+  const lignes = await requete<{ n: number }>(
+    `SELECT count(*)::int AS n
+       FROM parcelle p
+       LEFT JOIN parcelle_snapshot s ON s.idu = p.idu
+      WHERE ${CONDITION_A_RAFRAICHIR}`,
+    [config.cache.snapshotMaxAgeJours],
+  );
+  return lignes[0]?.n ?? 0;
 }
 
 /**
