@@ -38,7 +38,7 @@ import type { Filiere } from '@enr/core';
 import { config } from '../config.js';
 import { journal } from '../journal.js';
 import { requete } from '../bdd.js';
-import { avecParams } from '../http.js';
+import { ATTENTES_PAR_PROFIL, avecParams } from '../http.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
 import { oublierPresenceCouches } from '../connecteurs/couches.js';
 import { createHash } from 'node:crypto';
@@ -62,14 +62,14 @@ const TAILLE_PAGE = 5000;
 const PAGES_MAX = 400;
 
 /**
- * Attentes entre deux tentatives, en millisecondes.
+ * Attentes entre deux tentatives, PARTAGEES avec la couche HTTP.
  *
- * Calibrees sur le comportement REEL du service, et non sur une progression theorique. Un 503 signale
- * une surcharge, pas une erreur de requete : il demande d'attendre, et sept secondes ne sont pas une
- * attente. La derniere tentative intervient donc apres plus de trois minutes cumulees, ce qui est
- * negligeable devant une ingestion d'une heure et evite de jeter tout le travail.
+ * Calibrees sur le comportement REEL du service : un 503 signale une surcharge, pas une erreur de
+ * requete, et sept secondes ne sont pas une attente. Cette echelle est celle du profil `patient` de
+ * `jsonExterne` — la meme politique doit valoir pour toutes les ingestions, qu'elles passent par le
+ * client JSON ou par le lecteur de flux. En tenir une copie ici les aurait laissees deriver.
  */
-const ATTENTES_MS = [5_000, 15_000, 45_000, 120_000] as const;
+const ATTENTES_MS = ATTENTES_PAR_PROFIL.patient;
 
 /** Respiration entre deux pages, pour ne pas provoquer la surcharge qu'on devrait ensuite absorber. */
 const PAUSE_ENTRE_PAGES_MS = 400;

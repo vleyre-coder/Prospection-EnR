@@ -184,14 +184,15 @@ export async function urlRessourceDataGouv(
   idJeu: string,
   format: string,
 ): Promise<{ url: string; derniereMaj: string | null }> {
-  // data.gouv.fr renvoie regulierement des 503 transitoires : on passe par le client HTTP
-  // de l'application, qui reessaie avec attente exponentielle.
+  // data.gouv.fr renvoie regulierement des 503 transitoires : on passe par le client HTTP de
+  // l'application, avec le profil PATIENT. Le profil reactif attend 1,2 seconde en tout, ce qui
+  // convient a un appel par parcelle mais fait abandonner une ingestion nationale pour rien.
   const jeu = await jsonExterne<{
     last_update?: string;
     resources?: Array<{ format?: string; url?: string }>;
   }>(`https://www.data.gouv.fr/api/1/datasets/${idJeu}/`, {
     connecteur: 'data_gouv',
-    tentatives: 4,
+    profilAttente: 'patient',
     timeoutMs: 30000,
   });
   const ressource = jeu.resources?.find((r) => (r.format ?? '').toLowerCase() === format.toLowerCase());

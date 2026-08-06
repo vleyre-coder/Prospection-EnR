@@ -93,6 +93,25 @@ export interface OptionsRequete {
   cacheTtlMs?: number;
   /** Nombre de tentatives, la premiere incluse. */
   tentatives?: number;
+  /**
+   * Profil d'attente entre deux tentatives.
+   *
+   * POURQUOI DEUX PROFILS, et pourquoi le defaut n'est pas le plus patient. L'attente etait de
+   * 400 ms puis 800 ms, soit 1,2 seconde en tout. C'est le bon ordre de grandeur pour une coupure
+   * reseau, et beaucoup trop court pour un 503 : un service qui repond 503 signale une surcharge, et
+   * demande d'attendre. Constate a l'execution : l'ingestion des communes a abandonne apres
+   * 1,2 seconde et zero objet, et celle des ZAER apres seize secondes.
+   *
+   * Mais allonger l'attente PARTOUT serait une faute symetrique. Les quatorze connecteurs interroges
+   * pendant la qualification d'une parcelle doivent echouer VITE : le critere passe au gris, la
+   * qualification continue, et l'echec est remonte. Bloquer trois minutes sur une parcelle parmi
+   * plusieurs centaines rendrait une campagne interminable pour rien.
+   *
+   *   - `reactif` (defaut) : 400 ms, 800 ms. Pour les appels par parcelle.
+   *   - `patient` : 5 s, 15 s, 45 s, 120 s. Pour les ingestions, ou l'alternative est de jeter
+   *     l'intégralité d'un travail de plusieurs minutes.
+   */
+  profilAttente?: 'reactif' | 'patient';
   timeoutMs?: number;
 }
 
@@ -101,6 +120,20 @@ export interface OptionsRequete {
  * Leve une `ErreurSource` en cas d'echec definitif : l'appelant doit alors laisser les
  * champs concernes a null plutot que d'inventer une valeur.
  */
+/**
+ * Attentes en millisecondes, par profil. Voir `OptionsRequete.profilAttente`.
+ *
+ * Le profil patient est calibre sur le comportement REEL des services : les valeurs viennent des 503
+ * essuyes en ingerant la couche nationale des ZAER, pas d'une progression theorique.
+ */
+export const ATTENTES_PAR_PROFIL = {
+  reactif: [400, 800, 1_600, 3_200],
+  patient: [5_000, 15_000, 45_000, 120_000],
+} as const;
+
+/** Nombre de tentatives par defaut selon le profil : une ingestion insiste davantage. */
+const TENTATIVES_PAR_PROFIL = { reactif: 3, patient: 5 } as const;
+
 export async function jsonExterne<T>(url: string, options: OptionsRequete): Promise<T> {
   const methode = options.methode ?? 'GET';
   const ttl = options.cacheTtlMs ?? (methode === 'GET' ? config.http.cacheTtlMs : 0);
@@ -113,7 +146,10 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
 
   const domaine = new URL(url).host;
   const liberer = await acquerir(domaine);
-  const tentatives = options.tentatives ?? config.http.tentatives;
+  const profil = options.profilAttente ?? 'reactif';
+  const tentatives =
+    options.tentatives ??
+    (options.profilAttente ? TENTATIVES_PAR_PROFIL[profil] : config.http.tentatives);
   const timeoutMs = options.timeoutMs ?? config.http.timeoutMs;
 
   try {
@@ -135,11 +171,27 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
         });
 
         if (reponse.status === 429 || reponse.status >= 500) {
-          throw new ErreurSource(
-            options.connecteur,
-            url,
-            `Reponse ${reponse.status} de la source`,
-            reponse.status,
+          // `Retry-After` peut valoir un nombre de secondes ou une date HTTP : les deux formes sont
+          // admises par la specification, et les services francais utilisent les deux.
+          const brut = reponse.headers.get('retry-after');
+          let retryAfterMs: number | undefined;
+          if (brut) {
+            const secondes = Number(brut.trim());
+            if (Number.isFinite(secondes) && secondes >= 0) {
+              retryAfterMs = secondes * 1000;
+            } else {
+              const date = Date.parse(brut);
+              if (!Number.isNaN(date)) retryAfterMs = Math.max(0, date - Date.now());
+            }
+          }
+          throw Object.assign(
+            new ErreurSource(
+              options.connecteur,
+              url,
+              `Reponse ${reponse.status} de la source`,
+              reponse.status,
+            ),
+            retryAfterMs != null ? { retryAfterMs } : {},
           );
         }
         if (!reponse.ok) {
@@ -169,9 +221,25 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
         derniereErreur = err as Error;
         if ((err as { definitive?: boolean }).definitive) break;
         if (essai < tentatives) {
-          const attenteMs = 400 * 2 ** (essai - 1);
-          journal.debug(
-            { connecteur: options.connecteur, essai, attenteMs, url: url.slice(0, 120) },
+          const paliers = ATTENTES_PAR_PROFIL[profil];
+          /**
+           * `Retry-After` est HONORE quand le service le fournit.
+           *
+           * C'est la seule indication fiable du delai a respecter : nos paliers sont une estimation,
+           * l'en-tete est une consigne. Il est borne a cinq minutes pour qu'un service mal configure ne
+           * fige pas une ingestion indefiniment.
+           */
+          const consigne = (err as { retryAfterMs?: number }).retryAfterMs;
+          const attenteMs =
+            consigne != null && consigne > 0
+              ? Math.min(consigne, 300_000)
+              : (paliers[essai - 1] ?? paliers[paliers.length - 1]!);
+          // `info` et non `debug` sur le profil patient : une attente de deux minutes doit se voir dans
+          // les journaux d'exploitation, sinon une ingestion lente parait bloquee.
+          const consigner = profil === 'patient' ? journal.info : journal.debug;
+          consigner.call(
+            journal,
+            { connecteur: options.connecteur, essai, attenteMs, profil, url: url.slice(0, 120) },
             'Nouvelle tentative vers une source externe',
           );
           await attendre(attenteMs);

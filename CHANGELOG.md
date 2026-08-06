@@ -146,6 +146,20 @@ calcul, et aucun test écrit d'après le code ne pouvait les voir.
   les charges utiles exactes du client**, méthode par méthode. Ajouter une validation, c'est figer un
   contrat — et le contrat à respecter est celui que les appelants utilisent déjà.
 
+### Corrigé — la reprise sur surcharge de service
+
+- **La reprise sur 503 durait 1,2 seconde pour toutes les ingestions.** Le client HTTP réessayait trois
+  fois avec 400 ms puis 800 ms : le bon ordre de grandeur pour une coupure réseau, beaucoup trop court
+  pour un 503, qui signale une surcharge et demande d'attendre. Constaté deux fois à l'exécution :
+  l'ingestion des ZAER a abandonné après seize secondes et zéro objet, celle des communes après
+  1,2 seconde. J'avais corrigé cela dans **un** module au lieu de la couche partagée — trois ingestions
+  sur cinq restaient exposées. Deux profils explicites existent désormais : `reactif` (défaut, appels
+  par parcelle, le critère grise vite) et `patient` (ingestions, jusqu'à deux minutes). Allonger
+  l'attente partout aurait été une faute symétrique : à 1 000 parcelles et un service en surcharge, cela
+  ferait cinquante heures d'attente pour des critères qui doivent simplement griser.
+- **L'en-tête `Retry-After` est désormais honoré**, sous ses deux formes admises (secondes ou date
+  HTTP), borné à cinq minutes. Nos paliers sont une estimation ; l'en-tête est une consigne.
+
 ### Ajouté — contrôles permanents
 
 - **Un contrôle d'ALIMENTATION, et non plus seulement de citation** (audit 8, item 21). Le contrôle

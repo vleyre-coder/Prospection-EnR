@@ -1182,3 +1182,43 @@ Deux corrections, dont la seconde compte davantage :
 utilisent déjà, pas celui qu'on trouve le plus élégant. Ce test est le seul endroit du dépôt qui le
 vérifie, et il doit être mis à jour avec le client — c'est un coût, bien plus faible que celui d'une
 interface qui répond 400 en silence.
+
+## T7. La reprise sur 503 était trop courte partout, pas seulement dans le WFS
+
+Trouvé en essayant de prouver la chaîne complète : l'ingestion des communes a échoué sur un 503, **sans
+reprise utile**. Elle n'utilise pas la boucle que j'avais ajoutée au module WFS — elle passe par le
+client HTTP général, qui réessayait trois fois avec 400 ms puis 800 ms d'attente, soit **1,2 seconde en
+tout**.
+
+C'est le même défaut que S7, à un étage plus profond : je l'avais corrigé dans **un** module au lieu de
+le corriger dans **la couche partagée**. Trois ingestions sur cinq restaient donc exposées.
+
+**Mais allonger l'attente partout aurait été une faute symétrique**, et c'est ce qui rend la correction
+intéressante. Les quatorze connecteurs interrogés pendant la qualification d'une parcelle doivent
+échouer **vite** : le critère passe au gris, la qualification continue, l'échec est remonté. Bloquer
+trois minutes sur une parcelle parmi plusieurs centaines rendrait une campagne interminable — à
+1 000 parcelles et un service en surcharge, cinquante heures d'attente pour des critères qui doivent
+simplement griser.
+
+D'où **deux profils explicites**, dans la couche HTTP :
+
+| Profil | Attentes | Usage |
+|---|---|---|
+| `reactif` (défaut) | 400 ms, 800 ms, 1,6 s, 3,2 s | appels par parcelle — le critère grise vite |
+| `patient` | 5 s, 15 s, 45 s, 2 min | ingestions — l'alternative est de jeter plusieurs minutes de travail |
+
+L'en-tête `Retry-After` est désormais **honoré** quand le service le fournit, sous ses deux formes
+admises par la spécification (nombre de secondes, ou date HTTP), et borné à cinq minutes pour qu'un
+service mal configuré ne fige pas une ingestion. Nos paliers sont une estimation ; l'en-tête est une
+consigne.
+
+**Deux contrôles structurels**, et il fallait les deux : toute requête d'ingestion doit demander le
+profil patient, et **aucun connecteur de qualification ne doit le demander**. Le défaut d'origine
+n'était pas une mauvaise valeur — c'était un job qui utilisait la politique de l'autre usage sans que
+rien ne le signale. Le premier contrôle **a trouvé un fichier d'ingestion que j'avais manqué**
+(`postes-sources.ts`, trois appels).
+
+Deux défauts dans mes propres tests au passage, tous deux attrapés en les exécutant : un motif qui
+s'arrêtait sur le paramètre de type générique de `jsonExterne` et ne voyait jamais l'objet d'options,
+et un `require` dans un module ESM. Et une correction trop large qui avait inséré l'option dans un
+objet de retour qui n'est pas un appel — rattrapée par relecture du diff.

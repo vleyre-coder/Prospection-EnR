@@ -47,6 +47,7 @@ interface PosteRegional {
 async function uuidsDepuisPage(url: string): Promise<string[]> {
   const html = await jsonExterne<string>(url, {
     connecteur: 'postes_sources',
+    profilAttente: 'patient',
     cacheTtlMs: 0,
     timeoutMs: 30000,
   });
@@ -163,6 +164,7 @@ export async function ingererPostesSources(): Promise<{
       for (const chemin of uuids) {
         const donnees = await jsonExterne<unknown>(`${BASE}${chemin}`, {
           connecteur: 'postes_sources',
+    profilAttente: 'patient',
           cacheTtlMs: 0,
           timeoutMs: 40000,
         }).catch(() => null);

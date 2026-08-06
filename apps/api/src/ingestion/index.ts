@@ -43,7 +43,9 @@ export async function ingererCommunes(): Promise<{ connecteur: string; nbCommune
   // departement pour rester sous les limites de memoire et de delai.
   const departements = await jsonExterne<Array<{ code: string; nom: string }>>(
     `${config.sources.geoApiGouv}/departements`,
-    { connecteur: 'communes', timeoutMs: 30000 },
+    // Profil patient : une ingestion nationale ne doit pas etre jetee pour un 503 transitoire.
+    // Constate a l'execution : l'ancienne attente de 1,2 seconde faisait abandonner apres zero objet.
+    { connecteur: 'communes', timeoutMs: 30000, profilAttente: 'patient' },
   );
 
   let nbCommunes = 0;
@@ -56,6 +58,7 @@ export async function ingererCommunes(): Promise<{ connecteur: string; nbCommune
       const communes = await jsonExterne<CommuneApi[]>(url, {
         connecteur: 'communes',
         timeoutMs: 60000,
+        profilAttente: 'patient',
       });
 
       for (const c of communes) {
@@ -126,7 +129,7 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
         const rep = await jsonExterne<{
           total_count?: number;
           results?: Array<Record<string, unknown>>;
-        }>(url, { connecteur: 'reseau_gaz', timeoutMs: 30000 });
+        }>(url, { connecteur: 'reseau_gaz', timeoutMs: 30000, profilAttente: 'patient' });
 
         const resultats = rep.results ?? [];
         if (resultats.length === 0) break;
