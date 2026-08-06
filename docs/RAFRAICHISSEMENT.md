@@ -18,8 +18,8 @@
 | `reseau_gaz` | trimestrielle | `npm run ingest -w @enr/api -- reseau_gaz` | nouveaux sites d'injection |
 | `zaer_local` | trimestrielle | ingestion manuelle | au fil des délibérations |
 | `document_cadre_local` | semestrielle | ingestion manuelle | au fil des arrêtés préfectoraux |
-| Rescoring | **après chaque ingestion** | `npm run rescorer -w @enr/api` | les scores matérialisés ne se recalculent pas d'eux-mêmes |
-| Snapshots périmés | hebdomadaire | `npm run rescorer -w @enr/api` | réinterroge les parcelles dont le snapshot dépasse `SNAPSHOT_MAX_AGE_JOURS` |
+| Rescoring | après un changement de moteur, de référentiel ou de barème | `npm run rescorer -w @enr/api` | les scores matérialisés ne se recalculent pas d'eux-mêmes |
+| Réenrichissement | **après chaque ingestion** | bandeau « parcelles en retard sur la donnée », ou `POST /api/qualification/rafraichir` | voir §5.1 : `rescorer` NE réinterroge aucune source, donc il reproduit la valeur d'avant l'ingestion |
 | Purge RGPD | mensuelle | `POST /api/admin/purge-rgpd` | données nominatives arrivées à échéance |
 
 ## 3. Planification
@@ -37,8 +37,11 @@
 # Communes et raster de vent : le 15 janvier
 0 2 15 1 * cd /opt/prospection-enr && npm run ingest -w @enr/api -- communes vent_100m >> /var/log/enr-ingest.log 2>&1
 
-# Snapshots périmés : dimanche 2 h
+# Snapshots perimes : dimanche 2 h. `rescorer` ne reinterroge AUCUNE source (voir §5.1) : ce qui
+# reprend les parcelles en retard sur la donnee est la route de rafraichissement.
 0 2 * * 0  cd /opt/prospection-enr && npm run rescorer -w @enr/api >> /var/log/enr-ingest.log 2>&1
+0 3 * * 0  curl -fsS -X POST -H "Authorization: Bearer $JETON_ADMIN" -H 'Content-Type: application/json' \
+             -d '{"limite":500}' http://localhost:3000/api/qualification/rafraichir >> /var/log/enr-ingest.log 2>&1
 
 # Purge RGPD : le 1er du mois
 30 1 1 * * curl -fsS -X POST -H "Authorization: Bearer $JETON_ADMIN" http://localhost:3000/api/admin/purge-rgpd
@@ -97,6 +100,52 @@ Le recalcul rafraîchit aussi les compteurs communaux
 Les pondérations **personnalisées par l'utilisateur** ne sont jamais matérialisées : elles
 sont calculées à la volée (`POST /api/parcelles/scores`) et appliquées côté carte par
 `setFeatureState`. Déplacer un curseur ne déclenche donc aucun recalcul de masse.
+
+### 5.1 Recalculer ne suffit pas : après une ingestion, il faut RÉENRICHIR
+
+Ajouté à l'audit 9, où la confusion entre les deux a produit un défaut critique. Le cas 1 ci-dessus
+— « après une ingestion » — **ne se traite pas par `rescorer`**. `rescorer` recalcule à partir du
+snapshot déjà stocké, sans interroger aucune source : après une ingestion, il reproduit donc
+fidèlement la valeur d'avant. La distinction est la suivante :
+
+| Besoin | Ce qu'il faut lancer | Ce que ça touche |
+|---|---|---|
+| Le moteur, le référentiel ou un barème a changé | `npm run rescorer` | recalcul à partir des snapshots existants, hors ligne |
+| Une couche a été ingérée ou mise à jour | **réenrichissement** | les sources sont réinterrogées, le snapshot est réécrit |
+
+Comment le réenrichissement se déclenche, du plus automatique au plus explicite :
+
+1. **ouvrir la fiche d'une parcelle** la réenrichit si son snapshot précède la dernière ingestion de
+   son département, ou dépasse `SNAPSHOT_MAX_AGE_JOURS` ;
+2. **toute campagne de qualification** (emprise, liste d'IDU) réenrichit les parcelles concernées
+   selon la même règle ;
+3. **`POST /api/qualification/rafraichir`**, exposé dans l'interface par le bandeau « parcelles en
+   retard sur la donnée », reprend un lot borné. `restant` indique s'il faut rappeler.
+
+Le nombre de parcelles en retard est publié par `/api/sante`, champ `parcellesARafraichir`. **C'est
+l'indicateur à regarder après chaque ingestion** : tant qu'il est non nul, la carte et les listes
+affichent l'état d'avant pour ces parcelles.
+
+Le rafraîchissement en lot n'est pas un travail de fond, et c'est délibéré : il consomme le quota des
+API publiques exactement comme une campagne de qualification, et le déclencher tout seul viendrait
+concurrencer les campagnes de l'utilisateur sur ce même quota.
+
+### 5.2 Ce qu'une ingestion efface, et quand elle refuse de le faire
+
+Ajouté à l'audit 9. Les ingestions nationales des ZAER et des sites protégés effacent désormais les
+objets qu'elles n'ont pas revus — un site déclassé, une délibération annulée. Deux conditions
+indépendantes doivent être réunies, sinon **rien n'est effacé** :
+
+1. la pagination doit être allée au bout de **toutes** les couches (métropole et outre-mer) ;
+2. la part disparue doit rester sous **20 %** du jeu du connecteur.
+
+Un refus est journalisé et repris dans le compte rendu d'ingestion, avec son chiffre. **Un refus
+signifie que la couche contient des objets périmés** : vérifier la source, puis relancer. Ce
+comportement est volontairement conservateur — une couche contenant des objets périmés signalés vaut
+mieux qu'une couche vidée en silence par une source momentanément tronquée.
+
+L'ingestion des postes sources n'est pas concernée : elle procède région par région et tolère l'échec
+de l'une d'elles, si bien qu'un objet disparu y serait indiscernable d'une région non lue.
 
 ## 6. Effet du rafraîchissement sur le pipeline commercial
 

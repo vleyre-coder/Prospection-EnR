@@ -29,12 +29,11 @@ trois défauts critiques :
   figé à l'enrichissement. Rien ne reliait cet instantané à la date d'arrivée de la donnée.
 
 **Inventaire mesuré.** 28 669 lignes de source (2 270 core, 3 562 scoring, 16 564 API, 6 273
-interface), 9 496 lignes de test réparties en 32 fichiers pour l'API et 8 pour les paquets, 8 947
-lignes de documentation, 13 migrations, 47 commits. Typage strict sur les quatre paquets, zéro échec.
+interface), 9 496 lignes de test réparties en 34 fichiers pour l'API et 8 pour les paquets, 8 947
+lignes de documentation, 14 migrations, 47 commits. Typage strict sur les quatre paquets, zéro échec.
 
-**Résultat.** Six défauts confirmés, dont trois critiques, tous mesurés puis corrigés ; un septième
-confirmé et **non corrigé**, dont la raison est donnée en §D. 21/21 mutations rattrapées après
-correction, contre 14 avant.
+**Résultat.** Sept défauts confirmés, dont trois critiques, tous mesurés puis corrigés. 23/23
+mutations rattrapées après correction, contre 14 avant ; 565 tests, zéro échec.
 
 ---
 
@@ -274,45 +273,63 @@ départements attendus et écarte bien le sixième, dont le bord est à 51,4 km.
 
 ---
 
-## D. Défaut confirmé et NON corrigé
+## D. Défauts secondaires
 
-### D1 — Une ingestion n'efface jamais ce qui a disparu de la source
+### D1 — Une ingestion n'effaçait jamais ce qui avait disparu de la source
 
-**Le fait, vérifié.** Aucune des ingestions ne contient de `DELETE`. Elles sont toutes en
-« insertion ou mise à jour » sur la clé naturelle. Un objet **retiré de la source** reste donc en base
-indéfiniment, et continue d'être affirmé : un site déclassé reste un site classé, une délibération de
-ZAER annulée reste une ZAER, un poste démonté reste un poste raccordable.
+**Le fait, vérifié.** Aucune ingestion ne contenait de `DELETE`. Elles sont toutes en « insertion ou
+mise à jour » sur la clé naturelle. Un objet **retiré de la source** restait donc en base
+indéfiniment, et continuait d'être affirmé : un site déclassé restait un site classé, une
+délibération de ZAER annulée restait une ZAER, un poste démonté restait un poste raccordable.
 
-**Portée réelle.** Faible pour les sites protégés — un déclassement est rare. Non négligeable pour les
-ZAER : les communes révisent et annulent régulièrement leurs délibérations, et la couche nationale
-suit ces révisions. C'est donc un défaut de fond, pas une hypothèse d'école.
+**Portée réelle.** Faible pour les sites protégés — un déclassement est rare. Non négligeable pour
+les ZAER : les communes révisent et annulent régulièrement leurs délibérations, et la couche
+nationale suit ces révisions.
 
-**Pourquoi il n'est pas corrigé dans cet audit, et ce que cela coûterait.** La correction demande
-trois choses, dont aucune n'est acquise :
+**Ce qui manquait n'était pas la requête de suppression, c'était le droit de supprimer.** Une
+suppression mal gardée est bien pire que le défaut qu'elle corrige : elle transforme une source
+momentanément dégradée en effacement d'une couche entière — c'est-à-dire exactement la famille de
+fautes que ces audits corrigent depuis huit itérations, affirmer une absence qu'on n'a pas constatée.
+Trois pièces ont donc été posées, et elles sont indépendantes :
 
-1. **un horodatage de mise à jour**, qui n'existe pas. `contrainte` et `zaer` n'ont que `created_at`,
-   non touché par l'upsert : rien ne distingue aujourd'hui une ligne revue d'une ligne oubliée. Il
-   faut une migration ;
-2. **un contrat de complétude** remonté au point d'effacement. Le générateur de pagination WFS sait
-   distinguer « dernière page atteinte » de « borne de sécurité atteinte », mais ne le dit pas à son
-   appelant. Effacer sur une exécution incomplète supprimerait des objets réels ;
-3. **un garde-fou de volumétrie.** Une source qui tronque silencieusement sa réponse ferait, sans ce
-   garde, disparaître une couche entière. C'est exactement la famille de défauts que ces audits
-   corrigent depuis huit itérations, et l'introduire par sa correction serait le pire résultat
-   possible.
+1. **Un horodatage de revue** (migration 014). `contrainte` et `zaer` n'avaient que `created_at`, non
+   touché par la mise à jour : une ligne revue à chaque exécution depuis un an portait toujours la
+   date de sa première insertion. `updated_at` est désormais écrit à l'insertion **comme** à la mise à
+   jour, et les lignes déjà en base reprennent leur date de création — ce qui les rend candidates à la
+   suppression si la source ne les contient plus, le comportement voulu.
+2. **Un contrat de complétude remonté à l'appelant.** Le générateur de pagination WFS savait déjà
+   distinguer « dernière page atteinte » de « borne de sécurité atteinte », mais ne le disait qu'au
+   journal. Il porte maintenant un drapeau qui part à faux et ne passe à vrai que sur la seule sortie
+   qui prouve la complétude. Pour les sites, réparti sur plusieurs couches — métropole et outre-mer —
+   **toutes** doivent être complètes : sinon un échec sur la couche guadeloupéenne ferait supprimer
+   les sites de Guadeloupe.
+3. **Un plafond de volumétrie**, fixé à 20 %. Une révision annuelle ne retire pas un objet sur cinq ;
+   au-delà, l'hypothèse la plus probable n'est pas que la source a changé, c'est que la lecture s'est
+   mal passée. Le refus est journalisé avec son chiffre et repris dans le compte rendu d'ingestion :
+   mieux vaut une couche contenant des objets périmés, signalés, qu'une couche vidée en silence.
 
-Il faut de plus prouver la correction sur **deux ingestions nationales complètes successives** — une
-qui pose les objets, une qui en retire un — soit une vingtaine de minutes de réseau par couche. Livrer
-un chemin de code destructeur validé seulement sur un jeu synthétique n'est pas défendable ; je
-préfère le déclarer que le bâcler.
+La décision est isolée dans une fonction pure, `suppressionAutorisee` : ce sont ses branches qui
+portent le risque, pas la requête `DELETE`. Treize tests la couvrent, dont cinq contre PostgreSQL, et
+les deux gardes sont vérifiées par mutation — les désarmer fait échouer respectivement 2 et 3 tests.
 
-**Ce qui atténue le défaut en l'état.** Rien, et il faut le dire clairement : aucune alerte, aucun
-indicateur. L'exploitant qui veut s'en prémunir doit aujourd'hui vider la couche avant de la
-réingérer, ce qui la rend indisponible pendant l'opération.
+**Ce qui reste hors de portée d'un test, et pourquoi le plafond existe.** Aucun test ne peut vérifier
+que la Géoplateforme ne se trompe pas sur sa dernière page. Le plafond de volumétrie est précisément
+la garde qui ne dépend d'aucun signal externe : même si le contrat de complétude était trompé, une
+disparition massive serait refusée. La vérification sur deux ingestions nationales successives — une
+qui pose les objets, une qui en retire — reste à faire en exploitation ; elle confirmerait le
+comportement, elle ne conditionne pas la sûreté.
 
-**Recommandation.** Priorité 1 de la prochaine itération, avec le protocole de vérification ci-dessus.
+**Un défaut découvert en écrivant son propre test.** La première version du test utilisait le
+connecteur réel `patrimoine_sites` avec un type et un département fictifs. Le garde-fou raisonne sur
+**tout** le connecteur — ce qui est le comportement juste — mais la base contenait 6 617 sites réels :
+les 18 objets « disparus » du test représentaient 0,27 % et non 90 %, la suppression était autorisée,
+et le scénario testé n'était plus celui qu'on croyait. Un test qui partage sa population avec les
+données réelles ne peut pas tester un seuil. Le test crée désormais son propre connecteur.
 
----
+**Ce qui n'est pas couvert.** Les postes sources restent hors du dispositif : leur ingestion procède
+région par région et tolère l'échec de l'une d'elles, et la couverture est déduite des postes
+observés, non des régions téléchargées. Un « objet disparu » y serait indiscernable d'une région non
+lue. Voir §G.1.
 
 ## E. Erreurs métier
 
@@ -351,7 +368,10 @@ réussi sur la moitié d'un département passerait pour complète. La maille dis
 `couverture_ingestion` ; descendre plus fin demanderait un modèle de couverture géométrique, ce qui
 n'est pas justifié aujourd'hui.
 
-**F3. D1 reste ouvert.** Voir §D.
+**F3. La suppression des objets disparus n'a pas encore été observée sur deux ingestions nationales
+successives.** Les gardes sont testées, dont le plafond de volumétrie qui ne dépend d'aucun signal
+externe ; ce qui reste à confirmer en exploitation est la fidélité du signal de complétude de la
+Géoplateforme. Le risque est borné par le plafond, non par la confiance dans la source.
 
 **F4. Les postes sources restent hors du contrôle de complétude par région.** La couverture est
 déduite des postes effectivement présents, non des régions effectivement téléchargées. Un département
@@ -367,10 +387,11 @@ d'usage sur le poste d'un prospecteur.
 
 ## G. Améliorations classées par priorité
 
-1. **Effacer ce qui a disparu de la source** (défaut D1), avec migration d'horodatage, contrat de
-   complétude et garde-fou de volumétrie, prouvé sur deux ingestions nationales successives.
-2. **Descendre le contrôle de complétude des postes sources à la région téléchargée** plutôt qu'aux
-   départements observés (risque F4).
+1. **Descendre le contrôle de complétude des postes sources à la région téléchargée** plutôt qu'aux
+   départements observés, ce qui les ferait entrer dans le dispositif d'effacement des objets
+   disparus (risques F4 et §D1).
+2. **Observer un cycle complet d'effacement sur deux ingestions nationales successives**, pour
+   confirmer le signal de complétude de la Géoplateforme (risque F3).
 3. **Étendre le garde structurel des tris** aux requêtes de l'interface et des scripts, pas seulement
    à `apps/api/src`.
 4. **Mesurer le coût réel du réenrichissement à l'ouverture d'une fiche** sur une instance chargée, et
@@ -383,17 +404,17 @@ d'usage sur le poste d'un prospecteur.
 
 | Critère | Note | Justification |
 |---|---|---|
-| Fiabilité des résultats | 74/100 | Les trois défauts critiques touchaient tous la fiabilité de ce qui est **rendu**, non de ce qui est calculé : un classement non reproductible, un état de la donnée périmé sans le dire, une distance mesurée sur un disque incomplet. Corrigés et vérifiés par mutation. Ce qui plafonne la note : D1 reste ouvert, et la validation par un expert sur des parcelles réelles n'a toujours pas eu lieu. |
+| Fiabilité des résultats | 77/100 | Les trois défauts critiques touchaient tous la fiabilité de ce qui est **rendu**, non de ce qui est calculé : un classement non reproductible, un état de la donnée périmé sans le dire, une distance mesurée sur un disque incomplet. Corrigés et vérifiés par mutation. Ce qui plafonne la note : la validation par un expert sur des parcelles réelles n'a toujours pas eu lieu, et un cycle d'effacement n'a pas encore été observé en exploitation. |
 | Qualité technique | 82/100 | Typage strict sans échec, 21 mutations toutes rattrapées, garde structurel qui protège les futurs tris, tests de base qui refusent de passer à vide. Retiré : deux défauts de performance d'un facteur 100 à 780 vivaient dans du code écrit à l'audit précédent, et aucune mesure ne les avait vus. |
 | Qualité métier | 78/100 | Le raisonnement métier est juste et daté ; la distinction faux vert / faux rouge est désormais traitée des deux côtés. Retiré : le faux rouge structurel du raccordement a survécu à huit audits, et l'obsolescence d'un instantané après ingestion n'avait jamais été posée comme une question métier. |
 | Ergonomie | 76/100 | Le retard sur la donnée est visible et actionnable, la fiche se répare à l'ouverture, la traçabilité porte la date d'interrogation des sources. Retiré : rien n'avertit *dans* la fiche que la parcelle vient d'être réenrichie, et le bandeau est le seul indicateur du retard. |
-| Robustesse | 79/100 | Reprise HTTP à deux profils, pagination vérifiée, statut « partiel » désormais honnête sur l'ingestion gaz, couverture refusée sur une exécution incomplète. Retiré : D1, et la couverture à la maille du département (F2). |
+| Robustesse | 82/100 | Reprise HTTP à deux profils, pagination vérifiée et désormais remontée à l'appelant, statut « partiel » honnête sur l'ingestion gaz, couverture refusée sur une exécution incomplète, effacement des objets disparus gardé par deux conditions indépendantes. Retiré : la couverture à la maille du département (F2), les postes sources hors du dispositif d'effacement (F4). |
 | Professionnalisation | 80/100 | 8 947 lignes de documentation, neuf rapports d'audit, CI qui exécute les tests de base et la vérification par mutation contre PostgreSQL, journalisation exploitable. Retiré : le rafraîchissement reste manuel, et l'exploitant doit savoir lire un bandeau. |
 
-**Score global : 78/100.**
+**Score global : 79/100.**
 
-Le score baisse d'un point par rapport à l'audit 8 malgré six corrections. C'est volontaire et c'est
-l'information la plus utile de ce rapport : un audit à froid, en changeant de question, a trouvé trois
+Le score reste au niveau de l'audit 8 malgré sept corrections, dont trois critiques. C'est volontaire
+et c'est l'information la plus utile de ce rapport : un audit à froid, en changeant de question, a trouvé trois
 défauts critiques dans du code que huit audits déclaraient sain. La note antérieure était donc trop
 haute, non parce que les corrections d'alors étaient fausses, mais parce que la question posée était
 trop étroite. Ce qui a été vérifié huit fois ne l'a été que sous un angle.
@@ -418,8 +439,9 @@ Les trois conditions :
 
 1. **Lire le bandeau « parcelles en retard sur la donnée » et le résorber après chaque ingestion.**
    Sans cela, la carte affiche l'état d'avant — visiblement, désormais, mais il faut regarder.
-2. **Recharger une couche entière plutôt que la réingérer par-dessus lorsque la source a retiré des
-   objets** (défaut D1), tant que la correction annoncée en §G.1 n'est pas faite.
+2. **Lire le compte rendu d'ingestion**, qui indique désormais combien d'objets disparus ont été
+   effacés — et, le cas échéant, pourquoi l'effacement a été refusé. Un refus signifie que la couche
+   contient des objets périmés.
 3. **Ne jamais traiter un feu vert comme une conclusion.** L'application classe et écarte ; elle
    n'instruit pas. Les avertissements du §12 du cahier des charges restent la lecture obligatoire de
    toute fiche, et la validation par un expert sur 50 parcelles réelles — préparée, jamais exécutée —

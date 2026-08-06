@@ -63,6 +63,20 @@ n'a pas la même valeur qu'un rapport produit après.
   méthanisation — se calculait dessus. Le statut devient « partiel » et aucune couverture n'est
   écrite.
 
+- **Une ingestion n'effacait jamais ce qui avait disparu de la source** (audit 9, défaut D1). Toutes
+  les ingestions sont en « insertion ou mise à jour » sur la clé naturelle : un objet retiré de la
+  source restait en base indéfiniment et continuait d'être affirmé. Un site déclassé restait un site
+  classé, une délibération de ZAER annulée restait une ZAER — et les communes révisent régulièrement
+  leurs délibérations. Ce qui manquait n'était pas la requête de suppression mais le **droit** de
+  supprimer : `created_at` n'est pas touché par la mise à jour, donc rien ne distinguait une ligne
+  revue d'une ligne oubliée. Trois pièces indépendantes ont été posées — un horodatage de revue
+  (migration 014), un contrat de complétude remonté par le générateur de pagination WFS (et exigé sur
+  **toutes** les couches, métropole et outre-mer, sinon un échec sur la couche guadeloupéenne ferait
+  supprimer les sites de Guadeloupe), et un **plafond de volumétrie de 20 %** au-delà duquel la
+  suppression est refusée et journalisée. Une suppression mal gardée serait pire que le défaut
+  qu'elle corrige : elle transformerait une source momentanément dégradée en effacement d'une couche
+  entière. Les deux gardes sont vérifiées par mutation.
+
 ### Performance (audit 9)
 
 - **Les filtres de proximité empêchaient l'usage des index qu'ils avaient** (audit 9, défaut C2).

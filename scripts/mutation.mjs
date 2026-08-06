@@ -212,6 +212,22 @@ const MUTATIONS = [
     vers: '',
     tests: ['apps/api/test/snapshot-perime-par-donnee.test.ts'],
   },
+  {
+    audit: 'audit 9',
+    quoi: 'une pagination incomplete autorise de nouveau l’effacement des objets non revus',
+    fichier: 'apps/api/src/ingestion/disparus.ts',
+    de: '  if (!complete) {',
+    vers: '  if (false) {',
+    tests: ['apps/api/test/disparus.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'le plafond de volumetrie ne garde plus contre l’effacement d’une couche entiere',
+    fichier: 'apps/api/src/ingestion/disparus.ts',
+    de: '  if (part > partMax) {',
+    vers: '  if (false) {',
+    tests: ['apps/api/test/disparus.test.ts'],
+  },
 ];
 
 let echecs = 0;

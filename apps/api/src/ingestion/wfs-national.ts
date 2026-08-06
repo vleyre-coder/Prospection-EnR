@@ -40,6 +40,7 @@ import { journal } from '../journal.js';
 import { requete } from '../bdd.js';
 import { ATTENTES_PAR_PROFIL, avecParams } from '../http.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
+import { effacerDisparus } from './disparus.js';
 import { oublierPresenceCouches } from '../connecteurs/couches.js';
 import { createHash } from 'node:crypto';
 import { entitesDepuisFlux } from './flux-geojson.js';
@@ -80,12 +81,25 @@ interface Entite {
 }
 
 /**
+ * Completude d'une pagination, remontee a l'appelant.
+ *
+ * POURQUOI CE DRAPEAU — audit 9, defaut D1. Le generateur savait deja distinguer « derniere page
+ * atteinte » de « borne de securite atteinte », mais il ne le disait qu'au journal. Or c'est
+ * exactement l'information dont depend le droit d'effacer ce qui a disparu de la source : effacer sur
+ * une lecture partielle supprimerait des objets reels. Le drapeau part a faux et ne passe a vrai que
+ * sur la seule sortie qui prouve la completude.
+ */
+export interface EtatPagination {
+  complete: boolean;
+}
+
+/**
  * Parcourt une couche WFS page par page, en GeoJSON.
  *
  * La pagination est verifiee a chaque tour : une page qui renvoie moins que la taille demandee est
  * la derniere. On ne se fie PAS a `numberMatched`, qui n'est pas toujours renseigne sur ce service.
  */
-async function* objetsWfs(typeName: string): AsyncGenerator<Entite> {
+async function* objetsWfs(typeName: string, etat?: EtatPagination): AsyncGenerator<Entite> {
   for (let page = 0; page < PAGES_MAX; page += 1) {
     const url = avecParams(config.sources.geoplateformeWfs, {
       SERVICE: 'WFS',
@@ -146,7 +160,13 @@ async function* objetsWfs(typeName: string): AsyncGenerator<Entite> {
     if (derniereErreur) throw derniereErreur;
 
     journal.debug({ typeName, page, recus }, 'Page WFS ingeree');
-    if (recus < TAILLE_PAGE) return;
+    // Page plus courte que demandee : c'est la derniere, et la SEULE sortie qui prouve la
+    // completude. Toutes les autres — exception remontee, borne de securite — laissent le drapeau
+    // a faux, ce qui interdit toute suppression en aval (voir ingestion/disparus.ts).
+    if (recus < TAILLE_PAGE) {
+      if (etat) etat.complete = true;
+      return;
+    }
 
     // Respiration entre les pages. Sans elle, une couche de 218 pages est demandee aussi vite que le
     // reseau le permet, ce qui declenche precisement les 503 que la reprise doit ensuite absorber.
@@ -264,6 +284,15 @@ export async function ingererZaer(): Promise<{
   let nbSansGeometrie = 0;
   let nbSansFiliere = 0;
   oublierVocabulairesInconnus();
+  /**
+   * Horodatage pris AVANT la premiere insertion, et etat de pagination.
+   *
+   * Toute zone dont `updated_at` precede cet instant n'a pas ete revue par cette execution : elle a
+   * disparu de la source. La suppression n'est tentee que si la pagination est prouvee complete, et
+   * refusee au-dela d'un plafond de volumetrie (audit 9, defaut D1).
+   */
+  const debutRun = new Date();
+  const pagination: EtatPagination = { complete: false };
 
   // Les filieres sont portees par une CHAINE et non un tableau : voir le commentaire dans la requete.
   type Ligne = [string, string | null, string | null, string, string, string | null, string];
@@ -302,7 +331,10 @@ export async function ingererZaer(): Promise<{
          filieres = EXCLUDED.filieres,
          geom = EXCLUDED.geom,
          date_deliberation = EXCLUDED.date_deliberation,
-         attributs = EXCLUDED.attributs`,
+         attributs = EXCLUDED.attributs,
+         -- Revue par cette ingestion : c'est ce qui la distingue d'une ligne oubliee, donc disparue
+         -- de la source (audit 9, defaut D1).
+         updated_at = now()`,
       [
         lot.map((l) => l[0]),
         lot.map((l) => l[1]),
@@ -317,7 +349,7 @@ export async function ingererZaer(): Promise<{
   };
 
   try {
-    for await (const entite of objetsWfs(COUCHE_ZAER)) {
+    for await (const entite of objetsWfs(COUCHE_ZAER, pagination)) {
       const p = entite.properties ?? {};
       const g = entite.geometry;
       if (!g || typeof g !== 'object') {
@@ -373,6 +405,9 @@ export async function ingererZaer(): Promise<{
     return { connecteur: 'zaer_local', nbObjets, nbSansGeometrie, nbSansFiliere, millesime: null };
   }
 
+  // Zones retirees de la source : une deliberation annulee ou revisee ne doit pas survivre en base.
+  const disparus = await effacerDisparus({ table: 'zaer', connecteur: 'zaer_local' }, debutRun, pagination.complete);
+
   // Couverture PAR DEPARTEMENT : sans elle, `zaer()` ne peut pas distinguer « aucune ZAER ici » de
   // « ce departement n'a pas ete ingere », et le critere resterait gris malgre l'ingestion.
   const parDep = await requete<{ code_departement: string | null; n: number }>(
@@ -402,7 +437,8 @@ export async function ingererZaer(): Promise<{
     'zaer_local',
     nbObjets > 0 ? 'ok' : 'echec',
     `${nbObjets} zones retenues, ${nbSansFiliere} hors perimetre ou filiere non reconnue, ` +
-      `${nbSansGeometrie} sans geometrie, ${parDep.length} departements couverts`,
+      `${nbSansGeometrie} sans geometrie, ${parDep.length} departements couverts, ` +
+      `${disparus.supprimes} disparues effacees (${disparus.motif})`,
     nbObjets,
   );
   return { connecteur: 'zaer_local', nbObjets, nbSansGeometrie, nbSansFiliere, millesime: null };
@@ -480,6 +516,15 @@ export async function ingererSitesProteges(): Promise<{
   let nbObjets = 0;
   let nbSansGeometrie = 0;
   let nbNonReconnus = 0;
+  /**
+   * Horodatage pris AVANT la premiere insertion, et completude de chacune des couches.
+   *
+   * Un seul drapeau ne suffit pas : les sites sont repartis sur plusieurs couches — metropole et
+   * outre-mer — et l'ingestion doit etre complete sur TOUTES avant de s'autoriser a effacer, sans
+   * quoi un echec sur la couche guadeloupeenne ferait supprimer les sites de Guadeloupe.
+   */
+  const debutRun = new Date();
+  const paginations: EtatPagination[] = [];
 
   type Ligne = [string, string, string, string, string | null, string | null, string];
   const lot: Ligne[] = [];
@@ -521,7 +566,10 @@ export async function ingererSitesProteges(): Promise<{
          geom = ST_Multi(ST_UnaryUnion(ST_Collect(contrainte.geom, EXCLUDED.geom))),
          date_donnee = EXCLUDED.date_donnee,
          attributs = EXCLUDED.attributs,
-         code_departement = EXCLUDED.code_departement`,
+         code_departement = EXCLUDED.code_departement,
+         -- Voir audit 9, defaut D1 : sans cette ligne, rien ne distingue un objet revu d'un objet
+         -- disparu de la source.
+         updated_at = now()`,
       [
         lot.map((l) => l[0]),
         lot.map((l) => l[1]),
@@ -537,7 +585,9 @@ export async function ingererSitesProteges(): Promise<{
 
   try {
     for (const couche of COUCHES_SITES) {
-      for await (const entite of objetsWfs(couche)) {
+      const pagination: EtatPagination = { complete: false };
+      paginations.push(pagination);
+      for await (const entite of objetsWfs(couche, pagination)) {
         const p = entite.properties ?? {};
         const g = entite.geometry;
         if (!g || typeof g !== 'object') {
@@ -650,6 +700,18 @@ export async function ingererSitesProteges(): Promise<{
   }
 
   /**
+   * Sites retires de la source : un declassement doit disparaitre de la base.
+   *
+   * La condition est exigeante a dessein : toutes les couches doivent avoir ete lues jusqu'a leur
+   * derniere page. Une seule interruption suffit a interdire la suppression.
+   */
+  const disparus = await effacerDisparus(
+    { table: 'contrainte', connecteur: 'patrimoine_sites' },
+    debutRun,
+    paginations.length === COUCHES_SITES.length && paginations.every((p) => p.complete),
+  );
+
+  /**
    * Couverture PAR DEPARTEMENT ET PAR TYPE.
    *
    * Par TYPE et non seulement par departement : c'est ce qui manquait a l'audit 8. `patrimoine()`
@@ -671,7 +733,8 @@ export async function ingererSitesProteges(): Promise<{
     'patrimoine_sites',
     nbObjets > 0 ? 'ok' : 'echec',
     `${nbObjets} sites classes et inscrits, ${nbNonReconnus} labels ou types non reconnus ecartes, ` +
-      `${nbSansGeometrie} sans geometrie, ${parDepEtType.length} couples departement/type couverts`,
+      `${nbSansGeometrie} sans geometrie, ${parDepEtType.length} couples departement/type couverts, ` +
+      `${disparus.supprimes} disparus effaces (${disparus.motif})`,
     nbObjets,
   );
   return { connecteur: 'patrimoine_sites', nbObjets, nbSansGeometrie, nbNonReconnus, millesime: null };
