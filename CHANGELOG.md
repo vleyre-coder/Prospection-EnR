@@ -11,6 +11,22 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Audité
+
+- **Huitième audit complet** (`docs/AUDIT-8.md`), premier à couvrir les quatre zones jamais
+  examinées : `connecteurs/locales.ts`, `connecteurs/vent.ts`, `connecteurs/gisement.ts` et les
+  44 routes HTTP. Il change la question posée : les sept précédents vérifiaient si les calculs
+  étaient justes sur les données reçues, celui-ci vérifie s'il existe un chemin de production
+  capable de fournir ces données. 34 défauts relevés, tous établis par exécution ou par requête
+  réelle, dont huit de priorité 1 appartenant à une seule famille — *affirmer en l'absence de
+  donnée*. Deux critères notés et affichés reposent sur zéro donnée (`pat_sites` à 90/100 vert sur
+  des couches qu'aucun job n'ingère ; `fonc_nb_proprietaires` à 100/100 vert sur une constante codée
+  en dur), un knock-out réglementaire est structurellement inatteignable, et de 8 % (bess) à 46 %
+  (méthanisation) de la pondération repose sur une donnée absente, un doublon ou une grandeur hors
+  échelle. Score 56/100, contre 67 à l'audit 7 : la baisse ne vient d'aucune régression — le code
+  est meilleur — mais du périmètre honnête de la mesure. Aucune correction n'est encore appliquée ;
+  le rapport est le périmètre du chantier final.
+
 ### Corrigé — fiabilité
 
 - **La détection des plans de prévention des risques ne fonctionnait pas** (audit 7). Le connecteur
