@@ -451,7 +451,7 @@ export async function derniereCampagne(): Promise<{
     message: string | null;
   }>(
     `SELECT debut_le, fin_le, total, traitees, echecs, interrompue, message
-       FROM tache_qualification ORDER BY debut_le DESC LIMIT 1`,
+       FROM tache_qualification ORDER BY debut_le DESC, id DESC LIMIT 1`,
   ).catch(() => []);
   const l = lignes[0];
   if (!l) return null;
@@ -611,7 +611,9 @@ export async function restaurerFile(): Promise<number> {
     `SELECT id::text, bbox, options, utilisateur_id, demandee_le
        FROM demande_qualification
       WHERE demarree_le IS NULL AND abandonnee_le IS NULL
-      ORDER BY demandee_le
+      -- Departage par l'identifiant : deux demandes acceptees dans la meme milliseconde
+      -- doivent repartir dans l'ordre ou elles ont ete acceptees, pas dans un ordre arbitraire.
+      ORDER BY demandee_le, id
       LIMIT $1`,
     [FILE_MAX],
   ).catch((err: unknown) => {

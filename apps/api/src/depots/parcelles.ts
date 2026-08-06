@@ -130,7 +130,10 @@ export async function parcellesDansEmprise(
     `${SELECT_PARCELLE}
       WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
         AND COALESCE(surface_calculee_m2, contenance_m2, 0) >= $5
-      ORDER BY COALESCE(surface_calculee_m2, contenance_m2) DESC
+      -- Departage par l'IDU : la limite decide quelles parcelles la carte affiche, et sans ordre
+      -- total il le decidait differemment d'un plan a l'autre. Une parcelle visible disparaissait
+      -- au rafraichissement suivant sans que rien n'ait change (audit 9, defaut A1).
+      ORDER BY COALESCE(surface_calculee_m2, contenance_m2) DESC, idu ASC
       LIMIT $6`,
     [bbox[0], bbox[1], bbox[2], bbox[3], surfaceMinM2, limite],
   );

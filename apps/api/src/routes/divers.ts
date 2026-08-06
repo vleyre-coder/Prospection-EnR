@@ -243,7 +243,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
          FROM profil_ponderation
         WHERE ($1::text IS NULL OR filiere = $1)
           AND (partage = true OR utilisateur_id = $2 OR utilisateur_id IS NULL)
-        ORDER BY nom`,
+        ORDER BY nom, id`,
       [estFiliere(q.filiere) ? q.filiere : null, req.utilisateur?.id ?? null],
     );
     return {

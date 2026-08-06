@@ -73,7 +73,7 @@ export async function leadParParcelle(idu: string, filiere: Filiere): Promise<Le
 export async function historique(leadId: string): Promise<LeadEvenement[]> {
   const lignes = await requete<LigneEvenement>(
     `SELECT id, date, type, auteur, ancien_statut, nouveau_statut, commentaire
-       FROM lead_evenement WHERE lead_id = $1 ORDER BY date DESC`,
+       FROM lead_evenement WHERE lead_id = $1 ORDER BY date DESC, id DESC`,
     [leadId],
   );
   return lignes.map(versEvenement);
@@ -111,8 +111,11 @@ export async function listerLeads(f: FiltresLeads): Promise<{ total: number; res
 
   params.push(f.limite ?? 100, f.decalage ?? 0);
   const lignes = await requete<LigneLead>(
+    // `updated_at` n'est pas unique : un changement de statut en lot horodate plusieurs leads a la
+    // meme milliseconde. Avec un `OFFSET`, des leads apparaissaient deux fois et d'autres jamais
+    // (audit 9, defaut A1). L'identifiant du lead departe : il est unique, donc le tri est total.
     `SELECT * FROM lead WHERE ${where}
-      ORDER BY updated_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      ORDER BY updated_at DESC, id ASC LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
   return { total: total?.n ?? 0, resultats: lignes.map((l) => versLead(l)) };
@@ -177,7 +180,7 @@ export async function majLead(
     if (!l) return null;
     const evenements = await client.query<LigneEvenement>(
       `SELECT id, date, type, auteur, ancien_statut, nouveau_statut, commentaire
-         FROM lead_evenement WHERE lead_id = $1 ORDER BY date DESC`,
+         FROM lead_evenement WHERE lead_id = $1 ORDER BY date DESC, id DESC`,
       [id],
     );
     return versLead(l, evenements.rows.map(versEvenement));
@@ -274,8 +277,12 @@ export async function siteParId(id: string): Promise<SiteEnBase | null> {
 
 export async function listerSites(filiere?: Filiere): Promise<SiteEnBase[]> {
   const lignes = filiere
-    ? await requete<LigneSite>(`${SELECT_SITE} WHERE filiere = $1 ORDER BY created_at DESC`, [filiere])
-    : await requete<LigneSite>(`${SELECT_SITE} ORDER BY created_at DESC`);
+    // Departage par l'identifiant : deux sites crees dans la meme transaction partagent
+    // `created_at`, et leur ordre d'affichage changeait d'un chargement a l'autre.
+    ? await requete<LigneSite>(`${SELECT_SITE} WHERE filiere = $1 ORDER BY created_at DESC, id ASC`, [
+        filiere,
+      ])
+    : await requete<LigneSite>(`${SELECT_SITE} ORDER BY created_at DESC, id ASC`);
   return Promise.all(lignes.map(versSite));
 }
 

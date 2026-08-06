@@ -197,7 +197,11 @@ async function recherchePosteSource(q: string, limite: number): Promise<Resultat
             ST_X(geom) AS lon, ST_Y(geom) AS lat
        FROM poste_source
       WHERE nom ILIKE '%' || $1 || '%'
-      ORDER BY length(nom)
+      -- Le nom le plus court d'abord, donc le plus proche de la saisie. Les ex aequo sont nombreux
+      -- (tous les postes dont le nom fait le meme nombre de caracteres) et la limite en ecarte une
+      -- partie : sans departage, deux saisies identiques ne proposaient pas forcement les memes
+      -- postes (audit 9, defaut A1).
+      ORDER BY length(nom), nom, id
       LIMIT $2`,
     [q, limite],
   );
@@ -371,7 +375,30 @@ export async function filtrerParcelles(
 
   const totalLignes = await requete<{ n: number }>(`SELECT count(*)::int AS n ${base}`, params);
 
-  const ordre =
+  /**
+   * Critere de tri demande, TOUJOURS suivi d'un departage par l'IDU.
+   *
+   * POURQUOI LE DEPARTAGE EST INDISPENSABLE — audit 9, defaut A1. Le score est arrondi au
+   * dixieme : sur l'intervalle 0-100 il n'existe que 1 001 valeurs possibles, donc une campagne
+   * departementale de 200 000 parcelles compte quelques centaines d'ex aequo par valeur. Les
+   * ex aequo sont la REGLE, pas l'exception.
+   *
+   * Or `ORDER BY score` ne dit rien de l'ordre entre ex aequo, et PostgreSQL le choisit selon le
+   * plan retenu. Mesure sur 200 000 lignes, requete et donnees identiques, seul le plan change :
+   *
+   *   - `LIMIT 300` sans departage : 113 des 300 parcelles renvoyees changent (38 %) selon que le
+   *     plan est parallele ou non, 107 changent apres la simple creation d'un index.
+   *   - `LIMIT 25 OFFSET 0` puis `OFFSET 25` : 20 des 25 parcelles de la page 2 etaient deja sur
+   *     la page 1, et 21 des 50 meilleures n'apparaissaient sur AUCUNE des deux pages. Cause : le
+   *     tri partiel « top-N » a une profondeur de OFFSET+LIMIT, qui differe d'une page a l'autre.
+   *
+   * Autrement dit la liste des « 300 meilleures parcelles » et le CSV qui en est exporte n'etaient
+   * pas reproductibles, et 4 parcelles sur 10 du haut du classement pouvaient rester invisibles
+   * sans le moindre signe. Avec le departage : 0 doublon, 0 omission (mesure refaite a l'identique).
+   *
+   * L'IDU est la cle primaire de `parcelle` : le tri devient donc un ordre TOTAL, ce qui suffit.
+   */
+  const critere =
     f.tri === 'score_asc'
       ? 's.score_global ASC NULLS LAST'
       : f.tri === 'surface_desc'
@@ -379,6 +406,7 @@ export async function filtrerParcelles(
         : f.tri === 'distance_poste_asc'
           ? `(sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric ASC NULLS LAST`
           : 's.score_global DESC NULLS LAST';
+  const ordre = `${critere}, p.idu ASC`;
 
   // Double garde. La validation du corps borne deja `limite`, mais `filtrerParcelles` est
   // appelable depuis d'autres chemins (scripts, futurs appels internes) : le plafond doit tenir

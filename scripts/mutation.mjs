@@ -153,6 +153,22 @@ const MUTATIONS = [
     vers: 'const iaa = comptes.iaa ?? 0;',
     tests: ['apps/api/test/gisement-intrants.test.ts'],
   },
+  {
+    audit: 'audit 9',
+    quoi: 'la liste des parcelles retrouve un tri sans ordre total',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: 'const ordre = `${critere}, p.idu ASC`;',
+    vers: 'const ordre = critere;',
+    tests: ['apps/api/test/pagination-stable.test.ts'],
+  },
+  {
+    audit: 'audit 9',
+    quoi: 'un tri tronque perd son departage sans que le garde structurel ne bronche',
+    fichier: 'apps/api/src/connecteurs/locales.ts',
+    de: 'ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326), id\n      LIMIT $3',
+    vers: 'ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)\n      LIMIT $3',
+    tests: ['apps/api/test/pagination-stable.test.ts'],
+  },
 ];
 
 let echecs = 0;

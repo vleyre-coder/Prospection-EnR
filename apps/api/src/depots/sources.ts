@@ -201,7 +201,7 @@ export async function journaliserStrict(action: string, details: DetailsJournal 
 export async function lireJournal(limite = 200): Promise<unknown[]> {
   return requete(
     `SELECT id, date, email, action, cible, motif, adresse_ip, details
-       FROM journal_acces ORDER BY date DESC LIMIT $1`,
+       FROM journal_acces ORDER BY date DESC, id DESC LIMIT $1`,
     [limite],
   );
 }

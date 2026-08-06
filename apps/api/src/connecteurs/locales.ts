@@ -74,7 +74,9 @@ export async function postesLesPlusProches(pt: Position, nombre = 4): Promise<Po
             capacite_residuelle_mw, etat_saturation, file_attente_mw, quote_part_eur_par_kw,
             renforcement_prevu, renforcement_horizon, renforcement_capacite_mw, en_projet
        FROM poste_source
-      ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
+      -- Departage par l'identifiant : deux postes exactement equidistants existent (postes jumeles
+      -- sur un meme site), et sans ordre total la limite en retenait un au hasard (audit 9, A1).
+      ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326), id
       LIMIT $3`,
     [pt[0], pt[1], nombre],
   );
@@ -109,7 +111,7 @@ export async function reseauGaz(pt: Position): Promise<Raccordement['reseauGaz']
       `SELECT ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_m,
               gestionnaire, capacite_nm3h, rebours_necessaire
          FROM point_injection_gaz
-        ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
+        ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326), id
         LIMIT 1`,
       [pt[0], pt[1]],
     ),
@@ -117,7 +119,7 @@ export async function reseauGaz(pt: Position): Promise<Raccordement['reseauGaz']
       `SELECT ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_m,
               gestionnaire
          FROM canalisation_gaz
-        ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
+        ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326), id
         LIMIT 1`,
       [pt[0], pt[1]],
     ),
@@ -296,7 +298,9 @@ export async function patrimoine(
               ST_Intersects(c.geom, pt.g) AS contient,
               row_number() OVER (
                 PARTITION BY c.type
-                ORDER BY c.geom <-> pt.g
+                -- Departage : le rang decide de la troncature a 40 objets par type, il doit donc
+                -- etre reproductible entre deux appels (audit 9, A1).
+                ORDER BY c.geom <-> pt.g, c.identifiant_source
               ) AS rang
          FROM contrainte c, pt
         WHERE c.type = ANY($3)
@@ -304,7 +308,7 @@ export async function patrimoine(
      )
      SELECT type, nom, distance_m, contient, rang FROM proches
       WHERE rang <= 40
-      ORDER BY type, distance_m`,
+      ORDER BY type, distance_m, nom`,
     [pt[0], pt[1], typesIngeres, rayonM],
   );
 
