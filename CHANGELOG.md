@@ -11,6 +11,90 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Ajouté — sources de données
+
+- **Les zones d'accélération des ENR et les sites classés / inscrits sont désormais ingérés**
+  (audit 8). Deux couches nationales existent sur le WFS de la Géoplateforme, et le catalogue des
+  sources annonçait pourtant « aucune API nationale consolidée » pour les ZAER : cette croyance a
+  laissé gris depuis l'origine l'argument réglementaire le plus utile de la prospection depuis la loi
+  APER. 6 617 sites classés et inscrits sont chargés (2 612 classés, 4 005 inscrits) ; les ZAER
+  représentent 1,09 million de zones. Les deux vocabulaires ont été **mesurés avant** d'écrire la
+  moindre correspondance, et chacun cachait un piège : **68 % des ZAER photovoltaïques portent sur des
+  toitures** et ne concernent pas le foncier ; « Grand Site de France » et « Patrimoine mondial » sont
+  des **labels** sans portée réglementaire propre, dont l'assimilation à un site classé aurait
+  déclenché un knock-out éolien non dérogeable à tort.
+
+### Corrigé — l'application n'affirme plus ce qu'elle ne sait pas
+
+Les huit défauts de priorité 1 de l'audit 8 forment une seule famille : le code lit proprement une
+source qui n'existe pas, et transforme son silence en fait affirmé. Aucun n'était un défaut de
+calcul, et aucun test écrit d'après le code ne pouvait les voir.
+
+- **Un critère valait 90/100 en feu VERT sur une couche que rien n'ingérait** (audit 8). `pat_sites`
+  affichait « Aucun site classé ni inscrit dans le rayon d'analyse », partout en France, sur zéro
+  donnée : `patrimoine()` lisait la table `contrainte` pour quatre types dont un seul est ingéré, et
+  rendait les listes vides en absences constatées. Le knock-out éolien du site classé était du même
+  coup **structurellement inatteignable**, alors qu'un site classé impose une autorisation
+  ministérielle spéciale jamais accordée pour un parc éolien. La présence est désormais évaluée par
+  type et par département, le plafond de lignes est par type, et un test nommé échoue si le knock-out
+  redevient inatteignable.
+- **Le nombre de propriétaires était la constante `1`, en dur** (audit 8), sous un commentaire
+  décrivant un algorithme jamais écrit. Le critère valait 100/100 en vert, « 1 propriétaire(s)
+  estimé(s) », sur le premier facteur de mortalité d'un projet. La valeur est `null` et le critère
+  déclaré sans source.
+- **Un échec de source produisait le meilleur score possible** (audit 8). Les trois conditions du
+  `null` de l'aléa d'inondation étaient liées par `&&` : un échec de `gaspar/pprn` donnait « aléa
+  nul », noté 100/100. La liste des connecteurs en échec existait et remontait jusqu'au PDF sans
+  jamais atteindre le moteur, si bien qu'un même document portait un feu vert et une note disant que
+  la source avait échoué. Le moteur la reçoit maintenant et grise tout critère concerné.
+- **Un plan de prévention communal devenait un aléa parcellaire** (audit 8). L'existence d'un PPRI sur
+  la commune valait « aléa moyen » sur chaque parcelle, soit 85 % des communes françaises, y compris
+  sur un plateau à trois kilomètres du moindre cours d'eau. Un aléa est une grandeur parcellaire.
+- **Un PPRN au libellé illisible valait « pas de PPRI »** (audit 8), sur 30 % des communes qui en ont
+  un. La provenance décide désormais : `gaspar/pprn` se classe au libellé, donc un plan illisible rend
+  les familles naturelles incertaines ; `gaspar/pprt` est technologique par construction.
+- **La « distance au réseau gaz » était la distance à un site d'injection existant** (audit 8), la
+  table des canalisations n'étant peuplée par rien : quelques centaines de points contre des dizaines
+  de milliers de kilomètres de canalisations. La méthanisation était systématiquement pénalisée sur
+  11 % de sa note. Les deux grandeurs portent maintenant deux noms distincts.
+- **Un critère recomptait ce qui était déjà compté** (audit 8). `env_especes_protegees`, 7 % de la
+  note éolienne, était une dérivation de la proximité des zonages déjà notés par
+  `env_proximite_natura2000` et `env_znieff`.
+- **Quatre critères gris en permanence** (ZAER, archéologie, karst, radars et servitudes
+  aéronautiques) affichaient « donnée indisponible », ce qui laisse croire à une panne passagère, et
+  pesaient sur la pénalité de couverture. Ils disent maintenant qu'aucune source n'est ingérée, et où
+  chercher la donnée.
+- **Six paramètres de requête produisaient une erreur 500** (audit 8), vérifié contre PostgreSQL :
+  `Number('abc')` valait `NaN`, qui partait tel quel en paramètre SQL. Une faute d'appel vaut 400.
+- **Deux exports acceptaient une liste sans plafond, avec une requête SQL par parcelle** (audit 8),
+  alors que l'export CSV était borné. La limitation de débit borne la fréquence, pas la taille.
+- Également corrigés : un test d'existence global pour trois couches d'intrants indépendantes ; un
+  raster de vent qui ne redevenait jamais lisible sans redémarrage ; l'absence de tout contrôle du
+  géoréférencement de ce raster ; le document-cadre PV confondant « non ingéré » et « pas de
+  document-cadre » ; une route de couche sans liste fermée ; un export GeoJSON muet sur sélection
+  vide ; un « potentiel agronomique » renommé pour ce qu'il est, un proxy du groupe de culture
+  déclaré ; et une chaîne d'espaces qui s'affichait comme une cellule vide plutôt que comme une
+  absence.
+
+### Ajouté — contrôles permanents
+
+- **Un contrôle d'ALIMENTATION, et non plus seulement de citation** (audit 8, item 21). Le contrôle
+  des champs orphelins vérifiait que le nom d'un champ apparaît dans un connecteur ; celui-ci vérifie
+  qu'un chemin de production peut lui donner une valeur. Trois règles : toute couche lue en base est
+  ingérée ou son absence est déclarée ; tout champ structurellement nul est déclaré et non subi ; aucun
+  connecteur ne renseigne un champ mesurable par une constante. C'est le contrôle qui aurait trouvé
+  quatre des défauts ci-dessus sans audit, et **il a trouvé deux choses à sa première exécution**.
+- **La vérification par mutation passe de 7 à 14 mutations**, 14/14 rattrapées. Le script avait
+  lui-même un défaut de périmètre : les mutations portant sur `packages/scoring` n'étaient attrapées
+  par personne, les tests important le paquet **construit**. Il reconstruit désormais l'espace muté.
+- **Les routes HTTP sont testées** : 7 des 44 étaient citées dans un test, dont aucune des quatre
+  routes d'export ni la route RGPD. Douze cas couvrent maintenant les trois refus de la route des
+  propriétaires, les routes d'administration, les plafonds d'export et la cohérence du format
+  d'erreur.
+- **Les fixtures de contrat sont capturées avec les paramètres de production**, et un test vérifie la
+  correspondance code / fixture dans les deux sens. La fixture PVGIS avait été capturée sans
+  `optimalangles=1`, soit 17 % d'écart sur les valeurs.
+
 ### Audité
 
 - **Huitième audit complet** (`docs/AUDIT-8.md`), premier à couvrir les quatre zones jamais

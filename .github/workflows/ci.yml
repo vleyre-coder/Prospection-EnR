@@ -86,11 +86,6 @@ jobs:
       - name: Verifier la fraicheur du referentiel reglementaire
         run: node scripts/verifier-fraicheur-referentiel.mjs
 
-      # Sept audits ont montre qu'un test peut passer sans rien proteger. Chaque mutation de ce
-      # script correspond a un defaut REELLEMENT survenu et doit faire echouer au moins un test :
-      # une mutation qui passe signale un test decoratif, ce qui est une regression a part entiere.
-      - name: Verifier par mutation que les gardes protegent vraiment
-        run: node scripts/mutation.mjs
 
       - name: Appliquer les migrations
         env:
@@ -134,6 +129,18 @@ jobs:
           echo "$sortie" | grep -q '"appliquees":0' \
             || { echo "::error::la base n'est pas revenue a un etat stable"; exit 1; }
 
+      # Huit audits ont montre qu'un test peut passer sans rien proteger. Chaque mutation de ce
+      # script correspond a un defaut REELLEMENT survenu et doit faire echouer au moins un test :
+      # une mutation qui passe signale un test decoratif, ce qui est une regression a part entiere.
+      #
+      # `DATABASE_URL` est indispensable ici depuis l'audit 8 : une des mutations retablit le defaut
+      # de `patrimoine()`, et le test qui l'attrape a besoin d'une base. Sans cette variable, le test
+      # s'ignorait et la mutation passait — le script signalait alors a tort un test decoratif.
+      - name: Verifier par mutation que les gardes protegent vraiment
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: node scripts/mutation.mjs
+
       # Deux calculs metier vivent en SQL : la part de recouvrement d'un zonage (qui
       # designe le zonage dominant, donc un knock-out) et le nombre de groupes de parcelles
       # jointives d'un site (qui gouverne la surface implantable). Dans le job precedent ils
@@ -143,6 +150,16 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
         run: npx tsx --test test/postgis.test.ts
+        working-directory: apps/api
+
+      # `patrimoine()` portait le defaut le plus grave des huit audits, et aucun test ne pouvait le
+      # voir parce qu'aucun test ne touchait la base : quatre types patrimoniaux etaient lus, un seul
+      # est ingere, et les trois listes vides devenaient des absences CONSTATEES. Ces tests exigent
+      # une base ; sans cette etape ils s'ignorent, et un test ignore protege de rien.
+      - name: Tester la presence des couches patrimoniales contre PostGIS
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
+        run: npx tsx --test test/patrimoine-couches.test.ts
         working-directory: apps/api
 
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :

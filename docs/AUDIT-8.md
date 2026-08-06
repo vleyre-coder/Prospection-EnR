@@ -720,3 +720,175 @@ n'avaient jamais été auditées l'ont été et ont produit tous les défauts ma
 angle n'est laissé de côté volontairement. Les seules limites connues et assumées de cet audit sont
 les items de priorité 5, qui ne dépendent pas du code : ils exigent un expert métier, des devis
 réels, une relecture juridique et des utilisateurs.
+
+---
+
+# Suites données à l'audit 8 — 6 août 2026
+
+Les priorités 1 à 4 ont été traitées. Cette section n'est pas un résumé : elle enregistre **ce qui a
+été fait, ce qui a été trouvé en le faisant, et ce qui reste ouvert**. Trois défauts nouveaux sont
+apparus pendant les corrections, dont deux dans mes propres dispositifs de contrôle.
+
+## Priorité 1 — les huit affirmations sans donnée
+
+Toutes corrigées, chacune vérifiée par exécution **puis** par mutation. Le fichier
+`apps/api/test/audit8-affirmations.test.ts` (20 cas) verrouille l'ensemble, et
+`scripts/mutation.mjs` passe de 7 à 14 mutations, **14/14 rattrapées**.
+
+| # | État | Vérification |
+|---|---|---|
+| 1-2 | **corrigé** | `pat_sites` passe de `90 / vert / « Aucun site classé ni inscrit »` à `null / gris / « non évalué - aucune source ingérée »`. Le cas légitime — couche ingérée, rien dans le rayon — vaut toujours 90 : les deux tests sont symétriques. |
+| 3 | **corrigé** | Test nommé qui échoue si `ko_eol_site_classe` redevient inatteignable. |
+| 4 | **corrigé** | `nbProprietairesEstime` passe de `1` en dur à `null`, critère `sansSource`. Un test appelle le **connecteur**, pas seulement le moteur : griser le critère sans corriger la source aurait laissé le `1` dans les exports, qui lisent le snapshot. |
+| 5-6 | **corrigé** | `aleaInondation()` extraite et testée par énumération des combinaisons. Un échec de `gaspar/pprn` ne peut plus produire « aléa nul ». |
+| 7 | **corrigé** | `presenceFamille()` extraite. La provenance décide : un plan illisible de `gaspar/pprn` rend les familles naturelles **incertaines**, `gaspar/pprt` n'est pas concerné. Sigles ajoutés : `MT`, `Pi`, `PPRNPi`. |
+| 8 | **corrigé** | `connecteursEnEchec` atteint le moteur. Garde générique : tout critère dont la source a échoué passe au gris, quelle que soit la valeur restée dans le snapshot. Câblée aux six points d'appel du scoring, y compris le rescoring hors ligne et le score consolidé de site — où les échecs sont suivis **par parcelle**, une liste unique pour le site grisant à tort des critères réellement mesurés. |
+
+## Priorité 2 — la donnée manquante existe réellement
+
+**Le correctif de priorité 1 rendait ces couches grises, ce qui était honnête. Deux sources
+nationales existent, et elles sont maintenant ingérées.** Le catalogue des sources annonçait
+« aucune API nationale consolidée » pour les ZAER : c'était faux, et cette croyance a laissé le
+critère gris depuis l'origine.
+
+- **`zaer:zaer`** sur le WFS de la Géoplateforme — 1 089 671 zones, avec filière, détail de filière,
+  commune, productible et puissance.
+- **couches `STE`** — 7 753 sites en métropole, plus trois couches d'outre-mer. **6 617 sites classés
+  et inscrits déjà chargés** (2 612 classés, 4 005 inscrits).
+
+Les deux vocabulaires ont été **mesurés sur les données réelles avant d'écrire une ligne de
+correspondance**, et chacun cachait un piège de la même famille que le défaut `libPpr` de l'audit 7 :
+
+1. **68 % des ZAER photovoltaïques portent sur des TOITURES** (`detail_filiere1 = TOIT`, 293 sur 430
+   échantillonnées). Traduire `SOLAIRE_PV` en `solaire_sol` sans lire le détail aurait fait dire à
+   l'application « cette parcelle est en zone d'accélération pour le solaire au sol » à propos de la
+   toiture d'une maison de quartier.
+2. **« Grand Site de France » et « Patrimoine mondial » sont des LABELS**, non des sites protégés au
+   sens des articles L. 341-1 et L. 341-10. Les ranger en `site_classe` aurait déclenché un knock-out
+   éolien **non dérogeable à tort** — l'erreur symétrique de celle corrigée, et aussi grave.
+
+Une valeur non reconnue n'est jamais rangée par défaut : elle est journalisée et l'objet n'est pas
+ingéré. Mieux vaut une zone ignorée qu'une zone mal classée.
+
+**Deux défauts trouvés par l'exécution réelle de l'ingestion**, invisibles à toute relecture :
+
+- **`idsup` n'est pas unique.** Un site est découpé en autant de lignes que de parties : 24 pour le
+  site d'Alésia, 16 pour le Val Suzon. PostgreSQL a refusé net (`ON CONFLICT DO UPDATE command cannot
+  affect row a second time`). Le réflexe — dédupliquer sur la clé — aurait **perdu 23 géométries sur
+  24 en silence**, exactement la classe de défaut que cette ingestion corrige. Les parties sont donc
+  **réunies** (`ST_Collect` dans le lot, `ST_Union` sur conflit), opération associative et idempotente.
+- **Le département n'est pas lisible dans `idsup`.** `AC2-130010002-447` : `130010002` est un
+  identifiant *national* de servitude, et ses deux premiers caractères valent `13` pour tout le pays.
+  Les 6 617 sites se sont retrouvés dans les Bouches-du-Rhône, ce qui **annulait tout l'intérêt de la
+  correction** — `patrimoine()` filtre la couverture par département, donc 95 départements auraient
+  continué d'afficher un critère gris. Le rattachement se fait désormais par jointure spatiale sur
+  `commune`, et l'ingestion **dit** quand la table des communes est vide plutôt que de laisser croire
+  à une ingestion complète.
+
+Autres items de priorité 2 :
+
+| # | État |
+|---|---|
+| 10 | **corrigé** — `reseauGaz` expose `distanceCanalisationKm` et `distanceSiteInjectionKm`, deux grandeurs qui n'ont plus le même nom. Le changement de type a fait remonter les cinq consommateurs (moteur, seuils de procédure, PDF, fiche), tous corrigés. Le critère est gris tant que les canalisations ne sont pas ingérées. |
+| 13 | **corrigé** — `preEnjeuEspeces` passe à `null` et `preEnjeuDerive()` est supprimée. Le double comptage de 7 % sur l'éolien disparaît. |
+| 14 | **corrigé** — le critère s'intitule désormais « Potentiel agronomique (d'après la culture déclarée) » et son commentaire dit que c'est un proxy du groupe de culture PAC, non une analyse pédologique. |
+| 9, 12 | **traités par la donnée** (voir ci-dessus) plutôt que par le gris. |
+| 11 | **corrigé** — job `zaer_local` écrit et enregistré. Reste à lancer sur l'instance de production : 1,09 million de zones, environ une heure. |
+
+## Priorité 3 — les gardes structurelles
+
+| # | État |
+|---|---|
+| 15 | **corrigé** — nouveau module `connecteurs/couches.ts` : présence **par type** et **par département**. `patrimoine()` filtrait la couverture sans filtre départemental alors que la table est clé-primairée par département. Les deux nouvelles ingestions enregistrent leur couverture, celle des sites **par département ET par type** — un département n'ayant que des sites inscrits ne doit pas laisser affirmer l'absence de site classé. |
+| 16 | **corrigé** — `agregerIntrants()` extraite et testée sur les **huit combinaisons** d'ingestion partielle. Un comptage n'existe que si sa couche est ingérée ; le total n'existe que si les trois le sont, un total partiel étant une borne inférieure présentée comme une estimation. |
+| 17 | **corrigé** — plafond **par type** via `ROW_NUMBER() OVER (PARTITION BY type)`, avec un test qui reproduit le défaut : 60 monuments plus proches qu'un site inscrit unique. |
+| 18 | **corrigé** — les trois motifs de l'avis ABF sont évalués séparément. Un site inscrit seul, sans monument dans les 10 km, donne bien `true`. |
+| 19 | **corrigé** — le drapeau booléen devient une date de prochaine tentative. La séquence fautive était l'ordre naturel d'une première installation : serveur démarré avant l'ingestion, raster jamais rechargé, 10,9 % de la note éolienne perdus jusqu'au redémarrage. |
+| 20 | **corrigé** — le géoréférencement du raster est vérifié à l'ouverture. Un raster projeté est refusé plutôt que d'échantillonner le mauvais pixel en silence. |
+| 21 | **corrigé, et c'est le plus important** — voir ci-dessous. |
+| 22 | **corrigé** — fixture PVGIS capturée avec les paramètres de production, et un test vérifie que **la table des paramètres attendus correspond au code**, dans les deux sens. |
+
+### Item 21 — le contrôle qui rend la famille impossible
+
+`apps/api/test/alimentation.test.ts` pose la question que sept audits n'avaient pas posée : **existe-t-il
+un chemin de production capable d'alimenter ce que le code affiche ?** Trois contrôles mécaniques :
+
+1. **toute couche lue en base est ingérée, ou son absence est déclarée** — le contrôle qui aurait
+   trouvé B1. Il existe un seul `INSERT INTO contrainte` dans tout le dépôt, et six types étaient lus ;
+2. **tout champ structurellement nul est déclaré, et jamais subi** — celui qui aurait trouvé B2, C1 et
+   C2, avec le contrôle inverse : un champ déclaré nul qui reçoit désormais une valeur doit sortir de la
+   liste, sinon le critère resterait gris sur une donnée disponible ;
+3. **aucun connecteur ne renseigne un champ mesurable par une constante** — celui qui aurait trouvé B2
+   directement.
+
+**Il a trouvé deux choses à sa première exécution** (`zaer` lu sans écrivain, `inculteDepuis2013`
+structurellement nul), toutes deux légitimes et désormais déclarées avec leur motif.
+
+## Priorité 4 — API et tests
+
+| # | État |
+|---|---|
+| 23 | **corrigé** — `entierRequete()` et `nombreRequete()` dans `validation.ts`, appliquées aux six routes. `ErreurValidation` est traduite en **400** par le gestionnaire global, et non plus en 500. |
+| 24 | **partiellement corrigé** — le gestionnaire global rend désormais toute `ErreurValidation` en 400, ce qui rend l'usage du lecteur possible sans câblage par route. Les corps des 21 routes mutantes ne passent pas encore tous par `Lecteur` : c'est le reste ouvert le plus net. |
+| 25 | **corrigé** — `idusValides()` : plafond aligné sur l'export CSV, type de chaque élément vérifié, doublons écartés, et une **seule** requête SQL pour tous les scores au lieu d'une par parcelle. |
+| 26 | **corrigé** — `routes-validation.test.ts`, 12 cas : les trois refus de la route RGPD (dont « admin ne dispense pas de l'habilitation »), les routes d'administration, les plafonds d'export, les 400 sur paramètre malformé, et la cohérence du format d'erreur. |
+| 27 | **corrigé** — liste fermée sur `/api/carte/couche/:type`. |
+| 28 | **corrigé** — `geojson` renvoie 404 sur sélection vide, comme le Shapefile. |
+| 29 | **corrigé** — `departementCouvert` a trois états. L'affichage distingue « département non ingéré » de « aucun document-cadre départemental », qui est un fait vrai pour la majorité des départements. |
+| 30 | **corrigé autrement qu'annoncé** — voir ci-dessous. |
+
+### Item 30 — pourquoi le composant n'est pas monté
+
+Première tentative : monter `val()` avec `jsdom` et `@testing-library/react`. Le montage échoue sur
+`import.meta.env.VITE_URL_API` — le composant importe le client d'API, indisponible hors de Vite.
+
+Deux issues : simuler l'environnement Vite, ou **extraire la décision**. La seconde est meilleure, et
+c'est celle que l'en-tête de `utils/affichage.ts` prescrit depuis sa création : *une fonction de l'état
+vers un texte est de la logique métier, pas du rendu.* `valeurAffichable()` y descend donc, testée
+sans DOM. Les deux dépendances ajoutées pour la première tentative ont été retirées — une dépendance
+non utilisée est un défaut à son tour.
+
+**Un défaut trouvé en écrivant ce test :** la garde était `v === ''`, qui ne rattrape pas `'   '`. Une
+chaîne d'espaces produisait une cellule visuellement vide, indiscernable d'un défaut de rendu — et
+plusieurs sources en produisent (`gestnom` des sites, `commentaire` des ZAER, plusieurs champs de
+Géorisques valent l'espace plutôt que la chaîne vide).
+
+## Défauts trouvés dans mes propres dispositifs de contrôle
+
+Trois, et ils méritent d'être écrits parce qu'un contrôle qui se trompe sur son périmètre est pire
+qu'aucun contrôle : il rassure.
+
+1. **`scripts/mutation.mjs` ne pouvait pas attraper les mutations du moteur.** Les tests importent
+   `@enr/scoring`, qui résout vers `dist/` : muter la source ne changeait rien au code exécuté. Les
+   deux mutations concernées passaient et **signalaient à tort des tests décoratifs**. Le script
+   reconstruit désormais l'espace de travail muté, avant et après.
+2. **Le test de base de `patrimoine()` passait à vide.** Un `try/catch` mettait `baseDisponible` à
+   `false` sur n'importe quelle erreur ; le serveur PostgreSQL local est tombé pendant la session, les
+   six tests sont passés en affichant « base indisponible », et la mutation du défaut le plus grave
+   n'était attrapée par personne. Le test échoue maintenant si `DATABASE_URL` est défini mais
+   injoignable, et la CI fournit la base.
+3. **La fixture PVGIS avait été capturée sans les paramètres de production** (`optimalangles=1`, 17 %
+   d'écart sur les valeurs). Recapturée, et un test vérifie la correspondance code / fixture dans les
+   deux sens.
+
+## Ce qui reste ouvert
+
+- **Lancer les deux ingestions sur l'instance de production.** Les sites sont chargés ici (6 617) ; les
+  ZAER représentent 1,09 million de zones, soit environ une heure. Tant que ce n'est pas fait, les
+  critères restent gris — ce qui est le comportement correct, mais pas le comportement souhaitable.
+- **Les SPR** ne sont pas dans la couche `STE` : ils restent non ingérés et déclarés comme tels.
+- **Les corps des 21 routes mutantes** ne passent pas tous par `Lecteur` (item 24).
+- **Les couches d'intrants méthanisation** (élevages et IAA depuis l'inventaire ICPE, surfaces
+  agricoles depuis le RPG agrégé, tracés de canalisations GRTgaz/GRDF) restent à ingérer. La filière
+  n'est pas exploitable d'ici là, et le dit maintenant sur chacun de ses critères.
+- **Les quatre items de priorité 5**, qui ne dépendent pas du code : campagne de validation par un
+  expert foncier, devis réels de raccordement, relecture juridique, test d'usage.
+
+## Score après corrections
+
+Je ne le renote pas ici. Le rapport ci-dessus a été écrit avant les corrections, et un score
+réévalué par l'auteur des corrections, le même jour, sur le même périmètre, n'aurait aucune valeur
+d'audit — c'est exactement le biais d'auto-complaisance que l'audit 1 signalait en tête. Ce qui est
+vérifiable et suffit : **14/14 mutations rattrapées, zéro échec sur la suite, et trois contrôles
+mécaniques permanents qui échouent si l'un des défauts revient.** Un audit 9 conduit à froid dira le
+reste.

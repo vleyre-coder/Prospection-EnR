@@ -106,3 +106,48 @@ export function estSessionExpiree(
   if (!jetonPresentAvantAppel) return false;
   return !chemin.startsWith('/api/auth/connexion');
 }
+
+// ---------------------------------------------------------------------------
+// Rendu d'une valeur de snapshot
+// ---------------------------------------------------------------------------
+
+/**
+ * Verdict d'affichage d'une valeur : absente, ou lisible.
+ *
+ * POURQUOI CETTE SEPARATION. La decision vivait dans `FicheParcelle.tsx`, sous la forme d'une
+ * fonction `val()` de six lignes retournant du JSX. Six lignes qui decident de ce que le prospecteur
+ * lit sur CHAQUE champ de la fiche, et qu'aucun test ne pouvait atteindre : le composant importe le
+ * client d'API, qui lit `import.meta.env`, indisponible hors de Vite.
+ *
+ * C'est exactement le motif qui a justifie la creation de ce fichier, rappele dans son en-tete : une
+ * fonction de l'etat vers un texte est de la logique metier, pas du rendu. Elle descend donc ici, et
+ * le composant se contente de l'habiller.
+ *
+ * L'AUDIT 8 A MONTRE L'ENJEU. Ses deux defauts les plus graves n'etaient pas des plantages : c'etaient
+ * des phrases affirmatives sur zero donnee. Un critere gris protege son lecteur — il dit « je ne sais
+ * pas ». Une cellule vide, ou un zero mis pour un inconnu, ne peut pas etre rattrape.
+ */
+export type ValeurAffichable = { absente: true } | { absente: false; texte: string };
+
+/**
+ * Une valeur inconnue se lit comme inconnue ; un zero mesure se lit comme un zero.
+ *
+ * `typeof v === 'string' && v.trim() === ''` et non `v === ''` : une chaine d'espaces n'etait pas
+ * rattrapee et produisait une cellule visuellement vide, indiscernable d'un defaut de rendu. Plusieurs
+ * sources en produisent — `gestnom`, `commentaire` et plusieurs champs de Georisques valent l'espace
+ * plutot que la chaine vide. Trouve en ecrivant le test de ce comportement.
+ */
+export function valeurAffichable(
+  v: unknown,
+  unite = '',
+  formatNombre: (n: number, u: string, decimales: number) => string,
+): ValeurAffichable {
+  if (v == null || (typeof v === 'string' && v.trim() === '')) return { absente: true };
+  if (typeof v === 'boolean') return { absente: false, texte: v ? 'oui' : 'non' };
+  if (typeof v === 'number') {
+    // Un entier ne gagne pas de decimale : « 12 ha » et non « 12,0 ha ».
+    if (!Number.isFinite(v)) return { absente: true };
+    return { absente: false, texte: formatNombre(v, unite, Number.isInteger(v) ? 0 : 1) };
+  }
+  return { absente: false, texte: String(v) };
+}

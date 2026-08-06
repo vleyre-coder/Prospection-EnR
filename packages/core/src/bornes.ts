@@ -167,7 +167,11 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   { chemin: 'raccordement.posteLePlusProche.capaciteResiduelleMw', min: 0, max: 10_000, unite: 'MW', motif: 'Capacite d’accueil d’un poste source. Le plus gros poste francais reste tres en dessous de 10 GW.' },
   { chemin: 'raccordement.posteLePlusProche.fileAttenteMw', min: 0, max: 100_000, unite: 'MW', motif: 'Puissance des projets en file d’attente, cumulable : borne large.' },
   { chemin: 'raccordement.posteLePlusProche.quotePartEurParKw', min: 0, max: 1_000, unite: 'EUR/kW', motif: 'Quote-part S3REnR. Les schemas publies se situent entre 10 et 150 EUR/kW.' },
-  { chemin: 'raccordement.reseauGaz.distanceKm', min: 0, max: 500, unite: 'km', motif: 'Distance au reseau de gaz. Meme raisonnement que pour le poste source.' },
+  // Les deux distances gaz sont bornees separement depuis l'audit 8 : la canalisation gouverne le
+  // raccordement, le site d'injection existant n'est qu'un indicateur de territoire. C'est le controle
+  // des bornes qui a rattrape l'oubli de cette ligne lors du renommage — la preuve qu'il sert.
+  { chemin: 'raccordement.reseauGaz.distanceCanalisationKm', min: 0, max: 500, unite: 'km', motif: 'Distance a la canalisation de gaz. Meme raisonnement que pour le poste source.' },
+  { chemin: 'raccordement.reseauGaz.distanceSiteInjectionKm', min: 0, max: 1000, unite: 'km', motif: 'Distance au site d’injection de biomethane existant le plus proche. Borne plus large que celle des canalisations : les sites d’injection sont rares, donc parfois tres eloignes.' },
   { chemin: 'raccordement.reseauGaz.capaciteInjectionNm3h', min: 0, max: 100_000, unite: 'Nm3/h', motif: 'Capacite d’injection d’un point du reseau.' },
 
   // -- Gisement ------------------------------------------------------------

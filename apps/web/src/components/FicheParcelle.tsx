@@ -29,7 +29,7 @@ import type {
 import { api, ErreurApi, type FicheParcelle as Fiche, type Referentiel } from '../api/client.js';
 import { ponderationCourante, STATUTS, useEtat } from '../store/etat.js';
 import { formatDate, formatDateHeure, formatNombre } from '../utils/geometrie.js';
-import { libelleCultureRpg } from '../utils/affichage.js';
+import { libelleCultureRpg, valeurAffichable } from '../utils/affichage.js';
 
 interface Props {
   idu: string;
@@ -586,11 +586,16 @@ function BlocAvertissement({ avertissement }: { avertissement: Avertissement }):
 // Rubriques de donnees brutes (section 6 du cahier des charges)
 // ---------------------------------------------------------------------------
 
+/**
+ * Habillage de `valeurAffichable`. La DECISION vit dans `utils/affichage.ts`, ou elle est testee sans
+ * DOM ; ce composant ne fait que la placer. La separation vient de l'audit 8 : ces six lignes
+ * decidaient de ce que le prospecteur lit sur chaque champ de la fiche, et aucun test ne pouvait les
+ * atteindre parce que ce fichier importe le client d'API, qui lit `import.meta.env`.
+ */
 function val(v: unknown, unite = ''): JSX.Element {
-  if (v == null || v === '') return <span className="absent">donnee indisponible</span>;
-  if (typeof v === 'boolean') return <>{v ? 'oui' : 'non'}</>;
-  if (typeof v === 'number') return <>{formatNombre(v, unite, Number.isInteger(v) ? 0 : 1)}</>;
-  return <>{String(v)}</>;
+  const r = valeurAffichable(v, unite, formatNombre);
+  if (r.absente) return <span className="absent">donnee indisponible</span>;
+  return <>{r.texte}</>;
 }
 
 function Rubrique({

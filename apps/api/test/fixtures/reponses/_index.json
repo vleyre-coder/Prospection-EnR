@@ -15,6 +15,7 @@
   "georisques-pprn-menton": "https://georisques.gouv.fr/api/v1/gaspar/pprn?codeInsee=06083&pageSize=20",
   "georisques-rga-lille": "https://georisques.gouv.fr/api/v1/rga?latlon=3.0700,50.6300",
   "wfs-batiment-village": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=40&TYPENAMES=BDTOPO_V3:batiment&BBOX=1.745,48.150,1.752,48.156,EPSG:4326",
-  "wfs-apb-rennes": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=5&TYPENAMES=patrinat_apb:apb&BBOX=-1.80,48.00,-1.50,48.30,EPSG:4326"
+  "wfs-apb-rennes": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=5&TYPENAMES=patrinat_apb:apb&BBOX=-1.80,48.00,-1.50,48.30,EPSG:4326",
+  "pvgis-pvcalc-beauce": "https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=48.1500&lon=1.7500&peakpower=1&loss=14&optimalangles=1&outputformat=json"
  }
 }

@@ -173,6 +173,47 @@ ne prouve pas l'absence de servitude.
 
 ---
 
+### 2.7 ZAER et sites protégés — deux couches nationales longtemps ignorées
+
+Ajoutées à l'audit 8, qui a montré que les deux étaient **lues par l'application et écrites par
+personne**. Le catalogue des sources annonçait « aucune API nationale consolidée » pour les ZAER ;
+c'était inexact, et cette croyance a laissé gris l'argument réglementaire le plus utile de la
+prospection depuis la loi APER.
+
+| Couche WFS | Objets | Table |
+|---|---|---|
+| `zaer:zaer` | 1 089 671 | `zaer` |
+| `sites_metropole_gpkg_*:STE_Metropole` + 3 couches d'outre-mer | 7 753 en métropole | `contrainte`, types `site_classe` et `site_inscrit` |
+
+**Les deux vocabulaires sont codés, et les deux cachent un piège.** Ils ont été mesurés sur les
+données réelles avant d'écrire la moindre correspondance — c'est la leçon des audits 5 à 8, où le
+défaut n'était jamais dans le calcul mais dans la traduction d'un vocabulaire supposé.
+
+- **68 % des ZAER photovoltaïques portent sur des TOITURES** (`detail_filiere1 = TOIT`, 293 sur 430
+  échantillonnées). Traduire `SOLAIRE_PV` en `solaire_sol` sans lire le détail ferait dire à
+  l'application « cette parcelle est en zone d'accélération pour le solaire au sol » à propos de la
+  toiture d'une maison de quartier. Seuls `SOL` et `SURFACE` sont retenus ; `OMBRIERE` désigne un
+  ombrage de parking, qui ne se prospecte pas comme du foncier.
+- **`typesite` compte cinq valeurs, dont trois sont des LABELS** : « Patrimoine mondial » (UNESCO),
+  « Grand Site de France » et « Projet Grand Site de France » n'ont pas de portée réglementaire propre
+  au sens des articles L. 341-1 et L. 341-10. Les ranger en site classé déclencherait un knock-out
+  éolien **non dérogeable à tort**.
+- **Le stockage (`bess`) n'est couvert par aucune ZAER** : la loi APER porte sur la *production*. Le
+  critère restera sans source pour cette filière, quelle que soit la qualité de l'ingestion.
+
+Une valeur non reconnue n'est jamais rangée par défaut : elle est journalisée et l'objet n'est pas
+ingéré. Mieux vaut une zone ignorée qu'une zone mal classée.
+
+**Deux pièges d'ingestion, trouvés à l'exécution réelle.** `idsup` n'est pas unique — un site est
+découpé en parties, 24 pour le site d'Alésia — donc les parties sont **réunies** et non dédupliquées,
+ce qui aurait perdu 23 géométries sur 24 en silence. Et le département n'est pas lisible dans `idsup`
+(`AC2-130010002-447` : `130010002` est un identifiant *national*, dont les deux premiers caractères
+valent `13` pour tout le pays) : il est déduit par jointure spatiale sur `commune`. Sans la table des
+communes, aucune couverture n'est enregistrée et l'ingestion le **dit**.
+
+Commandes : `npm run ingest -- patrimoine_sites` puis `npm run ingest -- zaer_local`. La seconde
+demande environ une heure. La table `commune` doit être ingérée avant la première.
+
 ## 3. Sources sans API nationale — ingestion territoriale
 
 Ces couches n'existent pas sous forme consolidée. Leur absence est traitée comme **absence de
@@ -180,7 +221,8 @@ donnée** (critère gris), jamais comme absence de contrainte.
 
 | Couche | Situation | Traitement |
 |---|---|---|
-| **ZAER** (zones d'accélération des ENR) | délibérations communales, pas de portail national consolidé | table `zaer`, ingestion territoire par territoire. `couverture_ingestion` distingue « hors ZAER » de « territoire non ingéré ». |
+| **ZAER** (zones d'accélération des ENR) | ✅ **couvert depuis l'audit 8** — voir §2.7 | couche nationale `zaer:zaer` du WFS Géoplateforme, 1 089 671 zones. La ligne précédente de ce tableau disait « pas de portail national consolidé » : c'était faux, et cette croyance a laissé le critère gris depuis l'origine. |
+| **Sites classés et inscrits** | ✅ **couvert depuis l'audit 8** — voir §2.7 | couches `STE` du WFS Géoplateforme, 6 617 sites (2 612 classés, 4 005 inscrits) plus l'outre-mer. Les **SPR ne sont pas** dans cette couche et restent non ingérés. |
 | **Document-cadre départemental PV au sol** (art. L.111-29 CU) | arrêtés préfectoraux départementaux | table `document_cadre_pv`. Un département non ingéré **n'écarte pas** une parcelle inculte : le knock-out ne se déclenche que si le département est ingéré **et** la parcelle absente de la liste. Certains documents-cadres procèdent par critères littéraux et non par cartographie : l'éligibilité reste alors à apprécier. |
 | **Vent à 100 m** | ✅ **couvert** — voir §2.5 | raster national Global Wind Atlas, ingéré et échantillonné localement |
 | **Intrants méthanisables** | aucune base nationale d'élevages ni de gisement | dérivés des couches locales `elevage`, `industrie_agroalimentaire` et `surface_agricole_commune` si elles sont ingérées, selon des ratios documentés dans le code. Gris sinon. |
@@ -189,8 +231,13 @@ donnée** (critère gris), jamais comme absence de contrainte.
 | **Périmètres de protection de captage** | ⚠️ **partiellement couvert** — SUP `AS1` du GPU, voir §2.6 | l'assiette est exposée, mais **pas la sous-catégorie** (immédiat, rapproché, éloigné), qui doit être lue sur l'arrêté de DUP du captage |
 | **Données nominatives de propriétaires** | **aucune API publique ne les expose légalement** | table isolée `proprietaire_parcelle`, alimentée uniquement sur demande documentée auprès de la DGFiP ou de la mairie. Accès soumis à habilitation, motif obligatoire et journalisation stricte. |
 
-Le nombre de propriétaires affiché est une **estimation** dérivée de la structure parcellaire,
-pas une donnée de propriété.
+**Le nombre de propriétaires n'est plus affiché du tout tant que rien n'est versé.** Il valait la
+constante `1`, en dur, pour toutes les parcelles de France, sous un commentaire décrivant un
+algorithme jamais écrit (audit 8) : le critère affichait « 1 propriétaire(s) estimé(s) » avec un feu
+vert à 100/100, sur le premier facteur de mortalité d'un projet. Le nombre de comptes cadastraux
+n'est pas déductible de la structure parcellaire — deux parcelles contiguës de même section
+appartiennent souvent au même compte, mais l'écart n'est ni borné ni mesurable sans la donnée
+nominative. Un proxy dont on ne peut pas évaluer l'erreur n'a pas sa place sur ce critère.
 
 ### 3.1 Obtenir et verser les données de propriété
 

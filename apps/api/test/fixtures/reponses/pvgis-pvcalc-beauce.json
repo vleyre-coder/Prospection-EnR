@@ -1,0 +1,61 @@
+{
+ "inputs": {
+  "location": {
+   "latitude": 48.15,
+   "longitude": 1.75,
+   "elevation": 136.0
+  },
+  "meteo_data": {
+   "radiation_db": "PVGIS-SARAH2",
+   "meteo_db": "ERA5",
+   "year_min": 2005,
+   "year_max": 2020,
+   "use_horizon": true,
+   "horizon_db": "DEM-calculated"
+  },
+  "mounting_system": {
+   "fixed": {
+    "slope": {
+     "value": 38,
+     "optimal": true
+    },
+    "azimuth": {
+     "value": -3,
+     "optimal": true
+    },
+    "type": "free-standing"
+   }
+  },
+  "pv_module": {
+   "technology": "c-Si",
+   "peak_power": 1.0,
+   "system_loss": 14.0
+  },
+  "economic_data": {
+   "system_cost": null,
+   "interest": null,
+   "lifetime": null
+  }
+ },
+ "outputs": {
+  "totals": {
+   "fixed": {
+    "E_d": 3.24,
+    "E_m": 98.57,
+    "E_y": 1182.81,
+    "H(i)_d": 4.04,
+    "H(i)_m": 122.77,
+    "H(i)_y": 1473.23,
+    "SD_m": 4.37,
+    "SD_y": 52.42,
+    "l_aoi": -2.96,
+    "l_spec": "1.65",
+    "l_tg": -5.36,
+    "l_total": -19.71
+   }
+  }
+ },
+ "meta": {
+  "_note": "series mensuelles retirees : seuls les totaux sont lus par le connecteur"
+ }
+}
