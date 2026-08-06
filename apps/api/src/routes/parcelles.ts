@@ -40,6 +40,35 @@ const MAX_PARCELLES_RECOLORATION = 3000;
  * aucune n'etait validee : `String(corps.bbox ?? '')` sur un objet produisait `[object Object]`, que
  * `bboxDepuisChaine` rejetait — par chance, non par controle.
  */
+/**
+ * Options de SIMULATION, lues dans un objet `options` IMBRIQUE.
+ *
+ * POURQUOI IMBRIQUE, et pourquoi c'est important. Ma premiere version lisait ces champs au niveau
+ * racine du corps, puis appelait `refuserInconnus()`. Or l'interface envoie
+ * `{ filiere, ponderation, options }` depuis toujours : la validation aurait donc refuse `options`
+ * comme cle inconnue, et le recalcul avec ponderations personnalisees aurait repondu 400 a CHAQUE
+ * appel. Aucun test ne l'aurait vu — aucun n'envoyait `options`.
+ *
+ * La lecon vaut d'etre ecrite : ajouter une validation, c'est figer un contrat. Le contrat a respecter
+ * est celui que les appelants utilisent DEJA, pas celui qu'on trouve le plus elegant. Un test rejoue
+ * desormais les charges utiles exactes du client.
+ */
+function optionsSimulation(brut: unknown): {
+  knockOutsDesactives?: readonly string[];
+  puissanceEnvisageeMw?: number;
+  tonnageEnvisageTj?: number;
+} {
+  if (brut == null) return {};
+  const o = lecteur(brut, 'options');
+  // Liste FERMEE : un identifiant de regle inconnu passait sans bruit, et l'utilisateur croyait
+  // explorer un scenario derogatoire qui n'etait pas applique.
+  const knockOutsDesactives = o.listeParmi('knockOutsDesactives', IDS_KNOCK_OUTS, 50);
+  const puissanceEnvisageeMw = o.nombre('puissanceEnvisageeMw', { min: 0, max: 10_000 });
+  const tonnageEnvisageTj = o.nombre('tonnageEnvisageTj', { min: 0, max: 5_000 });
+  o.refuserInconnus();
+  return { knockOutsDesactives, puissanceEnvisageeMw, tonnageEnvisageTj };
+}
+
 function empriseDuCorps(c: Lecteur, corps: unknown): [number, number, number, number] | null {
   const brut = (corps as { bbox?: unknown } | null)?.bbox;
   if (typeof brut === 'string') {
@@ -130,15 +159,11 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { idu: string } }>('/api/parcelles/:idu/score', async (req, rep) => {
     const c = lecteur(req.body);
     const filiere = c.parmi('filiere', FILIERES);
-    // Les knock-outs desactivables sont une liste FERMEE : ce sont des identifiants de regles, et un
-    // identifiant inconnu passait sans bruit — l'utilisateur croyait explorer un scenario derogatoire
-    // qui n'etait pas applique.
-    const knockOutsDesactives = c.listeParmi('knockOutsDesactives', IDS_KNOCK_OUTS, 50);
-    const puissanceEnvisageeMw = c.nombre('puissanceEnvisageeMw', { min: 0, max: 10_000 });
-    const tonnageEnvisageTj = c.nombre('tonnageEnvisageTj', { min: 0, max: 5_000 });
     c.valideAilleurs('ponderation'); // cles connues, poids finis et bornes : voir `ponderationValide`
+    c.valideAilleurs('options'); // objet imbrique, valide par `optionsSimulation`
     c.refuserInconnus();
     if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    const options = optionsSimulation((req.body as { options?: unknown }).options);
 
     // La ponderation partait au moteur sans aucun controle : un poids negatif inversait la contribution
     // d'un critere, et `NaN` rendait le score global vide.
@@ -153,9 +178,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       return erreur(rep, 404, 'snapshot_absent', 'Parcelle non qualifiee : appelez /api/parcelles/:idu');
     }
     return calculerScore(snapshot.snapshot, filiere, {
-      knockOutsDesactives,
-      puissanceEnvisageeMw,
-      tonnageEnvisageTj,
+      ...options,
       ponderation,
       // Non surchargeable par le client : un echec de source est un fait de la qualification,
       // pas une option de simulation.
@@ -168,9 +191,10 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     const c = lecteur(req.body);
     const idus = c.listeIdu('idus', MAX_PARCELLES_RECOLORATION);
     const filiere = c.parmi('filiere', FILIERES);
-    const knockOutsDesactives = c.listeParmi('knockOutsDesactives', IDS_KNOCK_OUTS, 50);
     c.valideAilleurs('ponderation'); // cles connues, poids finis et bornes : voir `ponderationValide`
+    c.valideAilleurs('options'); // objet imbrique, valide par `optionsSimulation`
     c.refuserInconnus();
+    const options = optionsSimulation((req.body as { options?: unknown }).options);
     if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
     if (!idus?.length) return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
 
@@ -180,10 +204,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
         ? undefined
         : ponderationValide(brutPonderation, (id) => CRITERES[id] != null, 'ponderation');
 
-    const resultats = await scorerAvecPonderation(idus, filiere, {
-      knockOutsDesactives,
-      ponderation,
-    });
+    const resultats = await scorerAvecPonderation(idus, filiere, { ...options, ponderation });
 
     // Reponse allegee : la carte n'a besoin que du statut et du score.
     return {

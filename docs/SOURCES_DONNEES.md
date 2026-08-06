@@ -182,7 +182,7 @@ prospection depuis la loi APER.
 
 | Couche WFS | Objets | Table |
 |---|---|---|
-| `zaer:zaer` | 1 089 671 | `zaer` |
+| `zaer:zaer` | 1 089 671 dont ~57 000 retenues | `zaer` |
 | `sites_metropole_gpkg_*:STE_Metropole` + 3 couches d'outre-mer | 7 753 en métropole | `contrainte`, types `site_classe` et `site_inscrit` |
 
 **Les deux vocabulaires sont codés, et les deux cachent un piège.** Ils ont été mesurés sur les
@@ -190,7 +190,11 @@ données réelles avant d'écrire la moindre correspondance — c'est la leçon 
 défaut n'était jamais dans le calcul mais dans la traduction d'un vocabulaire supposé.
 
 - **68 % des ZAER photovoltaïques portent sur des TOITURES** (`detail_filiere1 = TOIT`, 293 sur 430
-  échantillonnées). Traduire `SOLAIRE_PV` en `solaire_sol` sans lire le détail ferait dire à
+  échantillonnées). Toutes causes confondues, **94,8 % des zones de la couche sont écartées** — mesuré
+  sur 773 766 zones traitées, et non estimé : toitures, solaire thermique, géothermie,
+  hydroélectricité et biomasse non méthanogène. Un ratio d'écart de cet ordre est le signe qu'une
+  correspondance a été écrite avec soin, pas qu'elle est trop stricte : c'est la couche qui est très
+  majoritairement hors du champ de la prospection foncière. Traduire `SOLAIRE_PV` en `solaire_sol` sans lire le détail ferait dire à
   l'application « cette parcelle est en zone d'accélération pour le solaire au sol » à propos de la
   toiture d'une maison de quartier. Seuls `SOL` et `SURFACE` sont retenus ; `OMBRIERE` désigne un
   ombrage de parking, qui ne se prospecte pas comme du foncier.

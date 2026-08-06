@@ -136,6 +136,16 @@ calcul, et aucun test écrit d'après le code ne pouvait les voir.
   identifiants de parcelle et les géométries n'étaient vérifiés dans aucune route ; les routes de
   création de site et de qualification par lot n'avaient pas de plafond.
 
+### Corrigé — une régression introduite par la validation, et le test qui manquait
+
+- **Le recalcul avec pondérations personnalisées aurait répondu 400 à chaque appel.** En câblant la
+  validation, j'ai lu les options de simulation au niveau racine du corps, alors que l'interface envoie
+  `{ filiere, ponderation, options }` — un objet `options` **imbriqué** — depuis toujours. `options`
+  était donc refusé comme clé inconnue. Aucun des 17 tests de route ne l'aurait vu : ils vérifiaient
+  que les mauvaises formes sont refusées, pas que les bonnes sont acceptées. Un test **rejoue désormais
+  les charges utiles exactes du client**, méthode par méthode. Ajouter une validation, c'est figer un
+  contrat — et le contrat à respecter est celui que les appelants utilisent déjà.
+
 ### Ajouté — contrôles permanents
 
 - **Un contrôle d'ALIMENTATION, et non plus seulement de citation** (audit 8, item 21). Le contrôle

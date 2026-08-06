@@ -402,6 +402,11 @@ test('C8 : toute route mutante fait passer son corps par le lecteur de validatio
     ponderation:
       'Dictionnaire de cles libres, valide par `ponderationValide()` : cles connues, poids finis, ' +
       'positifs et bornes.',
+    options:
+      'Objet IMBRIQUE de la forme envoyee par l’interface depuis toujours, valide par ' +
+      '`optionsSimulation()` — qui construit son propre lecteur et refuse ses propres cles inconnues. ' +
+      'Lire ces champs au niveau racine aurait fait refuser `options` comme cle inconnue, et le ' +
+      'recalcul avec ponderations personnalisees aurait repondu 400 a chaque appel.',
   };
 
   const manquantes: string[] = [];
@@ -563,5 +568,140 @@ test('C8 : un rôle invalide est refusé, et non ramené à « lecture »', asyn
       payload: { email: 'x@local.test', nom: 'X', motDePasse: 'motdepasse-assez-long', role },
     });
     assert.equal(rep.statusCode, 400, `le rôle « ${role} » doit être refusé (reçu ${rep.statusCode})`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Le contrat réel : ce que l'interface envoie doit être accepté
+// ---------------------------------------------------------------------------
+
+test('les charges utiles exactes de l’interface sont acceptées', async () => {
+  /**
+   * LE TEST QUI MANQUAIT, et il a trouvé une régression que j'avais introduite.
+   *
+   * En câblant la validation, j'ai lu `knockOutsDesactives`, `puissanceEnvisageeMw` et
+   * `tonnageEnvisageTj` au niveau RACINE du corps, puis appelé `refuserInconnus()`. Or
+   * `apps/web/src/api/client.ts` envoie `{ filiere, ponderation, options }` depuis toujours : la
+   * validation refusait donc `options` comme clé inconnue, et **le recalcul avec pondérations
+   * personnalisées aurait répondu 400 à chaque appel**. Aucun test ne l'aurait vu — aucun n'envoyait
+   * `options`.
+   *
+   * La leçon vaut d'être écrite dans un test plutôt que dans un commentaire : **ajouter une validation,
+   * c'est figer un contrat**, et le contrat à respecter est celui que les appelants utilisent déjà.
+   * Les charges utiles ci-dessous sont recopiées de `client.ts`, méthode par méthode. Elles doivent
+   * être mises à jour avec lui — c'est le prix, et il est bien plus faible que celui d'une interface
+   * qui répond 400 en silence.
+   *
+   * Ce qui est vérifié est l'ACCEPTATION de la forme, pas le résultat métier : un 404 sur une parcelle
+   * absente de cette base est un succès pour ce test. Seul un 400 est un échec.
+   */
+  const app = await serveur();
+  const IDU = '283900000C0843';
+
+  const APPELS: Array<{ nom: string; methode: 'POST' | 'PATCH'; url: string; corps: unknown }> = [
+    {
+      nom: 'client.scoreAvecPonderation',
+      methode: 'POST',
+      url: `/api/parcelles/${IDU}/score`,
+      corps: {
+        filiere: 'solaire_sol',
+        ponderation: { poids: { sol_type: 10, urb_zonage: 5 } },
+        options: { knockOutsDesactives: ['ko_ebc'], puissanceEnvisageeMw: 12 },
+      },
+    },
+    {
+      nom: 'client.scoreAvecPonderation sans options',
+      methode: 'POST',
+      url: `/api/parcelles/${IDU}/score`,
+      corps: { filiere: 'solaire_sol', ponderation: { poids: { sol_type: 10 } } },
+    },
+    {
+      nom: 'client.scoresLot',
+      methode: 'POST',
+      url: '/api/parcelles/scores',
+      corps: { idus: [IDU], filiere: 'solaire_sol', ponderation: { poids: { sol_type: 10 } } },
+    },
+    {
+      nom: 'client.scoresLot sans ponderation',
+      methode: 'POST',
+      url: '/api/parcelles/scores',
+      corps: { idus: [IDU], filiere: 'solaire_sol' },
+    },
+    {
+      nom: 'client.qualifierEmprise',
+      methode: 'POST',
+      url: '/api/qualification/emprise',
+      corps: { bbox: [1.73, 48.14, 1.79, 48.18], filiere: 'solaire_sol', surfaceMinM2: 10000 },
+    },
+    {
+      nom: 'client.estimerEmprise',
+      methode: 'POST',
+      url: '/api/qualification/estimation',
+      corps: { bbox: [1.73, 48.14, 1.79, 48.18], surfaceMinM2: 10000 },
+    },
+    {
+      nom: 'client.creerLead',
+      methode: 'POST',
+      url: '/api/leads',
+      corps: { idu: IDU, filiere: 'solaire_sol', statut: 'a_prospecter', notes: 'note initiale' },
+    },
+    {
+      nom: 'client.majLead',
+      methode: 'PATCH',
+      url: '/api/leads/11111111-1111-1111-1111-111111111111',
+      corps: { statut: 'contact_pris', notes: null },
+    },
+    {
+      nom: 'client.ajouterEvenement',
+      methode: 'POST',
+      url: '/api/leads/11111111-1111-1111-1111-111111111111/evenements',
+      corps: { type: 'contact', commentaire: 'appel du 6 aout' },
+    },
+    {
+      nom: 'client.creerSite',
+      methode: 'POST',
+      url: '/api/sites',
+      corps: { nom: 'Site de test', filiere: 'solaire_sol', idus: [IDU] },
+    },
+    {
+      nom: 'client.enregistrerPonderation',
+      methode: 'POST',
+      url: '/api/ponderations',
+      corps: {
+        nom: 'Mon profil',
+        filiere: 'solaire_sol',
+        poids: { sol_type: 12, urb_zonage: 6 },
+        seuilVert: 70,
+        seuilOrange: 45,
+        partage: false,
+      },
+    },
+    {
+      nom: 'client.exporterGeoJson',
+      methode: 'POST',
+      url: '/api/exports/geojson',
+      corps: { idus: [IDU], filiere: 'solaire_sol' },
+    },
+    {
+      nom: 'client.exporterShapefile',
+      methode: 'POST',
+      url: '/api/exports/shapefile',
+      corps: { idus: [IDU], filiere: 'solaire_sol' },
+    },
+  ];
+
+  for (const { nom, methode, url, corps } of APPELS) {
+    const rep = await app.inject({
+      method: methode,
+      url,
+      headers: entetes(app, 'prospection'),
+      payload: corps as never,
+    });
+    assert.notEqual(
+      rep.statusCode,
+      400,
+      `${nom} : la forme envoyée par l'interface est refusée à la validation ` +
+        `(${rep.statusCode} — ${rep.body.slice(0, 220)})`,
+    );
   }
 });

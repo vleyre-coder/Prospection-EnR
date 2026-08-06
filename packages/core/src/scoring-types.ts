@@ -190,7 +190,9 @@ export interface OptionsScoring {
    * Desactive certains knock-outs, ex. pour explorer un scenario derogatoire.
    * L'interface doit signaler clairement que le mode est degrade.
    */
-  knockOutsDesactives?: string[];
+  // `readonly` : la liste vient d'une validation qui produit un tableau en lecture seule, et le
+  // moteur ne la modifie jamais. Le declarer mutable forcait une copie sans raison.
+  knockOutsDesactives?: readonly string[];
   /** Puissance envisagee, en MWc / MW, pour determiner les seuils de procedure. */
   puissanceEnvisageeMw?: number | null;
   /** Tonnage envisage en t/j, pour la methanisation. */

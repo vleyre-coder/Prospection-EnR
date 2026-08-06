@@ -1026,10 +1026,11 @@ cellule visuellement vide est indiscernable d'un défaut de rendu.
 
 ## État de l'ingestion
 
-Les sites protégés sont chargés (6 617). Les ZAER se chargent au rythme d'environ 10 000 zones par
-minute ; 83 % des zones de la source sont écartées à juste titre — toitures, solaire thermique,
-géothermie, hydroélectricité, biomasse non méthanogène — donc environ 185 000 zones seront retenues
-sur 1,09 million. Les trois filières concernées sont alimentées, et **aucune zone ne produit `bess`**,
+Les sites protégés sont chargés (6 617). Les ZAER se chargent au rythme d'environ 10 000 zones
+retenues par minute. **Mesure sur 773 766 zones traitées : 94,8 % sont écartées à juste titre** —
+toitures, solaire thermique, géothermie, hydroélectricité, biomasse non méthanogène — soit environ
+57 000 zones retenues sur 1,09 million. J'avais avancé 83 % à partir d'un échantillon de 600 zones ;
+la mesure sur la couche entière donne 94,8 %, et c'est cette valeur qui compte. Les trois filières concernées sont alimentées, et **aucune zone ne produit `bess`**,
 comme le vérifie un test qui balaie tout le vocabulaire de la source.
 
 ## Ce que cette seconde passe apprend
@@ -1154,3 +1155,30 @@ combat.
 527 tests, zéro échec. Zéro erreur de typage sur les quatre espaces de travail. 14 mutations sur 14
 rattrapées. Les trois contrôles mécaniques d'alimentation, le contrôle structurel de validation des
 routes et le contrôle des champs orphelins passent tous.
+
+## T6. Une régression que j'ai introduite en câblant, et le test qui manquait
+
+À signaler parce qu'elle serait passée en production sans bruit, et parce que la leçon est
+transposable.
+
+En câblant la validation, j'ai lu `knockOutsDesactives`, `puissanceEnvisageeMw` et `tonnageEnvisageTj`
+au niveau **racine** du corps, puis appelé `refuserInconnus()`. Or `apps/web/src/api/client.ts` envoie
+`{ filiere, ponderation, options }` — un objet `options` **imbriqué** — depuis toujours. La validation
+refusait donc `options` comme clé inconnue : **le recalcul avec pondérations personnalisées aurait
+répondu 400 à chaque appel**, sur une fonctionnalité visible de l'interface.
+
+**Aucun des 17 tests de route ne l'aurait vu**, parce qu'aucun n'envoyait `options`. Mes tests
+vérifiaient que les mauvaises formes sont refusées — pas que les bonnes sont acceptées.
+
+Deux corrections, dont la seconde compte davantage :
+
+- la route honore le contrat existant : `options` est un objet imbriqué, validé par sa propre
+  fonction, qui refuse ses propres clés inconnues ;
+- un test **rejoue les charges utiles exactes du client**, méthode par méthode, recopiées de
+  `client.ts`. Il ne vérifie pas le résultat métier — un 404 sur une parcelle absente est un succès —
+  seulement qu'aucune forme réellement émise n'est refusée à la validation.
+
+**Ajouter une validation, c'est figer un contrat.** Le contrat à respecter est celui que les appelants
+utilisent déjà, pas celui qu'on trouve le plus élégant. Ce test est le seul endroit du dépôt qui le
+vérifie, et il doit être mis à jour avec le client — c'est un coût, bien plus faible que celui d'une
+interface qui répond 400 en silence.
