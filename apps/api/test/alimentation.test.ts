@@ -79,12 +79,20 @@ const COUCHES_NON_INGEREES: Record<string, string> = {
     'les sites classes et inscrits. Ils relevent d’un autre jeu (Atlas des patrimoines). ' +
     '`patrimoine()` retourne `recouvre: null` pour ce type.',
   elevage:
-    'Inventaire ICPE, non ingere. `agregerIntrants` retourne `null` par couche absente, et ' +
-    'gis_intrants est declare `sansSource`.',
-  industrie_agroalimentaire: 'Inventaire ICPE, non ingere. Meme traitement que elevage.',
+    'Inventaire ICPE. RECHERCHE DE SOURCE MENEE ET DOCUMENTEE (docs/SOURCES_DONNEES.md §3.2) : la ' +
+    'classification EST disponible par l’API Georisques (booleens `bovins`, `porcs`, `volailles`), mais ' +
+    'aucun fichier national FRAIS n’existe pour l’ingerer — les deux jeux data.gouv candidats datent ' +
+    'de 2021. Un appel par parcelle couterait dix a vingt requetes paginees sur un quota public ' +
+    'partage, pour un comptage qui ne suffit pas a calculer le tonnage. `agregerIntrants` retourne ' +
+    'donc `null` par couche absente, et gis_intrants est `sansSource`.',
+  industrie_agroalimentaire:
+    'Meme conclusion que elevage. La classification est le code NAF 10 ou 11 OU une rubrique ICPE 22xx : ' +
+    'mesure sur 300 installations bretonnes, 9 par chaque critere avec seulement 3 en commun — les deux ' +
+    'doivent etre combines par OU, pas pris seuls.',
   surface_agricole_commune:
-    'RPG agrege par commune, non ingere. `surfacesEpandageHa` vaut `null` et ' +
-    'gis_debouche_epandage est declare `sansSource`.',
+    'RPG agrege par commune, non ingere. Le RPG est interrogeable a la parcelle, mais agreger les ' +
+    'surfaces agricoles dans un rayon de 10 km demanderait des dizaines d’appels par parcelle. ' +
+    '`surfacesEpandageHa` vaut `null` et gis_debouche_epandage est `sansSource`.',
   document_cadre_pv:
     'Documents-cadres departementaux PV au sol : arretes prefectoraux, aucun job d’ingestion. ' +
     '`documentCadrePv()` retourne `departementCouvert: null` — distingue de `false`, qui signifie ' +

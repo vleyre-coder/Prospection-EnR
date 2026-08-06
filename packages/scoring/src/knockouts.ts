@@ -338,6 +338,40 @@ const koMethaCoursEau: RegleKo = (s) => {
 
 const COMMUNS: RegleKo[] = [koProtectionForte, koZoneHumide, koPpriRouge, koZonageIncompatible, koPosteSature];
 
+/**
+ * Identifiants de toutes les regles redhibitoires.
+ *
+ * POURQUOI CETTE LISTE EXISTE. `OptionsScoring.knockOutsDesactives` permet d'explorer un scenario
+ * derogatoire en neutralisant une regle. Les routes acceptaient n'importe quelle chaine : un
+ * identifiant mal orthographie — `ko_ppri_rouges` — etait accepte sans bruit, et l'utilisateur croyait
+ * explorer un scenario qui n'etait pas applique. La liste ferme l'ensemble.
+ *
+ * Elle est verifiee par un test qui relit les appels `ko(...)` de ce fichier : une regle ajoutee sans
+ * etre inscrite ici, ou inscrite sans exister, fait echouer la construction. Une liste maintenue a la
+ * main se perime — c'est ce qui est arrive au controle de contrat de l'audit 7.
+ */
+export const IDS_KNOCK_OUTS = [
+  'ko_aop_viticole',
+  'ko_ebc',
+  'ko_emplacement_reserve',
+  'ko_eol_habitation_500',
+  'ko_eol_mh_500',
+  'ko_eol_radar',
+  'ko_eol_servitude_aero',
+  'ko_eol_site_classe',
+  'ko_eol_zone_habitat_500',
+  'ko_hors_document_cadre',
+  'ko_metha_captage',
+  'ko_metha_cours_eau',
+  'ko_metha_habitation_200',
+  'ko_poste_sature',
+  'ko_ppri_rouge',
+  'ko_zonage_naturel',
+  'ko_zone_humide',
+] as const;
+
+export type IdKnockOut = (typeof IDS_KNOCK_OUTS)[number];
+
 const REGLES_KO: Record<Filiere, RegleKo[]> = {
   solaire_sol: [...COMMUNS, koDocumentCadre, koAopViticole],
   eolien_terrestre: [...COMMUNS, koDistanceHabitation500, koMonumentSiteClasse, koRadar],

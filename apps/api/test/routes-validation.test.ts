@@ -366,3 +366,202 @@ test('toute erreur de l’API porte un code et un message exploitables', async (
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// C8 — toute route mutante valide son corps
+// ---------------------------------------------------------------------------
+
+test('C8 : toute route mutante fait passer son corps par le lecteur de validation', async () => {
+  /**
+   * LE CONTROLE QUI EMPECHE LA REGRESSION, et il est structurel plutot que comportemental.
+   *
+   * L'audit 8 avait mesure : `validation.ts` fournissait un lecteur de 140 lignes ecrit pour les
+   * routes, et **une seule** fonction de toute l'application l'appelait. Les 21 routes mutantes
+   * lisaient `req.body as { ... }` — une assertion de type, qui ne verifie RIEN a l'execution.
+   *
+   * Verifier cela route par route par des appels HTTP demanderait un cas par champ de chaque route, et
+   * la couverture se degraderait des le premier champ ajoute. Le controle porte donc sur la SOURCE :
+   * chaque bloc de route mutante doit appeler `lecteur(`. C'est grossier, mais c'est exactement
+   * l'invariant qu'on veut tenir, et il ne peut pas se perimer en silence.
+   */
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const base = new URL('../src/routes/', import.meta.url);
+
+  /**
+   * Lectures brutes ADMISES, avec leur raison. Chacune est un choix, pas un oubli.
+   *
+   * Y figurer engage a ce que la valeur soit validee autrement, dans la meme route.
+   */
+  const LECTURES_BRUTES_ADMISES: Record<string, string> = {
+    idus:
+      'Liste d’identifiants validee par `idusValides()`, qui applique le plafond de l’export, verifie ' +
+      'le type de chaque element et ecarte les doublons.',
+    motDePasse:
+      'Un mot de passe se compare tel quel : `texte()` applique un `trim()`, ce qui modifierait ' +
+      'silencieusement ce que l’utilisateur a saisi. La longueur est bornee explicitement.',
+    ponderation:
+      'Dictionnaire de cles libres, valide par `ponderationValide()` : cles connues, poids finis, ' +
+      'positifs et bornes.',
+  };
+
+  const manquantes: string[] = [];
+  const brutesNonAdmises: string[] = [];
+
+  for (const fichier of readdirSync(base)) {
+    if (!fichier.endsWith('.ts')) continue;
+    const source = readFileSync(new URL(fichier, base), 'utf8');
+
+    // Chaque route mutante, avec le corps de son gestionnaire jusqu'a la route suivante.
+    const routes = [...source.matchAll(/app\.(post|patch|put|delete)(?:<[^>]*>)?\(\s*\n?\s*'([^']+)'/g)];
+    for (const [i, m] of routes.entries()) {
+      const debut = m.index!;
+      const fin = routes[i + 1]?.index ?? source.length;
+      const bloc = source.slice(debut, fin);
+
+      // Une route sans corps (DELETE, purge) n'a rien a valider.
+      const litUnCorps = /req\.body/.test(bloc);
+      if (!litUnCorps) continue;
+
+      /**
+       * Validateurs reconnus, et non le seul `lecteur(`.
+       *
+       * Deux routes delegent a `filtresValides()`, qui appelle `lecteur()` en interne et refuse les
+       * cles inconnues — elles sont validees, simplement pas en ligne. Exiger l'appel direct aurait
+       * force a dupliquer une validation deja centralisee : le controle doit verifier qu'une
+       * validation A LIEU, pas la forme qu'elle prend.
+       */
+      const VALIDATEURS = [/\blecteur\(/, /\bfiltresValides\(/];
+      if (!VALIDATEURS.some((v) => v.test(bloc))) {
+        manquantes.push(`${fichier} ${m[1]!.toUpperCase()} ${m[2]}`);
+      }
+
+      for (const brut of bloc.matchAll(/req\.body as \{\s*([a-zA-Z]+)/g)) {
+        const champ = brut[1]!;
+        if (!LECTURES_BRUTES_ADMISES[champ]) {
+          brutesNonAdmises.push(`${fichier} ${m[2]} -> ${champ}`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(
+    manquantes.sort(),
+    [],
+    'ces routes lisent `req.body` sans passer par `lecteur()`. Une assertion de type ne verifie rien a ' +
+      'l’execution : un champ du mauvais type part jusqu’a la requete SQL, et un champ mal orthographie ' +
+      'est ignore en silence.',
+  );
+  assert.deepEqual(
+    brutesNonAdmises.sort(),
+    [],
+    'ces routes lisent un champ directement dans `req.body`. Si la lecture brute est volontaire, ' +
+      'inscrivez le champ dans LECTURES_BRUTES_ADMISES en disant comment il est valide par ailleurs.',
+  );
+});
+
+test('C8 : un champ inconnu dans le corps est refuse, et non ignore', async () => {
+  /**
+   * La partie du contrôle qui protège de l'erreur la plus insidieuse.
+   *
+   * Un champ mal orthographié — `surfaceMinHA`, `filiere2` — était silencieusement ignoré : l'appel
+   * répondait 200 ou 201, et l'utilisateur croyait avoir renseigné une valeur qui n'a jamais été prise
+   * en compte. Sur un filtre, cela élargit le résultat sans le dire ; sur une note ou un statut, cela
+   * perd une saisie.
+   */
+  const app = await serveur();
+  const cas: Array<{ url: string; corps: Record<string, unknown> }> = [
+    { url: '/api/leads', corps: { filiere: 'solaire_sol', idu: '283900000C0843', note: 'faute' } },
+    { url: '/api/sites', corps: { nom: 'S', filiere: 'solaire_sol', idus: ['283900000C0843'], commentaires: 'x' } },
+    { url: '/api/qualification/estimation', corps: { bbox: [1.7, 48.1, 1.8, 48.2], surfaceMin: 1000 } },
+    { url: '/api/exports/geojson', corps: { idus: ['283900000C0843'], filiere2: 'solaire_sol' } },
+  ];
+  for (const { url, corps } of cas) {
+    const rep = await app.inject({
+      method: 'POST',
+      url,
+      headers: entetes(app, 'prospection'),
+      payload: corps,
+    });
+    assert.equal(
+      rep.statusCode,
+      400,
+      `${url} doit refuser le champ inconnu (recu ${rep.statusCode} : ${rep.body.slice(0, 160)})`,
+    );
+    const j = rep.json() as { erreur?: { code?: string; message?: string; details?: { champ?: string } } };
+    assert.equal(j.erreur?.code, 'requete_invalide', `${url} : code d'erreur attendu`);
+    // Le champ fautif doit etre NOMME, d'une facon ou d'une autre : dans `details.champ` (lecteur) ou
+    // dans le message. Sans cela l'appelant ne peut pas corriger, et un refus qu'on ne comprend pas est
+    // presque aussi mauvais qu'un silence.
+    const nomme = `${j.erreur?.details?.champ ?? ''} ${j.erreur?.message ?? ''}`;
+    const cleInconnue = Object.keys(corps).find((k) => !['bbox', 'nom', 'filiere', 'idu', 'idus'].includes(k));
+    assert.match(
+      nomme,
+      new RegExp(cleInconnue ?? 'inconnu', 'i'),
+      `${url} : le champ fautif « ${cleInconnue} » doit etre nomme (recu « ${nomme.trim()} »)`,
+    );
+  }
+});
+
+test('C8 : une pondération invalide est refusée, et ne casse pas le score', async () => {
+  /**
+   * Les poids partaient au moteur et en base sans aucun contrôle. Trois conséquences, mesurées sur les
+   * valeurs qui traversent le typage sans bruit : une clé inconnue était stockée puis ignorée (l'
+   * utilisateur croyait avoir repondéré un critère inchangé), un poids négatif inversait la
+   * contribution du critère — le score MONTAIT quand le critère se dégradait — et `NaN` rendait le
+   * score global vide sur une parcelle par ailleurs bien renseignée.
+   */
+  const app = await serveur();
+  const mauvaises: unknown[] = [
+    { poids: { critere_inexistant: 10 } },
+    { poids: { sol_type: -5 } },
+    { poids: { sol_type: Number.MAX_VALUE } },
+    { poids: {} },
+    { poids: { sol_type: 0, urb_zonage: 0 } },
+    { poids: 'pas un objet' },
+    { poids: [1, 2, 3] },
+  ];
+  for (const ponderation of mauvaises) {
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/api/parcelles/283900000C0843/score',
+      headers: entetes(app, 'prospection'),
+      payload: { filiere: 'solaire_sol', ponderation },
+    });
+    assert.equal(
+      rep.statusCode,
+      400,
+      `pondération ${JSON.stringify(ponderation)} doit être refusée (reçu ${rep.statusCode})`,
+    );
+  }
+});
+
+test('C8 : un identifiant de knock-out inconnu est refusé', async () => {
+  // `knockOutsDesactives` acceptait n'importe quelle chaîne : un identifiant mal orthographié passait
+  // sans bruit, et l'utilisateur croyait explorer un scénario dérogatoire qui n'était pas appliqué.
+  const app = await serveur();
+  const rep = await app.inject({
+    method: 'POST',
+    url: '/api/parcelles/283900000C0843/score',
+    headers: entetes(app, 'prospection'),
+    payload: { filiere: 'solaire_sol', knockOutsDesactives: ['ko_ppri_rouges'] },
+  });
+  assert.equal(rep.statusCode, 400);
+});
+
+test('C8 : un rôle invalide est refusé, et non ramené à « lecture »', async () => {
+  /**
+   * Le repli silencieux était un piège : une faute de frappe (`"Admin"`, `"admin "`) créait un compte
+   * en lecture seule, et l'administrateur constatait plus tard que son collègue ne pouvait rien faire —
+   * sans aucun moyen de savoir pourquoi.
+   */
+  const app = await serveur();
+  for (const role of ['Admin', 'admin ', 'superadmin', 'ADMIN']) {
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/api/admin/utilisateurs',
+      headers: entetes(app, 'admin'),
+      payload: { email: 'x@local.test', nom: 'X', motDePasse: 'motdepasse-assez-long', role },
+    });
+    assert.equal(rep.statusCode, 400, `le rôle « ${role} » doit être refusé (reçu ${rep.statusCode})`);
+  }
+});

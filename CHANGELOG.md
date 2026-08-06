@@ -115,6 +115,27 @@ calcul, et aucun test écrit d'après le code ne pouvait les voir.
   l'ingestion après zéro objet. Les paliers vont désormais jusqu'à deux minutes, avec une respiration
   entre les pages pour ne pas provoquer la surcharge.
 
+### Corrigé — validation des routes (troisième passe)
+
+- **Les 21 routes mutantes valident désormais leur corps** (audit 8, item 24). `validation.ts`
+  fournissait un lecteur écrit pour les routes, et une seule fonction de l'application l'appelait ;
+  les routes lisaient `req.body as { … }`, une assertion de type qui ne vérifie rien à l'exécution.
+  Toutes passent par `lecteur()` avec refus des champs inconnus : `{ note: … }` au lieu de
+  `{ notes: … }` répondait 201 et perdait la saisie sans un mot.
+- **Les poids d'une pondération n'étaient pas validés**, ni à l'enregistrement ni au calcul. Une clé
+  inconnue était persistée puis ignorée par le moteur ; un poids négatif inversait la contribution du
+  critère — le score MONTAIT quand le critère se dégradait ; `NaN` rendait le score global vide sur une
+  parcelle bien renseignée.
+- **Un identifiant de knock-out inconnu passait sans bruit** : l'utilisateur croyait explorer un
+  scénario dérogatoire qui n'était pas appliqué. La liste est fermée et dérivée des règles elles-mêmes.
+- **Un rôle invalide était ramené à `lecture` en silence** : `"Admin"` créait un compte en lecture
+  seule, et l'administrateur le découvrait plus tard sans moyen de savoir pourquoi.
+- **Le corps de la route de connexion n'était pas borné** — route publique, où un `email` ou un
+  `motDePasse` de plusieurs mégaoctets partait en requête SQL et dans la fonction de hachage.
+- Également corrigés : la `limite` de `/api/admin/rescorer` partait en `LIMIT` SQL sans borne ; les
+  identifiants de parcelle et les géométries n'étaient vérifiés dans aucune route ; les routes de
+  création de site et de qualification par lot n'avaient pas de plafond.
+
 ### Ajouté — contrôles permanents
 
 - **Un contrôle d'ALIMENTATION, et non plus seulement de citation** (audit 8, item 21). Le contrôle
@@ -130,6 +151,10 @@ calcul, et aucun test écrit d'après le code ne pouvait les voir.
   routes d'export ni la route RGPD. Douze cas couvrent maintenant les trois refus de la route des
   propriétaires, les routes d'administration, les plafonds d'export et la cohérence du format
   d'erreur.
+- **Un contrôle STRUCTUREL de la validation des routes** : un test relit la source et exige que chaque
+  bloc de route mutante lisant `req.body` appelle un validateur reconnu, et que toute lecture brute
+  soit déclarée avec sa raison. Vérifier champ par champ par des appels HTTP se dégraderait dès le
+  premier champ ajouté ; ce contrôle ne peut pas se périmer en silence.
 - **Les fixtures de contrat sont capturées avec les paramètres de production**, et un test vérifie la
   correspondance code / fixture dans les deux sens. La fixture PVGIS avait été capturée sans
   `optimalangles=1`, soit 17 % d'écart sur les valeurs.

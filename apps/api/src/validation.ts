@@ -101,6 +101,93 @@ export class Lecteur {
     return t;
   }
 
+  /**
+   * Chaine, chaine VIDEE, ou champ absent : trois etats distincts.
+   *
+   * POURQUOI CETTE METHODE EXISTE, alors que `texte()` semblait suffire. `texte()` ramene `null` et la
+   * chaine vide a `undefined`, ce qui est le bon comportement pour un champ qu'on renseigne ou non.
+   * Mais plusieurs routes de mise a jour distinguent trois intentions :
+   *
+   *   - champ absent du corps          -> ne pas modifier ;
+   *   - champ present et renseigne     -> remplacer ;
+   *   - champ present a `null` ou `''` -> EFFACER la valeur existante.
+   *
+   * Cabler ces routes sur `texte()` aurait supprime la troisieme : effacer les notes d'un lead ou le
+   * commentaire d'un site serait devenu impossible, en silence — l'appel aurait repondu 200 sans rien
+   * changer. Une validation qui casse une fonctionnalite en la rendant muette est pire que l'absence
+   * de validation, parce qu'elle ne se voit pas.
+   */
+  texteOuVide(champ: string, options: { max?: number } = {}): string | null | undefined {
+    const v = this.brut(champ);
+    if (v === undefined) return undefined;
+    if (v === null) return null;
+    if (typeof v !== 'string') return refus(champ, 'chaine ou null attendu', v);
+    const t = v.trim();
+    if (t === '') return null;
+    if (options.max !== undefined && t.length > options.max) {
+      return refus(champ, `au plus ${options.max} caracteres`, v);
+    }
+    return t;
+  }
+
+  /**
+   * Identifiant unique parcellaire, normalise en majuscules.
+   *
+   * Le format est verifie : 14 caracteres alphanumeriques. Les routes le faisaient chacune a leur
+   * facon — `toUpperCase()` sans controle de forme — ce qui laissait passer n'importe quelle chaine
+   * jusqu'a la requete SQL.
+   */
+  idu(champ: string): string | undefined {
+    const v = this.texte(champ, {
+      max: 20,
+      motif: /^[0-9A-Za-z]{10,20}$/,
+      description: 'identifiant parcellaire de 10 a 20 caracteres alphanumeriques',
+    });
+    return v?.toUpperCase();
+  }
+
+  /** Liste d'IDU, normalisee, dedoublonnee et bornee. */
+  listeIdu(champ: string, maxElements: number): string[] | undefined {
+    const v = this.brut(champ);
+    if (v === undefined || v === null) return undefined;
+    if (!Array.isArray(v)) return refus(champ, 'tableau attendu', v);
+    if (v.length === 0) return undefined;
+    if (v.length > maxElements) {
+      return refus(champ, `au plus ${maxElements} identifiants`, v.length);
+    }
+    const vus = new Set<string>();
+    for (const e of v) {
+      if (typeof e !== 'string' || !/^[0-9A-Za-z]{10,20}$/.test(e.trim())) {
+        return refus(champ, 'identifiants parcellaires de 10 a 20 caracteres alphanumeriques', e);
+      }
+      vus.add(e.trim().toUpperCase());
+    }
+    return [...vus];
+  }
+
+  /**
+   * Geometrie GeoJSON, en refusant tout ce qui n'en est pas une.
+   *
+   * Les routes recevaient `{ type: string; coordinates: unknown }` par assertion de type, sans aucune
+   * verification : un `coordinates` de n'importe quelle forme partait vers PostGIS, ou il produisait
+   * une erreur 500 sur une faute d'appel. La profondeur des coordonnees n'est pas verifiee ici —
+   * PostGIS le fait mieux — mais le type de geometrie et la presence d'un tableau le sont.
+   */
+  geometrie(
+    champ: string,
+    typesAdmis: readonly string[] = ['Polygon', 'MultiPolygon'],
+  ): { type: string; coordinates: unknown } | undefined {
+    const v = this.brut(champ);
+    if (v === undefined || v === null) return undefined;
+    if (typeof v !== 'object' || Array.isArray(v)) return refus(champ, 'objet GeoJSON attendu', v);
+    const g = v as { type?: unknown; coordinates?: unknown };
+    if (typeof g.type !== 'string' || !typesAdmis.includes(g.type)) {
+      return refus(champ, `geometrie de type ${typesAdmis.join(' ou ')}`, g.type);
+    }
+    if (!Array.isArray(g.coordinates)) return refus(champ, 'coordinates doit etre un tableau', g.coordinates);
+    return { type: g.type, coordinates: g.coordinates };
+  }
+
   /** Valeur appartenant a un ensemble ferme. */
   parmi<T extends string>(champ: string, valeurs: readonly T[]): T | undefined {
     const v = this.brut(champ);
@@ -166,6 +253,26 @@ export class Lecteur {
       );
     }
     return b;
+  }
+
+  /**
+   * Declare un champ comme VALIDE AILLEURS, sans le lire ni le verifier.
+   *
+   * POURQUOI CETTE METHODE EXISTE, et pourquoi elle porte ce nom. Certains champs ne se decrivent pas
+   * avec ce lecteur : une liste d'identifiants passe par `idusValides()`, un dictionnaire de poids par
+   * `ponderationValide()`, un mot de passe se compare sans `trim()`. Il faut pourtant que
+   * `refuserInconnus()` ne les signale pas.
+   *
+   * Ma premiere ecriture detournait `nombre(champ)` pour cela — « il suffit de lire la cle ». Mais
+   * `nombre()` VALIDE : appele sur un tableau, il refuse. Les deux routes d'export ont donc rejete tout
+   * appel valide, avec le message « Champ idus : nombre attendu ». Mon propre test l'a attrape.
+   *
+   * Le nom dit l'engagement : le champ EST valide, ailleurs, dans la meme route. Ce n'est pas une
+   * dispense — un test structurel verifie que chaque lecture brute de `req.body` est declaree avec sa
+   * raison.
+   */
+  valideAilleurs(champ: string): void {
+    this.brut(champ);
   }
 
   /**
@@ -262,4 +369,92 @@ export function nombreRequete(
   const min = options.min ?? 0;
   if (v < min) return refus(champ, `valeur minimale ${min}`, brut);
   return Math.min(v, options.max);
+}
+
+// ---------------------------------------------------------------------------
+// Ponderations
+// ---------------------------------------------------------------------------
+
+/**
+ * Profil de ponderation valide, avec des poids qui ne peuvent pas casser le score.
+ *
+ * POURQUOI CETTE FONCTION EXISTE. Deux routes acceptaient un objet `poids` par simple assertion de
+ * type : `/api/ponderations` le PERSISTE en base, et `/api/parcelles/:idu/score` le passe au moteur.
+ * Aucune des deux ne verifiait quoi que ce soit.
+ *
+ * Trois consequences, de la plus benigne a la plus grave :
+ *   - une cle inconnue (`sol_typ` au lieu de `sol_type`) etait acceptee et stockee, silencieusement
+ *     ignoree par le moteur : l'utilisateur croyait avoir repondere un critere qui gardait son poids ;
+ *   - un poids negatif inversait la contribution du critere, faisant MONTER le score quand le critere
+ *     se degrade ;
+ *   - `NaN` ou `Infinity` traversent le typage sans bruit et rendent le score global `NaN`, qui
+ *     s'affiche comme une absence de score sur une parcelle par ailleurs bien renseignee.
+ *
+ * Un profil de ponderation est ce qui decide de l'ordre dans lequel un prospecteur regarde ses
+ * parcelles. Il n'y a pas de raison de le laisser sans controle.
+ */
+export function ponderationValide(
+  brut: unknown,
+  critereConnu: (id: string) => boolean,
+  ou = 'ponderation',
+): {
+  poids: Record<string, number>;
+  seuilVert?: number;
+  seuilOrange?: number;
+  seuilCouvertureDonnees?: number;
+} {
+  const c = lecteur(brut, ou);
+  const poidsBrut = (brut as { poids?: unknown }).poids;
+  // `poids` est un dictionnaire de cles libres, que `Lecteur` ne sait pas decrire : il est valide a la
+  // main plus bas. On le declare lu pour que `refuserInconnus` ne le signale pas.
+  c.valideAilleurs('poids');
+
+  if (poidsBrut == null || typeof poidsBrut !== 'object' || Array.isArray(poidsBrut)) {
+    throw new ErreurValidation('poids', 'Champ `poids` requis : objet { critere: poids }.');
+  }
+  const entrees = Object.entries(poidsBrut as Record<string, unknown>);
+  if (entrees.length === 0) {
+    throw new ErreurValidation('poids', 'Champ `poids` requis : au moins un critere.');
+  }
+  if (entrees.length > 200) {
+    throw new ErreurValidation('poids', `Champ \`poids\` : ${entrees.length} criteres, maximum 200.`);
+  }
+
+  const poids: Record<string, number> = {};
+  for (const [cle, valeur] of entrees) {
+    if (!critereConnu(cle)) {
+      throw new ErreurValidation(
+        'poids',
+        `Critere inconnu : « ${cle} ». Un critere mal orthographie serait stocke puis ignore par le ` +
+          'moteur, et vous croiriez avoir modifie une ponderation restee inchangee.',
+      );
+    }
+    if (typeof valeur !== 'number' || !Number.isFinite(valeur)) {
+      throw new ErreurValidation('poids', `Poids du critere « ${cle} » : nombre fini attendu.`);
+    }
+    if (valeur < 0) {
+      throw new ErreurValidation(
+        'poids',
+        `Poids du critere « ${cle} » : un poids negatif inverserait sa contribution, faisant MONTER ` +
+          'le score quand le critere se degrade. Utilisez 0 pour neutraliser un critere.',
+      );
+    }
+    if (valeur > 1000) {
+      throw new ErreurValidation('poids', `Poids du critere « ${cle} » : maximum 1000.`);
+    }
+    poids[cle] = valeur;
+  }
+  if (Object.values(poids).every((p) => p === 0)) {
+    throw new ErreurValidation(
+      'poids',
+      'Tous les poids sont nuls : aucun critere ne serait evalue, et le score global serait vide.',
+    );
+  }
+
+  return {
+    poids,
+    seuilVert: c.nombre('seuilVert', { min: 0, max: 100 }),
+    seuilOrange: c.nombre('seuilOrange', { min: 0, max: 100 }),
+    seuilCouvertureDonnees: c.nombre('seuilCouvertureDonnees', { min: 0, max: 1 }),
+  };
 }

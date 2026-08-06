@@ -2,7 +2,7 @@
 
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
 import { createHash, randomBytes } from 'node:crypto';
-import { estFiliere, FILIERES, PONDERATIONS_DEFAUT, type Filiere } from '@enr/core';
+import { CRITERES, estFiliere, FILIERES, PONDERATIONS_DEFAUT, type Filiere } from '@enr/core';
 import { VERSION_MOTEUR } from '@enr/scoring';
 import { config } from '../config.js';
 import { requete, requeteUne } from '../bdd.js';
@@ -14,7 +14,10 @@ import {
   LIMITE_DEFAUT_EXPORT,
   LIMITE_MAX_EXPORT,
 } from '../services/recherche.js';
-import { entierRequete, ErreurValidation } from '../validation.js';
+import { entierRequete, ErreurValidation, lecteur, ponderationValide } from '../validation.js';
+
+/** Roles applicatifs. Liste fermee : une valeur invalide est refusee, et non ramenee a `lecture`. */
+const ROLES = ['admin', 'prospection', 'lecture'] as const;
 import { csvResultats, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -97,9 +100,14 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   };
 
   app.post('/api/exports/geojson', debitExport, async (req, rep) => {
-    const corps = req.body as { idus?: unknown; filiere?: string };
-    const filiere: Filiere = estFiliere(corps.filiere) ? corps.filiere : 'solaire_sol';
-    const donnees = await chargerPourExport(idusValides(corps.idus, LIMITE_MAX_EXPORT), filiere);
+    const c = lecteur(req.body);
+    const filiere: Filiere = c.parmi('filiere', FILIERES) ?? 'solaire_sol';
+    c.valideAilleurs('idus'); // plafond, type des elements et doublons : voir `idusValides`
+    c.refuserInconnus();
+    const donnees = await chargerPourExport(
+      idusValides((req.body as { idus?: unknown }).idus, LIMITE_MAX_EXPORT),
+      filiere,
+    );
     // Meme comportement que le Shapefile : un fichier qui s'ouvre sur rien, sans message, laisse
     // croire a un export reussi (audit 8, D7).
     if (donnees.length === 0) {
@@ -117,9 +125,14 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/exports/shapefile', debitExport, async (req, rep) => {
-    const corps = req.body as { idus?: unknown; filiere?: string };
-    const filiere: Filiere = estFiliere(corps.filiere) ? corps.filiere : 'solaire_sol';
-    const donnees = await chargerPourExport(idusValides(corps.idus, LIMITE_MAX_EXPORT), filiere);
+    const c = lecteur(req.body);
+    const filiere: Filiere = c.parmi('filiere', FILIERES) ?? 'solaire_sol';
+    c.valideAilleurs('idus'); // plafond, type des elements et doublons : voir `idusValides`
+    c.refuserInconnus();
+    const donnees = await chargerPourExport(
+      idusValides((req.body as { idus?: unknown }).idus, LIMITE_MAX_EXPORT),
+      filiere,
+    );
     if (donnees.length === 0) {
       return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiee dans la selection');
     }
@@ -249,22 +262,21 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/ponderations', async (req, rep) => {
-    const corps = req.body as {
-      nom?: string;
-      filiere?: string;
-      poids?: Record<string, number>;
-      seuilVert?: number;
-      seuilOrange?: number;
-      seuilCouvertureDonnees?: number;
-      partage?: boolean;
-    };
-    if (!corps.nom?.trim()) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
-    }
-    if (!corps.poids || Object.keys(corps.poids).length === 0) {
-      return erreur(rep, 400, 'poids_manquants', 'Champ `poids` requis');
-    }
+    const c = lecteur(req.body);
+    const nom = c.texte('nom', { max: 120 });
+    const filiere = c.parmi('filiere', FILIERES);
+    const partage = c.booleen('partage');
+    if (!nom) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    /**
+     * Les poids sont VALIDES avant d'etre persistes.
+     *
+     * Ils etaient stockes tels quels : une cle inconnue etait acceptee puis ignoree par le moteur
+     * (l'utilisateur croyait avoir repondere un critere inchange), un poids negatif inversait la
+     * contribution du critere — le score MONTAIT quand le critere se degradait — et `NaN` rendait le
+     * score global vide sur une parcelle bien renseignee.
+     */
+    const profil = ponderationValide(req.body, (id) => CRITERES[id] != null);
     const ligne = await requeteUne<{ id: string }>(
       `INSERT INTO profil_ponderation
          (nom, filiere, utilisateur_id, partage, poids, seuil_vert, seuil_orange, seuil_couverture)
@@ -275,14 +287,14 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
          partage = EXCLUDED.partage
        RETURNING id`,
       [
-        corps.nom.trim(),
-        corps.filiere,
+        nom,
+        filiere,
         req.utilisateur?.id ?? null,
-        corps.partage ?? false,
-        JSON.stringify(corps.poids),
-        corps.seuilVert ?? null,
-        corps.seuilOrange ?? null,
-        corps.seuilCouvertureDonnees ?? null,
+        partage ?? false,
+        JSON.stringify(profil.poids),
+        profil.seuilVert ?? null,
+        profil.seuilOrange ?? null,
+        profil.seuilCouvertureDonnees ?? null,
       ],
     );
     return rep.code(201).send({ id: ligne?.id });
@@ -317,8 +329,24 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     // laissent largement place a une faute de frappe.
     { preHandler: limiterDebit({ max: 10, fenetreMs: 15 * 60 * 1000, operation: 'connexion' }) },
     async (req, rep) => {
-    const corps = req.body as { email?: string; motDePasse?: string };
-    if (!corps.email || !corps.motDePasse) {
+    /**
+     * Bornes de taille sur une route PUBLIQUE.
+     *
+     * Le corps etait lu par assertion de type : un `email` de plusieurs mega-octets partait dans une
+     * requete SQL, et un `motDePasse` de meme taille dans la fonction de hachage — coûteuse par
+     * construction. C'est la seule route ou un attaquant non authentifie peut insister, donc la seule
+     * ou la taille des entrees doit etre bornee avant tout travail.
+     *
+     * Le mot de passe n'est PAS lu par `texte()` : un `trim()` modifierait silencieusement ce que
+     * l'utilisateur a saisi, et un mot de passe se compare tel quel.
+     */
+    const c = lecteur(req.body);
+    const email = c.texte('email', { max: 254 });
+    const brutMdp = (req.body as { motDePasse?: unknown }).motDePasse;
+    c.valideAilleurs('motDePasse'); // compare tel quel, sans `trim()` : longueur bornee plus bas
+    c.refuserInconnus();
+    const motDePasse = typeof brutMdp === 'string' && brutMdp.length <= 512 ? brutMdp : null;
+    if (!email || !motDePasse) {
       return erreur(rep, 400, 'identifiants_manquants', 'Champs `email` et `motDePasse` requis');
     }
     const u = await requeteUne<{
@@ -329,10 +357,10 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       role: string;
       habilite_donnees_proprietaires: boolean;
       actif: boolean;
-    }>(`SELECT * FROM utilisateur WHERE lower(email) = lower($1)`, [corps.email]);
+    }>(`SELECT * FROM utilisateur WHERE lower(email) = lower($1)`, [email]);
 
-    if (!u || !u.actif || !verifierMotDePasse(corps.motDePasse, u.mot_de_passe_hash)) {
-      await journaliser('connexion_echouee', { email: corps.email, adresseIp: req.ip });
+    if (!u || !u.actif || !verifierMotDePasse(motDePasse, u.mot_de_passe_hash)) {
+      await journaliser('connexion_echouee', { email, adresseIp: req.ip });
       // Message volontairement identique dans les deux cas : ne pas reveler l'existence
       // d'un compte.
       return erreur(rep, 401, 'identifiants_invalides', 'Identifiants invalides');
@@ -401,11 +429,13 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   );
 
   app.post('/api/admin/rescorer', admin, async (req) => {
-    const corps = req.body as { filiere?: string; limite?: number };
-    return rescorerTout(
-      estFiliere(corps.filiere) ? [corps.filiere] : [...FILIERES],
-      corps.limite ?? 5000,
-    );
+    const c = lecteur(req.body ?? {});
+    const filiere = c.parmi('filiere', FILIERES);
+    // Borne explicite : `corps.limite ?? 5000` acceptait `NaN` et n'importe quel entier, alors que la
+    // valeur part en `LIMIT` SQL et gouverne la duree d'un recalcul complet.
+    const limite = c.nombre('limite', { min: 1, max: 200_000, entier: true }) ?? 5000;
+    c.refuserInconnus();
+    return rescorerTout(filiere ? [filiere] : [...FILIERES], limite);
   });
 
   app.get('/api/admin/journal', admin, async (req) => {
@@ -416,17 +446,35 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/admin/utilisateurs', admin, async (req, rep) => {
-    const corps = req.body as {
-      email?: string;
-      nom?: string;
-      motDePasse?: string;
-      role?: string;
-      habiliteDonneesProprietaires?: boolean;
-    };
-    if (!corps.email || !corps.nom || !corps.motDePasse) {
+    const c = lecteur(req.body);
+    const email = c.texte('email', {
+      max: 254,
+      motif: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+      description: 'adresse de courriel',
+    });
+    const nom = c.texte('nom', { max: 120 });
+    // Le mot de passe n'est PAS borne par `texte()` : la longueur minimale est un controle metier,
+    // verifie plus bas avec son propre code d'erreur, et un `trim()` sur un mot de passe modifierait
+    // silencieusement ce que l'utilisateur a saisi.
+    const motDePasse = typeof (req.body as { motDePasse?: unknown }).motDePasse === 'string'
+      ? ((req.body as { motDePasse: string }).motDePasse)
+      : undefined;
+    c.valideAilleurs('motDePasse'); // compare tel quel, sans `trim()` : longueur bornee plus bas
+    /**
+     * Le role est REFUSE s'il est invalide, et non ramene a `lecture`.
+     *
+     * Le repli silencieux etait un piege : une faute de frappe (`"Admin"`, `"admin "`) creait un compte
+     * en lecture seule, et l'administrateur constatait plus tard que son collegue ne pouvait rien
+     * faire — sans aucun moyen de savoir pourquoi. Une valeur invalide est une faute d'appel.
+     */
+    const role = c.parmi('role', ROLES) ?? 'lecture';
+    const habilite = c.booleen('habiliteDonneesProprietaires');
+    c.refuserInconnus();
+
+    if (!email || !nom || motDePasse == null || motDePasse === '') {
       return erreur(rep, 400, 'champs_manquants', 'Champs `email`, `nom` et `motDePasse` requis');
     }
-    if (corps.motDePasse.length < 12) {
+    if (motDePasse.length < 12) {
       return erreur(
         rep,
         422,
@@ -434,24 +482,16 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
         'Le mot de passe doit comporter au moins 12 caracteres',
       );
     }
-    const roles = ['admin', 'prospection', 'lecture'];
-    const role = corps.role && roles.includes(corps.role) ? corps.role : 'lecture';
     const u = await requeteUne<{ id: string }>(
       `INSERT INTO utilisateur (email, nom, mot_de_passe_hash, role, habilite_donnees_proprietaires)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [
-        corps.email.toLowerCase(),
-        corps.nom,
-        hacherMotDePasse(corps.motDePasse),
-        role,
-        corps.habiliteDonneesProprietaires ?? false,
-      ],
+      [email.toLowerCase(), nom, hacherMotDePasse(motDePasse), role, habilite ?? false],
     );
     await journaliser('creation_utilisateur', {
       utilisateurId: req.utilisateur?.id,
       email: req.utilisateur?.email,
-      cible: corps.email,
-      details: { role },
+      cible: email,
+      details: { role, habilite: habilite ?? false },
     });
     return rep.code(201).send({ id: u?.id });
   });

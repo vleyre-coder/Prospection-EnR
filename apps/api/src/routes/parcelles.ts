@@ -1,8 +1,8 @@
 /** Routes de la fiche parcelle, de la qualification et du scoring a la volee. */
 
 import type { FastifyInstance } from 'fastify';
-import { estFiliere, AVERTISSEMENTS, type Filiere, type OptionsScoring } from '@enr/core';
-import { calculerScore } from '@enr/scoring';
+import { AVERTISSEMENTS, CRITERES, estFiliere, FILIERES, type Filiere } from '@enr/core';
+import { calculerScore, IDS_KNOCK_OUTS } from '@enr/scoring';
 import { bboxDepuisChaine } from '../geo.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
@@ -20,6 +20,34 @@ import {
 } from '../services/qualification.js';
 import { requeteUne } from '../bdd.js';
 import { erreur } from './erreurs.js';
+import { lecteur, ponderationValide, type Lecteur } from '../validation.js';
+
+/**
+ * Plafonds explicites des routes par lot.
+ *
+ * La limitation de debit borne la FREQUENCE des appels, pas la taille d'un appel : sans ces bornes, un
+ * seul appel pouvait demander une qualification de plusieurs dizaines de milliers de parcelles, ce qui
+ * consomme le quota des API publiques pour toute l'equipe.
+ */
+const MAX_PARCELLES_PAR_APPEL = 500;
+const MAX_PARCELLES_RECOLORATION = 3000;
+
+/**
+ * Emprise lue dans un corps JSON, sous ses DEUX formes acceptees.
+ *
+ * L'interface envoie un tableau de quatre nombres ; les appels en ligne de commande et la
+ * documentation utilisent la chaine `ouest,sud,est,nord`. Les deux formes etaient acceptees, mais
+ * aucune n'etait validee : `String(corps.bbox ?? '')` sur un objet produisait `[object Object]`, que
+ * `bboxDepuisChaine` rejetait — par chance, non par controle.
+ */
+function empriseDuCorps(c: Lecteur, corps: unknown): [number, number, number, number] | null {
+  const brut = (corps as { bbox?: unknown } | null)?.bbox;
+  if (typeof brut === 'string') {
+    c.texte('bbox', { max: 120 });
+    return bboxDepuisChaine(brut);
+  }
+  return c.bbox('bbox', (b) => bboxDepuisChaine(b.join(',')) != null) ?? null;
+}
 import { limiterDebit } from '../debit.js';
 
 /**
@@ -100,21 +128,35 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
   // --- Recalcul a la volee avec ponderations modifiees --------------------
   app.post<{ Params: { idu: string } }>('/api/parcelles/:idu/score', async (req, rep) => {
-    const corps = req.body as {
-      filiere?: string;
-      ponderation?: OptionsScoring['ponderation'];
-      options?: Omit<OptionsScoring, 'ponderation'>;
-    };
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
-    }
+    const c = lecteur(req.body);
+    const filiere = c.parmi('filiere', FILIERES);
+    // Les knock-outs desactivables sont une liste FERMEE : ce sont des identifiants de regles, et un
+    // identifiant inconnu passait sans bruit — l'utilisateur croyait explorer un scenario derogatoire
+    // qui n'etait pas applique.
+    const knockOutsDesactives = c.listeParmi('knockOutsDesactives', IDS_KNOCK_OUTS, 50);
+    const puissanceEnvisageeMw = c.nombre('puissanceEnvisageeMw', { min: 0, max: 10_000 });
+    const tonnageEnvisageTj = c.nombre('tonnageEnvisageTj', { min: 0, max: 5_000 });
+    c.valideAilleurs('ponderation'); // cles connues, poids finis et bornes : voir `ponderationValide`
+    c.refuserInconnus();
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+
+    // La ponderation partait au moteur sans aucun controle : un poids negatif inversait la contribution
+    // d'un critere, et `NaN` rendait le score global vide.
+    const brutPonderation = (req.body as { ponderation?: unknown }).ponderation;
+    const ponderation =
+      brutPonderation == null
+        ? undefined
+        : ponderationValide(brutPonderation, (id) => CRITERES[id] != null, 'ponderation');
+
     const snapshot = await depotParcelles.snapshotParIdu(req.params.idu.toUpperCase());
     if (!snapshot) {
       return erreur(rep, 404, 'snapshot_absent', 'Parcelle non qualifiee : appelez /api/parcelles/:idu');
     }
-    return calculerScore(snapshot.snapshot, corps.filiere, {
-      ...corps.options,
-      ponderation: corps.ponderation,
+    return calculerScore(snapshot.snapshot, filiere, {
+      knockOutsDesactives,
+      puissanceEnvisageeMw,
+      tonnageEnvisageTj,
+      ponderation,
       // Non surchargeable par le client : un echec de source est un fait de la qualification,
       // pas une option de simulation.
       connecteursEnEchec: snapshot.connecteursEnEchec,
@@ -123,27 +165,25 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
   // --- Recalcul par lot (recoloration de la carte) ------------------------
   app.post('/api/parcelles/scores', async (req, rep) => {
-    const corps = req.body as {
-      idus?: string[];
-      filiere?: string;
-      ponderation?: OptionsScoring['ponderation'];
-      options?: Omit<OptionsScoring, 'ponderation'>;
-    };
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
-    }
-    if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
-      return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
-    }
-    if (corps.idus.length > 3000) {
-      return erreur(rep, 422, 'lot_trop_grand', 'Au maximum 3000 parcelles par appel');
-    }
+    const c = lecteur(req.body);
+    const idus = c.listeIdu('idus', MAX_PARCELLES_RECOLORATION);
+    const filiere = c.parmi('filiere', FILIERES);
+    const knockOutsDesactives = c.listeParmi('knockOutsDesactives', IDS_KNOCK_OUTS, 50);
+    c.valideAilleurs('ponderation'); // cles connues, poids finis et bornes : voir `ponderationValide`
+    c.refuserInconnus();
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!idus?.length) return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
 
-    const resultats = await scorerAvecPonderation(
-      corps.idus.map((i) => i.toUpperCase()),
-      corps.filiere,
-      { ...corps.options, ponderation: corps.ponderation },
-    );
+    const brutPonderation = (req.body as { ponderation?: unknown }).ponderation;
+    const ponderation =
+      brutPonderation == null
+        ? undefined
+        : ponderationValide(brutPonderation, (id) => CRITERES[id] != null, 'ponderation');
+
+    const resultats = await scorerAvecPonderation(idus, filiere, {
+      knockOutsDesactives,
+      ponderation,
+    });
 
     // Reponse allegee : la carte n'a besoin que du statut et du score.
     return {
@@ -247,30 +287,26 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     if (req.utilisateur?.role === 'lecture') {
       return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
     }
-    const corps = req.body as {
-      bbox?: [number, number, number, number] | string;
-      filiere?: string;
-      surfaceMinM2?: number;
-      forcer?: boolean;
-      /** Force le traitement en arriere-plan, quelle que soit la taille de l'emprise. */
-      arrierePlan?: boolean;
-    };
-    const bbox = Array.isArray(corps.bbox)
-      ? corps.bbox
-      : bboxDepuisChaine(String(corps.bbox ?? ''));
+    const c = lecteur(req.body);
+    const bbox = empriseDuCorps(c, req.body);
+    const filiere = c.parmi('filiere', FILIERES);
+    const surfaceMinM2 = c.nombre('surfaceMinM2', { min: 0, max: 1e9 });
+    const forcer = c.booleen('forcer');
+    const arrierePlan = c.booleen('arrierePlan');
+    c.refuserInconnus();
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Champ `bbox` requis');
 
     // Une emprise etendue se traite en arriere-plan : la maintenir dans une requete HTTP
     // la ferait couper par les passerelles bien avant la fin.
     const etendue = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]);
-    const enArrierePlan = corps.arrierePlan === true || etendue > SEUIL_ARRIERE_PLAN_DEG2;
+    const enArrierePlan = arrierePlan === true || etendue > SEUIL_ARRIERE_PLAN_DEG2;
 
     try {
     if (enArrierePlan) {
       const issue = await lancerQualificationEmprise(bbox, {
-        surfaceMinM2: corps.surfaceMinM2,
-        filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
-        forcer: corps.forcer,
+        surfaceMinM2,
+        filieres: filiere ? [filiere] : undefined,
+        forcer,
         utilisateurId: req.utilisateur?.id ?? null,
       });
       if (!issue.accepte) {
@@ -295,9 +331,9 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     }
 
     const resultat = await qualifierEmprise(bbox, {
-      surfaceMinM2: corps.surfaceMinM2,
-      filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined,
-      forcer: corps.forcer,
+      surfaceMinM2,
+      filieres: filiere ? [filiere] : undefined,
+      forcer,
     });
     return { mode: 'immediat', ...resultat };
     } catch (err) {
@@ -330,16 +366,13 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
   /** Volume et duree previsibles d'une emprise, avant de lancer la campagne. */
   app.post('/api/qualification/estimation', async (req, rep) => {
-    const corps = req.body as {
-      bbox?: [number, number, number, number] | string;
-      surfaceMinM2?: number;
-    };
-    const bbox = Array.isArray(corps.bbox)
-      ? corps.bbox
-      : bboxDepuisChaine(String(corps.bbox ?? ''));
+    const c = lecteur(req.body);
+    const bbox = empriseDuCorps(c, req.body);
+    const surfaceMinM2 = c.nombre('surfaceMinM2', { min: 0, max: 1e9 });
+    c.refuserInconnus();
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Champ `bbox` requis');
     try {
-      return await estimerEmprise(bbox, corps.surfaceMinM2);
+      return await estimerEmprise(bbox, surfaceMinM2);
     } catch (err) {
       if (err instanceof ErreurEmprise) {
         return erreur(rep, 422, 'emprise_invalide', err.message);
@@ -349,13 +382,14 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/qualification/parcelles', debitQualification, async (req, rep) => {
-    const corps = req.body as { idus?: string[]; filiere?: string; forcer?: boolean };
-    if (!Array.isArray(corps.idus) || corps.idus.length === 0) {
-      return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
-    }
-    return qualifierIdus(
-      corps.idus.map((i) => i.toUpperCase()),
-      { forcer: corps.forcer, filieres: estFiliere(corps.filiere) ? [corps.filiere] : undefined },
-    );
+    const c = lecteur(req.body);
+    // Plafond explicite : une qualification consomme le quota des API publiques pour toute l'equipe.
+    // La limitation de debit borne la FREQUENCE des appels, pas le nombre de parcelles par appel.
+    const idus = c.listeIdu('idus', MAX_PARCELLES_PAR_APPEL);
+    const filiere = c.parmi('filiere', FILIERES);
+    const forcer = c.booleen('forcer');
+    c.refuserInconnus();
+    if (!idus?.length) return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
+    return qualifierIdus(idus, { forcer, filieres: filiere ? [filiere] : undefined });
   });
 }

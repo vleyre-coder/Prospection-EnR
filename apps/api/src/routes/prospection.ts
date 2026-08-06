@@ -3,6 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   estFiliere,
+  FILIERES,
   STATUTS_PROSPECTION,
   type Filiere,
   type StatutProspection,
@@ -13,7 +14,16 @@ import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 import { journaliser } from '../depots/sources.js';
 import { erreur } from './erreurs.js';
-import { entierRequete } from '../validation.js';
+import { entierRequete, lecteur } from '../validation.js';
+
+/** Types d'evenement d'un lead. Liste fermee, partagee entre la validation et le depot. */
+const TYPES_EVENEMENT = ['contact', 'note', 'document'] as const;
+
+/** Un site regroupe des parcelles voisines : la borne evite un scoring consolide non borne. */
+const MAX_PARCELLES_PAR_SITE = 500;
+
+/** Forme d'un identifiant UUID, celle que produit la base pour les leads et les sites. */
+const MOTIF_UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 function estStatut(v: unknown): v is StatutProspection {
   return typeof v === 'string' && (STATUTS_PROSPECTION as readonly string[]).includes(v);
@@ -41,27 +51,21 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     if (req.utilisateur?.role === 'lecture') {
       return erreur(rep, 403, 'lecture_seule', 'Votre role ne permet pas de modifier le pipeline');
     }
-    const corps = req.body as {
-      idu?: string;
-      siteId?: string;
-      filiere?: string;
-      statut?: string;
-      notes?: string;
-    };
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
-    }
-    if (!corps.idu && !corps.siteId) {
-      return erreur(rep, 400, 'cible_manquante', 'Champ `idu` ou `siteId` requis');
-    }
-    if (corps.idu && corps.siteId) {
+    const c = lecteur(req.body);
+    const filiere = c.parmi('filiere', FILIERES);
+    const idu = c.idu('idu');
+    const siteId = c.texte('siteId', { max: 64, motif: MOTIF_UUID, description: 'identifiant UUID' });
+    const statut = c.parmi('statut', STATUTS_PROSPECTION);
+    const notes = c.texteOuVide('notes', { max: 5000 });
+    // Toute cle non lue est refusee : un champ mal orthographie serait sinon ignore en silence, et
+    // l'appelant croirait avoir renseigne une note ou un statut qui n'a jamais ete enregistre.
+    c.refuserInconnus();
+
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!idu && !siteId) return erreur(rep, 400, 'cible_manquante', 'Champ `idu` ou `siteId` requis');
+    if (idu && siteId) {
       return erreur(rep, 400, 'cible_ambigue', 'Un lead porte une parcelle OU un site, pas les deux');
     }
-    if (corps.statut && !estStatut(corps.statut)) {
-      return erreur(rep, 400, 'statut_invalide', `Statut inconnu : ${corps.statut}`);
-    }
-
-    const idu = corps.idu?.toUpperCase();
 
     // Le score au moment de la prise en prospection est conserve : il permet de mesurer
     // la derive lorsque les donnees sources evoluent.
@@ -76,17 +80,17 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
           'Qualifiez la parcelle avant de la mettre en prospection',
         );
       }
-      const score = await depotScores.scoreParcelle(idu, corps.filiere);
+      const score = await depotScores.scoreParcelle(idu, filiere);
       scoreInitial = score?.scoreGlobal ?? null;
     }
 
     const lead = await depot.creerLead(
       {
         idu: idu ?? null,
-        siteId: corps.siteId ?? null,
-        filiere: corps.filiere,
-        statut: estStatut(corps.statut) ? corps.statut : undefined,
-        notes: corps.notes ?? null,
+        siteId: siteId ?? null,
+        filiere,
+        statut,
+        notes: notes ?? null,
         assigneA: req.utilisateur?.id ?? null,
         scoreInitial,
       },
@@ -99,17 +103,18 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     if (req.utilisateur?.role === 'lecture') {
       return erreur(rep, 403, 'lecture_seule', 'Votre role ne permet pas de modifier le pipeline');
     }
-    const corps = req.body as { statut?: string; notes?: string | null; assigneA?: string | null };
-    if (corps.statut !== undefined && !estStatut(corps.statut)) {
-      return erreur(rep, 400, 'statut_invalide', `Statut inconnu : ${corps.statut}`);
-    }
+    const c = lecteur(req.body);
+    // `texteOuVide` et non `texte` : ces deux champs doivent pouvoir etre EFFACES. `texte()` ramene la
+    // chaine vide a `undefined`, ce qui aurait rendu impossible la suppression d'une note ou d'une
+    // affectation — en silence, l'appel repondant 200 sans rien changer.
+    const statut = c.parmi('statut', STATUTS_PROSPECTION);
+    const notes = c.texteOuVide('notes', { max: 5000 });
+    const assigneA = c.texteOuVide('assigneA', { max: 64 });
+    c.refuserInconnus();
+
     const lead = await depot.majLead(
       req.params.id,
-      {
-        statut: estStatut(corps.statut) ? corps.statut : undefined,
-        notes: corps.notes,
-        assigneA: corps.assigneA,
-      },
+      { statut, notes, assigneA },
       req.utilisateur?.email ?? 'systeme',
     );
     if (!lead) return erreur(rep, 404, 'lead_introuvable', 'Lead introuvable');
@@ -117,16 +122,18 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{ Params: { id: string } }>('/api/leads/:id/evenements', async (req, rep) => {
-    const corps = req.body as { type?: string; commentaire?: string };
-    const types = ['contact', 'note', 'document'];
-    if (!corps.type || !types.includes(corps.type)) {
-      return erreur(rep, 400, 'type_invalide', `Type attendu parmi : ${types.join(', ')}`);
+    const c = lecteur(req.body);
+    const type = c.parmi('type', TYPES_EVENEMENT);
+    const commentaire = c.texteOuVide('commentaire', { max: 5000 });
+    c.refuserInconnus();
+    if (!type) {
+      return erreur(rep, 400, 'type_invalide', `Type attendu parmi : ${TYPES_EVENEMENT.join(', ')}`);
     }
     const ev = await depot.ajouterEvenement(
       req.params.id,
-      corps.type as 'contact' | 'note' | 'document',
+      type,
       req.utilisateur?.email ?? 'systeme',
-      corps.commentaire ?? null,
+      commentaire ?? null,
     );
     if (!ev) return erreur(rep, 404, 'lead_introuvable', 'Lead introuvable');
     return rep.code(201).send(ev);
@@ -157,32 +164,33 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     if (req.utilisateur?.role === 'lecture') {
       return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
     }
-    const corps = req.body as {
-      nom?: string;
-      filiere?: string;
-      idus?: string[];
-      geometrie?: { type: string; coordinates: unknown };
-      commentaire?: string;
-    };
-    if (!corps.nom?.trim()) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
-    if (!estFiliere(corps.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
-    }
-    if (!corps.idus?.length && !corps.geometrie) {
+    const c = lecteur(req.body);
+    const nom = c.texte('nom', { max: 200 });
+    const filiere = c.parmi('filiere', FILIERES);
+    // Plafond explicite : un site est un regroupement de parcelles voisines, pas un departement. Sans
+    // borne, la creation d'un site declenchait un scoring consolide sur une liste non bornee.
+    const idus = c.listeIdu('idus', MAX_PARCELLES_PAR_SITE);
+    const geometrie = c.geometrie('geometrie');
+    const commentaire = c.texteOuVide('commentaire', { max: 5000 });
+    c.refuserInconnus();
+
+    if (!nom) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!idus?.length && !geometrie) {
       return erreur(rep, 400, 'cible_manquante', 'Champ `idus` ou `geometrie` requis');
     }
 
     const site = await depot.creerSite({
-      nom: corps.nom.trim(),
-      filiere: corps.filiere,
-      idus: corps.idus?.map((i) => i.toUpperCase()),
-      geometrie: corps.geometrie ?? null,
-      commentaire: corps.commentaire ?? null,
+      nom,
+      filiere,
+      idus,
+      geometrie: geometrie ?? null,
+      commentaire: commentaire ?? null,
     });
 
     // Score consolide du site : les parcelles ecartees en sont retirees, et la
     // fragmentation qui en resulte penalise le score.
-    const consolide = await scorerSite(site.id, corps.filiere);
+    const consolide = await scorerSite(site.id, filiere);
     return rep.code(201).send({ ...site, ...consolide });
   });
 

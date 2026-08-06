@@ -331,3 +331,80 @@ produit un critère GRIS**, jamais un critère favorable. Conséquences visibles
   aucun score n'est présenté comme fiable ;
 - les connecteurs en échec sont listés en bas de la fiche ;
 - un knock-out ne se déclenche jamais sur une donnée absente.
+
+### 3.2 Intrants méthanisables — recherche de source menée, et pourquoi elle n'aboutit pas
+
+Cette section existe pour qu'on ne refasse pas la recherche. `gis_intrants` pèse **16,5 % de la note
+méthanisation** et reste déclaré sans source ; voici ce qui a été établi par mesure, et ce qu'il
+faudrait pour changer cela.
+
+**La classification ICPE est disponible, et fiable.** L'API Géorisques `installations_classees`
+expose, sur chaque installation, trois booléens `bovins`, `porcs`, `volailles`, un `codeNaf`, et la
+liste de ses `rubriques`. Mesuré sur deux territoires :
+
+| Territoire | Installations dans 20 km | Élevages | IAA (NAF 10/11) | IAA (rubrique 22xx) |
+|---|---|---|---|---|
+| Beauce (1,75 / 48,15) | 196 | 3 | 4 | 12 |
+| Bretagne (−1,68 / 48,11) | 896 (300 lus) | 4 | 9 | 9 |
+
+Deux enseignements pour l'implémentation, le jour où elle se fera :
+
+- **`industrie: true` ne veut PAS dire agroalimentaire** — 69 installations sur 196 en Beauce, en
+  incluant l'énergie (NAF 35), les carrières (08) et les déchets (38). Le bon critère est le code
+  NAF 10 ou 11, **combiné par OU** avec une rubrique 22xx : sur 9 + 9 installations en Bretagne,
+  seules 3 satisfont les deux. Prendre l'un ou l'autre seul en perdrait les deux tiers.
+- **`etatActivite` vaut `None` pour 57 % des installations.** On ne peut donc pas filtrer sur « en
+  exploitation » sans écarter la majorité des inconnues. Seul `En fin d'exploitation` doit être
+  exclu : une installation qui ferme n'est pas un fournisseur d'intrants.
+
+**Ce qui manque est le VECTEUR, pas la donnée.** Deux voies, toutes deux fermées à ce jour :
+
+- *par appel* — l'API interroge par point et rayon. Un comptage à 10 km pour les élevages et 20 km
+  pour les IAA demande **dix à vingt requêtes paginées par parcelle** (896 installations dans 20 km
+  autour de Rennes, par pages de 100), sur un quota public limité à une requête par seconde et
+  partagé par toute l'équipe — celui que la limitation de débit de la qualification existe précisément
+  pour protéger. Mettre ce comptage en cache par commune reviendrait à présenter un fait communal
+  comme une mesure parcellaire : le défaut corrigé deux fois à l'audit 8 ;
+- *par fichier* — les deux jeux nationaux référencés sur data.gouv (« Base des installations classées
+  (ICPE) », `icpe.geojson.gz`, et « ICPE — France métropolitaine et DROM ») datent tous deux de
+  **2021**, et le serveur de fichiers de Géorisques refuse l'accès direct (403). Une base ICPE de cinq
+  ans pour compter des fournisseurs d'intrants raisonnerait sur des installations fermées et
+  ignorerait les nouvelles.
+
+**Décision.** Le critère reste `sansSource`, et la fiche dit où chercher. Le jour où un export national
+daté est publié, l'ingestion est un travail court : le classifieur est décrit ci-dessus, le job se
+calque sur `ingererSitesProteges`, et le reste du dispositif — couverture par département, comptage
+par couche, agrégation qui refuse les totaux partiels — est déjà en place.
+
+**Ce qu'il ne faut PAS utiliser.** La couche WFS `REPARTITION.POTENTIEL.METHANISATION.2050` existe et
+est tentante : 3 690 objets, un champ `potentiel_t`. Elle est inexploitable pour ce critère, et pour
+deux raisons cumulées — c'est une **projection à 2050**, non un gisement mobilisable aujourd'hui, et
+elle est découpée **par canton**, non à la parcelle. L'employer serait commettre en une fois les deux
+erreurs que l'audit 8 a corrigées : un fait de mauvaise nature, à la mauvaise échelle. Elle peut servir
+de calque d'orientation sur la carte, à condition d'être étiquetée pour ce qu'elle est.
+
+### 3.3 Réseau de gaz — pourquoi la distance de raccordement reste grise
+
+Même démarche, même conclusion, et il faut la dire pour la même raison.
+
+`racc_distance_reseau_gaz` pèse 11 % de la note méthanisation et attend la distance à une
+**canalisation**. La table `canalisation_gaz` n'est peuplée par rien.
+
+La couche `BDTOPO_V3:canalisation` du WFS Géoplateforme paraît répondre. Elle ne répond pas :
+**8 156 objets** au niveau national, dont les seules natures relevées sur 8 000 objets échantillonnés
+sont `Autres matières premières` (85 %) et `Hydrocarbures` (15 %). Aucune valeur « gaz ». Et l'ordre de
+grandeur suffit à trancher : le seul réseau de transport de GRTgaz dépasse 32 000 km. Cette couche
+décrit des canalisations remarquables de la BD TOPO, pas le réseau gazier.
+
+GRTgaz publie son réseau de transport sur son propre portail ; GRDF ne publie pas la distribution. À
+défaut, le critère reste `sansSource` et renvoie vers le gestionnaire — ce qui est de toute façon le
+passage obligé, la capacité d'injection et le zonage de raccordement ne se déduisant d'aucune
+géométrie.
+
+### 3.4 Sites patrimoniaux remarquables — absents de la couche ingérée
+
+La couche `STE` du WFS Géoplateforme, désormais ingérée (§2.7), ne porte **que** les sites classés et
+inscrits. Les SPR n'y figurent pas, et aucune couche SPR n'existe sur ce service — la seule couche
+patrimoniale voisine est `patrinat_bpm:Bien_patrimoine_mondial_UNESCO`, qui relève d'un tout autre
+dispositif. Les SPR restent donc déclarés non ingérés, et `patrimoine()` retourne `recouvre: null` pour
+ce type : le critère ne conclut pas, et ne prétend pas conclure.

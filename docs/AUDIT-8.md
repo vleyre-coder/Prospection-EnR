@@ -1049,3 +1049,108 @@ se transportent** : une fois nommée, chaque classe se cherche mécaniquement ai
 trois défauts anciens ont été trouvés par une simple question posée à un fichier jamais suspecté.
 S1 y ajoute une quatrième lentille, qui manquait aux huit audits : *quelle valeur cette garde
 prend-elle si l'attaquant contrôle son entrée ?*
+
+---
+
+# Troisième passe — clôture des points laissés ouverts
+
+Les cinq points que la seconde passe déclarait ouverts. Quatre sont traités ; le cinquième ne dépend
+pas du code et reste ouvert par nature.
+
+## T1. Les 21 routes mutantes valident désormais leur corps (item 24, clos)
+
+C'était le reste ouvert le plus net. `validation.ts` fournissait un lecteur de 140 lignes **écrit pour
+les routes**, et une seule fonction de l'application l'appelait ; les 21 routes mutantes lisaient
+`req.body as { … }`, une assertion de type qui ne vérifie rien à l'exécution.
+
+Toutes passent maintenant par `lecteur()`, avec `refuserInconnus()` — **un champ mal orthographié est
+refusé, non ignoré**. C'est la partie qui compte le plus : `{ note: "…" }` au lieu de `{ notes: "…" }`
+répondait 201 et perdait la saisie sans un mot.
+
+**Cinq défauts trouvés en câblant**, tous par la lecture du code existant :
+
+| Défaut | Effet avant correction |
+|---|---|
+| `poids` d'une pondération non validés | une clé inconnue était **persistée** puis ignorée (l'utilisateur croyait avoir repondéré un critère inchangé) ; un poids négatif **inversait** la contribution — le score montait quand le critère se dégradait ; `NaN` rendait le score global vide |
+| `knockOutsDesactives` non borné | un identifiant mal orthographié passait sans bruit : l'utilisateur croyait explorer un scénario dérogatoire qui n'était pas appliqué |
+| `role` ramené à `lecture` en silence | `"Admin"` ou `"admin "` créait un compte en lecture seule, et l'administrateur le découvrait plus tard sans moyen de savoir pourquoi |
+| corps de la route de connexion non borné | route **publique** : un `email` ou un `motDePasse` de plusieurs mégaoctets partait en requête SQL et dans la fonction de hachage, coûteuse par construction |
+| `limite` de `/api/admin/rescorer` non bornée | `NaN` ou un entier arbitraire partait en `LIMIT` SQL et gouvernait la durée d'un recalcul complet |
+
+**Trois exigences que la validation devait respecter sans les casser**, et qui ont demandé du soin :
+
+- `texte()` ramène la chaîne vide à `undefined`, ce qui est juste pour un champ qu'on renseigne ou non,
+  mais aurait rendu **impossible l'effacement** d'une note ou d'une affectation — en silence, l'appel
+  répondant 200 sans rien changer. D'où `texteOuVide()`, qui distingue les trois états : absent,
+  renseigné, vidé ;
+- un mot de passe se compare **tel quel** : un `trim()` modifierait ce que l'utilisateur a saisi ;
+- deux routes délèguent à `filtresValides()`, qui appelle le lecteur en interne. Exiger l'appel direct
+  aurait forcé à dupliquer une validation déjà centralisée.
+
+**Un défaut que j'ai introduit, attrapé par mon propre test.** Pour marquer une clé comme lue sans la
+valider, j'ai détourné `c.nombre(champ)` — mais `nombre()` **valide** : appelé sur un tableau, il
+refuse. Les deux routes d'export ont donc rejeté tout appel valide, avec le message « Champ idus :
+nombre attendu ». D'où `valideAilleurs(champ)`, dont le nom dit l'engagement : le champ **est** validé,
+ailleurs, dans la même route.
+
+Le garde-fou est **structurel** et non comportemental : un test relit la source des routes et exige que
+chaque bloc mutant lisant `req.body` appelle un validateur reconnu, et que toute lecture brute soit
+déclarée avec sa raison. Vérifier champ par champ par des appels HTTP se dégraderait dès le premier
+champ ajouté ; ce contrôle ne peut pas se périmer en silence.
+
+## T2. Les ingestions tournent (items 11 et 12, clos)
+
+Les deux jobs sont lancés et vérifiés en base. Ils doivent être relancés sur l'instance de production :
+`npm run ingest -- communes` (nécessaire au rattachement départemental des sites), puis
+`npm run ingest -- patrimoine_sites`, puis `npm run ingest -- zaer_local`.
+
+## T3. Les SPR n'ont pas de source (clos, par la négative)
+
+Recherche menée sur les capacités complètes du WFS Géoplateforme (5,1 Mo de descriptif) : la couche
+`STE` ne porte **que** les sites classés et inscrits, et aucune couche SPR n'existe sur ce service — la
+seule voisine, `patrinat_bpm:Bien_patrimoine_mondial_UNESCO`, relève d'un tout autre dispositif. Les
+SPR restent déclarés non ingérés et `patrimoine()` retourne `recouvre: null` pour ce type.
+
+## T4. Les intrants méthanisation : la donnée existe, le vecteur non (documenté, non implémenté)
+
+C'est le point où j'ai décidé de **ne pas** livrer, et la décision mérite d'être exposée parce qu'elle
+va contre l'apparence.
+
+**La classification ICPE est disponible et fiable** : l'API Géorisques expose `bovins`, `porcs`,
+`volailles`, `codeNaf` et les `rubriques`. Mesuré sur deux territoires (196 installations en Beauce,
+896 en Bretagne), avec deux enseignements précis : `industrie: true` ne veut **pas** dire
+agroalimentaire (69 sur 196, énergie et carrières incluses), et le bon critère — NAF 10/11 **OU**
+rubrique 22xx — doit combiner les deux : sur 9 + 9 installations bretonnes, seules 3 satisfont les deux.
+
+**Mais aucun vecteur n'est praticable.** Par appel, un comptage à 10 et 20 km demande dix à vingt
+requêtes paginées **par parcelle**, sur un quota public d'une requête par seconde partagé par toute
+l'équipe — celui que la limitation de débit existe précisément pour protéger. Et mettre ce comptage en
+cache par commune reviendrait à présenter un fait communal comme une mesure parcellaire : le défaut
+corrigé deux fois dans cet audit. Par fichier, les deux jeux nationaux référencés sur data.gouv datent
+de **2021** et le serveur de fichiers de Géorisques refuse l'accès (403).
+
+**Ce que j'ai refusé d'utiliser, et pourquoi c'est le point important.** La couche
+`REPARTITION.POTENTIEL.METHANISATION.2050` existe, avec 3 690 objets et un champ `potentiel_t`. Elle
+aurait rempli le critère immédiatement. Elle est inexploitable pour deux raisons cumulées : c'est une
+**projection à 2050**, non un gisement mobilisable aujourd'hui, et elle est découpée **par canton**, non
+à la parcelle. L'employer aurait été commettre en une fois les deux erreurs que cet audit a corrigées —
+un fait de mauvaise nature, à la mauvaise échelle — et le critère serait passé de gris à renseigné, donc
+de « je ne sais pas » à « je sais », sur une valeur fausse.
+
+Le critère reste `sansSource`. La recherche est consignée dans `docs/SOURCES_DONNEES.md` §3.2 à §3.4
+avec le classifieur mesuré, pour que l'implémentation soit courte le jour où un export daté existe, et
+pour que **personne ne refasse la recherche** ni ne tombe dans le piège du potentiel 2050.
+
+## T5. Ce qui reste ouvert, et ne dépend pas du code
+
+Les quatre items de priorité 5, inchangés et incompressibles : campagne de validation par un expert
+foncier ENR sur 50 parcelles réelles (le script est prêt), devis réels de raccordement pour recalibrer
+les paliers, relecture juridique du référentiel, test d'usage sur poste de prospecteur. Aucun ne se
+règle en écrivant du code, et prétendre le contraire serait exactement le travers que cet audit
+combat.
+
+## État vérifié
+
+527 tests, zéro échec. Zéro erreur de typage sur les quatre espaces de travail. 14 mutations sur 14
+rattrapées. Les trois contrôles mécaniques d'alimentation, le contrôle structurel de validation des
+routes et le contrôle des champs orphelins passent tous.
