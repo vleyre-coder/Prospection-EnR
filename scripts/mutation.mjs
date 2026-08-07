@@ -208,7 +208,10 @@ const MUTATIONS = [
     audit: 'audit 9',
     quoi: 'le lot a rafraichir oublie de comparer le snapshot a la derniere ingestion',
     fichier: 'apps/api/src/depots/parcelles.ts',
-    de: ' OR s.date_snapshot < (\n      SELECT max(ci.date_ingestion) FROM couverture_ingestion ci\n       WHERE ci.code_departement = p.code_departement\n    )',
+    // La sous-requete correlee a ete remplacee par une jointure agregee a la relecture de l'audit 9 :
+    // elle coutait 2 973 ms sur 200 000 parcelles, pour une requete que /api/sante execute a chaque
+    // interrogation. L'invariant teste est le meme — le lot doit comparer le snapshot a l'ingestion.
+    de: '\n      OR s.date_snapshot < d.le',
     vers: '',
     tests: ['apps/api/test/snapshot-perime-par-donnee.test.ts'],
   },
@@ -227,6 +230,32 @@ const MUTATIONS = [
     de: '  if (part > partMax) {',
     vers: '  if (false) {',
     tests: ['apps/api/test/disparus.test.ts'],
+  },
+
+  // --- Relecture de l'audit 9 : les defauts que ses propres corrections ont crees -----------
+  {
+    audit: 'audit 9 (relecture)',
+    quoi: 'la reprise de couverture des reseaux ne repare plus une instance deja en service',
+    fichier: 'db/migrations/015_reprise_couverture_reseaux.sql',
+    de: "SELECT 'postes_sources', 'poste_source', code_departement, count(*),",
+    vers: "SELECT 'postes_sources', 'poste_source', code_departement, count(*) WHERE false AND true,",
+    tests: ['apps/api/test/reprise-couverture-reseaux.test.ts'],
+  },
+  {
+    audit: 'audit 9 (relecture)',
+    quoi: 'une couverture a comptage nul redevient « inconnu » au lieu de « regarde »',
+    fichier: 'apps/api/src/connecteurs/couches.ts',
+    de: "        WHERE type = $1\n        GROUP BY code_departement",
+    vers: "        WHERE type = $1 AND nb_objets > 0\n        GROUP BY code_departement",
+    tests: ['apps/api/test/couverture-disque.test.ts'],
+  },
+  {
+    audit: 'audit 9 (relecture)',
+    quoi: 'une route de qualification perd son refus des comptes en lecture seule',
+    fichier: 'apps/api/src/routes/parcelles.ts',
+    de: "    // Ce controle MANQUAIT : un compte en lecture seule pouvait qualifier une liste\n    // d'identifiants jusqu'au plafond par appel, et epuiser le quota partage par l'equipe.\n    const refus = refuserLectureSeule(req, rep);\n    if (refus) return refus;\n",
+    vers: '',
+    tests: ['apps/api/test/acces-roles.test.ts'],
   },
 ];
 

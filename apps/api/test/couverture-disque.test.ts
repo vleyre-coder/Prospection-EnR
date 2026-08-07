@@ -207,3 +207,35 @@ test('un poste dans un departement non couvert reste invisible meme proche', asy
   await posteA(1500, 'proche');
   assert.deepEqual(await postesLesPlusProches(PT, 4), []);
 });
+
+/**
+ * « On a regardé ici » n'est pas « on a trouvé quelque chose ici » — risque F4 de l'audit 9.
+ *
+ * La couverture des postes était déduite des postes OBSERVÉS. Un département réellement dépourvu de
+ * poste source n'aurait donc porté aucune ligne, et le contrôle du disque aurait grisé le critère de
+ * raccordement de toutes les parcelles à portée de sa frontière — pour une donnée qui, elle, était
+ * bien complète. L'ingestion pose désormais la couverture sur les départements des régions
+ * effectivement téléchargées, comptage nul compris, et la lecture ne conditionne plus le verdict à un
+ * comptage non nul.
+ */
+test('une couverture a comptage nul vaut « regarde », pas « inconnu »', async () => {
+  if (ignorer()) return;
+  await vider();
+  await supprimerPostes();
+  // Le departement voisin est declare AVEC ZERO objet : c'est le cas d'une region telechargee dont un
+  // departement n'a effectivement aucun poste.
+  await declarerCouvertureFictive('postes_sources', TYPE_COUVERTURE_POSTES, DEP_LOCAL, 3);
+  await declarerCouvertureFictive('postes_sources', TYPE_COUVERTURE_POSTES, DEP_VOISIN, 0);
+  oublierPresenceCouches();
+
+  assert.equal(
+    await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, PT, 10000),
+    true,
+    'un departement declare sans aucun poste reste un departement REGARDE',
+  );
+
+  // Et la distance mesuree redevient exploitable, alors qu'elle traverse ce departement.
+  await posteA(1500, 'proche');
+  const postes = await postesLesPlusProches(PT, 4);
+  assert.equal(postes.length, 1, 'la distance doit etre rendue');
+});

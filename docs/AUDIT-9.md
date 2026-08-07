@@ -32,8 +32,10 @@ trois défauts critiques :
 interface), 9 496 lignes de test réparties en 34 fichiers pour l'API et 8 pour les paquets, 8 947
 lignes de documentation, 14 migrations, 47 commits. Typage strict sur les quatre paquets, zéro échec.
 
-**Résultat.** Sept défauts confirmés, dont trois critiques, tous mesurés puis corrigés. 23/23
-mutations rattrapées après correction, contre 14 avant ; 565 tests, zéro échec.
+**Résultat.** Sept défauts confirmés, dont trois critiques, tous mesurés puis corrigés. Puis une
+relecture des corrections elles-mêmes (§H), qui en a trouvé quatre de plus — dont un critique, né de
+la correction du §B3 — également corrigés. 26/26 mutations rattrapées après correction, contre 14
+avant ; 574 tests, zéro échec.
 
 ---
 
@@ -373,10 +375,10 @@ successives.** Les gardes sont testées, dont le plafond de volumétrie qui ne d
 externe ; ce qui reste à confirmer en exploitation est la fidélité du signal de complétude de la
 Géoplateforme. Le risque est borné par le plafond, non par la confiance dans la source.
 
-**F4. Les postes sources restent hors du contrôle de complétude par région.** La couverture est
-déduite des postes effectivement présents, non des régions effectivement téléchargées. Un département
-réellement dépourvu de poste serait déclaré « inconnu » plutôt que « sans poste » — l'erreur va dans
-le sens prudent, mais elle existe.
+**F4. Traité par la relecture, voir §H4.** La couverture des postes est désormais posée sur les
+départements des régions effectivement téléchargées, comptage nul compris. Ce qui subsiste est plus
+étroit : un poste démonté reste indiscernable d'une région non lue, donc les postes restent hors du
+dispositif d'effacement des objets disparus (§G.2).
 
 **F5. Les éléments de priorité 5 des audits précédents restent entiers**, parce qu'ils ne dépendent
 pas du code : campagne de validation par un expert sur 50 parcelles réelles, devis de raccordement
@@ -387,16 +389,97 @@ d'usage sur le poste d'un prospecteur.
 
 ## G. Améliorations classées par priorité
 
-1. **Descendre le contrôle de complétude des postes sources à la région téléchargée** plutôt qu'aux
-   départements observés, ce qui les ferait entrer dans le dispositif d'effacement des objets
-   disparus (risques F4 et §D1).
-2. **Observer un cycle complet d'effacement sur deux ingestions nationales successives**, pour
+1. **Observer un cycle complet d'effacement sur deux ingestions nationales successives**, pour
    confirmer le signal de complétude de la Géoplateforme (risque F3).
-3. **Étendre le garde structurel des tris** aux requêtes de l'interface et des scripts, pas seulement
-   à `apps/api/src`.
-4. **Mesurer le coût réel du réenrichissement à l'ouverture d'une fiche** sur une instance chargée, et
+2. **Faire entrer les postes sources dans le dispositif d'effacement des objets disparus.** Leur
+   couverture est désormais posée par région téléchargée (§H4), ce qui lève l'obstacle ; il reste à
+   distinguer un poste démonté d'une région non lue.
+3. **Mesurer le coût réel du réenrichissement à l'ouverture d'une fiche** sur une instance chargée, et
    décider s'il faut le rendre asynchrone avec affichage immédiat de l'ancien état daté.
-5. **Les quatre éléments de priorité 5 hérités** (F5), qui ne dépendent pas du code.
+4. **Les quatre éléments de priorité 5 hérités** (F5), qui ne dépendent pas du code.
+
+---
+
+## H. Relecture de mes propres corrections
+
+Cette section n'existe dans aucun des huit audits précédents, et c'est un manque : chacun corrigeait
+des défauts sans jamais vérifier que ses corrections n'en créaient pas. La question posée ici est
+donc : **qu'est-ce que la correction de l'audit 9 a cassé ?** Quatre défauts, dont un critique, tous
+mesurés puis corrigés à leur tour.
+
+### H1 — La correction du disque grisait toute instance déjà en service (critique)
+
+Le contrôle de couverture introduit en §B3 consulte `couverture_ingestion` avant de rendre une
+distance. Or les deux connecteurs concernés n'y écrivaient **aucune ligne** avant cet audit — c'était
+la cause même du défaut — et les lignes n'apparaissent qu'à la prochaine ingestion.
+
+Conséquence sur une instance où les postes sont ingérés depuis des mois : **tous les critères de
+raccordement, les plus lourds du profil, passaient au gris au déploiement**, et le restaient jusqu'à
+ce que l'exploitant relance l'ingestion, sans qu'aucun message ne le lui dise. Une correction de
+fiabilité qui dégrade silencieusement le critère principal n'est pas une correction — c'est le même
+défaut déplacé.
+
+Correction : la migration 015 déduit la couverture du contenu des tables, rattache les postes à leur
+commune par jointure spatiale, et écrit la provenance dans `source_document` pour qu'une couverture
+**déduite** reste distinguable d'une couverture **constatée**. Un test rejoue le scénario complet de
+mise à niveau : poste présent sans couverture → distance non rendue → migration → distance rendue,
+sans qu'aucune ingestion n'ait été relancée. La reprise est vérifiée rejouable, et elle n'écrase pas
+une couverture qu'une ingestion postérieure aurait constatée.
+
+### H2 — J'ai commis dans la correction du §C2 la faute que le §C2 corrigeait
+
+`nbARafraichir`, écrite pour rendre le retard visible dans `/api/sante`, comparait chaque snapshot à
+une **sous-requête corrélée** sur `couverture_ingestion`, évaluée une fois par parcelle. Mesure :
+**2 973 ms sur 200 000 parcelles** — pour une requête que la sonde de santé exécute à chaque
+chargement de l'interface. Avec l'agrégation préalable : **108 ms**, vingt-sept fois moins, résultat
+identique.
+
+C'est exactement le défaut C2 — une requête écrite d'une façon qui empêche PostgreSQL de travailler
+efficacement — commis dans le commit qui corrigeait C2. La leçon est que la mesure doit accompagner
+l'écriture, pas seulement l'audit.
+
+### H3 — Une route de qualification sans contrôle de rôle, et je l'ai reproduit
+
+En ajoutant `POST /api/qualification/rafraichir`, je n'ai pas repris le refus des comptes en lecture
+seule. La vérification a montré que **`POST /api/qualification/parcelles` ne l'avait jamais eu non
+plus** : un compte en lecture seule pouvait qualifier une liste d'identifiants jusqu'au plafond par
+appel, et épuiser le quota partagé par toute l'équipe. Le fichier `acces-roles.test.ts` avait pourtant
+été écrit parce que « le rôle lecture était appliqué aux leads mais pas à la qualification » — il ne
+couvrait que la route d'emprise, et la route sœur est restée ouverte pendant tout ce temps.
+
+Trois occasions de poser ce contrôle, deux manquées. Un contrôle qu'on recopie finit par être oublié :
+il est désormais nommé (`refuserLectureSeule`), les trois routes l'appellent, un test structurel exige
+sa présence sur toute route de qualification, et l'interface n'affiche plus le bouton de
+rafraîchissement à un compte qui recevrait un 403.
+
+### H4 — « On a regardé ici » n'est pas « on a trouvé quelque chose ici » (risque F4 traité)
+
+La couverture était déduite des objets **observés**, et la lecture exigeait `nb_objets > 0`. Un
+département réellement dépourvu de l'objet cherché ne portait donc aucune ligne exploitable, et le
+contrôle du disque grisait le critère de toutes les parcelles à portée de sa frontière — pour une
+donnée qui, elle, était complète.
+
+L'ingestion des postes pose désormais la couverture sur les départements des **régions effectivement
+téléchargées**, comptage nul compris, et la lecture ne conditionne plus le verdict à un comptage non
+nul : l'existence de la ligne prouve le regard, puisqu'une ligne n'existe que si une ingestion l'a
+écrite. Le changement est sans effet sur les données existantes — aucune ligne à zéro n'existait.
+
+### Deux gardes ajoutés par cette relecture
+
+- **Tout littéral SQL du projet est analysé par PostgreSQL** (`PREPARE`, sans exécution). Les requêtes
+  d'ingestion ne s'exécutent qu'après plusieurs minutes de téléchargement : une faute de syntaxe y
+  restait invisible jusqu'à l'échec d'une ingestion réelle. Ce n'est pas théorique — une apostrophe
+  inversée dans un commentaire SQL a cassé trois fois son littéral au cours de ces audits.
+- **Le garde structurel des tris couvre aussi les migrations**, vérifié en y déposant une vue fautive
+  temporaire pour s'assurer qu'il la voyait.
+
+### Ce que cette section dit de la méthode
+
+Les quatre défauts ci-dessus ont un point commun : **aucun n'aurait été trouvé par la relecture du
+diff.** H1 demande de se demander ce qui se passe sur une base qui existe déjà ; H2 demande une mesure
+à l'échelle ; H3 demande de comparer une route neuve à ses sœurs ; H4 demande de distinguer deux
+formulations qui se ressemblent. Un audit qui ne s'applique pas à lui-même laisse passer, par
+construction, tout ce que la correction introduit — et sur les quatre trouvés ici, un était critique.
 
 ---
 
@@ -405,19 +488,28 @@ d'usage sur le poste d'un prospecteur.
 | Critère | Note | Justification |
 |---|---|---|
 | Fiabilité des résultats | 77/100 | Les trois défauts critiques touchaient tous la fiabilité de ce qui est **rendu**, non de ce qui est calculé : un classement non reproductible, un état de la donnée périmé sans le dire, une distance mesurée sur un disque incomplet. Corrigés et vérifiés par mutation. Ce qui plafonne la note : la validation par un expert sur des parcelles réelles n'a toujours pas eu lieu, et un cycle d'effacement n'a pas encore été observé en exploitation. |
-| Qualité technique | 82/100 | Typage strict sans échec, 21 mutations toutes rattrapées, garde structurel qui protège les futurs tris, tests de base qui refusent de passer à vide. Retiré : deux défauts de performance d'un facteur 100 à 780 vivaient dans du code écrit à l'audit précédent, et aucune mesure ne les avait vus. |
+| Qualité technique | 79/100 | Typage strict sans échec, 26 mutations toutes rattrapées, gardes structurels sur les tris et sur l'analysabilité de tout le SQL, tests de base qui refusent de passer à vide. Retiré, et lourdement : deux défauts de performance d'un facteur 100 à 780 vivaient dans du code écrit à l'audit précédent sans qu'aucune mesure ne les voie — et la relecture du §H a montré que **la correction de l'un d'eux reproduisait exactement la même faute**, plus une régression critique et deux contrôles d'accès manquants. Corriger sans mesurer ni comparer aux routes sœurs reste le point faible de ce projet. |
 | Qualité métier | 78/100 | Le raisonnement métier est juste et daté ; la distinction faux vert / faux rouge est désormais traitée des deux côtés. Retiré : le faux rouge structurel du raccordement a survécu à huit audits, et l'obsolescence d'un instantané après ingestion n'avait jamais été posée comme une question métier. |
 | Ergonomie | 76/100 | Le retard sur la donnée est visible et actionnable, la fiche se répare à l'ouverture, la traçabilité porte la date d'interrogation des sources. Retiré : rien n'avertit *dans* la fiche que la parcelle vient d'être réenrichie, et le bandeau est le seul indicateur du retard. |
 | Robustesse | 82/100 | Reprise HTTP à deux profils, pagination vérifiée et désormais remontée à l'appelant, statut « partiel » honnête sur l'ingestion gaz, couverture refusée sur une exécution incomplète, effacement des objets disparus gardé par deux conditions indépendantes. Retiré : la couverture à la maille du département (F2), les postes sources hors du dispositif d'effacement (F4). |
 | Professionnalisation | 80/100 | 8 947 lignes de documentation, neuf rapports d'audit, CI qui exécute les tests de base et la vérification par mutation contre PostgreSQL, journalisation exploitable. Retiré : le rafraîchissement reste manuel, et l'exploitant doit savoir lire un bandeau. |
 
-**Score global : 79/100.**
+**Score global : 78/100.**
 
-Le score reste au niveau de l'audit 8 malgré sept corrections, dont trois critiques. C'est volontaire
-et c'est l'information la plus utile de ce rapport : un audit à froid, en changeant de question, a trouvé trois
-défauts critiques dans du code que huit audits déclaraient sain. La note antérieure était donc trop
-haute, non parce que les corrections d'alors étaient fausses, mais parce que la question posée était
-trop étroite. Ce qui a été vérifié huit fois ne l'a été que sous un angle.
+L'audit 8 avait conclu à **56/100**, l'audit 7 à 67. La hausse à 78 ne dit pas que l'application est
+soudain devenue meilleure de vingt-deux points : elle dit que l'audit 8 notait un état où le critère
+patrimonial valait 90/100 en vert sur zéro donnée, et que cet état n'existe plus.
+
+**Une mise au point sur ce paragraphe, parce qu'elle illustre le défaut que ce rapport traque.** Sa
+première version affirmait « le score baisse d'un point par rapport à l'audit 8 » — je l'avais écrit
+sans ouvrir `AUDIT-8.md`. Le chiffre réel y est 56. L'affirmation était donc fausse, et de la manière
+exacte que les neuf audits reprochent au code : une valeur présentée comme mesurée alors qu'elle
+n'avait pas de source. Un rapport qui exige des preuves du code se les doit à lui-même ; la correction
+est plus utile ici que son effacement.
+
+Ce que le chiffre ne dit pas, et qui compte davantage : **sur onze corrections, quatre ont introduit un
+défaut, dont un critique** (§H). Un audit qui ne se relit pas produit donc, lui aussi, une note trop
+haute — et la note ci-dessus n'est crédible que parce que cette relecture a eu lieu.
 
 ---
 

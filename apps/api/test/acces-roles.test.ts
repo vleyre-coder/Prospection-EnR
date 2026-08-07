@@ -66,6 +66,31 @@ const ECRITURES: Array<{ nom: string; methode: 'POST' | 'DELETE'; url: string; c
     url: '/api/leads',
     corps: { idu: '283900000C0843', filiere: 'solaire_sol' },
   },
+  /**
+   * Les deux autres routes de qualification, longtemps absentes de cette liste.
+   *
+   * `/api/qualification/parcelles` n'avait AUCUN controle de role : un compte en lecture seule
+   * pouvait qualifier une liste d'identifiants jusqu'au plafond par appel, et epuiser le quota
+   * partage par toute l'equipe. Le present fichier avait pourtant ete ecrit parce que « le role
+   * lecture etait applique aux leads mais pas a la qualification » — il ne couvrait que la route
+   * d'emprise, et la route soeur est restee ouverte.
+   *
+   * `/api/qualification/rafraichir`, ajoutee a l'audit 9, a reproduit exactement le meme oubli.
+   * D'ou la fonction nommee `refuserLectureSeule` et le test structurel plus bas : un controle
+   * qu'on recopie finit par etre oublie.
+   */
+  {
+    nom: 'qualification d’une liste de parcelles',
+    methode: 'POST',
+    url: '/api/qualification/parcelles',
+    corps: { idus: ['283900000C0843'], filiere: 'solaire_sol' },
+  },
+  {
+    nom: 'rafraichissement des parcelles en retard',
+    methode: 'POST',
+    url: '/api/qualification/rafraichir',
+    corps: {},
+  },
 ];
 
 for (const cas of ECRITURES) {
@@ -274,5 +299,51 @@ test('la limitation de debit resiste a un X-Forwarded-For forge', async () => {
   assert.ok(
     refuseeApres <= 20,
     `refus au bout de ${refuseeApres} tentatives : le quota doit etre celui d’un seul appelant.`,
+  );
+});
+
+/**
+ * Garde structurel : toute route de qualification refuse explicitement la lecture seule.
+ *
+ * Les cas ci-dessus protegent les routes qui existent aujourd'hui. Celui-ci protege les prochaines.
+ * L'histoire justifie la difference : le controle etait ecrit en clair dans la route d'emprise, la
+ * route soeur `/api/qualification/parcelles` ne l'avait jamais eu, et la route de rafraichissement
+ * ajoutee a l'audit 9 a reproduit l'oubli. Trois occasions, deux manquees.
+ *
+ * La regle verifiee est mecanique : toute declaration `app.post('/api/qualification/...')` doit
+ * appeler `refuserLectureSeule` dans le corps qui suit.
+ */
+test('toute route de qualification appelle refuserLectureSeule', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const source = readFileSync(
+    fileURLToPath(new URL('../src/routes/parcelles.ts', import.meta.url)),
+    'utf8',
+  );
+
+  const declarations = [...source.matchAll(/app\.post\(\s*'(\/api\/qualification\/[^']+)'/g)];
+  assert.ok(
+    declarations.length >= 3,
+    `attendu au moins trois routes de qualification, trouve ${declarations.length} — ` +
+      'le motif de recherche ne correspond plus au code',
+  );
+
+  const sansControle: string[] = [];
+  for (const d of declarations) {
+    // Le corps de la route va de sa declaration a la declaration suivante, ou a la fin du fichier.
+    const debut = d.index ?? 0;
+    const suivante = source.indexOf("app.post('/api", debut + 10);
+    const corps = source.slice(debut, suivante === -1 ? source.length : suivante);
+    // `/estimation` ne consomme aucun quota : elle compte des parcelles en base, sans rien
+    // interroger a l'exterieur. C'est la seule exception, et elle est nommee.
+    if (d[1] === '/api/qualification/estimation') continue;
+    if (!corps.includes('refuserLectureSeule')) sansControle.push(d[1]!);
+  }
+
+  assert.deepEqual(
+    sansControle,
+    [],
+    'ces routes de qualification consomment le quota des sources publiques sans refuser un compte ' +
+      `en lecture seule : ${sansControle.join(', ')}`,
   );
 });

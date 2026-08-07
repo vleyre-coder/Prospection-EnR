@@ -155,6 +155,16 @@ export async function ingererPostesSources(): Promise<{
   let nbRegionsEnEchec = 0;
   let nbPositionsCorrigees = 0;
   let nbPositionsRejetees = 0;
+  /**
+   * Regions REELLEMENT telechargees, et non regions ou des postes ont ete trouves.
+   *
+   * La difference est le risque F4 de l'audit 9. Deduire la couverture des postes observes revient a
+   * confondre « on a regarde ici » avec « on a trouve quelque chose ici » : un departement
+   * reellement depourvu de poste serait alors declare inconnu, et toutes les parcelles a portee de sa
+   * frontiere verraient leur critere de raccordement grise sans raison. La couverture est donc posee
+   * sur les departements des regions dont le telechargement a abouti, comptage nul compris.
+   */
+  const regionsReussies: string[] = [];
 
   for (const region of REGIONS) {
     try {
@@ -252,6 +262,7 @@ export async function ingererPostesSources(): Promise<{
         nbPostes += 1;
       }
       nbRegionsTraitees += 1;
+      regionsReussies.push(region);
       journal.info({ region, postes: postes.length }, 'Region Capareseau ingeree');
     } catch (err) {
       nbRegionsEnEchec += 1;
@@ -287,18 +298,42 @@ export async function ingererPostesSources(): Promise<{
        )
        SELECT count(*)::int AS n FROM maj`,
     );
-    const parDep = await requete<{ code_departement: string | null; n: number }>(
-      `SELECT code_departement, count(*)::int AS n FROM poste_source
-        WHERE connecteur = 'postes_sources' GROUP BY code_departement`,
+
+    /**
+     * Couverture posee sur les departements des REGIONS TELECHARGEES, comptage nul compris.
+     *
+     * `commune` porte le code de region : c'est ce qui permet de passer de « treize regions
+     * demandees, onze abouties » a la liste des departements sur lesquels l'application a le droit
+     * d'affirmer. Une region en echec ne pose aucune ligne, donc ses departements restent inconnus et
+     * les distances qui les traversent restent grises — ce qui est exactement le but.
+     *
+     * Si `commune` est vide, aucun departement n'est resolu et rien n'est pose : le critere reste
+     * gris. Il faut le dire, sinon l'exploitant croirait l'ingestion exploitable.
+     */
+    const parDep = await requete<{ code_departement: string; n: number }>(
+      `SELECT com.code_departement,
+              count(p.id)::int AS n
+         FROM commune com
+         LEFT JOIN poste_source p
+                ON p.connecteur = 'postes_sources' AND p.code_departement = com.code_departement
+        WHERE com.code_region = ANY($1)
+        GROUP BY com.code_departement`,
+      [regionsReussies],
     );
     for (const d of parDep) {
-      if (d.code_departement) {
-        await enregistrerCouverture('postes_sources', 'poste_source', d.code_departement, d.n);
-      }
+      await enregistrerCouverture('postes_sources', 'poste_source', d.code_departement, d.n);
     }
     oublierPresenceCouches();
+    if (parDep.length === 0) {
+      journal.warn(
+        { nbPostes, regionsReussies: regionsReussies.length },
+        'Postes ingeres mais aucun departement resolu : table `commune` vide ou codes de region ' +
+          'absents. Aucune couverture posee, donc criteres de raccordement gris. Lancer ' +
+          '`npm run ingest -- communes` puis relancer cette ingestion.',
+      );
+    }
     journal.info(
-      { rattaches: rattaches[0]?.n ?? 0, departements: parDep.filter((d) => d.code_departement).length },
+      { rattaches: rattaches[0]?.n ?? 0, departementsCouverts: parDep.length },
       'Postes sources rattaches a leur departement',
     );
   }

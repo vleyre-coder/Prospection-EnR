@@ -209,16 +209,27 @@ test('tout tri suivi d une troncature finit par une colonne unique', async () =>
     return readdirSync(dir).flatMap((e) => {
       const p = join(dir, e);
       if (statSync(p).isDirectory()) return fichiers(p);
-      return p.endsWith('.ts') ? [p] : [];
+      return p.endsWith('.ts') || p.endsWith('.sql') ? [p] : [];
     });
   }
 
+  /**
+   * Le SQL du projet vit a DEUX endroits : les litteraux TypeScript, et les migrations.
+   *
+   * Les migrations definissent des vues, et une vue qui trie puis tronque a exactement le meme
+   * defaut qu'une requete applicative — avec la particularite d'etre invisible depuis le code. Le
+   * garde couvre donc les deux, sans quoi il protegerait la moitie du perimetre en laissant croire
+   * qu'il protege tout.
+   */
+  const migrations = fileURLToPath(new URL('../../../db/migrations/', import.meta.url));
+
   const manquants: string[] = [];
-  for (const f of fichiers(racine)) {
+  for (const f of [...fichiers(racine), ...fichiers(migrations)]) {
     const source = readFileSync(f, 'utf8');
     // Les litteraux SQL du projet sont tous des gabarits : on les isole pour ne pas confondre une
     // requete avec la prose des commentaires qui l'entoure.
-    for (const litteral of source.match(/`[^`]*`/g) ?? []) {
+    const litteraux = f.endsWith('.sql') ? [source] : (source.match(/`[^`]*`/g) ?? []);
+    for (const litteral of litteraux) {
       if (!/\bORDER BY\b/i.test(litteral)) continue;
       if (!/\b(LIMIT|OFFSET)\b/i.test(litteral)) continue;
       // Le tri va de `ORDER BY` a la troncature, aux fins de ligne ou a la fermeture de fenetre.

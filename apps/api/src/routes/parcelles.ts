@@ -19,7 +19,7 @@ import {
   scorerAvecPonderation,
 } from '../services/qualification.js';
 import { requeteUne } from '../bdd.js';
-import { erreur } from './erreurs.js';
+import { erreur, refuserLectureSeule } from './erreurs.js';
 import { lecteur, ponderationValide, type Lecteur } from '../validation.js';
 
 /**
@@ -326,9 +326,8 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
   app.post('/api/qualification/emprise', debitQualification, async (req, rep) => {
     // Une qualification de masse consomme le quota des API publiques pour toute l'equipe :
     // ce n'est pas une operation de lecture.
-    if (req.utilisateur?.role === 'lecture') {
-      return erreur(rep, 403, 'lecture_seule', 'Votre compte est en lecture seule.');
-    }
+    const refus = refuserLectureSeule(req, rep);
+    if (refus) return refus;
     const c = lecteur(req.body);
     const bbox = empriseDuCorps(c, req.body);
     const filiere = c.parmi('filiere', FILIERES);
@@ -424,6 +423,10 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/qualification/parcelles', debitQualification, async (req, rep) => {
+    // Ce controle MANQUAIT : un compte en lecture seule pouvait qualifier une liste
+    // d'identifiants jusqu'au plafond par appel, et epuiser le quota partage par l'equipe.
+    const refus = refuserLectureSeule(req, rep);
+    if (refus) return refus;
     const c = lecteur(req.body);
     // Plafond explicite : une qualification consomme le quota des API publiques pour toute l'equipe.
     // La limitation de debit borne la FREQUENCE des appels, pas le nombre de parcelles par appel.
@@ -449,6 +452,8 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
    * qu'un travail de fond qui viendrait concurrencer ses propres campagnes sur le meme quota.
    */
   app.post('/api/qualification/rafraichir', debitQualification, async (req, rep) => {
+    const refus = refuserLectureSeule(req, rep);
+    if (refus) return refus;
     const c = lecteur(req.body ?? {});
     const limite = c.nombre('limite', { min: 1, max: MAX_PARCELLES_PAR_APPEL });
     const filiere = c.parmi('filiere', FILIERES);

@@ -77,6 +77,48 @@ n'a pas la même valeur qu'un rapport produit après.
   qu'elle corrige : elle transformerait une source momentanément dégradée en effacement d'une couche
   entière. Les deux gardes sont vérifiées par mutation.
 
+### Corrigé — défauts créés par les corrections de l'audit 9 (relecture, §H du rapport)
+
+- **La correction du contrôle de couverture grisait toute instance déjà en service** (audit 9, §H1).
+  `postesLesPlusProches` et `reseauGaz` consultent désormais `couverture_ingestion` avant de rendre une
+  distance, mais ces connecteurs n'y écrivaient aucune ligne avant l'audit — c'était la cause du
+  défaut — et les lignes n'apparaissent qu'à la prochaine ingestion. Sur une instance où les postes
+  sont ingérés depuis des mois, **tous les critères de raccordement passaient au gris au
+  déploiement**, sans message. La migration 015 déduit la couverture du contenu des tables, rattache
+  les postes à leur commune par jointure spatiale, et inscrit la provenance dans `source_document`
+  pour qu'une couverture déduite reste distinguable d'une couverture constatée. Un test rejoue le
+  scénario de mise à niveau de bout en bout.
+
+- **Le compteur de retard exécutait une sous-requête corrélée par parcelle** (audit 9, §H2). Mesuré :
+  **2 973 ms sur 200 000 parcelles**, pour une requête que `/api/sante` exécute à chaque chargement de
+  l'interface. Avec l'agrégation préalable : **108 ms**. C'est exactement le défaut C2 — une requête
+  qui empêche PostgreSQL de travailler — commis dans le commit qui corrigeait C2.
+
+- **Deux routes de qualification ne refusaient pas les comptes en lecture seule** (audit 9, §H3).
+  `POST /api/qualification/parcelles` ne l'avait **jamais** eu : un compte en lecture seule pouvait
+  qualifier une liste d'identifiants jusqu'au plafond par appel et épuiser le quota partagé par
+  l'équipe. `POST /api/qualification/rafraichir`, ajoutée à l'audit 9, a reproduit l'oubli. Le contrôle
+  est désormais nommé (`refuserLectureSeule`), un test structurel exige sa présence sur toute route de
+  qualification, et l'interface masque le bouton pour un compte qui recevrait un 403.
+
+- **Une couverture à comptage nul valait « inconnu » au lieu de « regardé »** (audit 9, §H4, risque
+  F4). Un département réellement dépourvu de l'objet cherché ne portait aucune ligne exploitable, et le
+  contrôle du disque grisait le critère de toutes les parcelles à portée de sa frontière — pour une
+  donnée pourtant complète. L'ingestion des postes pose désormais la couverture sur les départements
+  des régions effectivement téléchargées, comptage nul compris, et la lecture ne conditionne plus le
+  verdict à un comptage non nul : une ligne n'existe que si une ingestion l'a écrite, son existence
+  prouve donc le regard.
+
+### Ajouté — gardes de vérification
+
+- **Tout littéral SQL du projet est analysé par PostgreSQL** (`PREPARE`, sans exécution). Les requêtes
+  d'ingestion ne s'exécutent qu'après plusieurs minutes de téléchargement : une faute de syntaxe y
+  restait invisible jusqu'à l'échec d'une ingestion réelle. Une apostrophe inversée placée dans un
+  commentaire SQL a cassé trois fois son littéral au cours de ces audits.
+- **Le garde structurel des tris couvre aussi les migrations**, une vue qui trie puis tronque ayant
+  exactement le même défaut qu'une requête applicative — avec la particularité d'être invisible depuis
+  le code.
+
 ### Performance (audit 9)
 
 - **Les filtres de proximité empêchaient l'usage des index qu'ils avaient** (audit 9, défaut C2).

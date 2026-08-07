@@ -200,6 +200,7 @@ export function App(): JSX.Element {
         referentiel={ref}
         sourcesPerimees={sante.data?.sourcesPerimees ?? []}
         parcellesARafraichir={sante.data?.parcellesARafraichir ?? null}
+        role={moi.data?.role ?? null}
       />
 
       {sante.isError && (
@@ -589,10 +590,12 @@ function BandeauAvertissements({
   referentiel,
   sourcesPerimees,
   parcellesARafraichir,
+  role,
 }: {
   referentiel: Parameters<typeof Carte>[0]['referentiel'];
   sourcesPerimees: string[];
   parcellesARafraichir: number | null;
+  role: 'admin' | 'prospection' | 'lecture' | null;
 }): JSX.Element | null {
   const etat = useEtat();
   const clientRequetes = useQueryClient();
@@ -602,6 +605,9 @@ function BandeauAvertissements({
   );
 
   const enRetard = parcellesARafraichir != null && parcellesARafraichir > 0;
+  // Un rafraichissement consomme le quota des sources publiques : la route le refuse a un compte en
+  // lecture seule, et l'interface ne doit pas proposer une action vouee au 403.
+  const peutRafraichir = role === 'admin' || role === 'prospection';
   if (globaux.length === 0 && sourcesPerimees.length === 0 && !enRetard) return null;
 
   return (
@@ -649,8 +655,14 @@ function BandeauAvertissements({
             <strong>Parcelles en retard sur la donnee.</strong> {parcellesARafraichir} parcelle(s)
             ont ete qualifiees avant la derniere ingestion de leur departement : la carte et les
             listes affichent pour elles l&apos;etat d&apos;avant. Ouvrir une fiche met la parcelle a
-            jour ; le bouton reprend un lot.
+            jour{peutRafraichir ? ' ; le bouton reprend un lot' : ''}.
           </p>
+          {/*
+            Le bouton n'apparait pas pour un compte en lecture seule : la route refuse l'operation
+            avec un 403, et un bouton qui echoue en silence est pire que pas de bouton. Le RETARD
+            reste affiche pour tout le monde — c'est une information, pas une action.
+          */}
+          {peutRafraichir && (
           <button
             type="button"
             className="bouton-discret"
@@ -669,6 +681,7 @@ function BandeauAvertissements({
           >
             {rafraichissementEnCours ? 'Rafraichissement…' : 'Rafraichir un lot'}
           </button>
+          )}
         </div>
       )}
     </>

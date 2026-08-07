@@ -107,8 +107,23 @@ export async function couchesPresentesDansDepartement(
 
   try {
     const lignes = await requete<{ type: string }>(
+      /**
+       * L'EXISTENCE DE LA LIGNE SUFFIT : elle signifie « on a regarde ici ».
+       *
+       * La condition `nb_objets > 0` a ete retiree a la relecture de l'audit 9 (risque F4). Elle
+       * confondait deux choses : « on a regarde ici » et « on a trouve quelque chose ici ». Or une
+       * ligne de couverture n'existe QUE si une ingestion l'a ecrite : son existence est deja la
+       * preuve du regard. Exiger en plus un objet rendait inconnu un departement reellement
+       * depourvu de l'objet cherche — et, par le controle du disque, grisait aussi toutes les
+       * parcelles a portee de sa frontiere.
+       *
+       * Le changement est sans effet sur les donnees existantes : toutes les ingestions ecrivaient
+       * jusqu'ici leur couverture depuis un `GROUP BY` sur des objets presents, donc aucune ligne a
+       * zero n'existe. Il rend simplement le zero EXPRIMABLE, ce dont l'ingestion des postes se sert
+       * desormais pour poser la couverture des regions telechargees, comptage nul compris.
+       */
       `SELECT type FROM couverture_ingestion
-        WHERE type = ANY($1) AND code_departement = $2 AND nb_objets > 0
+        WHERE type = ANY($1) AND code_departement = $2
         GROUP BY type`,
       [[...types], codeDepartement],
     );
@@ -135,8 +150,10 @@ async function departementsCouverts(type: string): Promise<Set<string>> {
 
   try {
     const lignes = await requete<{ code_departement: string }>(
+      // Meme regle que ci-dessus : l'existence de la ligne vaut le regard, le comptage ne le
+      // conditionne pas.
       `SELECT code_departement FROM couverture_ingestion
-        WHERE type = $1 AND nb_objets > 0
+        WHERE type = $1
         GROUP BY code_departement`,
       [type],
     );
