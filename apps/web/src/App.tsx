@@ -118,16 +118,33 @@ export function App(): JSX.Element {
   }
 
   if (referentiel.isLoading || moi.isLoading) {
+    /**
+     * MEME STRUCTURE QUE LA BRANCHE PRINCIPALE, et ce n'est pas cosmetique.
+     *
+     * L'ecran d'ouverture etait rendu ici dans un fragment, AVANT `div.application`, et plus bas dans
+     * la branche principale comme PREMIER ENFANT de `div.application`. React reconcilie par position :
+     * au passage du chargement a l'application, l'element changeait de parent, donc `Demarrage` etait
+     * demonte puis remonte. Son effet repartait de zero — nouveau minuteur de deux secondes, nouveaux
+     * ecouteurs — si bien que l'animation RECOMMENCAIT au moment ou l'application devenait prete, et
+     * qu'une touche pressee avant la transition etait perdue.
+     *
+     * L'intention du composant est explicite : « Toute touche ou tout clic abrege : personne ne doit
+     * subir une animation. » Elle etait donc trahie, precisement dans le cas le plus courant — un
+     * utilisateur presse qui appuie sur une touche pendant le chargement.
+     *
+     * Trouve par les tests de bout en bout, qui sont seuls a pouvoir le voir : il faut un vrai
+     * navigateur, une vraie transition d'etat et un vrai minuteur pour que le remontage se produise.
+     * Aligner les deux structures suffit : la position de `Demarrage` ne change plus, React le
+     * conserve monte, et son minuteur poursuit.
+     */
     return (
-      <>
+      <div className="application">
         {accueil && <Demarrage onTermine={() => setAccueil(false)} />}
-        <div className="application">
-          <div className="chargement" style={{ margin: 'auto' }}>
-            <span className="tourniquet" />
-            Chargement du referentiel…
-          </div>
+        <div className="chargement" style={{ margin: 'auto' }}>
+          <span className="tourniquet" />
+          Chargement du referentiel…
         </div>
-      </>
+      </div>
     );
   }
 

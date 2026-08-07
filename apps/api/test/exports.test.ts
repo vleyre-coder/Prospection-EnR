@@ -40,7 +40,9 @@ function ligne(sur: Partial<LigneResultatFiltre> = {}): LigneResultatFiltre {
     statutProspection: null,
     distancePosteKm: 4.2,
     pentePct: 3.1,
-    typeSol: 'terre_arable',
+    // Une valeur REELLE du domaine (`TypeSol`), et non une invention : c'est elle qui doit se
+    // traduire en libelle. Le repli sur une valeur inconnue est teste separement.
+    typeSol: 'agricole_exploite',
     centroide: [5.2231, 46.2044],
     ...sur,
   };
@@ -143,6 +145,126 @@ test('le CSV utilise la virgule decimale, lisible par Excel francais', () => {
   const csv = csvResultats([ligne({ surfaceHa: 12.5, scoreGlobal: 78.4 })]);
   assert.ok(csv.includes(';12,5;'));
   assert.ok(csv.includes(';78,4;'));
+});
+
+test('LE CHANGEMENT DE FORMAT : le CSV n’ecrit plus aucune cle d’enumeration', () => {
+  /**
+   * Le fichier ecrivait `gris`, `a_prospecter`, `agricole_exploite` — le vocabulaire interne du code —
+   * la ou l'ecran affiche « Donnees manquantes », « A prospecter », « Terrain agricole exploite ». Un
+   * destinataire externe n'a pas la cle de lecture, et le fichier ne disait donc pas la meme chose que
+   * l'application qui l'a produit.
+   *
+   * Le garde est STRUCTUREL et ne nomme aucune valeur : il refuse toute cellule qui ressemble a un
+   * identifiant de code — minuscules et souligne, sans espace. Une liste de valeurs interdites
+   * laisserait passer la prochaine enumeration ajoutee.
+   */
+  const csv = csvResultats([
+    ligne({ statutScore: 'gris', statutProspection: 'a_prospecter', typeSol: 'agricole_exploite' }),
+    ligne({ idu: '01001000AA0002', statutScore: 'vert', statutProspection: 'en_negociation', typeSol: 'naturel_forestier' }),
+  ]);
+
+  const cellules = csv
+    .trimEnd()
+    .split('\n')
+    .slice(1)
+    .flatMap((l) => l.split(';'));
+  const cles = cellules.filter((c) => /^[a-z]+(?:_[a-z0-9]+)+$/.test(c));
+  assert.deepEqual(cles, [], `cles d’enumeration encore ecrites telles quelles : ${cles.join(', ')}`);
+
+  // Et les libelles attendus sont bien la : l'absence de cles ne prouverait rien si les cases etaient
+  // simplement vides.
+  for (const attendu of [
+    'Donnees manquantes',
+    'A prospecter',
+    'Terrain agricole exploite',
+    'En negociation',
+    'Espace naturel ou forestier',
+  ]) {
+    assert.ok(csv.includes(attendu), `libelle « ${attendu} » absent du CSV`);
+  }
+});
+
+test('le CSV distingue « Redhibitoire » d’un simple score faible, comme la liste a l’ecran', () => {
+  // La palette separe deliberement deux rouges. Ecrire « Score faible » dans les deux cas perdrait la
+  // distinction la plus lourde du fichier : « peu interessante » contre « juridiquement fermee ».
+  const csv = csvResultats([
+    ligne({ statutScore: 'rouge', nbKnockOutsBloquants: 0 }),
+    ligne({ idu: '01001000AA0002', statutScore: 'rouge', nbKnockOutsBloquants: 2 }),
+  ]);
+  const lignes = csv.trimEnd().split('\n');
+  const i = lignes[0]!.split(';').indexOf('Statut score');
+  assert.equal(lignes[1]!.split(';')[i], 'Score faible');
+  assert.equal(lignes[2]!.split(';')[i], 'Redhibitoire');
+});
+
+test('une absence reste une case vide, jamais un libelle fabrique', () => {
+  // `null` sur le statut de prospection signifie « aucun suivi ouvert », et sur le statut de score
+  // « pas encore qualifiee ». Inventer un libelle pour une absence est la faute fondatrice de ces
+  // audits, sous sa forme la plus benigne.
+  const lignes = csvResultats([ligne({ statutScore: null, statutProspection: null, typeSol: null })])
+    .trimEnd()
+    .split('\n');
+  const entetes = lignes[0]!.split(';');
+  const cellules = lignes[1]!.split(';');
+  for (const colonne of ['Statut score', 'Statut prospection', 'Type de sol']) {
+    assert.equal(cellules[entetes.indexOf(colonne)], '', `« ${colonne} » devrait etre vide`);
+  }
+});
+
+test('une valeur inconnue de la table de libelles est reportee telle quelle, pas effacee', () => {
+  /**
+   * Le repli compte : si une nouvelle nature de sol apparaissait en base sans entree dans la table,
+   * effacer la case ferait DISPARAITRE une information de la ligne. Mieux vaut une valeur brute
+   * visible — qui se remarque et se corrige — qu'une case vide, qui ne se remarque pas.
+   */
+  const csv = csvResultats([ligne({ typeSol: 'un_sol_inconnu_du_referentiel' })]);
+  assert.ok(csv.includes('un_sol_inconnu_du_referentiel'), 'la valeur brute doit rester visible');
+});
+
+test('LE CHANGEMENT DE FORMAT : les coordonnees sont bornees a six decimales', () => {
+  /**
+   * Le fichier ecrivait `1,7455783348199738` — dix-sept chiffres significatifs, soit une precision
+   * affichee de l'ordre du dixieme de nanometre sur une donnee issue du cadastre, que l'application
+   * qualifie d'indicative dans chacun de ses avertissements.
+   *
+   * Six decimales valent environ 7 cm en longitude et 11 cm en latitude aux latitudes francaises :
+   * deja bien plus fin que la source.
+   */
+  const csv = csvResultats([ligne({ centroide: [1.7455783348199738, 48.15809211] })]);
+  const lignes = csv.trimEnd().split('\n');
+  const entetes = lignes[0]!.split(';');
+  const cellules = lignes[1]!.split(';');
+  assert.equal(cellules[entetes.indexOf('Longitude')], '1,745578');
+  assert.equal(cellules[entetes.indexOf('Latitude')], '48,158092');
+
+  // Et aucun nombre du fichier ne depasse cette precision : le garde porte sur tout le CSV, pas sur
+  // les seules deux colonnes ci-dessus.
+  const trop = csv.match(/\d+,\d{8,}/g) ?? [];
+  assert.deepEqual(trop, [], `nombres a precision excessive : ${trop.join(', ')}`);
+});
+
+test('le GeoJSON garde ses cles ET ajoute les libelles : rien ne casse, tout se lit', () => {
+  /**
+   * L'asymetrie avec le CSV est deliberee et doit rester verifiee dans les deux sens. Le GeoJSON est
+   * consomme par des programmes et des SIG : remplacer `statut_score` casserait tout filtre et toute
+   * regle de symbologie construite dessus. Mais un SIG affiche aussi sa table d'attributs a un humain.
+   * Les deux colonnes coexistent.
+   */
+  const score = { ...scoreVide(), statut: 'gris' as const, regimeImplantation: 'agrivoltaisme' };
+  const gj = geojsonParcelles([{ parcelle, score }]) as {
+    features: Array<{ properties: Record<string, unknown> }>;
+  };
+  const props = gj.features[0]!.properties;
+
+  // La cle, intacte.
+  assert.equal(props['statut_score'], 'gris');
+  assert.equal(props['regime_implantation'], 'agrivoltaisme');
+  // Le libelle, en plus.
+  assert.equal(props['statut_score_libelle'], 'Donnees manquantes');
+  assert.ok(
+    String(props['regime_implantation_libelle']).startsWith('Agrivoltaisme'),
+    `libelle de regime inattendu : ${String(props['regime_implantation_libelle'])}`,
+  );
 });
 
 test('le CSV commence par une BOM UTF-8', () => {

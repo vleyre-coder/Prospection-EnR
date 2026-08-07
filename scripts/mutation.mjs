@@ -39,8 +39,18 @@ import { execFileSync } from 'node:child_process';
  * pire des cas — un faux vert dans l'outil meme qui traque les faux verts. Les chemins de `tests`
  * sont alors relatifs a ce `cwd`, comme le fait `npm run test -w @enr/web`.
  *
+ * `commande` : commande a lancer au lieu de `npx tsx --test`, pour les mutations verifiees par un
+ * test de BOUT EN BOUT. Celles-la portent le drapeau `e2e` et sont EXCLUES de l'execution par defaut :
+ * elles exigent un navigateur et un serveur, que le job de CI des migrations n'a pas, et chacune coute
+ * plusieurs minutes. Elles se lancent avec `--avec-e2e`, ou par `--filtre`.
+ *
+ * Les exclure est un choix a assumer plutot qu'a subir : il est donc ANNONCE en fin d'execution, avec
+ * leur nombre. Un perimetre reduit en silence donne l'illusion d'avoir tout couvert — c'est le reproche
+ * fait au garde de l'audit 5.
+ *
  * @type {Array<{ audit: string, quoi: string, fichier: string, de: string, vers: string,
- *                construire?: string, cwd?: string, tests: string[] }>}
+ *                construire?: string, cwd?: string, e2e?: boolean, commande?: string[],
+ *                tests: string[] }>}
  */
 const MUTATIONS = [
   {
@@ -318,6 +328,58 @@ const MUTATIONS = [
    * Elles sont etiquetees « suites audit 10 » et non « audit 11 » : ce travail n'est pas un audit
    * mais la mise en oeuvre des chantiers que l'audit 10 avait laisses ouverts (§D3, §F2, §F4).
    */
+  /**
+   * BOUT EN BOUT : les deux defauts que seuls un navigateur et une authentification reelle peuvent
+   * reveler. Marquees `e2e`, donc ecartees de l'execution par defaut.
+   */
+  {
+    audit: 'bout en bout',
+    quoi: 'les tuiles de calque repartent sans jeton, et leur 401 deconnecte l’utilisateur',
+    fichier: 'apps/web/src/components/Carte.tsx',
+    de: "  if (jeton && url.startsWith(`${RACINE_ABSOLUE}/api/`)) {",
+    vers: "  if (jeton && url.startsWith(`${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/`)) {",
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/parcours.spec.ts'],
+    tests: ['e2e/parcours.spec.ts'],
+  },
+  {
+    audit: 'bout en bout',
+    quoi: 'l’ecran d’ouverture change de parent et son minuteur repart, perdant la touche pressee',
+    fichier: 'apps/web/src/App.tsx',
+    de: "      <div className=\"application\">\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"chargement\" style={{ margin: 'auto' }}>\n          <span className=\"tourniquet\" />\n          Chargement du referentiel\u2026\n        </div>\n      </div>",
+    vers: "      <>\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"application\">\n          <div className=\"chargement\" style={{ margin: 'auto' }}>\n            <span className=\"tourniquet\" />\n            Chargement du referentiel\u2026\n          </div>\n        </div>\n      </>",
+    cwd: 'apps/web',
+    e2e: true,
+    // Les DEUX versions compilent : la mutation doit faire echouer un test sur le COMPORTEMENT,
+    // jamais sur une erreur de syntaxe — un echec de compilation serait compte comme une mutation
+    // attrapee, donc un faux vert dans l'outil meme qui traque les faux verts.
+    commande: ['playwright', 'test', 'e2e/accueil.spec.ts'],
+    tests: ['e2e/accueil.spec.ts'],
+  },
+
+  /**
+   * CHANGEMENT DE FORMAT DES EXPORTS, decide par le proprietaire du projet.
+   *
+   * Deux mutations, une par moitie du changement. Aucune des deux ne fait planter un export : elles le
+   * font simplement redevenir illisible, ou faussement precis.
+   */
+  {
+    audit: 'format exports',
+    quoi: 'le CSV redonne les cles d’enumeration au lieu des libelles',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "        : (l.statutScore ? LIBELLES_SCORE[l.statutScore] : ''),",
+    vers: "        : (l.statutScore ?? ''),",
+    tests: ['apps/api/test/exports.test.ts'],
+  },
+  {
+    audit: 'format exports',
+    quoi: 'les coordonnees du CSV reprennent toute la precision du flottant',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "  const coordonnee = (n: number): string => n.toFixed(DECIMALES_COORDONNEES).replace('.', ',');",
+    vers: "  const coordonnee = (n: number): string => String(n).replace('.', ',');",
+    tests: ['apps/api/test/exports.test.ts'],
+  },
   {
     audit: 'suites audit 10',
     quoi: 'une ingestion soumise a l’effacement cesse de marquer ses lignes comme revues',
@@ -399,9 +461,18 @@ const MUTATIONS = [
  */
 const iFiltre = process.argv.indexOf('--filtre');
 const filtre = iFiltre >= 0 ? (process.argv[iFiltre + 1] ?? '') : null;
+const avecE2e = process.argv.includes('--avec-e2e');
+const candidates = filtre || avecE2e ? MUTATIONS : MUTATIONS.filter((m) => !m.e2e);
+const ecartees = MUTATIONS.length - candidates.length;
 const A_JOUER = filtre
-  ? MUTATIONS.filter((m) => `${m.audit} ${m.quoi} ${m.fichier}`.toLowerCase().includes(filtre.toLowerCase()))
-  : MUTATIONS;
+  ? candidates.filter((m) => `${m.audit} ${m.quoi} ${m.fichier}`.toLowerCase().includes(filtre.toLowerCase()))
+  : candidates;
+if (ecartees > 0) {
+  console.log(
+    `${ecartees} mutation(s) de bout en bout ecartee(s) : elles exigent un navigateur. ` +
+      'Lancez `node scripts/mutation.mjs --avec-e2e` pour les inclure.\n',
+  );
+}
 if (filtre) {
   console.log(`Filtre « ${filtre} » : ${A_JOUER.length} mutation(s) sur ${MUTATIONS.length}.\n`);
   if (A_JOUER.length === 0) process.exit(1);
@@ -425,7 +496,8 @@ for (const m of A_JOUER) {
     if (m.construire) {
       execFileSync('npm', ['run', 'build', '--workspace', m.construire], { stdio: 'pipe' });
     }
-    execFileSync('npx', ['tsx', '--test', ...m.tests], {
+    const argv = m.commande ?? ['tsx', '--test', ...m.tests];
+    execFileSync('npx', argv, {
       stdio: 'pipe',
       ...(m.cwd ? { cwd: m.cwd } : {}),
     });

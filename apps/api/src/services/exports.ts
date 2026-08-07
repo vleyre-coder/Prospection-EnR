@@ -12,8 +12,10 @@ import {
   FAMILLES_LIBELLES,
   FILIERES_META,
   LIBELLES_SCORE,
+  LIBELLE_REDHIBITOIRE,
   REFERENTIEL_DERNIERE_VERIFICATION,
   REGLES_PAR_ID,
+  STATUTS_PROSPECTION_META,
 } from '@enr/core';
 import {
   COEFFICIENT_TRACE,
@@ -832,7 +834,37 @@ export function ficheParcellePdf(
 // CSV
 // ---------------------------------------------------------------------------
 
-/** CSV a separateur point-virgule, avec BOM UTF-8 : ouverture directe dans Excel FR. */
+/**
+ * Nombre de decimales conservees pour les coordonnees exportees.
+ *
+ * SIX, et le chiffre se justifie : a la latitude de la France metropolitaine, la sixieme decimale de
+ * longitude vaut environ 7 cm, la sixieme de latitude environ 11 cm. C'est deja bien plus fin que la
+ * precision du Plan Cadastral Informatise dont ces centroides sont issus, et que l'application
+ * qualifie d'indicatif dans chacun de ses avertissements.
+ *
+ * Ce qui etait ecrit avant : `1.7455783348199738` — dix-sept chiffres significatifs, soit une
+ * precision affichee de l'ordre du dixieme de nanometre. Ce n'est pas une precision, c'est la
+ * representation binaire d'un flottant rendue telle quelle. Sur un livrable transmis a un tiers, elle
+ * suggere une exactitude qui n'existe pas — la meme faute de forme que les points decimaux et les
+ * dates ISO des audits precedents, appliquee cette fois a un chiffre.
+ */
+export const DECIMALES_COORDONNEES = 6;
+
+/**
+ * CSV a separateur point-virgule, avec BOM UTF-8 : ouverture directe dans Excel FR.
+ *
+ * LES VALEURS SONT DES LIBELLES, PAS DES CLES D'ENUMERATION, depuis la decision du proprietaire de
+ * changer le format. Le fichier ecrivait `gris`, `a_prospecter`, `agricole_exploite` — le vocabulaire
+ * interne du code — la ou l'ecran affiche « Donnees manquantes », « A prospecter », « Terrain agricole
+ * exploite ». Un destinataire externe n'a pas la cle de lecture, et le fichier ne disait donc pas la
+ * meme chose que l'application qui l'a produit.
+ *
+ * ATTENTION, C'EST UN CHANGEMENT CASSANT, et il est assume : un tableau croise ou un filtre construit
+ * sur les anciennes valeurs ne les trouvera plus. Le CHANGELOG le signale comme tel. Les libelles
+ * viennent des memes tables que l'interface — `LIBELLES_SCORE`, `STATUTS_PROSPECTION_META`,
+ * `LIBELLES_TYPE_SOL` — et non de copies locales : un libelle est une decision de vocabulaire, il ne
+ * doit exister qu'a un seul endroit.
+ */
 export function csvResultats(lignes: LigneResultatFiltre[]): string {
   const entetes = [
     'IDU',
@@ -857,6 +889,16 @@ export function csvResultats(lignes: LigneResultatFiltre[]): string {
     return /[";\n]/.test(s) ? `"${s}"` : s;
   };
   const nombre = (n: number | null): string => (n == null ? '' : String(n).replace('.', ','));
+  /**
+   * Coordonnee bornee, virgule decimale comprise.
+   *
+   * La virgule est la bonne ponctuation ICI, contrairement au rapport PDF : le fichier est separe par
+   * des points-virgules et destine a s'ouvrir dans Excel en configuration francaise, ou un point
+   * decimal serait lu comme du texte. Le PDF, lui, ecrit ses coordonnees avec un point parce qu'elles
+   * y sont destinees a etre collees dans un outil cartographique. Les deux choix sont opposes et tous
+   * deux corrects : c'est le destinataire qui tranche, pas une regle uniforme.
+   */
+  const coordonnee = (n: number): string => n.toFixed(DECIMALES_COORDONNEES).replace('.', ',');
 
   const corps = lignes.map((l) =>
     [
@@ -865,18 +907,34 @@ export function csvResultats(lignes: LigneResultatFiltre[]): string {
       l.section,
       l.numero,
       nombre(l.surfaceHa),
-      l.statutScore,
+      /**
+       * Le libelle du statut, et le cas REDHIBITOIRE distingue — comme a l'ecran.
+       *
+       * La palette separe deliberement deux rouges : celui d'un score faible et celui d'une parcelle
+       * ecartee par un critere eliminatoire. La liste affiche « Redhibitoire » pour la seconde. Un CSV
+       * qui ecrirait « Score faible » dans les deux cas perdrait la distinction la plus lourde du
+       * fichier, celle qui separe « peu interessante » de « juridiquement fermee ».
+       */
+      l.nbKnockOutsBloquants > 0
+        ? LIBELLE_REDHIBITOIRE
+        // `statutScore` a `null` signifie « pas encore qualifiee » : la case reste vide plutot que de
+        // fabriquer un libelle pour une absence, comme pour le statut de prospection.
+        : (l.statutScore ? LIBELLES_SCORE[l.statutScore] : ''),
       // Le statut seul ne distingue pas un score faible d'une exclusion reglementaire :
       // les deux valent 'rouge'. La colonne dediee evite de relire la fiche pour trancher.
       l.nbKnockOutsBloquants > 0 ? 'oui' : 'non',
       nombre(l.scoreGlobal),
-      l.statutProspection,
+      // `null` signifie « aucun suivi ouvert », ce qui n'est pas un statut : la case reste vide,
+      // plutot que de fabriquer un libelle pour une absence.
+      l.statutProspection ? STATUTS_PROSPECTION_META[l.statutProspection]?.libelle : '',
       nombre(l.distancePosteKm),
       nombre(l.lineaireRaccordementKm),
       nombre(l.pentePct),
-      l.typeSol,
-      nombre(l.centroide[0]),
-      nombre(l.centroide[1]),
+      // `typeSol` est type `string` ici (il traverse SQL) : l'indexation est donc gardee, et la valeur
+      // brute sert de repli plutot que de laisser une case vide sur une valeur inconnue de la table.
+      l.typeSol ? ((LIBELLES_TYPE_SOL as Record<string, string | undefined>)[l.typeSol] ?? l.typeSol) : '',
+      coordonnee(l.centroide[0]),
+      coordonnee(l.centroide[1]),
     ]
       .map(echapper)
       .join(';'),
@@ -914,6 +972,24 @@ export function geojsonParcelles(
           Math.round(((parcelle.surfaceCalculeeM2 ?? parcelle.contenanceM2 ?? 0) / 10000) * 100) / 100,
         filiere: score?.filiere ?? null,
         statut_score: score?.statut ?? null,
+        /**
+         * LES LIBELLES SONT AJOUTES, LES CLES SONT CONSERVEES — et l'asymetrie avec le CSV est
+         * deliberee.
+         *
+         * Le CSV s'ouvre dans un tableur : son destinataire est un humain, et les cles
+         * d'enumeration y ont donc ete REMPLACEES par des libelles. Le GeoJSON, lui, est consomme
+         * par des programmes et des SIG, ou une cle stable est precisement ce qu'on veut : la
+         * remplacer casserait tout filtre, toute regle de symbologie, tout script ecrit dessus.
+         *
+         * Mais un SIG affiche aussi sa table d'attributs a un humain, qui n'a pas plus la cle de
+         * lecture ici qu'ailleurs. Les deux besoins ne s'opposent pas : on ajoute la colonne
+         * lisible a cote de la colonne stable, ce qui ne casse rien et rend le fichier
+         * comprehensible sans documentation.
+         */
+        statut_score_libelle: score?.statut ? LIBELLES_SCORE[score.statut] : null,
+        regime_implantation_libelle: score?.regimeImplantation
+          ? (LIBELLES_REGIME[score.regimeImplantation] ?? score.regimeImplantation)
+          : null,
         score_global: score?.scoreGlobal ?? null,
         couverture_donnees: score?.couvertureDonnees ?? null,
         nb_knock_outs: score?.knockOuts.length ?? null,

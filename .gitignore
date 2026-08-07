@@ -15,3 +15,12 @@ apps/web/dist/
 apps/api/dist/
 packages/*/dist/
 data/
+
+# Sorties des tests de bout en bout (rapports, traces, captures)
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/blob-report/
+apps/web/e2e/.auth/
+# Lancement de Playwright depuis la racine par erreur : les artefacts y atterrissent.
+test-results/
+playwright-report/

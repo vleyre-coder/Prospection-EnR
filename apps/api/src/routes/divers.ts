@@ -2,7 +2,14 @@
 
 import type { FastifyInstance, preHandlerHookHandler } from 'fastify';
 import { createHash, randomBytes } from 'node:crypto';
-import { CRITERES, estFiliere, FILIERES, PONDERATIONS_DEFAUT, type Filiere } from '@enr/core';
+import {
+  CRITERES,
+  estFiliere,
+  FILIERES,
+  LIBELLES_SCORE,
+  PONDERATIONS_DEFAUT,
+  type Filiere,
+} from '@enr/core';
 import { VERSION_MOTEUR } from '@enr/scoring';
 import { config } from '../config.js';
 import { requete, requeteUne } from '../bdd.js';
@@ -159,6 +166,17 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
           nb_ko_bloq: score?.knockOuts.filter((k) => !k.derogeable).length ?? null,
           ecartee: score == null ? null : score.knockOuts.some((k) => !k.derogeable) ? 'oui' : 'non',
           regime: score?.regimeImplantation ?? null,
+          /**
+           * Le libelle du statut, AJOUTE a cote de la cle et non a sa place.
+           *
+           * Meme raisonnement que pour le GeoJSON : `statut` porte `vert`/`orange`/`rouge`/`gris`,
+           * cles sur lesquelles se construisent les regles de symbologie d'un SIG — les remplacer
+           * casserait les projets existants. Mais la table d'attributs est lue par un humain, qui n'a
+           * pas la cle de lecture. Les deux colonnes coexistent.
+           *
+           * Le nom est contraint a dix caracteres par le format DBF, d'ou l'abreviation.
+           */
+          statut_lib: score?.statut ? LIBELLES_SCORE[score.statut] : null,
         },
       })),
       `parcelles-${filiere}`,
@@ -184,6 +202,8 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
         statut: 5,
         ecartee: 3,
         regime: 22,
+        // « Sous conditions / a etudier » est le plus long des quatre libelles de feu : 27 caracteres.
+        statut_lib: 27,
       },
     );
 

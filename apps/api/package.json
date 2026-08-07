@@ -14,7 +14,8 @@
     "ingest": "tsx src/scripts/ingerer.ts",
     "rescorer": "tsx src/scripts/rescorer.ts",
     "test": "tsx --test test/*.test.ts",
-    "verser:proprietaires": "tsx src/scripts/verser-proprietaires.ts"
+    "verser:proprietaires": "tsx src/scripts/verser-proprietaires.ts",
+    "semer:e2e": "tsx scripts/semer-e2e.ts"
   },
   "dependencies": {
     "@enr/core": "0.1.0",

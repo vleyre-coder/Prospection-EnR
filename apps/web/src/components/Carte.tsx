@@ -103,19 +103,37 @@ const TUILES_RELAIS: Record<FondCarte, string> = {
 };
 
 /**
- * Attache le jeton aux requetes de tuiles parcellaires.
+ * Attache le jeton aux requetes adressees a NOTRE API, et a elles seules.
  *
- * Ces tuiles portent le statut de prospection : l'API les protege desormais. MapLibre
- * charge les tuiles depuis un Web Worker, mais `transformRequest` est evalue sur le fil
- * principal - les en-tetes qu'il renvoie sont transmis au worker avec la requete. C'est le
- * seul point d'accroche possible : on ne peut pas poser d'en-tete sur une URL de source.
+ * MapLibre charge les tuiles depuis un Web Worker, mais `transformRequest` est evalue sur le fil
+ * principal — les en-tetes qu'il renvoie sont transmis au worker avec la requete. C'est le seul point
+ * d'accroche possible : on ne peut pas poser d'en-tete sur une URL de source.
  *
- * Le filtre est volontairement etroit. Les tuiles IGN n'ont pas a recevoir notre jeton, et
- * les glyphes non plus : les envoyer a un tiers reviendrait a fuiter une authentification.
+ * LE DEFAUT QUE CETTE FONCTION PORTAIT, trouve par les tests de bout en bout et invisible autrement.
+ * Le filtre ne retenait que `/api/carte/tuiles/parcelles/`. Toutes les autres ressources
+ * authentifiees de la carte partaient donc SANS jeton — au premier chef les CALQUES,
+ * `/api/carte/calque/<id>/{z}/{x}/{y}`. L'API repondait 401, et le gestionnaire d'erreur de la carte,
+ * quelques lignes plus bas, traite tout 401 venant de notre origine comme une session expiree.
+ *
+ * Consequence mesuree dans un vrai navigateur : quelques centaines de millisecondes apres la
+ * connexion, l'activation d'un calque par defaut declenchait quatre 401, l'application se declarait
+ * « Session expiree » et renvoyait l'utilisateur au formulaire de connexion. **Une boucle de
+ * deconnexion, sur une session parfaitement valide.** Aucun test ne pouvait le voir : il faut un
+ * navigateur, un worker MapLibre et une authentification reelle pour que les trois pieces se
+ * rencontrent.
+ *
+ * LA REGLE EST CORRIGEE SANS TRAHIR SON INTENTION. Le filtre etroit avait une bonne raison, ecrite a
+ * l'epoque : « les tuiles IGN n'ont pas a recevoir notre jeton, et les glyphes non plus — les envoyer
+ * a un tiers reviendrait a fuiter une authentification. » Cette raison est intacte, et c'est pourquoi
+ * la condition reste ancree sur `RACINE_ABSOLUE`, qui designe NOTRE origine : un jeton n'est ajoute
+ * qu'aux requetes vers notre propre API. Ce qui etait trop etroit, c'etait le chemin — pas l'origine.
+ * Les fonds cartographiques et les glyphes passent bien par notre relais et en beneficient donc aussi,
+ * ce qui est correct : le relais est a nous, et ses allowlists fermees restent la seule chose qui
+ * borne ce qu'il accepte de servir.
  */
 function transformerRequete(url: string): maplibregl.RequestParameters {
   const jeton = jetonEnregistre();
-  if (jeton && url.startsWith(`${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/`)) {
+  if (jeton && url.startsWith(`${RACINE_ABSOLUE}/api/`)) {
     return { url, headers: { Authorization: `Bearer ${jeton}` } };
   }
   return { url };

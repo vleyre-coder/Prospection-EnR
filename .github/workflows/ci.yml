@@ -190,3 +190,82 @@ jobs:
           TESTS_MIGRATIONS: '1'
         run: npx tsx --test test/migrations.test.ts
         working-directory: apps/api
+
+  bout-en-bout:
+    name: Tests de bout en bout (navigateur reel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # POURQUOI UN JOB A PART. Ces tests demandent un navigateur, deux serveurs et une base PEUPLEE.
+    # Les melanger aux tests unitaires ralentirait chaque push pour un gain nul la plupart du temps ;
+    # les mettre dans le job des migrations les ferait tourner sur une base vide, ou ils s'ignoreraient
+    # — et un test qui s'ignore en silence laisse croire a une couverture qui n'existe pas.
+    #
+    # CE QU'ILS SONT SEULS A PROUVER : que l'application DEMARRE. Deux defauts trouves a leur mise en
+    # place, invisibles pour tout autre test — les tuiles de calque partant sans jeton, dont le 401
+    # deconnectait l'utilisateur en pleine session ; et l'ecran d'ouverture dont le minuteur repartait
+    # au passage du chargement a l'application.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: enr_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Appliquer les migrations
+        run: npm run migrate --workspace @enr/api
+
+      # SEMIS HORS RESEAU, et le choix est important.
+      #
+      # `npm run seed` qualifie un secteur en interrogeant les VRAIES API officielles. C'est le bon
+      # choix pour une installation, c'en serait un tres mauvais ici : la CI consommerait a chaque push
+      # le quota de services publics gratuits partages par toute l'equipe — exactement le reproche du
+      # defaut B4 de l'audit 10 — et echouerait a chaque 503 de la Geoplateforme, ce qui apprend a
+      # ignorer les echecs. La donnee semee reste REELLE : elle vient des fixtures capturees depuis de
+      # vraies reponses d'API, geometries comprises.
+      - name: Semer la base d'essai (hors reseau)
+        run: npx tsx scripts/semer-e2e.ts
+        working-directory: apps/api
+
+      # Le navigateur EXACT attendu par la version de Playwright installee. `E2E_CHROMIUM` reste vide
+      # ici : le chemin par defaut est alors le bon, et rien n'est detourne.
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      - name: Tests de bout en bout
+        run: npx playwright test
+        working-directory: apps/web
+
+      # La verification par mutation des deux defauts ci-dessus : sans elle, rien ne prouve que ces
+      # tests, les plus couteux du depot, ne sont pas decoratifs.
+      - name: Verifier par mutation que les tests de bout en bout protegent vraiment
+        run: node scripts/mutation.mjs --filtre "bout en bout"
+
+      - name: Conserver le rapport en cas d'echec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-bout-en-bout
+          path: apps/web/playwright-report/
+          retention-days: 7

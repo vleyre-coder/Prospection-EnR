@@ -22,7 +22,8 @@
     "dev:web": "npm run dev -w @enr/web",
     "db:migrate": "npm run migrate -w @enr/api",
     "db:seed": "npm run seed -w @enr/api",
-    "ingest": "npm run ingest -w @enr/api"
+    "ingest": "npm run ingest -w @enr/api",
+    "e2e": "npm run e2e --workspace @enr/web"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

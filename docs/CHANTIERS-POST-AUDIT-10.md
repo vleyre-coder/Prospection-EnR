@@ -126,7 +126,7 @@ négociable de l'outil.
 | **`apps/web`** | **0** |
 
 Rien ne prouvait donc que les tests de l'interface ne soient pas décoratifs — sur la partie la moins
-couverte du dépôt. **Huit mutations ajoutées, 38 au total**, dont une qui mute le **harnais de test
+couverte du dépôt. **Huit mutations ajoutées** (42 au total après les deux décisions), dont une qui mute le **harnais de test
 lui-même** (« l'état posé par un test de rendu redevient silencieusement ignoré ») : elle verrouille
 exactement le piège zustand ci-dessus.
 
@@ -137,7 +137,7 @@ Deux ajustements ont été nécessaires, chacun instructif :
   `tsx` échoue sur « React is not defined ». Ce n'est pas un échec de test mais un échec de
   **chargement**, et il aurait été compté comme une mutation attrapée — un faux vert dans l'outil même
   qui traque les faux verts.
-- **Un filtre `--filtre`.** 38 mutations demandent une quinzaine de minutes. Sans moyen d'en rejouer un
+- **Un filtre `--filtre`.** Quarante mutations demandent une quinzaine de minutes. Sans moyen d'en rejouer un
   sous-ensemble, la tentation est de muter à la main pendant le développement, ce qui a déjà laissé deux
   fois un fichier source muté après une interruption (audit 10, §H2).
 
@@ -231,10 +231,86 @@ garde structurel l'a attrapée immédiatement — ce qui est exactement ce qu'on
 | | |
 |---|---|
 | Construction | 0 erreur TypeScript |
-| Suite complète | **611 tests, 0 échec** (583 avant ces chantiers) |
+| Suite complète | **617 tests, 0 échec** sur base fraîche (583 avant ces chantiers) |
 | Tests exigeant PostgreSQL | 9 fichiers, tous verts, tous ajoutés à la CI |
-| Vérification par mutation | **38/38 attrapées** |
+| Vérification par mutation | **42/42 attrapées** (40 par défaut + 2 de bout en bout) |
+| Tests de bout en bout | **12/12**, 44 s, sur le parcours exact de la CI |
 | Ratio de couverture `apps/web` | **0,11 → 0,23** |
+
+---
+
+## Les deux décisions du propriétaire, prises et appliquées
+
+### Décision 2 — Le format des exports
+
+**Changement cassant, assumé et documenté.** Le CSV livrait `gris`, `a_prospecter`,
+`agricole_exploite` — le vocabulaire interne du code — et une longitude à dix-sept chiffres
+significatifs. Il livre désormais « Données manquantes », « À prospecter », « Terrain agricole
+exploité », et six décimales (≈ 7 cm en longitude). Un filtre construit sur les anciennes valeurs ne
+les trouvera plus : c'est le prix, et il était connu avant d'être payé.
+
+Deux choix méritent d'être justifiés :
+
+- **Une absence reste une case vide.** `null` sur le statut de prospection signifie « aucun suivi
+  ouvert » ; inventer un libellé pour une absence est la faute fondatrice de ces audits, sous sa forme
+  la plus bénigne.
+- **Le GeoJSON et le Shapefile ne changent pas, ils s'enrichissent.** Ces formats sont consommés par
+  des programmes et des SIG, où une clé stable est exactement ce qu'on veut — la remplacer casserait
+  toute règle de symbologie. Mais un SIG affiche aussi sa table d'attributs à un humain. Les libellés
+  sont donc **ajoutés à côté** des clés, sans rien retirer. L'asymétrie avec le CSV n'est pas une
+  incohérence : c'est le destinataire qui tranche.
+
+### Décision 1 — Les tests de bout en bout
+
+**12 spécifications, 44 secondes, un job de CI dédié.** Elles convertissent en garde permanent les six
+vérifications navigateur que l'audit 10 avait faites à la main, une fois, sur une parcelle. Et elles
+sont seules à prouver une chose élémentaire : **que l'application démarre.**
+
+#### Deux défauts trouvés, dont un sérieux
+
+**Une boucle de déconnexion sur session valide.** `transformRequest` n'attachait le jeton qu'aux tuiles
+`/api/carte/tuiles/parcelles/`. Toutes les autres ressources authentifiées de la carte partaient sans
+jeton — au premier chef les **calques**. L'API répondait 401, et le gestionnaire d'erreur de la carte
+traite tout 401 venant de notre origine comme une session expirée. Mesuré dans un vrai navigateur :
+quelques centaines de millisecondes après la connexion, quatre 401, « Session expirée », retour au
+formulaire.
+
+Le filtre étroit avait une bonne raison, écrite à l'époque : ne jamais envoyer notre jeton à un tiers.
+Cette raison est intacte — la condition reste ancrée sur `RACINE_ABSOLUE`, notre origine. **Ce qui était
+trop étroit, c'était le chemin, pas l'origine.**
+
+**L'écran d'ouverture repartait de zéro.** Rendu à deux endroits d'`App`, sous des parents différents.
+React reconcilie par position : au passage du chargement à l'application, le composant était démonté
+puis remonté, son minuteur redémarrait, et une touche pressée avant la transition était perdue — alors
+que le composant promet « toute touche ou tout clic abrège : personne ne doit subir une animation ».
+
+#### Trois erreurs de conception que j'ai commises, et ce qu'elles enseignent
+
+Elles valent d'être écrites, parce que ce sont les modes de défaillance qui font abandonner un parc de
+tests de bout en bout.
+
+1. **Onze connexions ont atteint le plafond anti-bourrinage** (dix par quinze minutes). La onzième
+   spécification échouait, systématiquement, sans rapport avec ce qu'elle vérifiait. La tentation était
+   de relever le plafond ou de l'exempter en test : **ce serait affaiblir une protection réelle pour
+   arranger un outil de vérification.** Une seule connexion, réutilisée — qui est aussi la pratique
+   recommandée, et trois fois plus rapide.
+2. **J'interrogeais le formulaire avant que l'application ait tranché** entre chargement, connexion et
+   application. Deux spécifications échouaient de façon intermittente selon la charge de la machine.
+   Et j'ai reproduit le défaut à l'identique dans une seconde copie de la routine de connexion :
+   *deux copies d'une même logique se corrigent une fois sur deux.*
+3. **Mon premier job de CI semait avec `npm run seed`**, qui qualifie un secteur en interrogeant les
+   VRAIES API officielles. La CI aurait consommé à chaque push le quota de services publics partagés —
+   exactement le reproche du défaut B4 de l'audit 10 — et échoué à chaque 503 d'un tiers. Le semis se
+   fait désormais hors réseau, depuis les fixtures déjà capturées : donnée réelle, aucun appel.
+
+#### Un incident local, à signaler
+
+Mes premières exécutions e2e ont tourné contre la base de développement avec l'amorçage automatique
+encore actif : le serveur y a ingéré 102 départements de monuments historiques. Cinq tests de
+couverture de disque, qui lisent précisément cette table, sont devenus rouges — **sur l'état de la
+base, pas sur le code**. Vérifié : les mêmes tests passent sur une base fraîche, et le diff ne touche
+aucune logique de couverture. `AMORCAGE_AUTO=false` est désormais posé dans la configuration e2e, avec
+la raison écrite à côté.
 
 ---
 
@@ -250,10 +326,5 @@ Inchangé, et c'est le plafond réel :
 3. **Des devis de raccordement réels** pour étalonner les paliers de distance.
 4. **Un test d'usage sur le poste d'un prospecteur.**
 
-Et deux décisions qui appartiennent au propriétaire, délibérément non prises ici :
-
-- **Les tests de bout en bout en CI** (Playwright) : les tests de rendu couvrent le texte produit, pas
-  les interactions.
-- **Le format des exports** : libellés d'énumération et précision des coordonnées dans le CSV. Le
-  changer casserait un format peut-être déjà consommé dans des tableurs, et le casser en silence serait
-  exactement le genre de faute que ces audits traquent.
+Les deux décisions qui appartenaient au propriétaire sont désormais **prises et appliquées** — voir la
+section qui précède.

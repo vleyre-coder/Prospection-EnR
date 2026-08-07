@@ -11,6 +11,59 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### ⚠️ Changement cassant — le format des exports (décision du propriétaire)
+
+- **Le CSV écrit désormais des libellés, plus des clés d'énumération.** Il livrait `gris`,
+  `a_prospecter`, `agricole_exploite` — le vocabulaire interne du code — là où l'écran affiche
+  « Données manquantes », « À prospecter », « Terrain agricole exploité ». Un destinataire externe n'a
+  pas la clé de lecture. **Un tableau croisé ou un filtre construit sur les anciennes valeurs ne les
+  trouvera plus.** Les libellés viennent des mêmes tables que l'interface (`LIBELLES_SCORE`,
+  `STATUTS_PROSPECTION_META`, `LIBELLES_TYPE_SOL`), jamais de copies locales. Une absence reste une
+  **case vide** : inventer un libellé pour une absence serait la faute fondatrice de ces audits.
+  La colonne « Statut score » distingue « Rédhibitoire » d'un simple « Score faible », comme la liste
+  à l'écran.
+
+- **Les coordonnées du CSV sont bornées à six décimales.** Il écrivait `1,7455783348199738` — dix-sept
+  chiffres significatifs, soit une précision affichée de l'ordre du dixième de nanomètre sur une donnée
+  issue du cadastre, que l'application qualifie d'indicative partout ailleurs. Six décimales valent
+  environ 7 cm en longitude et 11 cm en latitude : déjà bien plus fin que la source.
+
+- **Le GeoJSON et le Shapefile ne changent pas, ils s'enrichissent.** L'asymétrie est délibérée : ces
+  formats sont consommés par des programmes et des SIG, où une clé stable est exactement ce qu'on veut
+  — la remplacer casserait tout filtre et toute règle de symbologie. Mais un SIG affiche aussi sa table
+  d'attributs à un humain. Les libellés sont donc **ajoutés à côté** des clés
+  (`statut_score_libelle`, `regime_implantation_libelle`, `statut_lib` pour le DBF), sans rien retirer.
+
+### Ajouté — tests de bout en bout en CI, et les deux défauts qu'ils ont trouvés (décision du propriétaire)
+
+Playwright pilote désormais un vrai navigateur contre la vraie API, dans un job de CI distinct.
+**Aucun test ne prouvait jusqu'ici que l'application démarre.** Les six vérifications navigateur de
+l'audit 10 — l'écran contre l'API sur 29 critères, le parcours clavier, la feuille d'impression —
+avaient été conduites une fois, à la main, sur une parcelle ; elles sont maintenant rejouées à chaque
+push. 12 spécifications, 44 secondes.
+
+- **Défaut trouvé, et sérieux : une boucle de déconnexion sur session valide.** `transformRequest`
+  n'attachait le jeton qu'aux tuiles `/api/carte/tuiles/parcelles/`. Toutes les autres ressources
+  authentifiées de la carte partaient sans jeton — au premier chef les **calques**. L'API répondait
+  401, et le gestionnaire d'erreur de la carte traite tout 401 venant de notre origine comme une
+  session expirée. Mesuré : quelques centaines de millisecondes après la connexion, quatre 401,
+  « Session expirée », retour au formulaire. La condition reste ancrée sur `RACINE_ABSOLUE` — un jeton
+  n'est jamais envoyé à un tiers — mais couvre désormais tous nos propres chemins. Ce qui était trop
+  étroit, c'était le chemin, pas l'origine.
+
+- **Second défaut : l'écran d'ouverture repartait de zéro.** Il était rendu à deux endroits d'`App`,
+  sous des parents différents. React reconcilie par position : au passage du chargement à
+  l'application, le composant était démonté puis remonté, son minuteur redémarrait, et une touche
+  pressée avant la transition était perdue — alors que le composant promet explicitement « toute
+  touche ou tout clic abrège : personne ne doit subir une animation ».
+
+Trois choix limitent la fragilité, et chacun a été appris en échouant : **une seule connexion** pour
+toute la suite (la route est limitée à dix tentatives par quinze minutes — relever le plafond aurait
+affaibli une protection réelle pour arranger un outil de vérification) ; **aucune attente arbitraire**,
+uniquement des attentes sur un état observable ; et un **semis hors réseau** depuis les fixtures déjà
+capturées, parce qu'un `npm run seed` en CI consommerait à chaque push le quota de services publics
+partagés — exactement le reproche du défaut B4 de l'audit 10.
+
 ### Ajouté — l'interface est enfin testée, et elle avait un défaut (suites de l'audit 10)
 
 - **Le premier test du projet qui affiche une page.** Le ratio lignes de test / lignes de source de
