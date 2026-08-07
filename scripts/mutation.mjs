@@ -257,6 +257,41 @@ const MUTATIONS = [
     vers: '',
     tests: ['apps/api/test/acces-roles.test.ts'],
   },
+
+  // --- Audit 10 : la fidelite du livrable et l'exclusion des ingestions ---------------------
+  {
+    audit: 'audit 10',
+    quoi: 'un seuil de surface redevient un nombre a point decimal dans une phrase francaise',
+    fichier: 'packages/scoring/src/index.ts',
+    de: 'surface minimale indicative de ${ha(min)} ha pour la filiere',
+    vers: 'surface minimale indicative de ${min} ha pour la filiere',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/typographie.test.ts'],
+  },
+  {
+    audit: 'audit 10',
+    quoi: 'une date du rapport PDF redevient une date ISO',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: 'depuis le ${dateFr(s.dateEntreeEnVigueur)}',
+    vers: 'depuis le ${s.dateEntreeEnVigueur}',
+    tests: ['apps/api/test/exports.test.ts'],
+  },
+  {
+    audit: 'audit 10',
+    quoi: 'deux ingestions du meme connecteur peuvent de nouveau tourner en parallele',
+    fichier: 'apps/api/src/ingestion/index.ts',
+    de: "  const liberer = await tenterVerrou(cleVerrouIngestion(connecteur));\n  if (!liberer) {\n    journal.warn({ connecteur }, 'Ingestion refusee : une autre est en cours pour ce connecteur');\n    throw new ErreurIngestionEnCours(connecteur);\n  }",
+    vers: '  const liberer = async (): Promise<void> => undefined;',
+    tests: ['apps/api/test/ingestion-exclusive.test.ts'],
+  },
+  {
+    audit: 'audit 10',
+    quoi: 'le verrou d’ingestion n’est plus relache quand le travail leve',
+    fichier: 'apps/api/src/ingestion/index.ts',
+    de: '  try {\n    return await travail();\n  } finally {\n    await liberer();\n  }',
+    vers: '  return await travail();',
+    tests: ['apps/api/test/ingestion-exclusive.test.ts'],
+  },
 ];
 
 let echecs = 0;

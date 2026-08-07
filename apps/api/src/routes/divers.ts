@@ -411,11 +411,29 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     '/api/admin/ingestions/:connecteur',
     admin,
     async (req, rep) => {
-      const { lancerIngestion } = await import('../ingestion/index.js');
+      const { lancerIngestion, ErreurIngestionEnCours } = await import('../ingestion/index.js');
+      // 409 et non 502 : une ingestion deja en cours n'est pas une panne, c'est un conflit. Le
+      // client doit pouvoir distinguer « reessayez plus tard » de « la source a echoue », et
+      // l'echec ne doit pas etre inscrit au journal des sources — la source n'a rien fait de mal
+      // (audit 10, defaut B3).
+      let dejaEnCours = false;
       const resultat = await lancerIngestion(req.params.connecteur).catch((err: Error) => {
+        if (err instanceof ErreurIngestionEnCours) {
+          dejaEnCours = true;
+          return null;
+        }
         void enregistrerIngestion(req.params.connecteur, 'echec', err.message, null);
         return null;
       });
+      if (dejaEnCours) {
+        return erreur(
+          rep,
+          409,
+          'ingestion_en_cours',
+          `Une ingestion du connecteur ${req.params.connecteur} est deja en cours. Attendez sa fin : ` +
+            'la lancer deux fois consomme deux fois le quota des sources publiques.',
+        );
+      }
       if (!resultat) {
         return erreur(
           rep,

@@ -264,3 +264,45 @@ test('les poids sont formates avec une virgule et une unite separee', () => {
   // typographique francais (verifie sur un rendu PDF reel).
   assert.equal(formatNombre(3, '%'), '3 %');
 });
+
+/**
+ * Toute date du rapport passe par `dateFr` — audit 10, défaut B2.
+ *
+ * POURQUOI CE GARDE MANQUAIT. Celui de l'audit 5, juste au-dessus, ne surveille que les `toFixed`
+ * décimaux. Il ne pouvait donc pas voir deux choses, et le rapport portait les deux :
+ *
+ *   - une date brute interpolée : « Permis de construire … depuis le 2022-10-01 », dans un document
+ *     qui écrit « rapport du 07/08/2026 » en première page. Deux conventions de date dans le même
+ *     PDF remis à un propriétaire ou à un financeur ;
+ *   - la date de vérification du référentiel réglementaire, en pied de rapport, au format ISO.
+ *
+ * Un garde qui surveille un seul motif donne l'illusion de couvrir un sujet. Celui-ci ferme l'autre
+ * moitié : aucune expression dont le nom évoque une date ne doit être interpolée sans mise en forme.
+ */
+test('aucune date du rapport n’echappe a la mise en forme francaise', () => {
+  const source = readFileSync(new URL('../src/services/exports.ts', import.meta.url), 'utf8');
+  const sansCommentaires = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '');
+
+  const fautifs: string[] = [];
+  // Toute interpolation `${...date...}` dans un gabarit : le nom de l'expression suffit a la
+  // reconnaitre, et c'est plus robuste qu'une liste de champs a tenir a jour.
+  for (const m of sansCommentaires.matchAll(/\$\{([^}]*[Dd]ate[^}]*)\}/g)) {
+    const expr = (m[1] ?? '').trim();
+    // Mises en forme acceptees : `dateFr`, une conversion locale explicite, ou un champ deja
+    // formate en amont (les libelles de source portent leur propre millesime en clair).
+    if (
+      !expr.includes('dateFr') &&
+      !expr.includes('toLocaleDateString') &&
+      !/^date[A-Za-z]*Fr$/.test(expr)
+    ) {
+      fautifs.push(expr);
+    }
+  }
+  assert.deepEqual(
+    fautifs,
+    [],
+    `dates interpolees sans mise en forme francaise : ${fautifs.join(' | ')}`,
+  );
+});

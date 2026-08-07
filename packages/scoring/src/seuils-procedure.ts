@@ -8,6 +8,7 @@
 
 import type { Filiere, OptionsScoring, ParcelleSnapshot, SeuilProcedure } from '@enr/core';
 import { REGLES } from '@enr/core';
+import { formatNombre } from './notes.js';
 
 function seuil(
   filiere: Filiere,
@@ -54,7 +55,10 @@ export function construireSeuilsProcedure(
         pct == null ? null : pct >= 3,
         pct == null
           ? null
-          : `Puissance estimee ${pct} MWc : ${pct >= 3 ? 'permis de construire' : 'declaration prealable'} (estimation a raison de ${regimeImplantation === 'agrivoltaisme' ? '0,5' : '1'} MWc/ha).`,
+          // `formatNombre` et non l'interpolation brute : `${pct}` ecrivait « 0.38 MWc », avec un
+          // point decimal, dans une phrase qui contient par ailleurs « 0,5 MWc/ha ». Mesure sur
+          // 439 parcelles x 4 filieres : 435 occurrences (audit 10, defaut B1).
+          : `Puissance estimee ${formatNombre(pct, 'MWc', 2)} : ${pct >= 3 ? 'permis de construire' : 'declaration prealable'} (estimation a raison de ${regimeImplantation === 'agrivoltaisme' ? '0,5' : '1'} MWc/ha).`,
       ),
       seuil(filiere, 'eval_env_systematique', pct == null ? null : pct >= 3),
       seuil(filiere, 'eval_env_cas_par_cas', pct == null ? null : pct >= 0.3 && pct < 3),

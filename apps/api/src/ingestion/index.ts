@@ -15,9 +15,10 @@
 import { avecParams, jsonExterne } from '../http.js';
 import { journal } from '../journal.js';
 import { config } from '../config.js';
-import { requete } from '../bdd.js';
+import { requete, tenterVerrou } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
 import { oublierPresenceCouches } from '../connecteurs/couches.js';
+
 import { ingererSitesProteges, ingererZaer } from './wfs-national.js';
 import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 import { telechargerRaster } from '../connecteurs/vent.js';
@@ -469,6 +470,78 @@ export const JOBS: Record<string, () => Promise<Record<string, unknown>>> = {
   zaer_local: ingererZaer,
 };
 
+/** Signalee quand une ingestion du meme connecteur est deja en cours. */
+export class ErreurIngestionEnCours extends Error {
+  constructor(public readonly connecteur: string) {
+    super(
+      `Une ingestion du connecteur ${connecteur} est deja en cours. ` +
+        'Attendez sa fin : la lancer deux fois consomme deux fois le quota des sources publiques.',
+    );
+    this.name = 'ErreurIngestionEnCours';
+  }
+}
+
+/**
+ * Cle de verrou consultatif propre a un connecteur.
+ *
+ * Un entier stable derive du nom, dans une plage reservee aux ingestions pour ne pas heurter les
+ * verrous nommes du demarrage (864 202 pour l'amorcage, 864 203 pour le rescoring).
+ */
+export function cleVerrouIngestion(connecteur: string): number {
+  let h = 0;
+  for (const c of connecteur) h = (h * 31 + c.charCodeAt(0)) % 1_000_000;
+  return 865_000_000 + h;
+}
+
+/**
+ * Lance un job d'ingestion, UNE SEULE A LA FOIS PAR CONNECTEUR.
+ *
+ * POURQUOI CE VERROU — audit 10, defaut B3. Cette fonction est appelee depuis trois endroits : la
+ * route d'administration `POST /api/admin/ingestions/:connecteur`, le script `npm run ingest`, et
+ * l'amorcage au demarrage. Aucun des trois ne s'excluait des deux autres, et la route n'avait ni
+ * verrou ni limitation de debit — alors qu'elle declenche le traitement le plus lourd du projet :
+ * l'ingestion des ZAER lit 1,09 million d'objets sur le WFS de la Geoplateforme en une vingtaine de
+ * minutes. Deux appels rapproches faisaient donc deux fois le meme telechargement, sur un quota
+ * partage par toute l'equipe, et le second n'apportait rien.
+ *
+ * L'amorcage possedait deja un verrou (`tenterVerrou(864_202)`) avec cette justification exacte :
+ * « en developpement, `tsx watch` relance le serveur a chaque sauvegarde ». La protection existait
+ * donc, au bon endroit, et n'avait jamais ete etendue au declenchement manuel.
+ *
+ * Le verrou est CONSULTATIF et NON BLOQUANT : un second appel echoue immediatement avec un motif
+ * explicite, plutot que d'attendre vingt minutes derriere le premier.
+ */
+/**
+ * Execute `travail` sous verrou exclusif pour ce connecteur, ou refuse.
+ *
+ * EXTRAITE POUR ETRE TESTABLE EN QUELQUES MILLISECONDES, et c'est la seule raison. La partie risquee
+ * de ce mecanisme n'est pas la prise du verrou, c'est sa LIBERATION quand le travail echoue : un
+ * verrou consultatif est tenu par une connexion dediee, donc un `finally` manquant laisserait le
+ * connecteur bloque jusqu'au redemarrage du serveur — la correction serait alors pire que le defaut
+ * qu'elle repare.
+ *
+ * Ma premiere version testait cette liberation en lancant un vrai job d'ingestion, qui echoue faute
+ * de reseau apres avoir epuise le profil de reprise « patient » : plus de trois minutes par
+ * execution, et autant a chaque verification par mutation. Un test lent est un test qu'on finit par
+ * ne plus lancer. Avec cette fonction, le meme chemin de code se verifie instantanement en lui
+ * passant un travail qui leve.
+ */
+export async function avecVerrouIngestion<T>(
+  connecteur: string,
+  travail: () => Promise<T>,
+): Promise<T> {
+  const liberer = await tenterVerrou(cleVerrouIngestion(connecteur));
+  if (!liberer) {
+    journal.warn({ connecteur }, 'Ingestion refusee : une autre est en cours pour ce connecteur');
+    throw new ErreurIngestionEnCours(connecteur);
+  }
+  try {
+    return await travail();
+  } finally {
+    await liberer();
+  }
+}
+
 export async function lancerIngestion(connecteur: string): Promise<Record<string, unknown>> {
   const job = JOBS[connecteur];
   if (!job) {
@@ -476,9 +549,12 @@ export async function lancerIngestion(connecteur: string): Promise<Record<string
       `Aucun job d'ingestion pour "${connecteur}". Jobs disponibles : ${Object.keys(JOBS).join(', ')}`,
     );
   }
-  journal.info({ connecteur }, 'Debut d\'ingestion');
-  const debut = Date.now();
-  const resultat = await job();
-  journal.info({ connecteur, dureeMs: Date.now() - debut, ...resultat }, 'Ingestion terminee');
-  return { ...resultat, dureeMs: Date.now() - debut };
+
+  return avecVerrouIngestion(connecteur, async () => {
+    journal.info({ connecteur }, 'Debut d\'ingestion');
+    const debut = Date.now();
+    const resultat = await job();
+    journal.info({ connecteur, dureeMs: Date.now() - debut, ...resultat }, 'Ingestion terminee');
+    return { ...resultat, dureeMs: Date.now() - debut };
+  });
 }

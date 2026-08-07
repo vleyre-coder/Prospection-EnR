@@ -21,7 +21,7 @@ import { existsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
 import { journal } from './journal.js';
-import { pool, requete, requeteUne } from './bdd.js';
+import { pool, requete, requeteUne, tenterVerrou } from './bdd.js';
 import { hacherMotDePasse, motDePasseAleatoire } from './mots-de-passe.js';
 import { JOBS, lancerIngestion } from './ingestion/index.js';
 import { CHEMIN_RASTER } from './connecteurs/vent.js';
@@ -262,23 +262,6 @@ export function etatAmorcage(): EtatAmorcage {
   return { ...etat, etapes: etat.etapes.map((e) => ({ ...e })) };
 }
 
-/**
- * Verrou consultatif non bloquant : en developpement, `tsx watch` relance le serveur a
- * chaque sauvegarde. Sans ce verrou, une modification de code pendant l'ingestion des
- * communes en declencherait une seconde en parallele.
- */
-export async function tenterVerrou(cle: number): Promise<(() => Promise<void>) | null> {
-  const client = await pool.connect();
-  const r = await client.query<{ ok: boolean }>('SELECT pg_try_advisory_lock($1) AS ok', [cle]);
-  if (!r.rows[0]?.ok) {
-    client.release();
-    return null;
-  }
-  return async () => {
-    await client.query('SELECT pg_advisory_unlock($1)', [cle]).catch(() => undefined);
-    client.release();
-  };
-}
 
 /**
  * Charge les donnees nationales manquantes. Idempotent : chaque etape verifie d'abord si

@@ -176,6 +176,7 @@ jobs:
           npx tsx --test test/pagination-stable.test.ts test/couverture-disque.test.ts
           test/snapshot-perime-par-donnee.test.ts test/disparus.test.ts
           test/reprise-couverture-reseaux.test.ts test/sql-analysable.test.ts
+          test/ingestion-exclusive.test.ts
         working-directory: apps/api
 
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :

@@ -280,7 +280,7 @@ function evaluerLimitesViabilite(
       libelle: 'Surface tres insuffisante',
       motif:
         `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
-        `au cadastre), soit moins du quart de la surface minimale indicative de ${min} ha pour la ` +
+        `au cadastre), soit moins du quart de la surface minimale indicative de ${ha(min)} ha pour la ` +
         `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet ` +
         `qu'agregee a des parcelles voisines au sein d'un site.${reserveModele}`,
       statutMaximal: 'rouge',
@@ -291,7 +291,7 @@ function evaluerLimitesViabilite(
       libelle: 'Surface insuffisante seule',
       motif:
         `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
-        `au cadastre), en dessous de la surface minimale indicative de ${min} ha pour la filiere ` +
+        `au cadastre), en dessous de la surface minimale indicative de ${ha(min)} ha pour la filiere ` +
         `${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des ` +
         `parcelles voisines pour atteindre une taille finançable.${reserveModele}`,
       statutMaximal: 'orange',

@@ -11,6 +11,59 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Corrigé — fidélité du livrable et exclusion des ingestions (audit 10)
+
+- **Le moteur écrivait des points décimaux dans des phrases françaises** (audit 10, défaut B1). Le
+  projet possède un formateur unique, `formatNombre`, qui écrit la virgule ; quatre endroits le
+  contournaient et interpolaient le nombre brut, mêlant les deux conventions dans une même phrase :
+  « La parcelle offre environ 0,14 ha implantables (0,37 ha au cadastre), en dessous de la surface
+  minimale indicative de **0.5** ha » et « Puissance estimee **0.38** MWc … a raison de 0,5 MWc/ha ».
+  Mesuré sur les 439 parcelles réelles de la base × 4 filières : **591 occurrences sur 4 champs**.
+  Après correction : zéro. Ces phrases s'affichent dans la fiche, sont imprimées telles quelles dans
+  le rapport remis à un propriétaire ou à un financeur, et partent dans les exports. Un garde inspecte
+  désormais les chaînes **réellement produites** par le moteur, et non le code.
+
+- **Le rapport PDF mêlait deux conventions de date** (audit 10, défaut B2). Il écrivait « rapport du
+  07/08/2026 » en première page et « depuis le 2022-10-01 » dans le tableau des seuils de procédure —
+  7 dates ISO par rapport. Le garde structurel posé à l'audit 5 sur la localisation du rapport ne
+  surveillait que les `toFixed` décimaux : un garde partiel donne l'illusion de couvrir un sujet. Un
+  second garde refuse maintenant toute interpolation de date sans mise en forme française.
+
+- **Une ingestion nationale pouvait se lancer en parallèle d'elle-même** (audit 10, défaut B3).
+  `lancerIngestion` est appelée depuis la route d'administration, le script `npm run ingest` et
+  l'amorçage, et aucun des trois ne s'excluait des deux autres — alors que l'ingestion des ZAER lit
+  1,09 million d'objets sur le WFS de la Géoplateforme en une vingtaine de minutes, sur un quota
+  partagé par toute l'équipe. La protection existait déjà pour l'amorçage, avec la bonne
+  justification, et n'avait jamais été étendue. Verrou consultatif par connecteur, non bloquant : le
+  second appel est refusé immédiatement, et la route répond **409** et non 502 — une ingestion en
+  cours est un conflit, pas une panne, et l'échec ne doit pas être inscrit au journal des sources.
+
+- **La vérification par mutation pouvait détecter une régression sans pouvoir la rapporter**
+  (audit 10, défaut H4). Le test d'exclusion des ingestions échouait correctement sous la mutation
+  « le verrou n'est plus relâché » — mais la connexion du verrou restait sortie du pool, sa socket
+  tenait la boucle d'événements, et le **processus ne sortait jamais**. Or `mutation.mjs` attend la
+  sortie du processus, pas la fin des tests : mesuré **16 minutes sans borne en vue**, contre 2,3 s
+  et un code 1 après correction. Une première tentative avait borné l'attente de `pool.end()` à
+  3 secondes ; elle rendait la main à `after()` sans faire sortir le processus, donc ne corrigeait
+  rien. Le teardown ne borne plus une durée, il diagnostique l'état — une connexion hors du pool à la
+  fin du fichier ne peut venir que d'un verrou non rendu — le nomme et sort en échec. Aucun seuil de
+  temps, donc aucune fragilité sur une machine lente.
+
+- **Un test de contrôle d'accès lançait une campagne d'enrichissement réelle** (audit 10, défaut B4).
+  Le test des rôles envoyait une emprise à la route de qualification pour vérifier qu'un compte
+  prospection n'est pas refusé : le refus était bien testé, et la requête aboutissait ensuite pour de
+  bon. Mesuré : **438 parcelles qualifiées et 138 snapshots réécrits en 5 minutes à chaque `npm
+  test`**. Le test vérifie désormais l'autorisation sans emprise — la route répond 400, ce qui prouve
+  exactement ce qui était visé, sans toucher aux données.
+
+### Vérifié sans défaut (audit 10)
+
+Premier audit à piloter l'application dans un vrai navigateur et à comparer l'écran à l'API :
+les **29 critères** d'une fiche réelle affichent exactement la valeur renvoyée par l'API ; le rapport
+PDF dit la même chose que la fiche ; le parcours clavier couvre 30 cibles avec un focus toujours
+visible ; la feuille d'impression cible correctement ; le CSV est localisé de bout en bout. Ces
+vérifications sont documentées dans `docs/AUDIT-10.md` §C.
+
 ### Corrigé — fiabilité de ce qui est rendu à l'écran (audit 9)
 
 - **Une liste triée puis tronquée n'était pas une liste, c'était un tirage** (audit 9, défaut B1).

@@ -82,3 +82,35 @@ export async function bddDisponible(): Promise<boolean> {
 export async function fermerBdd(): Promise<void> {
   await pool.end();
 }
+
+/**
+ * Verrou consultatif non bloquant.
+ *
+ * POURQUOI ICI ET PLUS DANS `amorcage.ts` — audit 10, §H. Cette fonction y etait nee pour un besoin
+ * de l'amorcage : « en developpement, `tsx watch` relance le serveur a chaque sauvegarde. Sans ce
+ * verrou, une modification de code pendant l'ingestion des communes en declencherait une seconde en
+ * parallele. » En etendant la protection aux ingestions manuelles, je l'ai importee depuis
+ * `ingestion/index.ts` — que `amorcage.ts` importe deja. Cela creait un cycle
+ * `ingestion -> amorcage -> ingestion` : inoffensif ici, parce que la fonction n'est appelee qu'a
+ * l'execution, mais un cycle d'imports est une dette qui se paie plus tard, quand un binding est lu
+ * pendant l'evaluation du module.
+ *
+ * Un verrou consultatif est une primitive de base de donnees : sa place est dans ce module, que tous
+ * les autres importent sans jamais etre importes par lui.
+ *
+ * Le verrou est tenu par une connexion DEDIEE, sortie du pool jusqu'a sa liberation. Appeler la
+ * fonction de liberation rendue est donc obligatoire, y compris en cas d'echec : sans elle, la
+ * connexion ne revient pas au pool et le verrou n'est rendu qu'a la fin du processus.
+ */
+export async function tenterVerrou(cle: number): Promise<(() => Promise<void>) | null> {
+  const client = await pool.connect();
+  const r = await client.query<{ ok: boolean }>('SELECT pg_try_advisory_lock($1) AS ok', [cle]);
+  if (!r.rows[0]?.ok) {
+    client.release();
+    return null;
+  }
+  return async () => {
+    await client.query('SELECT pg_advisory_unlock($1)', [cle]).catch(() => undefined);
+    client.release();
+  };
+}

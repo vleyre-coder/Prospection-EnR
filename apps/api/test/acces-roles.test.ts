@@ -118,11 +118,27 @@ test('un compte de prospection franchit le controle de role', async () => {
       method: 'POST',
       url: '/api/qualification/emprise',
       headers: entetes(app, 'prospection'),
-      payload: { bbox: [1.73, 48.14, 1.79, 48.18], filiere: 'solaire_sol' },
+      /**
+       * CHARGE UTILE VOLONTAIREMENT INCOMPLETE — audit 10, defaut B4.
+       *
+       * Ce test verifie une seule chose : que le controle de role ne se declenche PAS pour un compte
+       * de prospection. Sa premiere version envoyait une emprise valide, en supposant que « la suite
+       * echoue faute de base » — hypothese vraie a l'ecriture, fausse depuis que la CI et le poste de
+       * developpement fournissent une base.
+       *
+       * Mesure : avec `DATABASE_URL` defini, cet appel lance une QUALIFICATION REELLE de 438
+       * parcelles, soit une dizaine de minutes d'appels vers le cadastre, le GPU, Georisques et
+       * l'altimetrie — a chaque `npm test`. Trois consequences, toutes contraires a ce que le projet
+       * cherche a proteger : la suite passe de deux a douze minutes, le quota partage des services
+       * publics est consomme par un test de controle d'acces, et 438 snapshots sont reecrits en base.
+       *
+       * `bbox` est donc omis : le controle de role s'execute AVANT la validation du corps, donc la
+       * reponse est 400 et non 403. L'invariant teste est identique, et plus lisible.
+       */
+      payload: { filiere: 'solaire_sol' },
     });
-    // La suite echoue faute de base, mais le refus de role n'a pas eu lieu : c'est ce
-    // qu'on verifie. Une regression le ferait retomber a 403.
-    assert.notEqual(r.statusCode, 403);
+    assert.notEqual(r.statusCode, 403, 'un compte de prospection ne doit pas etre refuse');
+    assert.equal(r.statusCode, 400, 'la validation du corps prend le relais, sans rien lancer');
   } finally {
     await app.close();
   }

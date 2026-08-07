@@ -632,7 +632,10 @@ export function ficheParcellePdf(
         cellules: [
           s.libelle,
           s.applicable === true ? 'oui' : s.applicable === false ? 'non' : 'a verifier',
-          `${s.reference} - depuis le ${s.dateEntreeEnVigueur}`,
+          // `dateFr` et non la date brute : le rapport ecrit « rapport du 07/08/2026 » en tete, et
+          // affichait « depuis le 2022-10-01 » ici. Deux conventions de date dans un document remis a
+          // un proprietaire ou a un financeur (audit 10, defaut B2).
+          `${s.reference} - depuis le ${dateFr(s.dateEntreeEnVigueur)}`,
         ],
         pastille: s.applicable === true ? 'orange' : s.applicable === false ? 'vert' : 'gris',
       })),
@@ -750,7 +753,7 @@ export function ficheParcellePdf(
   assurerPlace(doc, 30);
   doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(
     net(
-      `Referentiel reglementaire verifie le ${REFERENTIEL_DERNIERE_VERIFICATION}. Moteur de scoring version ${score.versionMoteur}. ` +
+      `Referentiel reglementaire verifie le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
         'Le contour cadastral est issu du Plan Cadastral Informatise : il est indicatif et sans valeur juridique. ' +
         'Seul un document d\'arpentage etabli par un geometre-expert fait foi.',
     ),

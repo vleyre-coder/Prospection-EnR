@@ -6,13 +6,12 @@ import jwt from '@fastify/jwt';
 import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
 import { journal } from './journal.js';
-import { fermerBdd } from './bdd.js';
+import { fermerBdd, tenterVerrou } from './bdd.js';
 import {
   amorcerSiNecessaire,
   assurerAdministrateur,
   attendreBdd,
   resoudreSecretJwt,
-  tenterVerrou,
 } from './amorcage.js';
 import {
   rescorerSiVersionObsolete,
