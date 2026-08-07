@@ -1,0 +1,24 @@
+{
+  "total": 1,
+  "resultats": [
+    {
+      "idu": "283900000A0094",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0A",
+      "numero": "0094",
+      "surfaceHa": 19.99,
+      "statutScore": "rouge",
+      "scoreGlobal": null,
+      "nbKnockOutsBloquants": 1,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.8,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7901717619379705,
+        48.156535505
+      ]
+    }
+  ]
+}

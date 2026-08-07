@@ -13,8 +13,15 @@ import {
   FILIERES_META,
   LIBELLES_SCORE,
   REFERENTIEL_DERNIERE_VERIFICATION,
+  REGLES_PAR_ID,
 } from '@enr/core';
-import { COEFFICIENT_TRACE, formatNombre, LIBELLES_REGIME, lineaireRaccordementKm } from '@enr/scoring';
+import {
+  COEFFICIENT_TRACE,
+  formatNombre,
+  LIBELLES_REGIME,
+  LIBELLES_TYPE_SOL,
+  lineaireRaccordementKm,
+} from '@enr/scoring';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
 import type { LigneResultatFiltre } from './recherche.js';
 
@@ -435,9 +442,28 @@ export function ficheParcellePdf(
   if (score.knockOuts.length > 0) {
     titreSection(doc, 'Criteres redhibitoires');
     for (const k of score.knockOuts) {
+      /**
+       * Le FONDEMENT, pas son identifiant technique.
+       *
+       * Le rapport ecrivait « Fondement : eol_distance_habitation » — une cle de code, dans le
+       * document qu'un prospecteur remet a un proprietaire pour lui expliquer pourquoi sa parcelle
+       * est ecartee. La fiche, elle, resout la meme cle contre le referentiel et affiche
+       * « Code de l'environnement, art. L.515-44 · en vigueur depuis le … ». Les deux livrables ne
+       * disaient donc pas la meme chose, et c'est le rapport qui disait la moins utile des deux.
+       *
+       * Trouve en relisant un rapport par filiere (audit 10, risque F2) : le cas n'apparait que sur
+       * une parcelle ECARTEE, et la seule relecture faite jusque-la portait sur une parcelle qui ne
+       * l'etait pas.
+       */
+      const regle = k.regleLiee ? REGLES_PAR_ID[k.regleLiee] : undefined;
+      const fondement = regle
+        ? `Fondement : ${regle.reference} (en vigueur depuis le ${dateFr(regle.dateEntreeEnVigueur)})`
+        : k.regleLiee
+          ? `Fondement : ${k.regleLiee}`
+          : null;
       encadre(doc, k.derogeable ? 'orange' : 'rouge', `${k.derogeable ? 'Derogeable' : 'Bloquant'} - ${k.libelle}`, [
         k.motif,
-        ...(k.regleLiee ? [`Fondement : ${k.regleLiee}`] : []),
+        ...(fondement ? [fondement] : []),
       ]);
     }
   }
@@ -504,7 +530,14 @@ export function ficheParcellePdf(
     ],
     ['Document d\'urbanisme', urba.typeDocument ?? (urba.couvertParGpu === false ? 'non publie au GPU' : 'non renseigne')],
     ['Zonage dominant', zonagePrincipal ? `${zonagePrincipal.libelle ?? '-'} (${zonagePrincipal.typeZone ?? '?'})` : 'non renseigne'],
-    ['Occupation du sol', snapshot.occupationSol.typeSol ?? 'non determinee'],
+    // Le libelle, pas la cle : le rapport ecrivait « agricole_exploite » quand la fiche affichait
+    // « Terrain agricole exploite ». Meme table pour les deux, desormais.
+    [
+      'Occupation du sol',
+      snapshot.occupationSol.typeSol
+        ? (LIBELLES_TYPE_SOL[snapshot.occupationSol.typeSol] ?? snapshot.occupationSol.typeSol)
+        : 'non determinee',
+    ],
     ['Culture declaree (RPG)', libelleRpg(snapshot.occupationSol.rpg)],
     ['Pente moyenne', nb(snapshot.topographie.pentePct, '%', 1)],
     ['Altitude', nb(snapshot.topographie.altitudeM, 'm')],

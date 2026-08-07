@@ -15,9 +15,16 @@
  * reproxifie `/api`. Renseigner `VITE_URL_API` a la construction permet de deployer
  * l'interface seule, sur une origine differente de celle de l'API — l'API doit alors
  * declarer cette origine dans `ORIGINES_AUTORISEES`.
+ *
+ * L'acces est FACULTATIF (`?.`), et ce n'est pas de la precaution decorative. `import.meta.env` est
+ * injecte par Vite ; hors de Vite l'objet n'existe pas, et l'evaluation du module levait alors
+ * `Cannot read properties of undefined`. Ce module etait donc impossible a charger ailleurs que dans
+ * un navigateur servi par Vite — ce qui est exactement la raison pour laquelle aucun test n'avait
+ * jamais pu monter un composant : tous en dependent, directement ou non. Le repli sur la chaine vide
+ * est celui deja documente ci-dessus, la meme origine, et il est correct dans les deux mondes.
  */
 export const RACINE_API: string = (
-  (import.meta.env['VITE_URL_API'] as string | undefined) ?? ''
+  ((import.meta.env as Record<string, string | undefined> | undefined)?.['VITE_URL_API']) ?? ''
 ).replace(/\/+$/, '');
 
 /**

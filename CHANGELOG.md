@@ -11,6 +11,70 @@ n'a pas la même valeur qu'un rapport produit après.
 
 ## [Non publié]
 
+### Ajouté — l'interface est enfin testée, et elle avait un défaut (suites de l'audit 10)
+
+- **Le premier test du projet qui affiche une page.** Le ratio lignes de test / lignes de source de
+  `apps/web` était de **0,11**, quatre fois moins que l'API, sur la seule partie que l'utilisateur
+  regarde ; les cinq fichiers de test existants n'assemblaient aucun composant. Les vrais composants
+  sont désormais montés via `react-dom/server` — **aucune dépendance ajoutée** — sur des fiches
+  **réelles** capturées depuis la base (`apps/api/scripts/capturer-fixtures-web.ts`) : quatre filières,
+  une parcelle minuscule aux seuils franchis, et le cas **écarté** (l'éolien y est rouge, avec le recul
+  de 500 m de l'article L.515-44 impossible à tenir). Ratio porté à **0,23**, 19 tests de rendu.
+
+- **Le défaut trouvé en naissant : la fiche écrivait « poids 10.7 % » à trois lignes de « 19,05 ha ».**
+  Le même défaut B1 de l'audit 10 — deux conventions typographiques dans une phrase française — mais à
+  l'endroit où son garde ne regardait pas : celui-ci inspecte les chaînes produites par le **moteur**,
+  et le poids des critères comme les distances de zonage sont mis en forme par l'interface elle-même.
+  Mesuré sur les cinq fiches réelles : **142 occurrences, ramenées à 7** — les 7 restantes étant la
+  version du moteur (`1.4.0`) et les rubriques IOTA (`2.1.5.0`), où le point est la bonne ponctuation.
+
+- **La vérification par mutation couvre enfin l'interface.** Comptage avant : 30 mutations, 26 sur
+  `apps/api`, 3 sur `packages/scoring`, 1 sur une migration, **0 sur `apps/web`**. Rien ne prouvait donc
+  que les tests de l'interface ne soient pas décoratifs. Huit mutations ajoutées (38 au total), dont une
+  qui mute le **harnais de test lui-même** : zustand sert délibérément l'état *initial* en rendu serveur,
+  si bien que tout état posé par un test était silencieusement ignoré — de quoi rendre décoratives
+  toutes les branches pilotées par le store.
+
+### Corrigé — le rapport PDF ne disait pas la même chose que la fiche (risque F2 de l'audit 10)
+
+Le rapport n'avait été relu en entier **qu'une fois**, sur une parcelle agricole en solaire. Les quatre
+autres relectures ont trouvé deux défauts, tous deux dans le document remis à un propriétaire :
+
+- **« Occupation du sol : agricole_exploite »** — la valeur d'énumération brute, à la ligne suivant
+  « Contenance cadastrale : 19,84 ha », quand la fiche affichait au même instant « Terrain agricole
+  exploité ». La table de libellés existait, complète et juste, dans `packages/scoring` ; elle n'était
+  simplement pas exportée.
+- **« Fondement : eol_distance_habitation »** — une clé de code donnée comme base juridique du rejet
+  d'une parcelle, là où la fiche résout la même clé en « Code de l'environnement, art. L.515-44, en
+  vigueur depuis le 25/06/2020 ». Ce cas n'apparaît que sur une parcelle **écartée** : la seule
+  relecture faite jusque-là portait sur une parcelle qui ne l'était pas.
+
+Les quatre filières et le cas écarté sont désormais relus **à chaque exécution**, avec un extracteur de
+texte PDF écrit sans dépendance ni binaire externe (`zlib` suffit) — `pdftotext` aurait pu disparaître
+d'une image de CI sans bruit.
+
+### Corrigé — un piège posé pour plus tard dans l'effacement des objets disparus (risque F4)
+
+Le cycle complet n'avait jamais été observé, seulement testé par morceaux. L'observer a révélé que le
+mécanisme repose sur un **contrat non vérifié** : `effacerDisparus` déclare disparue toute ligne dont
+`updated_at` précède le run, donc toute réécriture doit remettre `updated_at = now()`. La réécriture du
+patrimoine **culturel** ne le faisait pas. Le connecteur n'étant pas encore soumis à l'effacement, le
+défaut n'était pas actif — c'était un piège pour le jour où on l'y soumettrait : tous les monuments
+seraient passés d'un coup pour disparus, le plafond de volumétrie les aurait sauvés, et la suppression
+n'aurait alors **jamais** fonctionné pour ce connecteur sans que la cause soit lisible. Corrigé, et
+couplé par un garde structurel : toute table soumise à l'effacement voit désormais ses réécritures
+vérifiées. Le cycle lui-même est observé de bout en bout contre PostgreSQL (100 objets, 10 disparus →
+10 effacés ; 100 republiés → 0 effacé ; 70 disparus → refus et couche intacte).
+
+### Corrigé — un nombre magique dans un garde structurel
+
+Le garde d'alimentation bornait à **900 caractères** la capture d'un `INSERT INTO contrainte`. Ajouter
+dix lignes de commentaire dans la requête a repoussé le backtick fermant au-delà de la fenêtre : le
+garde a annoncé « les monuments historiques doivent être ingérés », c'est-à-dire un défaut d'ingestion,
+alors que rien de l'ingestion n'avait changé. Un nombre magique dans un garde ne se déclenche pas à
+l'écriture mais le jour où quelqu'un allonge le code surveillé, et il accuse alors le mauvais coupable.
+La borne était inutile : le littéral SQL est délimité par des backticks et n'en contient aucun.
+
 ### Corrigé — fidélité du livrable et exclusion des ingestions (audit 10)
 
 - **Le moteur écrivait des points décimaux dans des phrases françaises** (audit 10, défaut B1). Le

@@ -28,8 +28,19 @@ import { execFileSync } from 'node:child_process';
  * verification par mutation qui se trompe sur son propre perimetre est le comble de l'ironie : il
  * faut le dire, et le corriger.
  *
+ * `cwd` : repertoire depuis lequel lancer les tests, quand il ne peut pas etre la racine.
+ *
+ * Necessaire pour `apps/web`, et la raison est instructive. Les tests de rendu montent de vrais
+ * composants, donc importent des fichiers `.tsx` ; la transformation JSX depend de
+ * `"jsx": "react-jsx"`, declare dans `apps/web/tsconfig.json`. Il n'existe pas de `tsconfig.json` a
+ * la racine du depot — seulement un `tsconfig.base.json` — si bien que `tsx` lance depuis la racine
+ * ne trouve aucun reglage JSX et echoue sur « React is not defined ». Ce n'est pas un echec de test :
+ * c'est un echec de chargement, et il aurait ete compte comme une mutation attrapee, ce qui est le
+ * pire des cas — un faux vert dans l'outil meme qui traque les faux verts. Les chemins de `tests`
+ * sont alors relatifs a ce `cwd`, comme le fait `npm run test -w @enr/web`.
+ *
  * @type {Array<{ audit: string, quoi: string, fichier: string, de: string, vers: string,
- *                construire?: string, tests: string[] }>}
+ *                construire?: string, cwd?: string, tests: string[] }>}
  */
 const MUTATIONS = [
   {
@@ -292,10 +303,112 @@ const MUTATIONS = [
     vers: '  return await travail();',
     tests: ['apps/api/test/ingestion-exclusive.test.ts'],
   },
+
+  /**
+   * MUTATIONS DE L'INTERFACE.
+   *
+   * Elles n'existaient pas, et le comptage etait sans appel : sur 30 mutations, 26 portaient sur
+   * `apps/api`, 3 sur `packages/scoring`, 1 sur une migration, et **zero sur `apps/web`**. Rien ne
+   * prouvait donc que les tests de l'interface ne soient pas decoratifs — sur la seule partie que
+   * l'utilisateur regarde, et celle dont le ratio de couverture etait le plus faible du depot.
+   *
+   * Chacune remet un defaut qui a reellement existe, et qui serait aujourd'hui invisible : aucune
+   * ne fait planter la page, toutes la font mentir.
+   *
+   * Elles sont etiquetees « suites audit 10 » et non « audit 11 » : ce travail n'est pas un audit
+   * mais la mise en oeuvre des chantiers que l'audit 10 avait laisses ouverts (§D3, §F2, §F4).
+   */
+  {
+    audit: 'suites audit 10',
+    quoi: 'une ingestion soumise a l’effacement cesse de marquer ses lignes comme revues',
+    fichier: 'apps/api/src/ingestion/wfs-national.ts',
+    de: "         -- Voir audit 9, defaut D1 : sans cette ligne, rien ne distingue un objet revu d'un objet\n         -- disparu de la source.\n         updated_at = now()`,",
+    vers: "         code_departement = EXCLUDED.code_departement`,",
+    tests: ['apps/api/test/effacement-cycle.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'le rapport PDF redonne la cle d’enumeration au lieu du libelle de la nature du sol',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "        ? (LIBELLES_TYPE_SOL[snapshot.occupationSol.typeSol] ?? snapshot.occupationSol.typeSol)",
+    vers: '        ? snapshot.occupationSol.typeSol',
+    tests: ['apps/api/test/rapport-pdf.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'le fondement juridique d’un rejet redevient un identifiant interne',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: '      const regle = k.regleLiee ? REGLES_PAR_ID[k.regleLiee] : undefined;',
+    vers: '      const regle = undefined;',
+    tests: ['apps/api/test/rapport-pdf.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'le poids d’un critere redevient un nombre a point decimal dans la fiche',
+    fichier: 'apps/web/src/components/FicheParcelle.tsx',
+    de: "poids {formatNombre(critere.poids * 100, '%', 1)}",
+    vers: 'poids {(critere.poids * 100).toFixed(1)} %',
+    cwd: 'apps/web',
+    tests: ['test/rendu-fiche.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'une distance de zonage redevient un nombre a point decimal',
+    fichier: 'apps/web/src/components/FicheParcelle.tsx',
+    de: "        : formatNombre(z.distanceM / 1000, 'km', 1)}",
+    vers: '        : `${(z.distanceM / 1000).toFixed(1)} km`}',
+    cwd: 'apps/web',
+    tests: ['test/rendu-fiche.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'les avertissements de la section 12 cessent d’etre affiches',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: "    (a) => a.portee === 'global' && !etat.avertissementsMasques.includes(a.id),",
+    vers: "    (a) => a.portee === 'jamais' && !etat.avertissementsMasques.includes(a.id),",
+    cwd: 'apps/web',
+    tests: ['test/rendu-bandeau.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'un compte en lecture seule se voit de nouveau proposer un rafraichissement voue au 403',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: "  const peutRafraichir = role === 'admin' || role === 'prospection';",
+    vers: '  const peutRafraichir = true;',
+    cwd: 'apps/web',
+    tests: ['test/rendu-bandeau.test.ts'],
+  },
+  {
+    audit: 'suites audit 10',
+    quoi: 'l’etat pose par un test de rendu redevient silencieusement ignore',
+    fichier: 'apps/web/test/aides/rendu.ts',
+    de: '  Object.assign(courant, ETAT_PAR_DEFAUT, partiel);',
+    vers: '  Object.assign(courant, ETAT_PAR_DEFAUT);',
+    cwd: 'apps/web',
+    tests: ['test/rendu-bandeau.test.ts', 'test/rendu-liste-tableau.test.ts'],
+  },
 ];
 
+/**
+ * Filtre optionnel : `node scripts/mutation.mjs --filtre "audit 11"`.
+ *
+ * La liste depasse la trentaine d'entrees et l'execution complete demande une quinzaine de minutes.
+ * Sans moyen de rejouer un sous-ensemble, la tentation est de muter a la main pendant le
+ * developpement — ce qui a deja laisse deux fois un fichier source mute apres une interruption
+ * (audit 10, §H2). Le filtre supprime la tentation ; la CI, elle, continue de tout executer.
+ */
+const iFiltre = process.argv.indexOf('--filtre');
+const filtre = iFiltre >= 0 ? (process.argv[iFiltre + 1] ?? '') : null;
+const A_JOUER = filtre
+  ? MUTATIONS.filter((m) => `${m.audit} ${m.quoi} ${m.fichier}`.toLowerCase().includes(filtre.toLowerCase()))
+  : MUTATIONS;
+if (filtre) {
+  console.log(`Filtre « ${filtre} » : ${A_JOUER.length} mutation(s) sur ${MUTATIONS.length}.\n`);
+  if (A_JOUER.length === 0) process.exit(1);
+}
+
 let echecs = 0;
-for (const m of MUTATIONS) {
+for (const m of A_JOUER) {
   const original = readFileSync(m.fichier, 'utf8');
   if (!original.includes(m.de)) {
     console.error(`\nECHEC (${m.audit}) : motif introuvable dans ${m.fichier}.`);
@@ -312,7 +425,10 @@ for (const m of MUTATIONS) {
     if (m.construire) {
       execFileSync('npm', ['run', 'build', '--workspace', m.construire], { stdio: 'pipe' });
     }
-    execFileSync('npx', ['tsx', '--test', ...m.tests], { stdio: 'pipe' });
+    execFileSync('npx', ['tsx', '--test', ...m.tests], {
+      stdio: 'pipe',
+      ...(m.cwd ? { cwd: m.cwd } : {}),
+    });
   } catch {
     attrapee = true;
   } finally {
@@ -332,5 +448,5 @@ for (const m of MUTATIONS) {
   }
 }
 
-console.log(`\n${MUTATIONS.length - echecs}/${MUTATIONS.length} mutations attrapees.`);
+console.log(`\n${A_JOUER.length - echecs}/${A_JOUER.length} mutations attrapees.`);
 process.exit(echecs > 0 ? 1 : 0);

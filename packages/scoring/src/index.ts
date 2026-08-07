@@ -816,7 +816,7 @@ export function calculerScoreSite(
   };
 }
 
-export { EVALUATEURS } from './criteres-eval.js';
+export { EVALUATEURS, LIBELLES_TYPE_SOL } from './criteres-eval.js';
 export { evaluerKnockOuts , IDS_KNOCK_OUTS, type IdKnockOut } from './knockouts.js';
 export { construireSeuilsProcedure, puissancePvEstimeeMwc } from './seuils-procedure.js';
 // Reexportes pour que les exports (PDF, CSV) presentent exactement les grandeurs notees :

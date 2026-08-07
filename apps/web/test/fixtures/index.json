@@ -1,0 +1,32 @@
+[
+  {
+    "nom": "grande-solaire",
+    "idu": "283900000A0094",
+    "filiere": "solaire_sol",
+    "pourquoi": "parcelle de 19,84 ha : cas nominal, celui deja relu"
+  },
+  {
+    "nom": "grande-eolien",
+    "idu": "283900000A0094",
+    "filiere": "eolien_terrestre",
+    "pourquoi": "meme parcelle, criteres d'eloignement et de vent"
+  },
+  {
+    "nom": "grande-bess",
+    "idu": "283900000A0094",
+    "filiere": "bess",
+    "pourquoi": "meme parcelle, profil stockage"
+  },
+  {
+    "nom": "grande-methanisation",
+    "idu": "283900000A0094",
+    "filiere": "methanisation",
+    "pourquoi": "meme parcelle, tableau d'intrants et debouches"
+  },
+  {
+    "nom": "minuscule-solaire",
+    "idu": "283900000C0843",
+    "filiere": "solaire_sol",
+    "pourquoi": "parcelle de 0,09 ha : LA PARCELLE ECARTEE, seuils de surface franchis"
+  }
+]

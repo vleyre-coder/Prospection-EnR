@@ -26,6 +26,7 @@ import { Connexion } from './components/Connexion.js';
 import { accueilDejaVu, Demarrage } from './components/Demarrage.js';
 import { useEtat } from './store/etat.js';
 import { BarreSuperieure, Icone } from './components/BarreSuperieure.js';
+import { BandeauAvertissements } from './components/BandeauAvertissements.js';
 import { PanneauGauche } from './components/PanneauGauche.js';
 import { Carte } from './components/Carte.js';
 import { FicheParcelle } from './components/FicheParcelle.js';
@@ -582,108 +583,3 @@ function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | nu
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Bandeau d'avertissements (section 12 du cahier des charges)
-// ---------------------------------------------------------------------------
-
-function BandeauAvertissements({
-  referentiel,
-  sourcesPerimees,
-  parcellesARafraichir,
-  role,
-}: {
-  referentiel: Parameters<typeof Carte>[0]['referentiel'];
-  sourcesPerimees: string[];
-  parcellesARafraichir: number | null;
-  role: 'admin' | 'prospection' | 'lecture' | null;
-}): JSX.Element | null {
-  const etat = useEtat();
-  const clientRequetes = useQueryClient();
-  const [rafraichissementEnCours, setRafraichissementEnCours] = useState(false);
-  const globaux = referentiel.avertissements.filter(
-    (a) => a.portee === 'global' && !etat.avertissementsMasques.includes(a.id),
-  );
-
-  const enRetard = parcellesARafraichir != null && parcellesARafraichir > 0;
-  // Un rafraichissement consomme le quota des sources publiques : la route le refuse a un compte en
-  // lecture seule, et l'interface ne doit pas proposer une action vouee au 403.
-  const peutRafraichir = role === 'admin' || role === 'prospection';
-  if (globaux.length === 0 && sourcesPerimees.length === 0 && !enRetard) return null;
-
-  return (
-    <>
-      {globaux.map((a) => (
-        <div key={a.id} className="bandeau">
-          <Icone nom="alerte" />
-          <p>
-            <strong>{a.titre}.</strong> {a.texte}
-          </p>
-          <button
-            type="button"
-            className="bouton-discret fermer"
-            title="Masquer pour cette session — l’avertissement reapparaitra au prochain chargement"
-            onClick={() => etat.masquerAvertissement(a.id)}
-          >
-            Masquer
-          </button>
-        </div>
-      ))}
-      {sourcesPerimees.length > 0 && (
-        <div className="bandeau">
-          <Icone nom="alerte" />
-          <p>
-            <strong>Sources a rafraichir.</strong> {sourcesPerimees.length} source(s) depassent leur
-            periodicite de mise a jour ({sourcesPerimees.join(', ')}). Les criteres concernes
-            peuvent etre obsoletes ou indisponibles.
-          </p>
-        </div>
-      )}
-      {/*
-        Retard entre la donnee ingeree et les parcelles deja qualifiees — audit 9, defaut A2.
-
-        Le score ne se calcule pas sur les couches, mais sur le snapshot fige a l'enrichissement.
-        Une ingestion de sites proteges, de ZAER ou de postes sources n'atteignait donc pas les
-        parcelles deja qualifiees : leur snapshot restait valide au sens de l'age, et le recalcul par
-        version de moteur le relisait fidelement. La carte affichait l'etat d'avant l'ingestion, sans
-        que rien ne le dise. Ouvrir une fiche repare la parcelle concernee ; ce bandeau permet de
-        reprendre le lot, et surtout de SAVOIR que le retard existe.
-      */}
-      {enRetard && (
-        <div className="bandeau">
-          <Icone nom="alerte" />
-          <p>
-            <strong>Parcelles en retard sur la donnee.</strong> {parcellesARafraichir} parcelle(s)
-            ont ete qualifiees avant la derniere ingestion de leur departement : la carte et les
-            listes affichent pour elles l&apos;etat d&apos;avant. Ouvrir une fiche met la parcelle a
-            jour{peutRafraichir ? ' ; le bouton reprend un lot' : ''}.
-          </p>
-          {/*
-            Le bouton n'apparait pas pour un compte en lecture seule : la route refuse l'operation
-            avec un 403, et un bouton qui echoue en silence est pire que pas de bouton. Le RETARD
-            reste affiche pour tout le monde — c'est une information, pas une action.
-          */}
-          {peutRafraichir && (
-          <button
-            type="button"
-            className="bouton-discret"
-            disabled={rafraichissementEnCours}
-            onClick={() => {
-              setRafraichissementEnCours(true);
-              void api
-                .rafraichirParcelles()
-                .catch(() => undefined)
-                .finally(() => {
-                  setRafraichissementEnCours(false);
-                  // La sante porte le compteur, les scores portent la carte : les deux changent.
-                  void clientRequetes.invalidateQueries();
-                });
-            }}
-          >
-            {rafraichissementEnCours ? 'Rafraichissement…' : 'Rafraichir un lot'}
-          </button>
-          )}
-        </div>
-      )}
-    </>
-  );
-}

@@ -1,0 +1,955 @@
+{
+  "total": 439,
+  "resultats": [
+    {
+      "idu": "28390000ZT0001",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZT",
+      "numero": "0001",
+      "surfaceHa": 67.14,
+      "statutScore": "gris",
+      "scoreGlobal": 77,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.4,
+      "typeSol": null,
+      "centroide": [
+        1.7455783348199738,
+        48.15809211
+      ]
+    },
+    {
+      "idu": "283900000C0844",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0844",
+      "surfaceHa": 0.52,
+      "statutScore": "gris",
+      "scoreGlobal": 74.9,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.7,
+      "typeSol": "artificialise",
+      "centroide": [
+        1.7499311312466477,
+        48.149567575000006
+      ]
+    },
+    {
+      "idu": "283900000C0843",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0843",
+      "surfaceHa": 0.08,
+      "statutScore": "gris",
+      "scoreGlobal": 74,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": "a_prospecter",
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 2.6,
+      "typeSol": "artificialise",
+      "centroide": [
+        1.7498367113668352,
+        48.14991368
+      ]
+    },
+    {
+      "idu": "283900000C0144",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0144",
+      "surfaceHa": 0.35,
+      "statutScore": "gris",
+      "scoreGlobal": 73.9,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.4,
+      "typeSol": "artificialise",
+      "centroide": [
+        1.7736360143180323,
+        48.16031773
+      ]
+    },
+    {
+      "idu": "28390000ZK0020",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZK",
+      "numero": "0020",
+      "surfaceHa": 34.09,
+      "statutScore": "gris",
+      "scoreGlobal": 73.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.4,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7703135834709203,
+        48.1503959
+      ]
+    },
+    {
+      "idu": "283900000B0209",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0B",
+      "numero": "0209",
+      "surfaceHa": 23.8,
+      "statutScore": "gris",
+      "scoreGlobal": 72.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7792845643257795,
+        48.142082735
+      ]
+    },
+    {
+      "idu": "28390000ZK0019",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZK",
+      "numero": "0019",
+      "surfaceHa": 22.47,
+      "statutScore": "gris",
+      "scoreGlobal": 72.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7734889539191916,
+        48.153862135
+      ]
+    },
+    {
+      "idu": "28390000ZS0006",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZS",
+      "numero": "0006",
+      "surfaceHa": 17.22,
+      "statutScore": "gris",
+      "scoreGlobal": 72,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.733210199320831,
+        48.15567924
+      ]
+    },
+    {
+      "idu": "28390000ZD0018",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZD",
+      "numero": "0018",
+      "surfaceHa": 31.52,
+      "statutScore": "gris",
+      "scoreGlobal": 71.7,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.1,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.789088866929625,
+        48.174462685
+      ]
+    },
+    {
+      "idu": "28390000ZS0011",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZS",
+      "numero": "0011",
+      "surfaceHa": 19.13,
+      "statutScore": "gris",
+      "scoreGlobal": 71.7,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7379215457886898,
+        48.157719045
+      ]
+    },
+    {
+      "idu": "28390000ZC0023",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZC",
+      "numero": "0023",
+      "surfaceHa": 9.6,
+      "statutScore": "gris",
+      "scoreGlobal": 71.6,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.786123417427317,
+        48.179360145000004
+      ]
+    },
+    {
+      "idu": "28390000ZI0024",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZI",
+      "numero": "0024",
+      "surfaceHa": 25.14,
+      "statutScore": "gris",
+      "scoreGlobal": 71.6,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.6,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7836529925786644,
+        48.14839331
+      ]
+    },
+    {
+      "idu": "28390000ZP0026",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZP",
+      "numero": "0026",
+      "surfaceHa": 29.92,
+      "statutScore": "gris",
+      "scoreGlobal": 71.6,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7404777265348912,
+        48.14870012
+      ]
+    },
+    {
+      "idu": "28390000ZR0021",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZR",
+      "numero": "0021",
+      "surfaceHa": 47,
+      "statutScore": "gris",
+      "scoreGlobal": 71.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7317131986933494,
+        48.145420395
+      ]
+    },
+    {
+      "idu": "28390000ZL0004",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZL",
+      "numero": "0004",
+      "surfaceHa": 11.59,
+      "statutScore": "gris",
+      "scoreGlobal": 71.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.8,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.764419293051275,
+        48.146990035
+      ]
+    },
+    {
+      "idu": "28390000ZP0025",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZP",
+      "numero": "0025",
+      "surfaceHa": 36.99,
+      "statutScore": "gris",
+      "scoreGlobal": 71.3,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.742784155087445,
+        48.141913779999996
+      ]
+    },
+    {
+      "idu": "28390000ZV0032",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZV",
+      "numero": "0032",
+      "surfaceHa": 28.38,
+      "statutScore": "gris",
+      "scoreGlobal": 71.3,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7532048495908867,
+        48.157328115
+      ]
+    },
+    {
+      "idu": "28390000ZD0003",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZD",
+      "numero": "0003",
+      "surfaceHa": 11.86,
+      "statutScore": "gris",
+      "scoreGlobal": 71.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7807814314167716,
+        48.172398935000004
+      ]
+    },
+    {
+      "idu": "283900000A0448",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0A",
+      "numero": "0448",
+      "surfaceHa": 36.33,
+      "statutScore": "gris",
+      "scoreGlobal": 71.1,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.1,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7837863424847722,
+        48.16693591
+      ]
+    },
+    {
+      "idu": "28390000ZI0023",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZI",
+      "numero": "0023",
+      "surfaceHa": 18.93,
+      "statutScore": "gris",
+      "scoreGlobal": 71.1,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.785099493470243,
+        48.143520675
+      ]
+    },
+    {
+      "idu": "28390000ZC0015",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZC",
+      "numero": "0015",
+      "surfaceHa": 9.85,
+      "statutScore": "gris",
+      "scoreGlobal": 71,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 2.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7842098519931133,
+        48.174815225
+      ]
+    },
+    {
+      "idu": "28390000ZC0018",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZC",
+      "numero": "0018",
+      "surfaceHa": 12.5,
+      "statutScore": "gris",
+      "scoreGlobal": 70.7,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.9,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7859642139496574,
+        48.177726395
+      ]
+    },
+    {
+      "idu": "28390000ZL0023",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZL",
+      "numero": "0023",
+      "surfaceHa": 13.66,
+      "statutScore": "gris",
+      "scoreGlobal": 70.7,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7776827293823263,
+        48.146954375
+      ]
+    },
+    {
+      "idu": "28390000YA0070",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "YA",
+      "numero": "0070",
+      "surfaceHa": 15.89,
+      "statutScore": "gris",
+      "scoreGlobal": 70.6,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.8,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7625247138313176,
+        48.17764009
+      ]
+    },
+    {
+      "idu": "28390000YA0069",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "YA",
+      "numero": "0069",
+      "surfaceHa": 12.75,
+      "statutScore": "gris",
+      "scoreGlobal": 70.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7609572180587607,
+        48.179841554999996
+      ]
+    },
+    {
+      "idu": "28390000ZV0008",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZV",
+      "numero": "0008",
+      "surfaceHa": 14.87,
+      "statutScore": "gris",
+      "scoreGlobal": 70.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.9,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.760514569185601,
+        48.15824713
+      ]
+    },
+    {
+      "idu": "283900000C0154",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0154",
+      "surfaceHa": 0.41,
+      "statutScore": "gris",
+      "scoreGlobal": 70.3,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.1,
+      "typeSol": "inculte",
+      "centroide": [
+        1.7501478058153275,
+        48.15107846
+      ]
+    },
+    {
+      "idu": "28390000ZH0011",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZH",
+      "numero": "0011",
+      "surfaceHa": 5.05,
+      "statutScore": "gris",
+      "scoreGlobal": 70.3,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7876549384049834,
+        48.16009086
+      ]
+    },
+    {
+      "idu": "28390000ZO0012",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZO",
+      "numero": "0012",
+      "surfaceHa": 13.99,
+      "statutScore": "gris",
+      "scoreGlobal": 70.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7554491351387735,
+        48.15104382
+      ]
+    },
+    {
+      "idu": "28390000ZS0005",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZS",
+      "numero": "0005",
+      "surfaceHa": 8.44,
+      "statutScore": "gris",
+      "scoreGlobal": 70.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.731362013962971,
+        48.157585080000004
+      ]
+    },
+    {
+      "idu": "28390000ZX0008",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZX",
+      "numero": "0008",
+      "surfaceHa": 8.48,
+      "statutScore": "gris",
+      "scoreGlobal": 70.2,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.6,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7390001784842242,
+        48.163069425
+      ]
+    },
+    {
+      "idu": "28390000ZV0006",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZV",
+      "numero": "0006",
+      "surfaceHa": 16.57,
+      "statutScore": "gris",
+      "scoreGlobal": 70.1,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.5,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7574271044300578,
+        48.158075679999996
+      ]
+    },
+    {
+      "idu": "28390000ZI0037",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZI",
+      "numero": "0037",
+      "surfaceHa": 0.58,
+      "statutScore": "gris",
+      "scoreGlobal": 70,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.8,
+      "typeSol": "inculte",
+      "centroide": [
+        1.7790147323102805,
+        48.156219809999996
+      ]
+    },
+    {
+      "idu": "28390000ZH0044",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZH",
+      "numero": "0044",
+      "surfaceHa": 8.56,
+      "statutScore": "gris",
+      "scoreGlobal": 69.9,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7832157684319403,
+        48.161413345
+      ]
+    },
+    {
+      "idu": "28390000ZV0009",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZV",
+      "numero": "0009",
+      "surfaceHa": 9.98,
+      "statutScore": "gris",
+      "scoreGlobal": 69.9,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7629972931227755,
+        48.15860118
+      ]
+    },
+    {
+      "idu": "28390000ZP0029",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZP",
+      "numero": "0029",
+      "surfaceHa": 9.09,
+      "statutScore": "gris",
+      "scoreGlobal": 69.7,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.9,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7378912926901635,
+        48.140791265
+      ]
+    },
+    {
+      "idu": "28212000ZB0008",
+      "nomCommune": "Loigny-la-Bataille",
+      "section": "ZB",
+      "numero": "0008",
+      "surfaceHa": 8.14,
+      "statutScore": "gris",
+      "scoreGlobal": 69.6,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.7,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7638626518322722,
+        48.14126234
+      ]
+    },
+    {
+      "idu": "28212000ZB0028",
+      "nomCommune": "Loigny-la-Bataille",
+      "section": "ZB",
+      "numero": "0028",
+      "surfaceHa": 7.57,
+      "statutScore": "gris",
+      "scoreGlobal": 69.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.9,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7653786823264346,
+        48.140429725000004
+      ]
+    },
+    {
+      "idu": "283900000C0904",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0904",
+      "surfaceHa": 0.46,
+      "statutScore": "gris",
+      "scoreGlobal": 69.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 2,
+      "typeSol": "inculte",
+      "centroide": [
+        1.7498114452419244,
+        48.152123024999995
+      ]
+    },
+    {
+      "idu": "28390000ZL0030",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZL",
+      "numero": "0030",
+      "surfaceHa": 7.31,
+      "statutScore": "gris",
+      "scoreGlobal": 69.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.2,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7723591078250562,
+        48.143633460000004
+      ]
+    },
+    {
+      "idu": "28390000ZS0012",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZS",
+      "numero": "0012",
+      "surfaceHa": 7.5,
+      "statutScore": "gris",
+      "scoreGlobal": 69.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7399426885337275,
+        48.15972853
+      ]
+    },
+    {
+      "idu": "28390000ZY0037",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZY",
+      "numero": "0037",
+      "surfaceHa": 3.59,
+      "statutScore": "gris",
+      "scoreGlobal": 69.5,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.6,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7645753513576476,
+        48.169604975
+      ]
+    },
+    {
+      "idu": "28390000ZH0040",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZH",
+      "numero": "0040",
+      "surfaceHa": 7.44,
+      "statutScore": "gris",
+      "scoreGlobal": 69.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.6,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7830669833485278,
+        48.156931905
+      ]
+    },
+    {
+      "idu": "28390000ZK0013",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZK",
+      "numero": "0013",
+      "surfaceHa": 7.96,
+      "statutScore": "gris",
+      "scoreGlobal": 69.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.9,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.765274836844721,
+        48.154561395
+      ]
+    },
+    {
+      "idu": "28390000ZL0007",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZL",
+      "numero": "0007",
+      "surfaceHa": 7.57,
+      "statutScore": "gris",
+      "scoreGlobal": 69.4,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7670399256491849,
+        48.14588594
+      ]
+    },
+    {
+      "idu": "28390000ZI0031",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZI",
+      "numero": "0031",
+      "surfaceHa": 9.37,
+      "statutScore": "gris",
+      "scoreGlobal": 69.3,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7796100994859012,
+        48.15299455
+      ]
+    },
+    {
+      "idu": "28390000ZP0033",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZP",
+      "numero": "0033",
+      "surfaceHa": 8,
+      "statutScore": "gris",
+      "scoreGlobal": 69.1,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.1,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7443231211190264,
+        48.146194115
+      ]
+    },
+    {
+      "idu": "28390000ZD0004",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZD",
+      "numero": "0004",
+      "surfaceHa": 5.95,
+      "statutScore": "gris",
+      "scoreGlobal": 69,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.8,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7799818774136207,
+        48.170395875
+      ]
+    },
+    {
+      "idu": "28390000ZS0007",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "ZS",
+      "numero": "0007",
+      "surfaceHa": 5.38,
+      "statutScore": "gris",
+      "scoreGlobal": 69,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 0.4,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.73456408191554,
+        48.153878595
+      ]
+    },
+    {
+      "idu": "283900000C0258",
+      "nomCommune": "Tillay-le-Péneux",
+      "section": "0C",
+      "numero": "0258",
+      "surfaceHa": 1.66,
+      "statutScore": "gris",
+      "scoreGlobal": 68.9,
+      "nbKnockOutsBloquants": 0,
+      "statutProspection": null,
+      "distancePosteKm": null,
+      "lineaireRaccordementKm": null,
+      "pentePct": 1.3,
+      "typeSol": "agricole_exploite",
+      "centroide": [
+        1.7508596273361903,
+        48.151632414999995
+      ]
+    }
+  ]
+}

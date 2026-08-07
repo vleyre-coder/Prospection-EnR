@@ -193,8 +193,21 @@ function typesLus(source: string): Set<string> {
 function typesEcrits(): Set<string> {
   const nu = sansCommentaires(concatener(['../src/ingestion/'], false));
   const ecrits = new Set<string>();
-  // Le seul `INSERT INTO contrainte` du depot ecrit son type en litteral dans le SELECT.
-  const inserts = nu.matchAll(/INSERT\s+INTO\s+contrainte[\s\S]{0,900}?(?:;|`)/gi);
+  /**
+   * Chaque `INSERT INTO contrainte` ecrit son type en litteral dans le SELECT.
+   *
+   * LA BORNE DE 900 CARACTERES A ETE RETIREE, et elle merite une explication : elle a casse ce test.
+   * Ajouter dix lignes de commentaire dans la requete d'ingestion du patrimoine culturel a repousse
+   * le backtick fermant au-dela de la fenetre ; la requete entiere cessait alors d'etre reconnue, et
+   * le test annoncait « les monuments historiques doivent etre ingeres » — c'est-a-dire un defaut
+   * d'ingestion, alors que rien de l'ingestion n'avait change.
+   *
+   * Un nombre magique dans un garde structurel est une bombe a retardement : il ne se declenche pas
+   * a l'ecriture, mais le jour ou quelqu'un allonge le code surveille, et il accuse alors le mauvais
+   * coupable. Or la borne etait inutile : le litteral SQL est delimite par des backticks et n'en
+   * contient aucun, donc `[^\`]*` s'arrete exactement ou il faut, quelle que soit la longueur.
+   */
+  const inserts = nu.matchAll(/INSERT\s+INTO\s+contrainte[^`;]*(?:;|`)/gi);
   for (const bloc of inserts) {
     for (const m of bloc[0].matchAll(/SELECT\s+'([a-z_]+)'/gi)) ecrits.add(m[1]!);
   }

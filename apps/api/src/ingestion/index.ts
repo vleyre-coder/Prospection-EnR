@@ -343,7 +343,19 @@ export async function ingererPatrimoine(): Promise<{
            geom = EXCLUDED.geom,
            attributs = EXCLUDED.attributs,
            code_departement = EXCLUDED.code_departement,
-           date_donnee = EXCLUDED.date_donnee`,
+           date_donnee = EXCLUDED.date_donnee,
+           -- REVUE PAR CETTE INGESTION. Sans cette ligne, rien ne distingue un objet reecrit d'un
+           -- objet oublie : effacerDisparus compte comme « disparu de la source » toute ligne dont
+           -- updated_at precede le debut du run.
+           --
+           -- Ce connecteur n'est PAS encore soumis a l'effacement : seuls zaer_local et
+           -- patrimoine_sites le sont. Le defaut n'etait donc pas actif, c'etait un piege pose pour
+           -- plus tard. Le jour ou quelqu'un branche l'effacement sur le patrimoine culturel, tous
+           -- les monuments passeraient d'un coup pour disparus. Le plafond de volumetrie les
+           -- sauverait (100 % depasse largement les 20 %), mais la suppression ne fonctionnerait
+           -- alors JAMAIS pour ce connecteur, et l'avertissement tomberait a chaque ingestion sans
+           -- que sa cause soit visible. Trouve en verifiant le risque F4 de l'audit 10.
+           updated_at = now()`,
         [
           lot.map((l) => l[0]),
           lot.map((l) => l[1]),

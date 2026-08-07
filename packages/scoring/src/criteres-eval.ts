@@ -600,7 +600,19 @@ const NOTES_TYPE_SOL: Record<Filiere, Record<TypeSol, number>> = {
   },
 };
 
-const LIBELLES_TYPE_SOL: Record<TypeSol, string> = {
+/**
+ * Libelles lisibles des natures de sol.
+ *
+ * EXPORTE, et la raison vient d'une relecture. Le rapport PDF ecrivait « Occupation du sol :
+ * agricole_exploite » — la valeur d'enumeration brute — a la ligne suivant « Contenance cadastrale :
+ * 19,84 ha ». La fiche, au meme instant, affichait « Terrain agricole exploite », parce qu'elle lit
+ * le critere evalue, qui passe par cette table. Les deux livrables designaient la meme chose par deux
+ * noms differents, et le document remis a un tiers portait le moins lisible des deux.
+ *
+ * La table existait donc deja, complete et juste : elle etait simplement hors d'atteinte de
+ * l'export. Un libelle est une decision de vocabulaire ; il ne doit exister qu'a un seul endroit.
+ */
+export const LIBELLES_TYPE_SOL: Record<TypeSol, string> = {
   artificialise: 'Terrain artificialise',
   degrade: 'Terrain degrade (ancienne carriere, friche, decharge...)',
   inculte: 'Terrain inculte ou non exploite',

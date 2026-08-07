@@ -484,7 +484,15 @@ function LigneCritere({
             <div style={{ width: `${Math.min(100, critere.poids * 400)}%` }} />
           </span>
           <span className="chiffre">
-            poids {(critere.poids * 100).toFixed(1)} %
+            {/*
+              `formatNombre` et non `toFixed` : ce dernier ecrit un point decimal, et cette ligne
+              s'affiche a cote de « 19,05 ha » sur la meme fiche. C'est le defaut B1 de l'audit 10 —
+              deux conventions typographiques dans une meme phrase francaise — a l'endroit ou son
+              garde ne regardait pas : celui-ci inspecte les chaines produites par le MOTEUR, et le
+              poids est mis en forme par l'interface elle-meme. Mesure sur les cinq fiches reelles
+              capturees : 29 occurrences par fiche, une par critere.
+            */}
+            poids {formatNombre(critere.poids * 100, '%', 1)}
             {critere.note != null && ` · note ${Math.round(critere.note)}/100`}
           </span>
         </span>
@@ -638,7 +646,15 @@ function zonageTexte(z: { recouvre: boolean | null; distanceM: number | null; no
   if (z.distanceM == null) return <>hors zonage</>;
   return (
     <>
-      {z.distanceM < 1000 ? `${Math.round(z.distanceM)} m` : `${(z.distanceM / 1000).toFixed(1)} km`}
+      {/*
+        Meme correction qu'au poids des criteres : `toFixed` ecrivait « 7.8 km » dans une fiche qui
+        ecrit « 19,05 ha » deux lignes plus haut. La precision est conservee a une decimale — le
+        defaut est le separateur, pas le nombre de chiffres, et changer ce dernier depasserait la
+        correction.
+      */}
+      {z.distanceM < 1000
+        ? `${Math.round(z.distanceM)} m`
+        : formatNombre(z.distanceM / 1000, 'km', 1)}
       {z.nom ? ` — ${z.nom}` : ''}
     </>
   );

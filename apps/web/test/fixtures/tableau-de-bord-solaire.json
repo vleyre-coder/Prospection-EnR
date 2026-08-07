@@ -1,0 +1,21 @@
+{
+  "parStatut": {
+    "a_prospecter": 1
+  },
+  "surfaceSecuriseeHa": 0,
+  "surfaceEnNegociationHa": 0,
+  "evolution": [
+    {
+      "mois": "2026-08",
+      "nouveaux": 1,
+      "securises": 0
+    }
+  ],
+  "repartitionScores": {
+    "vert": 0,
+    "orange": 0,
+    "rouge": 0,
+    "gris": 439,
+    "total": 439
+  }
+}
