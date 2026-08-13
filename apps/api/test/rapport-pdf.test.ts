@@ -29,6 +29,7 @@ import { construireServeur } from '../src/serveur.js';
 import { pool, requete } from '../src/bdd.js';
 import { FILIERES, FILIERES_META } from '@enr/core';
 import { texteDuPdf } from './aides/texte-pdf.js';
+import { effacerDepartement, lireFiches, reidentifier, semerFiche } from './aides/semer-fiches.js';
 
 const SECRET = 'secret-de-test-uniquement';
 
@@ -57,34 +58,43 @@ const PARCELLES = new Map<string, string>();
 /** Filiere -> IDU d'une parcelle ECARTEE (statut rouge) dans cette filiere, s'il en existe une. */
 const ECARTEES = new Map<string, string>();
 
+/** Commune fictive : aucune donnee reelle ne porte le departement 99. */
+const DEP_FICTIF = '99';
+const INSEE_FICTIF = '99001';
+
 before(async () => {
   if (!process.env['DATABASE_URL']) return;
   /**
-   * UNE PARCELLE PAR FILIERE, choisie par la base, et jamais un IDU ecrit en dur.
+   * LES CAS SONT SEMES, PLUS CHERCHES DANS LA BASE — et c'est un correctif, pas un choix initial.
    *
-   * Deux lecons sont inscrites dans cette requete, toutes deux apprises en echouant.
+   * La version precedente les choisissait par requete : « la plus grande parcelle qualifiee dans chaque
+   * filiere ». L'intention etait juste — ne jamais ecrire un identifiant en dur, travailler sur de la
+   * donnee reelle — mais la PORTEE du test devenait une propriete de la machine. Verifie par mutation :
    *
-   * D'abord, le rapport exige non seulement un instantane mais une ligne de SCORE pour la filiere
-   * demandee, sans quoi la route repond 404 « parcelle_non_qualifiee ». Ma premiere version prenait la
-   * plus grande parcelle disposant d'un instantane : elle n'etait qualifiee qu'en solaire, et trois
-   * filieres sur quatre echouaient pour une raison etrangere a ce que le test verifie.
+   *   - base vierge fraichement migree, celle de la CI : aucune parcelle, le fichier s'ignorait en
+   *     entier, et les deux mutations qui retablissent les defauts de cette relecture passaient. Le job
+   *     de mutation de la CI echouait, en signalant a juste titre deux tests decoratifs ;
+   *   - base semee pour les tests de bout en bout : une seule filiere, et la plus grande parcelle se
+   *     trouvait n'avoir aucune nature de sol renseignee — la mutation qui replace le libelle par la cle
+   *     d'enumeration ne produisait alors rien a trouver.
    *
-   * Ensuite, exiger UNE parcelle qualifiee dans les quatre filieres a la fois est une condition bien
-   * trop forte : la base d'essai n'en comptait qu'une seule. Sur une base ou aucune ne remplit la
-   * condition, le fichier entier serait passe en « ignore », en silence — la couverture aurait disparu
-   * sans que rien ne le signale. Une parcelle par filiere suffit, et se trouve presque toujours.
+   * La donnee semee reste REELLE : ce sont les fiches capturees pour les tests de rendu, avec leurs
+   * geometries, leurs instantanes et leurs scores — dont la parcelle ECARTEE en eolien, le cas ou se
+   * trouvait « Fondement : eol_distance_habitation ». Elles sont seulement REIDENTIFIEES vers une
+   * commune fictive : un test ne doit jamais ecrire sur l'identifiant d'une parcelle veritable, qui
+   * existerait dans la base de production de quelqu'un.
    */
-  const lignes = await requete<{ filiere: string; idu: string; statut: string }>(
-    `SELECT DISTINCT ON (sc.filiere, sc.detail->>'statut' = 'rouge')
-            sc.filiere, sc.idu, coalesce(sc.detail->>'statut', '') AS statut
-       FROM score_parcelle_filiere sc
-       JOIN parcelle p ON p.idu = sc.idu
-       JOIN parcelle_snapshot s ON s.idu = sc.idu
-      ORDER BY sc.filiere, sc.detail->>'statut' = 'rouge' DESC, p.contenance_m2 DESC, sc.idu`,
-  );
-  for (const l of lignes) {
-    if (!PARCELLES.has(l.filiere)) PARCELLES.set(l.filiere, l.idu);
-    if (l.statut === 'rouge' && !ECARTEES.has(l.filiere)) ECARTEES.set(l.filiere, l.idu);
+  await effacerDepartement(DEP_FICTIF);
+  for (const { fiche } of lireFiches()) {
+    const semee = reidentifier(fiche, {
+      codeInsee: INSEE_FICTIF,
+      codeDepartement: DEP_FICTIF,
+      nomCommune: 'Commune fictive de relecture',
+    });
+    await semerFiche(semee);
+    const f = semee.score.filiere;
+    if (!PARCELLES.has(f)) PARCELLES.set(f, semee.parcelle.idu);
+    if (semee.score.statut === 'rouge' && !ECARTEES.has(f)) ECARTEES.set(f, semee.parcelle.idu);
   }
   if (PARCELLES.size === 0) return;
   app = await construireServeur({ secretJwt: SECRET });
@@ -108,6 +118,7 @@ before(async () => {
 
 after(async () => {
   await app?.close();
+  if (process.env['DATABASE_URL']) await effacerDepartement(DEP_FICTIF).catch(() => undefined);
   await pool.end().catch(() => undefined);
 });
 
@@ -161,6 +172,32 @@ function pointsDecimaux(t: string): string[] {
     .map((m) => m[0])
     .filter((s) => s.split('.').length === 2);
 }
+
+test('LA PORTEE EST EXIGEE, plus seulement annoncee', () => {
+  /**
+   * LE GARDE QUI MANQUAIT, et son absence a casse la CI. Ce fichier annoncait sa portee reduite sur la
+   * sortie d'erreur — c'est ce qui a permis de comprendre le probleme — mais il PASSAIT quand cette
+   * portee tombait a zero. Une garde qui disparait sans faire echouer quoi que ce soit ne garde rien.
+   *
+   * Maintenant que les cas sont semes et non cherches, la portee ne depend plus de la base : elle
+   * depend des fixtures, qui sont dans le depot. L'exiger est donc legitime, et cela verrouille les deux
+   * conditions sans lesquelles les defauts de cette relecture redeviendraient invisibles — les QUATRE
+   * filieres, et AU MOINS UNE parcelle ecartee.
+   */
+  if (ignorer()) return;
+  assert.deepEqual(
+    CAS.map((c) => c.filiere).filter((f) => !PARCELLES.has(f)),
+    [],
+    'filiere(s) sans cas semé : les fixtures ne couvrent plus les quatre filieres, et la relecture ' +
+      'perd des pages entieres (rubriques IOTA de la methanisation, eloignements de l’eolien).',
+  );
+  assert.ok(
+    ECARTEES.size > 0,
+    'aucune parcelle ECARTEE parmi les fixtures : c’est le cas ou se trouvait « Fondement : ' +
+      'eol_distance_habitation », une cle de code donnee comme base juridique dans un document remis ' +
+      'a un proprietaire. Sans lui, ce defaut redevient invisible.',
+  );
+});
 
 test('les quatre filieres produisent chacune leur propre rapport', async () => {
   if (ignorer()) return;

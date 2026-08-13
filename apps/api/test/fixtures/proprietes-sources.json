@@ -1,5 +1,8 @@
 {
   "_capture": "2026-08-05",
+  "_capture_par_endpoint": {
+    "geopf/tms/PCI/parcelle": "2026-08-13"
+  },
   "endpoints": {
     "apicarto/cadastre/commune": [
       "code_dep",
@@ -559,6 +562,21 @@
       "surf_off",
       "territoire",
       "url_fiche"
+    ],
+    "geopf/tms/PCI/parcelle": [
+      "code_arr",
+      "code_com",
+      "code_dep",
+      "code_insee",
+      "com_abs",
+      "contenance",
+      "feuille",
+      "fid",
+      "gid",
+      "idu",
+      "nom_com",
+      "numero",
+      "section"
     ]
   }
 }

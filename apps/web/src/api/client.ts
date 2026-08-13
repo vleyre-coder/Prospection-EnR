@@ -258,6 +258,19 @@ export interface DemandeEnAttente {
   nbParcellesEstime: number | null;
 }
 
+/** Ce qu'une campagne de qualification a laisse de cote. */
+export interface CouvertureCampagne {
+  ecarteesSurface: number;
+  surfaceMinM2: number;
+  cellulesEnEchec: number;
+  cellulesSautees: number;
+  cellulesTotal: number;
+  plafondAtteint: boolean;
+  ignoreesPlafond: number;
+  /** Phrase prete a afficher, ou `null` si rien ne manque. */
+  avertissement: string | null;
+}
+
 export interface EtatQualification {
   enCours: boolean;
   phase: 'recuperation' | 'enrichissement' | 'terminee' | 'aucune';
@@ -268,6 +281,13 @@ export interface EtatQualification {
   finLe: string | null;
   message: string | null;
   resteSecondes: number | null;
+  /**
+   * Ce que la campagne n'a PAS couvert : filtre de surface, plafond de lot, secteurs non recuperes.
+   *
+   * `null` quand la couverture est complete ou pas encore connue. La phrase est composee par le
+   * serveur, qui seul sait ce qui a ete tronque.
+   */
+  couverture: CouvertureCampagne | null;
   /**
    * Demandes acceptees mais pas encore demarrees. Une seule campagne s'execute a la fois,
    * parce que les sources publiques plafonnent a une requete par seconde ; les demandes
@@ -408,7 +428,8 @@ export interface ResultatRecherche {
   type: 'parcelle' | 'adresse' | 'commune' | 'coordonnees' | 'poste_source';
   libelle: string;
   sousTitre: string | null;
-  centroide: [number, number];
+  /** `null` quand la position est inconnue — voir `ResultatRecherche` cote API. */
+  centroide: [number, number] | null;
   bbox: [number, number, number, number] | null;
   idu: string | null;
   codeInsee: string | null;
@@ -527,7 +548,31 @@ export const api = {
       nbEnrichies?: number;
       nbEchecs?: number;
       dureeMs?: number;
+      /** Parcelles du secteur ecartees par le filtre de surface : elles n'ont PAS ete qualifiees. */
+      nbEcarteesSurface?: number;
+      /** Seuil applique, en m2 : le nombre ci-dessus n'a de sens qu'avec lui. */
+      surfaceMinAppliqueeM2?: number | null;
     }>('/api/qualification/emprise', { methode: 'POST', corps: { bbox, filiere, surfaceMinM2 } }),
+
+  /**
+   * Qualifie des parcelles DESIGNEES une a une, par leur identifiant.
+   *
+   * Le chemin existait cote serveur et n'etait appele par personne : l'interface ne savait qualifier
+   * qu'une EMPRISE. Or une emprise applique un filtre de surface et un plafond de lot, si bien qu'une
+   * parcelle precise pouvait rester invisible apres une campagne — le signalement d'usage a l'origine
+   * de ce correctif. Designer une parcelle ne passe par aucun de ces deux filtres.
+   */
+  qualifierParcelles: (idus: string[], filiere?: Filiere, forcer?: boolean) =>
+    appeler<{
+      nbParcelles: number;
+      nbEnrichies: number;
+      nbEchecs: number;
+      dureeMs: number;
+      echecsParConnecteur: Record<string, number>;
+    }>('/api/qualification/parcelles', {
+      methode: 'POST',
+      corps: { idus, ...(filiere ? { filiere } : {}), ...(forcer ? { forcer } : {}) },
+    }),
 
   etatQualification: () => appeler<EtatQualification>('/api/qualification/etat'),
 
@@ -555,7 +600,16 @@ export const api = {
     }>(`/api/carte/zonage/${id}?bbox=${bbox.join(',')}`),
 
   estimerEmprise: (bbox: [number, number, number, number], surfaceMinM2?: number) =>
-    appeler<{ nbEstime: number; dureeEstimeeMin: number; nbCellules: number }>(
+    appeler<{
+      nbEstime: number;
+      dureeEstimeeMin: number;
+      nbCellules: number;
+      /** Parcelles que le filtre de surface ecartera, extrapolees depuis la sonde. */
+      nbEcarteesEstime: number;
+      surfaceMinM2: number;
+      /** Vrai si l'emprise depasse le plafond de lot : la campagne ne la couvrira pas en entier. */
+      plafonne: boolean;
+    }>(
       '/api/qualification/estimation',
       { methode: 'POST', corps: { bbox, surfaceMinM2 } },
     ),

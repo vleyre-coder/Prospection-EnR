@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type ExpressionSpecification, type Map as CarteMapLibre } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { volOiseauPourLineaireKm, type Feu } from '@enr/core';
+import { volOiseauPourLineaireKm, type Feu, type ProprietesTuileParcelle } from '@enr/core';
 import {
   api,
   jetonEnregistre,
@@ -25,6 +25,7 @@ import {
 } from '../api/client.js';
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
+import { decisionClicCadastre } from '../utils/clic-cadastre.js';
 
 /**
  * Cadrage d'ouverture : la France metropolitaine entiere, Corse comprise.
@@ -165,6 +166,19 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   const [fondViaRelais, setFondViaRelais] = useState(false);
   /** Message d'echec d'installation des couches metier, affiche plutot que masque. */
   const [couchesEnEchec, setCouchesEnEchec] = useState<string | null>(null);
+  /**
+   * Qualification d'une parcelle DESIGNEE au clic sur le cadastre.
+   *
+   * Le retour doit etre visible : l'interrogation des quatorze sources demande plusieurs secondes, et
+   * un clic sans reponse se lit comme un clic ignore — c'est-a-dire comme le defaut que ce chantier
+   * corrige.
+   */
+  const [qualifClic, setQualifClic] = useState<{
+    idu: string;
+    libelle: string;
+    etat: 'en_cours' | 'ok' | 'echec';
+    message: string;
+  } | null>(null);
 
   const etat = useEtat();
   const {
@@ -791,6 +805,70 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       }
     };
 
+    /**
+     * CLIC SUR UNE PARCELLE NON QUALIFIEE — le geste qui manquait.
+     *
+     * POURQUOI. Le signalement d'usage : une parcelle precise etait introuvable. Le cadastre complet
+     * s'affiche maintenant, mais le VOIR ne suffit pas — il faut pouvoir l'etudier. Or la seule facon
+     * de lancer une qualification etait « Qualifier l'emprise », qui applique un filtre de surface et
+     * un plafond de lot : une parcelle donnee pouvait rester non qualifiee apres une campagne, sans
+     * qu'aucun message ne le dise. Designer la parcelle ne passe par aucun de ces deux filtres.
+     */
+    const surClicCadastre = (e: maplibregl.MapLayerMouseEvent): void => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const decision = decisionClicCadastre({
+        proprietes: f.properties as ProprietesTuileParcelle,
+        // La couche cadastrale est dessinee SOUS les parcelles qualifiees : MapLibre declenche les
+        // DEUX gestionnaires lorsqu'un clic touche les deux couches.
+        parcelleQualifieeSousLeCurseur:
+          m.queryRenderedFeatures(e.point, { layers: ['parcelles-remplissage'] }).length > 0,
+        outil: etatRef.current.outil,
+      });
+      if (decision.action === 'ignorer') return;
+      if (decision.action === 'refuser') {
+        setQualifClic({ idu: '', libelle: decision.libelle, etat: 'echec', message: decision.message });
+        return;
+      }
+      const { idu, libelle } = decision;
+
+      setQualifClic({
+        idu,
+        libelle,
+        etat: 'en_cours',
+        message: 'Interrogation des sources officielles… quelques secondes.',
+      });
+      void api
+        .qualifierParcelles([idu], etatRef.current.filiere)
+        .then((r) => {
+          if (r.nbEnrichies > 0) {
+            // Les tuiles sont en cache navigateur : sans rechargement, la parcelle resterait grise.
+            (m.getSource('parcelles') as maplibregl.VectorTileSource | undefined)?.setTiles([
+              `${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etatRef.current.filiere}&t=${Date.now()}`,
+            ]);
+            etatRef.current.selectionnerParcelle(idu);
+            setQualifClic({ idu, libelle, etat: 'ok', message: 'Parcelle qualifiee — fiche ouverte.' });
+          } else {
+            setQualifClic({
+              idu,
+              libelle,
+              etat: 'echec',
+              message:
+                'La qualification n’a pas abouti : les sources officielles n’ont pas rendu cette ' +
+                'parcelle. Reessayez dans un moment.',
+            });
+          }
+        })
+        .catch((err: { message?: string }) => {
+          setQualifClic({
+            idu,
+            libelle,
+            etat: 'echec',
+            message: err.message ?? 'Echec de la qualification.',
+          });
+        });
+    };
+
     const surClicCommune = (e: maplibregl.MapLayerMouseEvent): void => {
       const f = e.features?.[0];
       if (!f) return;
@@ -823,9 +901,12 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     };
 
     m.on('click', 'parcelles-remplissage', surClic);
+    m.on('click', 'cadastre-surface', surClicCadastre);
     m.on('click', 'communes-remplissage', surClicCommune);
     m.on('mouseenter', 'parcelles-remplissage', curseurPointeur);
     m.on('mouseleave', 'parcelles-remplissage', curseurNormal);
+    m.on('mouseenter', 'cadastre-surface', curseurPointeur);
+    m.on('mouseleave', 'cadastre-surface', curseurNormal);
     for (const c of ['postes-grd', 'postes-rte']) {
       m.on('mousemove', c, surSurvolPoste);
       m.on('mouseleave', c, surSortiePoste);
@@ -833,9 +914,12 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
 
     return () => {
       m.off('click', 'parcelles-remplissage', surClic);
+      m.off('click', 'cadastre-surface', surClicCadastre);
       m.off('click', 'communes-remplissage', surClicCommune);
       m.off('mouseenter', 'parcelles-remplissage', curseurPointeur);
       m.off('mouseleave', 'parcelles-remplissage', curseurNormal);
+      m.off('mouseenter', 'cadastre-surface', curseurPointeur);
+      m.off('mouseleave', 'cadastre-surface', curseurNormal);
       for (const c of ['postes-grd', 'postes-rte']) {
         m.off('mousemove', c, surSurvolPoste);
         m.off('mouseleave', c, surSortiePoste);
@@ -1216,6 +1300,32 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
             Les parcelles, les scores et les contraintes ne peuvent pas s&apos;afficher :{' '}
             {couchesEnEchec}. Rechargez la page ; si le probleme persiste, signalez ce message.
           </p>
+        </div>
+      )}
+
+      {/* Retour de la qualification lancee au clic sur une parcelle non qualifiee.
+          `status` et `aria-live` : l'operation dure plusieurs secondes et son resultat n'est
+          annonce nulle part ailleurs. Sans ce retour, le clic paraitrait ignore — exactement
+          l'impression que ce chantier corrige. */}
+      {qualifClic && (
+        <div
+          className={qualifClic.etat === 'echec' ? 'erreur-encart' : 'indice-zoom'}
+          style={{ position: 'absolute', bottom: 68, left: 12, right: 12, zIndex: 5 }}
+          role="status"
+          aria-live="polite"
+        >
+          <strong>Parcelle {qualifClic.libelle}</strong>
+          {qualifClic.etat === 'en_cours' && <span className="tourniquet" style={{ margin: '0 6px' }} />}
+          {' — '}
+          {qualifClic.message}
+          <button
+            type="button"
+            className="bouton-discret"
+            style={{ marginLeft: 8 }}
+            onClick={() => setQualifClic(null)}
+          >
+            Fermer
+          </button>
         </div>
       )}
 

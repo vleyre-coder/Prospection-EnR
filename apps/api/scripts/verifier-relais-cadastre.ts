@@ -71,8 +71,64 @@ async function principal(): Promise<void> {
   console.log(`\nZoom 8 (vue large) : ${repLarge.statusCode} — attendu 204, le cadastre n'y est pas relaye.`);
 
   console.log(`\n${servies} lieu(x) sur ${LIEUX.length - 1} terrestres servis avec une tuile non vide.`);
+
+  /**
+   * LES ATTRIBUTS DE LA TUILE, decodes et non supposes.
+   *
+   * L'interface doit composer l'identifiant d'une parcelle CLIQUEE a partir des attributs que porte la
+   * tuile. Si un seul nom d'attribut differe de ce que le code lit, l'identifiant est faux ou vide, et
+   * l'echec est MUET — exactement la famille de defauts que l'audit 6 avait trouvee sur `typedoc` et
+   * `sitename`. Les noms sont donc releves sur une tuile reelle, puis figes dans une fixture que
+   * `contrats-sources` verifie.
+   */
+  const t = tuilePour(1.79, 48.157, 16);
+  const rep = await app.inject({
+    method: 'GET',
+    url: `/api/carte/cadastre/${t.z}/${t.x}/${t.y}.pbf`,
+    headers: entetes,
+  });
+  if (rep.statusCode === 200) {
+    const proprietes = await proprietesDeTuile(rep.rawPayload);
+    console.log('\nAttributs de la couche « parcelle » sur la tuile 16/' + `${t.x}/${t.y} :`);
+    for (const [couche, champs] of Object.entries(proprietes)) {
+      console.log(`  ${couche} : ${champs.join(', ')}`);
+    }
+    console.log('\nExemple de premiere entite :');
+    console.log('  ' + JSON.stringify(await premiereEntite(rep.rawPayload)));
+  }
+
   await app.close();
   await pool.end();
+}
+
+/**
+ * Noms d'attributs par couche d'une tuile vectorielle.
+ *
+ * `@mapbox/vector-tile` et `pbf` arrivent avec MapLibre : ce script les emprunte pour LIRE une tuile
+ * que nous servons. Ce sont des dependances de l'interface, employees ici dans un script de
+ * verification — pas dans le code de production, qui ne decode aucune tuile cote serveur.
+ */
+async function proprietesDeTuile(brut: Buffer): Promise<Record<string, string[]>> {
+  const { VectorTile } = await import('@mapbox/vector-tile');
+  const Pbf = (await import('pbf')).default;
+  const tuile = new VectorTile(new Pbf(new Uint8Array(brut)));
+  const out: Record<string, string[]> = {};
+  for (const [nom, couche] of Object.entries(tuile.layers)) {
+    const champs = new Set<string>();
+    for (let i = 0; i < couche.length; i += 1) {
+      for (const cle of Object.keys(couche.feature(i).properties)) champs.add(cle);
+    }
+    out[nom] = [...champs].sort();
+  }
+  return out;
+}
+
+async function premiereEntite(brut: Buffer): Promise<unknown> {
+  const { VectorTile } = await import('@mapbox/vector-tile');
+  const Pbf = (await import('pbf')).default;
+  const tuile = new VectorTile(new Pbf(new Uint8Array(brut)));
+  const couche = tuile.layers['parcelle'];
+  return couche && couche.length > 0 ? couche.feature(0).properties : null;
 }
 
 principal().catch((err) => {

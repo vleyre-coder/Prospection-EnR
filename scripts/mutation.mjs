@@ -449,6 +449,160 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-bandeau.test.ts', 'test/rendu-liste-tableau.test.ts'],
   },
+
+  // --- Signalement d'usage : toutes les parcelles de France doivent etre atteignables -------------
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'la recherche par identifiant redevient aveugle a toute parcelle non qualifiee',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '  const enBase = await parcelleEnResultat(idu);\n  if (enBase) return enBase;',
+    vers: '  const enBase = await parcelleEnResultat(idu);\n  return enBase;',
+    tests: ['apps/api/test/recherche-parcelle-inconnue.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'une position inconnue redevient le sentinelle [0, 0] — le golfe de Guinee',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "      sousTitre: `${idu} - cadastre injoignable, existence non verifiee - a qualifier`,\n      centroide: null,",
+    vers: "      sousTitre: `${idu} - cadastre injoignable, existence non verifiee - a qualifier`,\n      centroide: [0, 0],",
+    tests: ['apps/api/test/recherche-parcelle-inconnue.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'un identifiant absent du cadastre redevient une parcelle affirmee « a qualifier »',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '  if (!brute) return null;\n\n  return {\n    type: \'parcelle\',\n    libelle: `Parcelle ${brute.section} ${brute.numero}`,',
+    vers: '  if (!brute) {\n    return {\n      type: \'parcelle\',\n      libelle: `Parcelle ${section} ${numero}`,\n      sousTitre: `${idu} - a qualifier`,\n      centroide: null,\n      bbox: null,\n      idu,\n      codeInsee,\n    };\n  }\n\n  return {\n    type: \'parcelle\',\n    libelle: `Parcelle ${brute.section} ${brute.numero}`,',
+    tests: ['apps/api/test/recherche-parcelle-inconnue.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'un numero de parcelle court est complete a DROITE — « 2 » devient 2000',
+    fichier: 'packages/core/src/snapshot.ts',
+    de: "  const numero = parties.numero.trim().padStart(4, '0').slice(-4);",
+    vers: "  const numero = parties.numero.trim().padEnd(4, '0').slice(-4);",
+    construire: '@enr/core',
+    tests: ['packages/core/test/composer-idu.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'cliquer une parcelle DEJA qualifiee relance une qualification par-dessus sa fiche',
+    fichier: 'apps/web/src/utils/clic-cadastre.ts',
+    de: "  if (arg.parcelleQualifieeSousLeCurseur) return { action: 'ignorer' };",
+    vers: '  // depart retire',
+    cwd: 'apps/web',
+    tests: ['test/clic-cadastre.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'un clic de mesure ou de selection declenche aussi une qualification',
+    fichier: 'apps/web/src/utils/clic-cadastre.ts',
+    de: "  if (arg.outil !== 'aucun') return { action: 'ignorer' };",
+    vers: '  // depart retire',
+    cwd: 'apps/web',
+    tests: ['test/clic-cadastre.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'une tuile qui n’identifie pas la parcelle mene quand meme a une qualification',
+    fichier: 'apps/web/src/utils/clic-cadastre.ts',
+    de: "  const idu = iduDepuisTuile(arg.proprietes);\n  if (!idu) {",
+    vers: "  const idu = iduDepuisTuile(arg.proprietes) ?? '00000000000000';\n  if (false) {",
+    cwd: 'apps/web',
+    tests: ['test/clic-cadastre.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'le gestionnaire du cadastre est branche sans jamais etre debranche',
+    fichier: 'apps/web/src/components/Carte.tsx',
+    de: "      m.off('click', 'cadastre-surface', surClicCadastre);\n",
+    vers: '',
+    cwd: 'apps/web',
+    tests: ['test/clic-cadastre.test.ts'],
+  },
+  {
+    /**
+     * LA MUTATION QUI REPRODUIT LE SIGNALEMENT LUI-MEME : la couche du cadastre complet disparait, et
+     * seules les parcelles deja qualifiees restent visibles. C'est l'etat exact de l'application quand
+     * le prospecteur n'a pas trouve la parcelle de son collegue.
+     *
+     * Le zoom minimal est porte a 22 plutot que la couche supprimee : les deux couches de style qui
+     * s'appuient sur la source resteraient sinon sans source, et MapLibre leverait — un echec de
+     * chargement, non un echec de comportement, et la mutation serait comptee attrapee pour la
+     * mauvaise raison.
+     */
+    audit: 'parcelles manquantes',
+    quoi: 'la couche du cadastre complet cesse d’etre demandee : retour a l’etat du signalement',
+    fichier: 'apps/web/src/components/Carte.tsx',
+    de: "      tiles: [`${RACINE_ABSOLUE}/api/carte/cadastre/{z}/{x}/{y}.pbf`],\n      minzoom: ZOOM_MIN_PARCELLES,",
+    vers: "      tiles: [`${RACINE_ABSOLUE}/api/carte/cadastre/{z}/{x}/{y}.pbf`],\n      minzoom: 22,",
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/cadastre.spec.ts'],
+    tests: ['e2e/cadastre.spec.ts'],
+  },
+  {
+    /**
+     * La relecture des rapports PDF choisissait ses cas dans la base : sa portee dependait donc de la
+     * machine, et tombait a zero sur une base vierge — celle de la CI. Les cas sont desormais semes
+     * depuis les fixtures, et la portee est EXIGEE. Cette mutation verifie que l'exigence tient.
+     */
+    audit: 'parcelles manquantes',
+    quoi: 'la relecture PDF accepte de nouveau de ne couvrir aucune filiere',
+    fichier: 'apps/api/test/rapport-pdf.test.ts',
+    de: '  if (PARCELLES.size === 0) return;\n  app = await construireServeur({ secretJwt: SECRET });',
+    vers: '  PARCELLES.clear();\n  ECARTEES.clear();\n  app = await construireServeur({ secretJwt: SECRET });',
+    tests: ['apps/api/test/rapport-pdf.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'une cellule d’emprise en echec redevient invisible pour l’utilisateur',
+    fichier: 'apps/api/src/connecteurs/cadastre.ts',
+    de: '      cellulesEnEchec += 1;',
+    vers: '      // compte retire',
+    tests: ['apps/api/test/couverture-campagne.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'les parcelles ecartees par le filtre de surface cessent d’etre comptees',
+    fichier: 'apps/api/src/connecteurs/cadastre.ts',
+    de: '          if (!parIdu.has(p.idu)) ecarteesSurface += 1;',
+    vers: '          // compte retire',
+    tests: ['apps/api/test/couverture-campagne.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'l’arret au plafond de lot ne signale plus les secteurs non interroges',
+    fichier: 'apps/api/src/connecteurs/cadastre.ts',
+    de: '      plafondAtteint = true;\n      cellulesSautees = cellules.length - i;',
+    vers: '      plafondAtteint = false;',
+    tests: ['apps/api/test/couverture-campagne.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'une couverture complete declenche quand meme un avertissement',
+    fichier: 'apps/api/src/services/qualification.ts',
+    de: '  if (morceaux.length === 0) return null;',
+    vers: "  if (morceaux.length === 0) morceaux.push('rien');",
+    tests: ['apps/api/test/couverture-campagne.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'l’avertissement de couverture cesse de dire comment contourner la troncature',
+    fichier: 'apps/api/src/services/qualification.ts',
+    de: "    'Une parcelle precise peut toujours etre qualifiee en la cliquant sur le cadastre, ou par sa ' +\n    'reference dans la recherche.'",
+    vers: "    ''",
+    tests: ['apps/api/test/couverture-campagne.test.ts'],
+  },
+  {
+    audit: 'parcelles manquantes',
+    quoi: 'le prefixe de commune absorbee redevient « 000 » en dur',
+    fichier: 'packages/core/src/snapshot.ts',
+    de: "  const prefixe = (parties.prefixe ?? '000').trim().padStart(3, '0').slice(-3);",
+    vers: "  const prefixe = '000';",
+    construire: '@enr/core',
+    tests: ['packages/core/test/composer-idu.test.ts'],
+  },
 ];
 
 /**

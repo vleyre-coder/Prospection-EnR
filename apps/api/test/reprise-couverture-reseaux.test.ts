@@ -49,13 +49,23 @@ async function nettoyer(): Promise<void> {
 }
 
 before(async () => {
-  if (!process.env['DATABASE_URL']) return;
+  /**
+   * LE FICHIER DE MIGRATION EST LU SANS CONDITION, et c'etait un defaut.
+   *
+   * Cette lecture se trouvait DERRIERE la garde `DATABASE_URL`, alors que la garde de cohesion
+   * ci-dessous n'a besoin d'aucune base : sans variable d'environnement, `sqlMigration` restait vide et
+   * le test echouait sur une chaine vide au lieu de s'ignorer comme les autres. Mesure : sur une machine
+   * ou la base est joignable par l'URL par defaut de `config.ts` mais ou `DATABASE_URL` n'est pas
+   * exporte, ce fichier etait le seul de la suite a echouer, pour une raison sans rapport avec ce qu'il
+   * verifie.
+   */
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
   sqlMigration = readFileSync(
     fileURLToPath(new URL('../../../db/migrations/015_reprise_couverture_reseaux.sql', import.meta.url)),
     'utf8',
   );
+  if (!process.env['DATABASE_URL']) return;
   try {
     await requete(`SELECT 1 FROM poste_source LIMIT 1`);
   } catch (err) {

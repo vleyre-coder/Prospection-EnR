@@ -23,140 +23,27 @@
  * Idempotent : rejouable sans nettoyage prealable.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { requete } from '../src/bdd.js';
 import { pool } from '../src/bdd.js';
+import { lireFiches, semerFiche } from '../test/aides/semer-fiches.js';
 
-const ICI = dirname(fileURLToPath(import.meta.url));
-const FIXTURES = resolve(ICI, '../../web/test/fixtures');
-
-interface Fiche {
-  parcelle: {
-    idu: string;
-    codeInsee: string;
-    nomCommune: string | null;
-    codeDepartement: string;
-    prefixe: string;
-    section: string;
-    numero: string;
-    contenanceM2: number | null;
-    surfaceCalculeeM2: number | null;
-    geometrie: unknown;
-    centroide: [number, number];
-  };
-  snapshot: unknown;
-  connecteursEnEchec: string[];
-  score: {
-    filiere: string;
-    statut: string;
-    scoreGlobal: number | null;
-    couvertureDonnees: number;
-    knockOuts: Array<{ derogeable: boolean }>;
-    regimeImplantation: string | null;
-    versionMoteur: string;
-    dateCalcul: string;
-  };
-}
-
+/**
+ * L'insertion elle-meme vit dans `test/aides/semer-fiches.ts`, et non ici.
+ *
+ * Elle etait ecrite deux fois — ce script, puis la relecture des rapports PDF, qui a besoin des memes
+ * fiches en base. Une regle ecrite deux fois se corrige une fois sur deux ; celle-ci porte trois
+ * insertions liees et un choix subtil (l'instantane date de maintenant, pour ne pas declencher le
+ * re-enrichissement de l'audit 9). Elle est donc unique, et ce script n'en est plus qu'un appelant.
+ */
 async function principal(): Promise<void> {
-  const fichiers = readdirSync(FIXTURES).filter((f) => f.startsWith('fiche-') && f.endsWith('.json'));
-  if (fichiers.length === 0) {
-    throw new Error(
-      `Aucune fixture dans ${FIXTURES}. Regenerez-les avec ` +
-        '`npx tsx apps/api/scripts/capturer-fixtures-web.ts` contre une base peuplee.',
-    );
-  }
-
-  let parcelles = 0;
-  let scores = 0;
-
-  for (const f of fichiers) {
-    const fiche = JSON.parse(readFileSync(join(FIXTURES, f), 'utf8')) as Fiche;
-    const p = fiche.parcelle;
-
-    await requete(
-      `INSERT INTO parcelle
-         (idu, code_insee, nom_commune, code_departement, prefixe, section, numero,
-          contenance_m2, surface_calculee_m2, geom, centroide, date_recuperation, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-               ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($10), 4326)),
-               ST_SetSRID(ST_MakePoint($11, $12), 4326), now(), now())
-       ON CONFLICT (idu) DO UPDATE SET
-         nom_commune = EXCLUDED.nom_commune,
-         geom = EXCLUDED.geom,
-         centroide = EXCLUDED.centroide,
-         updated_at = now()`,
-      [
-        p.idu,
-        p.codeInsee,
-        p.nomCommune,
-        p.codeDepartement,
-        p.prefixe,
-        p.section,
-        p.numero,
-        p.contenanceM2,
-        p.surfaceCalculeeM2,
-        JSON.stringify(p.geometrie),
-        p.centroide[0],
-        p.centroide[1],
-      ],
-    );
-    parcelles += 1;
-
-    /**
-     * L'instantane est date de MAINTENANT, deliberement.
-     *
-     * La route de la fiche re-enrichit une parcelle dont l'instantane est perime (audit 9, defaut A2)
-     * — et re-enrichir signifie appeler les API externes. Un instantane frais evite donc au parcours de
-     * declencher exactement ce que ce script cherche a eviter.
-     */
-    await requete(
-      `INSERT INTO parcelle_snapshot (idu, snapshot, connecteurs_en_echec, couverture, date_snapshot)
-       VALUES ($1, $2::jsonb, $3, $4, now())
-       ON CONFLICT (idu) DO UPDATE SET
-         snapshot = EXCLUDED.snapshot,
-         connecteurs_en_echec = EXCLUDED.connecteurs_en_echec,
-         couverture = EXCLUDED.couverture,
-         date_snapshot = now()`,
-      [p.idu, JSON.stringify(fiche.snapshot), fiche.connecteursEnEchec, fiche.score.couvertureDonnees],
-    );
-
+  const fiches = lireFiches();
+  for (const { fichier, fiche } of fiches) {
+    await semerFiche(fiche);
     const s = fiche.score;
-    await requete(
-      `INSERT INTO score_parcelle_filiere
-         (idu, filiere, statut, score_global, detail, couverture_donnees, nb_knock_outs,
-          nb_knock_outs_bloquants, regime_implantation, profil_ponderation, version_moteur, date_calcul)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, 'defaut', $10, now())
-       ON CONFLICT (idu, filiere, profil_ponderation) DO UPDATE SET
-         statut = EXCLUDED.statut,
-         score_global = EXCLUDED.score_global,
-         detail = EXCLUDED.detail,
-         couverture_donnees = EXCLUDED.couverture_donnees,
-         nb_knock_outs = EXCLUDED.nb_knock_outs,
-         nb_knock_outs_bloquants = EXCLUDED.nb_knock_outs_bloquants,
-         regime_implantation = EXCLUDED.regime_implantation,
-         version_moteur = EXCLUDED.version_moteur,
-         date_calcul = now()`,
-      [
-        p.idu,
-        s.filiere,
-        s.statut,
-        s.scoreGlobal,
-        JSON.stringify(s),
-        s.couvertureDonnees,
-        s.knockOuts.length,
-        s.knockOuts.filter((k) => !k.derogeable).length,
-        s.regimeImplantation,
-        s.versionMoteur,
-      ],
+    console.log(
+      `${fichier} : ${fiche.parcelle.idu} en ${s.filiere} (${s.statut}, score ${String(s.scoreGlobal)})`,
     );
-    scores += 1;
-    console.log(`${f} : ${p.idu} en ${s.filiere} (${s.statut}, score ${String(s.scoreGlobal)})`);
   }
-
-  console.log(`\n${parcelles} parcelle(s) semee(s), ${scores} score(s), aucun appel reseau.`);
+  console.log(`\n${fiches.length} parcelle(s) semee(s) avec leur score, aucun appel reseau.`);
   await pool.end();
 }
 

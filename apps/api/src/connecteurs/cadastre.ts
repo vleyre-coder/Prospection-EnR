@@ -20,6 +20,7 @@ import {
   type Bbox,
   type GeoJsonGeometry,
 } from '../geo.js';
+import { composerIdu, identiteDepuisIdu } from '@enr/core';
 import { geomParam, type FeatureCollection } from './base.js';
 
 const CONNECTEUR = 'apicarto_cadastre';
@@ -65,18 +66,38 @@ export function normaliserNumero(numero: string): string {
 function versParcelle(f: FeatureCollection<ProprietesParcelle>['features'][number]): ParcelleBrute | null {
   const p = f.properties;
   if (!f.geometry) return null;
-  // L'IDU est reconstitue lorsque la source BDP ne le fournit pas.
-  const prefixe = p.com_abs ?? '000';
-  const idu = p.idu ?? `${p.code_insee}${prefixe}${p.section}${p.numero}`;
+  /**
+   * L'IDU est reconstitue lorsque la source ne le fournit pas.
+   *
+   * `composerIdu` et non une interpolation directe : la version precedente concatenait les champs
+   * bruts, si bien qu'une source rendant la section « A » plutot que « 0A » produisait un IDU de
+   * TREIZE caracteres — correspondant a aucune parcelle, et sans que rien ne le signale. La regle vit
+   * desormais dans `@enr/core`, partagee avec la recherche et l'interface.
+   */
+  const idu = p.idu ?? composerIdu({
+    codeInsee: p.code_insee,
+    prefixe: p.com_abs,
+    section: p.section,
+    numero: p.numero,
+  });
+  /**
+   * Les composants sont RELUS depuis l'IDU, et non recopies de la source.
+   *
+   * Sans cela, la fiche pouvait porter `section: 'A'` alors que son IDU disait « 0A » : deux verites
+   * pour la meme parcelle, dont l'une ne permet pas de la retrouver. Relire l'IDU rend la
+   * contradiction impossible par construction — quelle que soit la forme sous laquelle la source
+   * ecrit ses champs.
+   */
+  const parties = identiteDepuisIdu(idu);
   const geometrie = f.geometry as GeoJsonGeometry;
   return {
     idu,
     codeInsee: p.code_insee,
     nomCommune: p.nom_com,
     codeDepartement: p.code_dep,
-    prefixe,
-    section: p.section,
-    numero: p.numero,
+    prefixe: parties.prefixe,
+    section: parties.section,
+    numero: parties.numero,
     contenanceM2: p.contenance ?? null,
     surfaceCalculeeM2: Math.round(surfaceM2(geometrie)),
     geometrie,
@@ -142,6 +163,34 @@ export async function parcellesParEmprise(bbox: Bbox, limite?: number): Promise<
 }
 
 /**
+ * Ce qu'une recuperation d'emprise a REELLEMENT ramene — et ce qu'elle a laisse de cote.
+ *
+ * POURQUOI CE TYPE EXISTE. Cette fonction ne rendait qu'une liste de parcelles, et perdait en route
+ * trois informations qui changent la lecture du resultat : les cellules dont la recuperation a echoue
+ * (journalisees en avertissement, invisibles pour l'utilisateur), les parcelles ecartees par le filtre
+ * de surface (plus de la moitie du parcellaire dans certaines regions), et l'atteinte du plafond de lot
+ * (les cellules suivantes ne sont pas interrogees du tout).
+ *
+ * Le resultat etait donc indistinguable d'une couverture complete. Un prospecteur concluait « il n'y a
+ * rien d'interessant dans ce secteur » quand la verite etait « ce secteur n'a pas ete regarde ». C'est
+ * la faute fondatrice de tous ces audits — affirmer plus que ce que la donnee permet — appliquee a la
+ * COUVERTURE.
+ */
+export interface RecuperationEmprise {
+  parcelles: ParcelleBrute[];
+  /** Cellules de la grille couvrant l'emprise demandee. */
+  cellulesTotal: number;
+  /** Cellules dont la recuperation a echoue : leur parcellaire manque. */
+  cellulesEnEchec: number;
+  /** Cellules jamais interrogees, la recuperation s'etant arretee au plafond. */
+  cellulesSautees: number;
+  /** Parcelles vues au cadastre mais ecartees par le filtre de surface minimale. */
+  ecarteesSurface: number;
+  /** Vrai si le plafond de lot a interrompu la recuperation avant la fin de l'emprise. */
+  plafondAtteint: boolean;
+}
+
+/**
  * Parcelles d'une grande emprise, recuperees cellule par cellule.
  *
  * API Carto ne repond pas a une geometrie couvrant plusieurs communes, et plafonne le
@@ -159,31 +208,55 @@ export async function parcellesParGrandeEmprise(
     surfaceMinM2?: number;
     onProgres?: (fait: number, total: number, trouvees: number) => void;
   } = {},
-): Promise<ParcelleBrute[]> {
+): Promise<RecuperationEmprise> {
   const cellules = decouperBbox(bbox, options.coteCellule ?? 0.05);
   const limite = options.limite ?? 20000;
   const surfaceMin = options.surfaceMinM2 ?? 0;
   const parIdu = new Map<string, ParcelleBrute>();
+  let cellulesEnEchec = 0;
+  let cellulesSautees = 0;
+  let ecarteesSurface = 0;
+  let plafondAtteint = false;
 
   for (const [i, cellule] of cellules.entries()) {
-    if (parIdu.size >= limite) break;
+    if (parIdu.size >= limite) {
+      // Le plafond de lot interrompt la recuperation : les cellules restantes ne sont PAS
+      // interrogees, et l'emprise demandee n'est donc pas couverte en entier.
+      plafondAtteint = true;
+      cellulesSautees = cellules.length - i;
+      break;
+    }
     try {
       const lot = await parcellesParGeometrie(bboxEnPolygone(cellule));
       for (const p of lot) {
         // Le filtre de surface est applique ici : inutile de conserver en memoire des
         // micro-parcelles qui seront ecartees ensuite.
-        if ((p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) < surfaceMin) continue;
+        if ((p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) < surfaceMin) {
+          // Comptees, et non seulement ignorees : c'est la moitie du parcellaire dans certaines
+          // regions, et l'utilisateur doit savoir que sa campagne ne les a pas vues.
+          if (!parIdu.has(p.idu)) ecarteesSurface += 1;
+          continue;
+        }
         parIdu.set(p.idu, p);
       }
     } catch (err) {
       // Une cellule en echec ne doit pas annuler l'emprise entiere : le reste du secteur
-      // reste exploitable, et l'echec est journalise.
+      // reste exploitable. Mais l'echec est COMPTE et remonte a l'appelant, pas seulement
+      // journalise : un secteur manquant se lit comme un secteur sans parcelle interessante.
+      cellulesEnEchec += 1;
       journal.warn({ err, cellule }, "Cellule d'emprise non recuperee");
     }
     options.onProgres?.(i + 1, cellules.length, parIdu.size);
   }
 
-  return [...parIdu.values()];
+  return {
+    parcelles: [...parIdu.values()],
+    cellulesTotal: cellules.length,
+    cellulesEnEchec,
+    cellulesSautees,
+    ecarteesSurface,
+    plafondAtteint,
+  };
 }
 
 /** Contour communal, utilise par la vue nationale agregee et la recherche. */

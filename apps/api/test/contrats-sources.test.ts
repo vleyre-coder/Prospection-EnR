@@ -73,6 +73,15 @@ const CHAMPS_LUS: Record<string, readonly string[]> = {
     'idu', 'numero', 'section', 'code_dep', 'nom_com', 'code_com', 'contenance', 'code_insee',
   ],
   'apicarto/cadastre/commune': ['nom_com', 'code_insee'],
+  /**
+   * Les TUILES cadastrales, relayees depuis le Plan Cadastral Informatise de l'IGN.
+   *
+   * Ce n'est pas la meme source que `apicarto/cadastre/parcelle` : celle-ci sert du GeoJSON pour une
+   * parcelle demandee, celle-la des tuiles vectorielles pour tout un secteur. C'est sur ces tuiles que
+   * l'utilisateur CLIQUE, et de leurs attributs que l'identifiant de la parcelle cliquee est tire. Un
+   * nom d'attribut errone rendrait le clic inoperant en silence.
+   */
+  'geopf/tms/PCI/parcelle': ['idu', 'code_insee', 'com_abs', 'section', 'numero', 'nom_com', 'contenance'],
 
   // --- RPG ---
   'apicarto/rpg/v2': ['code_cultu', 'code_group'],
@@ -213,6 +222,18 @@ const INTERFACES_SURVEILLEES: ReadonlyArray<{
     fichier: '../src/connecteurs/servitudes.ts',
     interfaces: ['ProprietesSup'],
     endpoints: ['apicarto/gpu/assiette-sup-s'],
+  },
+  {
+    /**
+     * Le NOYAU, et non un connecteur : `ProprietesTuileParcelle` decrit les attributs d'une tuile
+     * cadastrale, lus par l'INTERFACE quand l'utilisateur clique une parcelle non qualifiee. Le
+     * controle vit ici parce que la fixture des reponses reelles vit ici, et parce qu'un attribut
+     * inexistant se lit sans erreur en rendant l'identifiant nul — le clic serait inoperant en
+     * silence, du cote de l'application ou personne ne surveillait encore les contrats de source.
+     */
+    fichier: '../../../packages/core/src/snapshot.ts',
+    interfaces: ['ProprietesTuileParcelle'],
+    endpoints: ['geopf/tms/PCI/parcelle'],
   },
 ];
 

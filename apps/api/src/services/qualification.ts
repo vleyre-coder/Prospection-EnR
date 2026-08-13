@@ -89,6 +89,25 @@ export interface ResultatQualification {
   nbEchecs: number;
   dureeMs: number;
   echecsParConnecteur: Record<string, number>;
+  /**
+   * Parcelles demandees mais JAMAIS TRAITEES, le plafond de lot ayant tronque la liste.
+   *
+   * Ce nombre etait perdu : `idus.slice(0, lotMax)` ecartait silencieusement le reste, et le resultat
+   * annoncait « N parcelles qualifiees » sur le lot tronque comme s'il s'agissait de la demande. Une
+   * campagne de 2 000 parcelles en rendait 1 500 et se declarait terminee.
+   */
+  nbIgnorees: number;
+  /**
+   * Parcelles vues au cadastre mais ecartees par le filtre de surface minimale, quand la qualification
+   * porte sur une emprise. `0` pour une liste d'identifiants, ou aucun filtre ne s'applique.
+   */
+  nbEcarteesSurface: number;
+  /** Surface minimale reellement appliquee, en m2. `null` pour une liste d'identifiants. */
+  surfaceMinAppliqueeM2: number | null;
+  /** Cellules de l'emprise dont le parcellaire n'a pas pu etre recupere. */
+  cellulesEnEchec: number;
+  /** Cellules de l'emprise jamais interrogees, le plafond ayant arrete la recuperation. */
+  cellulesSautees: number;
 }
 
 /**
@@ -221,6 +240,11 @@ export async function qualifierIdus(
     nbEchecs,
     dureeMs: Date.now() - debut,
     echecsParConnecteur,
+    nbIgnorees: idus.length - lot.length,
+    nbEcarteesSurface: 0,
+    surfaceMinAppliqueeM2: null,
+    cellulesEnEchec: 0,
+    cellulesSautees: 0,
   };
 }
 
@@ -244,16 +268,18 @@ export async function qualifierEmprise(
   const emprise = normaliserEmprise(bbox);
 
   const brutes = await parcellesParEmprise(emprise);
-  const retenues = brutes.filter(
-    (p) =>
-      (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin &&
-      // Verrou de bordure : un service peut renvoyer des objets debordant l'emprise
-      // demandee. La zone de travail affichee doit rester la seule limite.
-      pointDansBbox(p.centroide, emprise),
+  // Verrou de bordure : un service peut renvoyer des objets debordant l'emprise demandee. La zone de
+  // travail affichee doit rester la seule limite.
+  const dansEmprise = brutes.filter((p) => pointDansBbox(p.centroide, emprise));
+  const retenues = dansEmprise.filter(
+    (p) => (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin,
   );
+  // Ecartees par le FILTRE DE SURFACE, et comptees comme telles : c'est plus de la moitie du
+  // parcellaire dans certaines regions, et le resultat ne le disait pas.
+  const ecarteesSurface = dansEmprise.length - retenues.length;
 
   journal.info(
-    { bbox: emprise, trouvees: brutes.length, retenues: retenues.length, surfaceMin },
+    { bbox: emprise, trouvees: brutes.length, retenues: retenues.length, ecarteesSurface, surfaceMin },
     "Qualification d'emprise",
   );
 
@@ -264,7 +290,13 @@ export async function qualifierEmprise(
     { filieres: options.filieres, forcer: options.forcer, onProgres: options.onProgres },
   );
 
-  return { ...resultat, nbParcelles: retenues.length, dureeMs: Date.now() - debut };
+  return {
+    ...resultat,
+    nbParcelles: retenues.length,
+    dureeMs: Date.now() - debut,
+    nbEcarteesSurface: ecarteesSurface,
+    surfaceMinAppliqueeM2: surfaceMin,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +333,69 @@ export interface EtatQualification {
    * libre, sans savoir combien de temps il restait ni qui occupait la place.
    */
   fileAttente: DemandeEnAttente[];
+  /**
+   * CE QUE LA CAMPAGNE N'A PAS COUVERT, et qu'aucun champ ne disait.
+   *
+   * Trois troncatures s'appliquaient en silence : le filtre de surface, le plafond de lot, et les
+   * cellules dont la recuperation echouait (journalisees en avertissement seulement). Une campagne
+   * partielle etait donc indistinguable d'une campagne complete, et un secteur non regarde se lisait
+   * comme un secteur sans interet. `null` avant la fin de la phase de recuperation.
+   */
+  couverture: CouvertureCampagne | null;
+}
+
+/** Ce qu'une campagne a laisse de cote — voir `EtatQualification.couverture`. */
+export interface CouvertureCampagne {
+  /** Parcelles vues au cadastre mais ecartees par le filtre de surface minimale. */
+  ecarteesSurface: number;
+  /** Surface minimale appliquee, en m2 : le nombre n'a de sens qu'accompagne du seuil. */
+  surfaceMinM2: number;
+  /** Cellules dont le parcellaire n'a pas pu etre recupere : leur contenu manque. */
+  cellulesEnEchec: number;
+  /** Cellules jamais interrogees, le plafond de lot ayant arrete la recuperation. */
+  cellulesSautees: number;
+  cellulesTotal: number;
+  /** Vrai si le plafond de lot a interrompu la recuperation avant la fin de l'emprise. */
+  plafondAtteint: boolean;
+  /** Parcelles retenues puis tronquees par le plafond de lot, jamais qualifiees. */
+  ignoreesPlafond: number;
+  /**
+   * Phrase prete a afficher, ou `null` si la couverture est complete.
+   *
+   * Construite ici et non dans l'interface : c'est le service qui sait ce qui a ete tronque, et une
+   * regle de formulation ecrite deux fois se corrige une fois sur deux.
+   */
+  avertissement: string | null;
+}
+
+/** Formule ce qui manque a une campagne, en une phrase, ou `null` si rien ne manque. */
+export function avertissementCouverture(c: Omit<CouvertureCampagne, 'avertissement'>): string | null {
+  const morceaux: string[] = [];
+  if (c.ecarteesSurface > 0) {
+    morceaux.push(
+      `${c.ecarteesSurface} parcelle(s) ecartee(s) car plus petite(s) que ` +
+        `${(c.surfaceMinM2 / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha`,
+    );
+  }
+  if (c.cellulesEnEchec > 0) {
+    morceaux.push(
+      `${c.cellulesEnEchec} secteur(s) sur ${c.cellulesTotal} non recupere(s) : leur parcellaire manque`,
+    );
+  }
+  if (c.plafondAtteint) {
+    morceaux.push(
+      `plafond de lot atteint, ${c.cellulesSautees} secteur(s) sur ${c.cellulesTotal} pas interroge(s)`,
+    );
+  }
+  if (c.ignoreesPlafond > 0) {
+    morceaux.push(`${c.ignoreesPlafond} parcelle(s) retenue(s) mais non qualifiee(s), faute de place`);
+  }
+  if (morceaux.length === 0) return null;
+  return (
+    `Couverture incomplete : ${morceaux.join(' ; ')}. ` +
+    'Une parcelle precise peut toujours etre qualifiee en la cliquant sur le cadastre, ou par sa ' +
+    'reference dans la recherche.'
+  );
 }
 
 /** Demande de qualification acceptee mais pas encore demarree. */
@@ -325,6 +420,7 @@ const etat: Omit<EtatQualification, 'fileAttente'> = {
   finLe: null,
   message: null,
   resteSecondes: null,
+  couverture: null,
 };
 
 /**
@@ -690,6 +786,9 @@ function executerCampagne(demande: Attente): void {
   etat.debutLe = new Date().toISOString();
   etat.finLe = null;
   etat.resteSecondes = null;
+  // Remise a zero : sans elle, la couverture incomplete d'une campagne precedente resterait affichee
+  // pendant la suivante, ce qui est pire qu'aucune information.
+  etat.couverture = null;
   etat.message =
     file.length > 0
       ? `Recuperation du parcellaire au cadastre… (${file.length} demande(s) ensuite)`
@@ -700,7 +799,7 @@ function executerCampagne(demande: Attente): void {
     await ouvrirTache(emprise, options.utilisateurId ?? null);
     const surfaceMin = options.surfaceMinM2 ?? config.qualification.surfaceMinM2;
     try {
-      const brutes = await parcellesParGrandeEmprise(emprise, {
+      const recuperation = await parcellesParGrandeEmprise(emprise, {
         surfaceMinM2: surfaceMin,
         limite: config.qualification.lotMax,
         onProgres: (fait, totalCellules, trouvees) => {
@@ -708,6 +807,7 @@ function executerCampagne(demande: Attente): void {
           void reporterTache();
         },
       });
+      const brutes = recuperation.parcelles;
 
       // Verrou de bordure : les cellules de la grille se recouvrent et un service peut
       // renvoyer des objets debordant l'emprise. Seules les parcelles dont le centroide est
@@ -717,6 +817,31 @@ function executerCampagne(demande: Attente): void {
         journal.debug(
           { ecartees: brutes.length - retenues.length },
           'Parcelles hors emprise ecartees',
+        );
+      }
+
+      /**
+       * LA COUVERTURE EST PUBLIEE DES LA FIN DE LA RECUPERATION, et non a la fin de la campagne.
+       *
+       * Une campagne dure des dizaines de minutes : savoir des le debut que la moitie du parcellaire a
+       * ete ecartee, ou que trois secteurs manquent, permet de l'arreter et de relancer autrement.
+       * L'apprendre a la fin ne sert plus a rien.
+       */
+      const ignoreesPlafond = Math.max(0, retenues.length - config.qualification.lotMax);
+      const sansPhrase = {
+        ecarteesSurface: recuperation.ecarteesSurface,
+        surfaceMinM2: surfaceMin,
+        cellulesEnEchec: recuperation.cellulesEnEchec,
+        cellulesSautees: recuperation.cellulesSautees,
+        cellulesTotal: recuperation.cellulesTotal,
+        plafondAtteint: recuperation.plafondAtteint,
+        ignoreesPlafond,
+      };
+      etat.couverture = { ...sansPhrase, avertissement: avertissementCouverture(sansPhrase) };
+      if (etat.couverture.avertissement) {
+        journal.warn(
+          { bbox: emprise, ...sansPhrase },
+          'Campagne a couverture incomplete : les troncatures sont remontees a l’utilisateur',
         );
       }
 
@@ -751,7 +876,10 @@ function executerCampagne(demande: Attente): void {
 
       etat.message =
         `${resultat.nbEnrichies} parcelle(s) qualifiee(s) sur ${retenues.length}` +
-        (resultat.nbEchecs > 0 ? `, ${resultat.nbEchecs} en echec` : '');
+        (resultat.nbEchecs > 0 ? `, ${resultat.nbEchecs} en echec` : '') +
+        // La couverture est rappelee dans le message final : le bandeau de suivi disparait, le
+        // message reste, et c'est lui que l'utilisateur lit avant de conclure sur son secteur.
+        (etat.couverture?.avertissement ? `. ${etat.couverture.avertissement}` : '');
       journal.info({ bbox: emprise, ...resultat }, 'Qualification de grande emprise terminee');
     } catch (err) {
       journal.error({ err, bbox: emprise }, 'Qualification de grande emprise interrompue');
@@ -786,7 +914,23 @@ function executerCampagne(demande: Attente): void {
 export async function estimerEmprise(
   bbox: Bbox,
   surfaceMinM2?: number,
-): Promise<{ nbEstime: number; dureeEstimeeMin: number; nbCellules: number }> {
+): Promise<{
+  nbEstime: number;
+  dureeEstimeeMin: number;
+  nbCellules: number;
+  /**
+   * Parcelles que le FILTRE DE SURFACE ecartera, extrapolees depuis la sonde.
+   *
+   * L'estimation annoncait « environ N parcelles a qualifier » sans dire qu'un filtre en retirait
+   * d'abord une part — plus de la moitie du parcellaire dans certaines regions. L'utilisateur
+   * approuvait donc une campagne dont il ignorait le perimetre reel.
+   */
+  nbEcarteesEstime: number;
+  /** Surface minimale appliquee, en m2 : le nombre ci-dessus n'a de sens qu'avec le seuil. */
+  surfaceMinM2: number;
+  /** Vrai si l'estimation atteint le plafond de lot : la campagne ne couvrira pas toute l'emprise. */
+  plafonne: boolean;
+}> {
   const surfaceMin = surfaceMinM2 ?? config.qualification.surfaceMinM2;
   const emprise = normaliserEmprise(bbox);
   const cellules = decouperBbox(emprise, 0.05);
@@ -794,7 +938,8 @@ export async function estimerEmprise(
 
   const lot = await parcellesParEmprise(sonde).catch(() => []);
   const retenuesSonde = lot.filter((p) => (p.surfaceCalculeeM2 ?? p.contenanceM2 ?? 0) >= surfaceMin);
-  const nbEstime = Math.min(retenuesSonde.length * cellules.length, config.qualification.lotMax);
+  const brut = retenuesSonde.length * cellules.length;
+  const nbEstime = Math.min(brut, config.qualification.lotMax);
 
   // 5 secondes par parcelle : ordre de grandeur mesure, impose par la limite de debit des
   // sources publiques (1 requete/seconde cote Geoplateforme).
@@ -802,6 +947,9 @@ export async function estimerEmprise(
     nbEstime,
     dureeEstimeeMin: Math.ceil((nbEstime * 5) / 60),
     nbCellules: cellules.length,
+    nbEcarteesEstime: (lot.length - retenuesSonde.length) * cellules.length,
+    surfaceMinM2: surfaceMin,
+    plafonne: brut > config.qualification.lotMax,
   };
 }
 

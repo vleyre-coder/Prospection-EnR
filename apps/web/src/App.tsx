@@ -181,7 +181,9 @@ export function App(): JSX.Element {
         ],
         { padding: 90, maxZoom: 18, duration: 800 },
       );
-    } else if (r.centroide[0] !== 0 || r.centroide[1] !== 0) {
+    } else if (r.centroide) {
+      // Un resultat sans position ne deplace pas la carte. Le cas se produit quand le cadastre n'a pas
+      // repondu : la parcelle est selectionnee et qualifiable, mais on ne sait pas ou elle est.
       m.easeTo({
         center: r.centroide,
         zoom: r.type === 'commune' ? 13 : r.type === 'poste_source' ? 12 : 17,
@@ -304,6 +306,15 @@ function OutilsCarte({
 }): JSX.Element {
   const etat = useEtat();
   const [qualification, setQualification] = useState<string | null>(null);
+  /**
+   * CE QUE LA CAMPAGNE N'A PAS COUVERT, affiche a part du message d'avancement.
+   *
+   * A part, et c'est le point : le message d'avancement change toutes les quatre secondes et disparait
+   * a la fin. Une information de cette portee — « la moitie du parcellaire n'a pas ete regardee » — doit
+   * rester sous les yeux jusqu'a ce que l'utilisateur la ferme, sinon elle passe inapercue et le secteur
+   * est cru complet.
+   */
+  const [couverture, setCouverture] = useState<string | null>(null);
   /** Vrai pendant qu'une campagne tourne en arriere-plan : on suit son avancement. */
   const [suiviActif, setSuiviActif] = useState(false);
 
@@ -370,6 +381,10 @@ function OutilsCarte({
                 }${attente}`
               : `${e.message ?? 'Qualification terminee'}. Carte mise a jour.`,
           );
+          // La couverture est connue des la fin de la phase de recuperation, soit bien avant la fin
+          // de la campagne : la publier tout de suite permet d'arreter et de relancer autrement.
+          if (e.couverture?.avertissement) setCouverture(e.couverture.avertissement);
+
           // Une campagne interrompue ne doit pas se conclure par « Carte mise a jour » : le lot
           // est incomplet et l'utilisateur doit le savoir avant de conclure sur son secteur.
           const d = e.derniereCampagne;
@@ -414,15 +429,44 @@ function OutilsCarte({
     ];
 
     setQualification('Estimation du volume…');
+    setCouverture(null);
     void api
       .estimerEmprise(bbox)
       .then((est) => {
-        // Au-dela de quelques dizaines de parcelles, l'utilisateur doit savoir a quoi il
-        // s'engage : plusieurs minutes, parfois plus d'une heure.
-        if (est.nbEstime > 40) {
+        /**
+         * CE QUE LA CAMPAGNE VA ECARTER, dit AVANT de la lancer.
+         *
+         * Le dialogue annoncait un volume et une duree, et taisait les deux filtres qui decident du
+         * perimetre reel : la surface minimale, et le plafond de lot. Un utilisateur approuvait donc une
+         * campagne dont il ignorait qu'elle ne verrait pas la moitie du parcellaire — mesure sur la
+         * Beauce : 55 a 60 % des parcelles ecartees par le seuil de 3 000 m2.
+         */
+        const reserves: string[] = [];
+        if (est.nbEcarteesEstime > 0) {
+          reserves.push(
+            `Environ ${est.nbEcarteesEstime} parcelle(s) seront ECARTEES car plus petites que ` +
+              `${(est.surfaceMinM2 / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha.`,
+          );
+        }
+        if (est.plafonne) {
+          reserves.push(
+            'Le secteur depasse le plafond par campagne : il ne sera PAS couvert en entier. ' +
+              'Decoupez-le en plusieurs campagnes pour le couvrir.',
+          );
+        }
+        if (reserves.length > 0) {
+          reserves.push(
+            'Une parcelle precise peut toujours etre qualifiee en la cliquant sur le cadastre, ' +
+              'ou par sa reference dans la recherche.',
+          );
+        }
+        // Le seuil de 40 vaut pour la duree. Les reserves, elles, doivent etre approuvees quel que
+        // soit le volume : elles ne parlent pas du temps mais de ce que la campagne ne verra pas.
+        if (est.nbEstime > 40 || reserves.length > 0) {
           const ok = window.confirm(
             `Environ ${est.nbEstime} parcelles a qualifier sur ce secteur, soit de l'ordre de ` +
               `${est.dureeEstimeeMin} minutes.\n\n` +
+              (reserves.length > 0 ? `${reserves.join('\n\n')}\n\n` : '') +
               "Le traitement se fait en arriere-plan : vous pouvez continuer a travailler, " +
               "l'avancement s'affiche en bas de la carte.\n\nLancer la campagne ?",
           );
@@ -447,6 +491,15 @@ function OutilsCarte({
                 ((r.nbEchecs ?? 0) > 0 ? `, ${r.nbEchecs} en echec` : '') +
                 '. Carte mise a jour.',
             );
+            // Meme regle que pour une campagne en arriere-plan : ce qui a ete ecarte doit se voir.
+            if ((r.nbEcarteesSurface ?? 0) > 0) {
+              setCouverture(
+                `${r.nbEcarteesSurface} parcelle(s) du secteur n'ont PAS ete qualifiees : plus ` +
+                  `petites que ${((r.surfaceMinAppliqueeM2 ?? 0) / 10000).toLocaleString('fr-FR', {
+                    maximumFractionDigits: 2,
+                  })} ha. Cliquez une parcelle du cadastre pour la qualifier malgre tout.`,
+              );
+            }
             rafraichirTuiles();
           }
         });
@@ -503,6 +556,23 @@ function OutilsCarte({
           <span>{qualification}</span>
           <button type="button" className="bouton-discret" onClick={() => setQualification(null)}>
             Fermer
+          </button>
+        </div>
+      )}
+
+      {/* La couverture incomplete reste affichee jusqu'a fermeture explicite : c'est une information
+          sur ce que la campagne N'A PAS vu, et elle doit survivre au message d'avancement. `alert` et
+          non `status` : sans elle, un secteur non regarde se lit comme un secteur sans interet. */}
+      {couverture && (
+        <div
+          className="erreur-encart"
+          style={{ position: 'absolute', top: 96, left: 12, right: 12, zIndex: 6 }}
+          role="alert"
+        >
+          <strong>Couverture incomplete</strong>
+          <p style={{ margin: '4px 0 0' }}>{couverture}</p>
+          <button type="button" className="bouton-discret" onClick={() => setCouverture(null)}>
+            J&apos;ai compris
           </button>
         </div>
       )}

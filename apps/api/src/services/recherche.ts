@@ -7,6 +7,7 @@
 
 import {
   COEFFICIENT_TRACE,
+  composerIdu,
   FILIERES,
   lineaireRaccordementKm,
   STATUTS_PROSPECTION,
@@ -19,14 +20,29 @@ import { ErreurValidation, lecteur } from '../validation.js';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { requete } from '../bdd.js';
-import { normaliserNumero, normaliserSection } from '../connecteurs/cadastre.js';
-import { bboxValide, type Bbox } from '../geo.js';
+import {
+  normaliserNumero,
+  normaliserSection,
+  // Alias : `parcelleEnResultat` de ce fichier lit la BASE, celle-ci lit le CADASTRE. Les deux noms
+  // se ressemblent trop pour cohabiter sans preciser lequel interroge quoi.
+  parcelleParIdu as parcelleParIduCadastre,
+} from '../connecteurs/cadastre.js';
+import { bboxDe, bboxValide, type Bbox } from '../geo.js';
 
 export interface ResultatRecherche {
   type: 'parcelle' | 'adresse' | 'commune' | 'coordonnees' | 'poste_source';
   libelle: string;
   sousTitre: string | null;
-  centroide: [number, number];
+  /**
+   * Position du resultat, ou `null` quand elle est INCONNUE.
+   *
+   * Ce champ valait auparavant `[0, 0]` dans ce cas — le golfe de Guinee, presente comme une position
+   * reelle. L'interface s'en tirait en comparant a `[0, 0]`, donc un sentinelle circulait dans les deux
+   * moitieres de l'application, et rien n'empechait un futur appelant de centrer la carte dessus.
+   * `null` dit la meme chose sans mentir, et le compilateur oblige desormais chaque lecteur a traiter
+   * le cas.
+   */
+  centroide: [number, number] | null;
   bbox: Bbox | null;
   idu: string | null;
   codeInsee: string | null;
@@ -43,29 +59,22 @@ export async function rechercher(q: string, limite = 10): Promise<ResultatRecher
   // 1. Identifiant unique de parcelle.
   if (RE_IDU.test(texte.replace(/\s/g, ''))) {
     const idu = texte.replace(/\s/g, '').toUpperCase();
-    const r = await parcelleEnResultat(idu);
-    if (r) return [r];
+    const r = await parcelleDesignee(idu, idu.slice(0, 5), idu.slice(8, 10), idu.slice(10, 14));
+    return r ? [r] : [];
   }
 
   // 2. Reference cadastrale "insee section numero".
   const ref = RE_REFERENCE.exec(texte);
   if (ref) {
-    const idu = `${ref[1]}000${normaliserSection(ref[2]!)}${normaliserNumero(ref[3]!)}`;
-    const r = await parcelleEnResultat(idu);
-    if (r) return [r];
-    // La parcelle n'est pas en cache : on renvoie tout de meme un resultat exploitable,
-    // la qualification a la demande la recuperera.
-    return [
-      {
-        type: 'parcelle',
-        libelle: `Parcelle ${normaliserSection(ref[2]!)} ${normaliserNumero(ref[3]!)}`,
-        sousTitre: `Commune ${ref[1]} - a qualifier`,
-        centroide: [0, 0],
-        bbox: null,
-        idu,
-        codeInsee: ref[1]!,
-      },
-    ];
+    /**
+     * Prefixe « 000 » par defaut, et il faut le dire : une reference saisie a la main ne porte pas le
+     * prefixe de commune absorbee. Dans une commune fusionnee, deux parcelles de meme section et meme
+     * numero coexistent sous deux prefixes ; « 000 » en designe alors une, celle de la commune
+     * d'origine. C'est le comportement le plus utile faute de mieux, mais ce n'est pas une certitude.
+     */
+    const idu = composerIdu({ codeInsee: ref[1]!, section: ref[2]!, numero: ref[3]! });
+    const r = await parcelleDesignee(idu, ref[1]!, normaliserSection(ref[2]!), normaliserNumero(ref[3]!));
+    return r ? [r] : [];
   }
 
   // 3. Coordonnees. On accepte les deux ordres et on tranche par plausibilite :
@@ -123,6 +132,7 @@ async function parcelleEnResultat(idu: string): Promise<ResultatRecherche | null
   );
   const l = lignes[0];
   if (!l) return null;
+
   return {
     type: 'parcelle',
     libelle: `Parcelle ${l.section} ${l.numero}`,
@@ -131,6 +141,70 @@ async function parcelleEnResultat(idu: string): Promise<ResultatRecherche | null
     bbox: [l.minlon, l.minlat, l.maxlon, l.maxlat],
     idu: l.idu,
     codeInsee: l.code_insee,
+  };
+}
+
+/**
+ * Une parcelle designee par son identifiant : en base, sinon au cadastre.
+ *
+ * POURQUOI CETTE FONCTION EXISTE — signalement d'usage. La recherche ne lisait QUE
+ * `FROM parcelle WHERE idu = $1`, or cette table ne contient que les parcelles DEJA QUALIFIEES. Taper
+ * l'identifiant EXACT d'une parcelle jamais etudiee ne renvoyait donc rien : la parcelle qu'un collegue
+ * demandait etait introuvable par son identifiant, en plus d'etre invisible sur la carte.
+ *
+ * Le repli interroge le cadastre pour CE seul identifiant. C'est proportionne : une requete ciblee,
+ * declenchee par une saisie explicite, et non un balayage. Et il n'ECRIT RIEN en base — une recherche
+ * est une lecture, et le defaut B4 de l'audit 10 etait precisement un chemin de lecture qui declenchait
+ * des ecritures. La parcelle sera enregistree quand l'utilisateur demandera vraiment sa qualification.
+ *
+ * TROIS ISSUES, ET ELLES SE DISENT DIFFEREMMENT. La version precedente les confondait toutes les trois
+ * en un resultat unique place a `[0, 0]` et annonce « a qualifier », ce qui affirmait l'existence d'une
+ * parcelle que personne n'avait verifiee :
+ *
+ *   - connue en base : le resultat porte sa position et son emprise reelles ;
+ *   - inconnue en base mais presente au cadastre : position et emprise reelles egalement, et la mention
+ *     « a qualifier » — la parcelle existe, l'application ne l'a pas encore etudiee. Ne pas confondre
+ *     les deux est la regle fondatrice de ces audits ;
+ *   - absente du cadastre : AUCUN resultat. L'identifiant saisi ne designe pas une parcelle ; l'interface
+ *     affiche « Aucun resultat », qui est la verite. Inventer une entree conduirait a lancer une
+ *     qualification vouee a l'echec ;
+ *   - cadastre injoignable : un resultat SANS position, qui dit que la source n'a pas repondu. La
+ *     qualification reste possible — c'est le chemin degrade qui existait — mais l'utilisateur sait que
+ *     l'existence de la parcelle n'a pas ete verifiee.
+ */
+async function parcelleDesignee(
+  idu: string,
+  codeInsee: string,
+  section: string,
+  numero: string,
+): Promise<ResultatRecherche | null> {
+  const enBase = await parcelleEnResultat(idu);
+  if (enBase) return enBase;
+
+  let brute: Awaited<ReturnType<typeof parcelleParIduCadastre>>;
+  try {
+    brute = await parcelleParIduCadastre(idu);
+  } catch {
+    return {
+      type: 'parcelle',
+      libelle: `Parcelle ${section} ${numero}`,
+      sousTitre: `${idu} - cadastre injoignable, existence non verifiee - a qualifier`,
+      centroide: null,
+      bbox: null,
+      idu,
+      codeInsee,
+    };
+  }
+  if (!brute) return null;
+
+  return {
+    type: 'parcelle',
+    libelle: `Parcelle ${brute.section} ${brute.numero}`,
+    sousTitre: `${brute.nomCommune ?? brute.codeInsee} - ${brute.idu} - a qualifier`,
+    centroide: brute.centroide,
+    bbox: brute.geometrie ? bboxDe(brute.geometrie) : null,
+    idu: brute.idu,
+    codeInsee: brute.codeInsee,
   };
 }
 

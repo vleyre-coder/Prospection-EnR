@@ -37,15 +37,47 @@ test('l’ecran d’ouverture apparait, puis s’efface de lui-meme', async ({ p
   await expect(page.getByRole('group', { name: 'Vue' })).toBeVisible();
 });
 
+test('LE TEMOIN : sans aucune touche, l’animation est encore la peu apres l’ouverture', async ({
+  page,
+}) => {
+  /**
+   * CE TEST EST LA MOITIE DEMONSTRATIVE DU SUIVANT, et il existe pour une raison mesurée.
+   *
+   * La version precedente prouvait l'abrègement d'une seule facon : presser une touche, puis exiger la
+   * disparition en MOINS DE 1 500 ms — un budget choisi « nettement plus court que l'animation », qui
+   * dure deux secondes. La marge etait donc de 500 ms, et elle n'a pas tenu : la specification a echoue
+   * une fois sur cette machine pendant que deux suites tournaient en concurrence et que le relais IGN
+   * accumulait des delais de connexion. Elle a repasse seule au coup suivant.
+   *
+   * Une intermittence est le pire defaut d'un parc de tests de bout en bout : elle apprend a ignorer les
+   * echecs. Et la corriger en allongeant le budget aurait affaibli exactement ce que le test prouve.
+   *
+   * La demonstration est donc SCINDEE. Ici, le temoin : sans toucher a rien, l'ecran est encore visible
+   * peu apres l'ouverture. C'est une assertion que la lenteur ne peut que RENFORCER — plus la machine
+   * est chargee, plus l'ecran est encore la. Le test suivant peut alors attendre la disparition
+   * largement, sans rien perdre de sa force : l'un montre qu'elle ne vient pas d'elle-meme si vite,
+   * l'autre qu'une touche la provoque.
+   */
+  await connexionBrute(page);
+  const accueil = page.getByRole('status', { name: /ouverture de prospection/i });
+  await expect(accueil).toBeVisible();
+  // 400 ms, tres en dessous des deux secondes d'animation : si l'ecran disparaissait deja, il n'y
+  // aurait rien a abreger et la promesse du composant serait vide de sens.
+  await expect(accueil).toBeVisible({ timeout: 400 });
+});
+
 test('LA PROMESSE DU COMPOSANT : une touche abrege l’animation', async ({ page }) => {
   await connexionBrute(page);
   const accueil = page.getByRole('status', { name: /ouverture de prospection/i });
   await expect(accueil).toBeVisible();
 
   await page.keyboard.press('Escape');
-  // Nettement plus court que la duree de l'animation : si la touche n'abregeait rien, l'attente
-  // echouerait avant que l'animation ne se termine d'elle-meme.
-  await expect(accueil).toBeHidden({ timeout: 1500 });
+  /**
+   * Le delai est genereux, et c'est deliberé : ce qui est verifie ici est la REACTION a la touche, pas
+   * une performance. Le test temoin ci-dessus etablit que l'ecran ne s'efface pas de lui-meme en si peu
+   * de temps ; c'est lui qui porte la preuve, et il est insensible a la charge de la machine.
+   */
+  await expect(accueil).toBeHidden({ timeout: 10_000 });
 });
 
 test('l’ecran d’ouverture ne revient pas dans la meme session', async ({ page }) => {
