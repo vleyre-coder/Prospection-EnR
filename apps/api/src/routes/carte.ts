@@ -27,6 +27,15 @@ function filiereDepuis(q: unknown): Filiere {
 }
 
 /**
+ * Zoom a partir duquel le cadastre complet est relaye.
+ *
+ * Aligne sur `config.carte.zoomMinParcelles` : les deux couches parcellaires — le cadastre entier et
+ * nos parcelles qualifiees — doivent apparaitre au MEME zoom. Un decalage produirait le pire des
+ * affichages : des parcelles colorees flottant sans leur voisinage cadastral, ou l'inverse.
+ */
+const ZOOM_MIN_CADASTRE = config.carte.zoomMinParcelles;
+
+/**
  * Fonds de carte autorises par le relais.
  *
  * Liste FERMEE : le relais ne doit pas devenir un proxy ouvert vers n'importe quelle
@@ -115,6 +124,96 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           502,
           'fond_indisponible',
           "Le service de tuiles IGN est injoignable depuis le serveur.",
+        );
+      }
+    },
+  );
+
+  /**
+   * Relais du CADASTRE COMPLET, en tuiles vectorielles.
+   *
+   * POURQUOI CETTE ROUTE EXISTE — signalement d'usage, et le defaut le plus grave trouve depuis
+   * l'audit 8. Un prospecteur cherchait une parcelle precise, demandee par un collegue. Il n'a pu ni la
+   * qualifier, ni meme LA VOIR en zoomant sur le parcellaire. Sa conclusion etait juste : toutes les
+   * parcelles de France n'apparaissaient pas.
+   *
+   * La cause tient a l'architecture. La couche parcellaire de l'application est servie depuis NOTRE
+   * table `parcelle`, qui ne contient que les parcelles deja qualifiees — le commentaire de
+   * `config.carte.zoomMinParcelles` le disait explicitement : « seules les parcelles effectivement
+   * qualifiees sont en base ». Une parcelle jamais qualifiee n'existait donc nulle part dans
+   * l'application : invisible sur la carte, introuvable dans la liste, impossible a designer.
+   *
+   * S'y ajoutait un filtre de surface a 3 000 m2 applique EN SILENCE a toute qualification d'emprise.
+   * Mesure sur trois communes reelles de la Beauce — une region de GRANDES parcelles :
+   * Bazoches-les-Hautes 487 parcelles ecartees sur 806 (60 %), Loigny-la-Bataille 377 sur 689 (55 %),
+   * Tillay-le-Peneux 609 sur 1 090 (56 %). Ailleurs, la part serait plus forte encore.
+   *
+   * CE QUE CETTE ROUTE CHANGE. Le Plan Cadastral Informatise est publie par l'IGN en tuiles
+   * vectorielles, pour la France entiere. Relaye ici, il fait apparaitre CHAQUE parcelle des le zoom
+   * cadastral, qualifiee ou non. La couche qualifiee reste dessinee par-dessus, avec ses couleurs de
+   * score : on distingue donc d'un coup d'oeil ce qui a ete etudie de ce qui ne l'a pas ete — au lieu
+   * de confondre « pas de parcelle » avec « parcelle pas encore regardee ».
+   *
+   * Pourquoi un relais et non un appel direct du navigateur : la meme raison que pour le fond de carte.
+   * Dans un reseau d'entreprise filtrant les sorties, `data.geopf.fr` est injoignable depuis le poste
+   * alors que le serveur y accede. Et la destination est FIXE — aucun parametre du client n'entre dans
+   * l'URL amont — donc le relais ne peut pas devenir un proxy ouvert.
+   */
+  app.get<{ Params: { z: string; x: string; y: string } }>(
+    '/api/carte/cadastre/:z/:x/:y.pbf',
+    async (req, rep) => {
+      const z = Number(req.params.z);
+      const x = Number(req.params.x);
+      const y = Number(req.params.y);
+      if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+      }
+      const max = 2 ** z;
+      if (x < 0 || y < 0 || x >= max || y >= max) return rep.code(204).send();
+
+      /**
+       * En dessous du zoom cadastral, on ne relaie rien.
+       *
+       * Ce n'est pas une optimisation de confort : une tuile de cadastre en vue nationale pese des
+       * megaoctets pour un rendu illisible, et le service amont est un bien commun. Le client affiche
+       * la couche communale a ces echelles.
+       */
+      if (z < ZOOM_MIN_CADASTRE) return rep.code(204).send();
+
+      const url = `https://data.geopf.fr/tms/1.0.0/PCI/${z}/${x}/${y}.pbf`;
+      try {
+        const reponse = await fetch(url, {
+          headers: {
+            Accept: 'application/vnd.mapbox-vector-tile',
+            'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
+          },
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!reponse.ok) {
+          // Hors emprise cadastrale (mer, etranger), l'IGN repond 404 : la carte ne doit rien
+          // afficher, et ce n'est pas une erreur applicative.
+          if (reponse.status === 404 || reponse.status === 400) return rep.code(204).send();
+          return erreur(
+            rep,
+            502,
+            'cadastre_indisponible',
+            `Le service de tuiles cadastrales IGN a repondu ${reponse.status}.`,
+          );
+        }
+        const tuile = Buffer.from(await reponse.arrayBuffer());
+        return rep
+          .header('Content-Type', 'application/vnd.mapbox-vector-tile')
+          // Le millesime du PCI change deux fois par an : un cache d'une journee est sans risque et
+          // epargne le service amont.
+          .header('Cache-Control', 'public, max-age=86400')
+          .send(tuile);
+      } catch (err) {
+        req.log.warn({ err, z, x, y }, 'Relais de tuile cadastrale en echec');
+        return erreur(
+          rep,
+          502,
+          'cadastre_indisponible',
+          'Le service de tuiles cadastrales IGN est injoignable depuis le serveur.',
         );
       }
     },

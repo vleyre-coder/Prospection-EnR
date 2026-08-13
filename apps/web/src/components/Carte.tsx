@@ -409,6 +409,67 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       paint: { 'line-color': '#64748b', 'line-width': 0.4, 'line-opacity': 0.5 },
     });
 
+    /**
+     * --- CADASTRE COMPLET, sous nos parcelles qualifiees ---
+     *
+     * POURQUOI CETTE COUCHE EXISTE — signalement d'usage. Un prospecteur cherchait une parcelle
+     * precise, demandee par un collegue. Il n'a pu ni la qualifier, ni meme LA VOIR en zoomant sur le
+     * parcellaire. Sa conclusion etait juste : toutes les parcelles de France n'apparaissaient pas.
+     *
+     * La couche `parcelles` ci-dessous est servie depuis NOTRE base, qui ne contient que les parcelles
+     * deja qualifiees. Une parcelle jamais qualifiee n'existait donc nulle part dans l'application. Et
+     * un filtre de surface de 3 000 m2, applique en silence a chaque campagne, en ecartait la majorite :
+     * mesure sur trois communes de la Beauce — region de GRANDES parcelles — 55 a 60 % des parcelles
+     * cadastrales etaient absentes.
+     *
+     * Le pire n'etait pas l'absence, c'etait la CONFUSION QU'ELLE CREAIT : rien ne distinguait « il n'y
+     * a pas de parcelle ici » de « cette parcelle n'a pas encore ete regardee ». Un prospecteur pouvait
+     * balayer un secteur en croyant l'avoir vu en entier.
+     *
+     * Le Plan Cadastral Informatise de l'IGN, relaye par l'API, couvre la France entiere. Dessine SOUS
+     * la couche qualifiee, il rend visible chaque parcelle : celles que nous avons etudiees gardent leur
+     * couleur de score, les autres apparaissent en contour neutre. La difference entre « etudie » et
+     * « pas encore etudie » devient lisible d'un coup d'oeil.
+     */
+    m.addSource('cadastre', {
+      type: 'vector',
+      tiles: [`${RACINE_ABSOLUE}/api/carte/cadastre/{z}/{x}/{y}.pbf`],
+      minzoom: ZOOM_MIN_PARCELLES,
+      maxzoom: 16,
+      attribution: '© IGN — Plan Cadastral Informatise',
+    });
+
+    /**
+     * Un remplissage quasi transparent, et non seulement un contour.
+     *
+     * Il ne se voit pas, et il sert a deux choses indispensables : rendre la parcelle CLIQUABLE sur
+     * toute sa surface — un contour de un pixel ne se clique pas — et permettre le survol. Sans lui, il
+     * faudrait viser la ligne au pixel pres pour designer une parcelle non qualifiee.
+     */
+    m.addLayer({
+      id: 'cadastre-surface',
+      type: 'fill',
+      source: 'cadastre',
+      'source-layer': 'parcelle',
+      minzoom: ZOOM_MIN_PARCELLES,
+      paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.06 },
+    });
+
+    m.addLayer({
+      id: 'cadastre-contour',
+      type: 'line',
+      source: 'cadastre',
+      'source-layer': 'parcelle',
+      minzoom: ZOOM_MIN_PARCELLES,
+      paint: {
+        // Gris neutre et fin : le cadastre est un REFERENTIEL, pas une information a interpreter. Il
+        // doit se lire sans jamais concurrencer les couleurs de score, qui portent le jugement.
+        'line-color': '#64748b',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.3, 16, 0.7, 19, 1.1] as ExpressionSpecification,
+        'line-opacity': 0.55,
+      },
+    });
+
     // --- Parcelles ---
     m.addSource('parcelles', {
       type: 'vector',
