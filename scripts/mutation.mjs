@@ -555,6 +555,14 @@ const MUTATIONS = [
     tests: ['apps/api/test/rapport-pdf.test.ts'],
   },
   {
+    audit: 'couverture',
+    quoi: 'une servitude aeronautique se refonde sur l’arrete « radars », qui ne la regit pas',
+    fichier: 'packages/scoring/src/knockouts.ts',
+    de: "      \"La parcelle est grevee d'une servitude aeronautique de degagement : la hauteur des aerogenerateurs y est incompatible. Le plan de servitudes applicable est a verifier aupres du gestionnaire de l'aerodrome ou de la DGAC.\",\n      'risques',\n    );",
+    vers: "      \"La parcelle est grevee d'une servitude aeronautique de degagement : la hauteur des aerogenerateurs y est incompatible. Le plan de servitudes applicable est a verifier aupres du gestionnaire de l'aerodrome ou de la DGAC.\",\n      'risques',\n      'eol_radar',\n    );",
+    tests: ['packages/scoring/test/fondement-knockouts.test.ts'],
+  },
+  {
     audit: 'parcelles manquantes',
     quoi: 'une cellule d’emprise en echec redevient invisible pour l’utilisateur',
     fichier: 'apps/api/src/connecteurs/cadastre.ts',

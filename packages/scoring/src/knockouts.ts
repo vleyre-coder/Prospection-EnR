@@ -269,12 +269,25 @@ const koRadar: RegleKo = (s) => {
     }
   }
   if (s.risques.servitudesAeronautiques === true) {
+    /**
+     * AUCUN FONDEMENT JURIDIQUE ATTACHE, et c'est un correctif — pas un oubli.
+     *
+     * Ce knock-out citait `eol_radar`, c'est-a-dire l'arrete du 26 aout 2011 relatif aux RADARS. Ce
+     * texte ne regit pas les servitudes aeronautiques de degagement : deux contraintes distinctes,
+     * deux regimes distincts. La reference fausse s'imprimait dans le rapport PDF remis au
+     * proprietaire, sous la mention « Fondement : … » — exactement la famille du defaut
+     * « Fondement : eol_distance_habitation » corrige au chantier C.
+     *
+     * La reference est RETIREE plutot que remplacee : substituer un texte que je ne peux pas verifier
+     * serait le meme defaut sous un meilleur deguisement. Le motif reste, il est exact et suffit a
+     * ecarter la parcelle ; sa base juridique est a etablir par un juriste, avec les cinq autres
+     * knock-outs de nature juridique qui n'en portent pas (voir docs/VERIFICATION-COUVERTURE.md).
+     */
     return ko(
       'ko_eol_servitude_aero',
       'Servitude aeronautique',
-      "La parcelle est grevee d'une servitude aeronautique de degagement : la hauteur des aerogenerateurs y est incompatible.",
+      "La parcelle est grevee d'une servitude aeronautique de degagement : la hauteur des aerogenerateurs y est incompatible. Le plan de servitudes applicable est a verifier aupres du gestionnaire de l'aerodrome ou de la DGAC.",
       'risques',
-      'eol_radar',
     );
   }
   return null;

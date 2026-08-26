@@ -21,6 +21,9 @@ apps/web/playwright-report/
 apps/web/test-results/
 apps/web/blob-report/
 apps/web/e2e/.auth/
+# Captures de revue ergonomique : des artefacts d'execution, regeneres a la demande par
+# `npx playwright test --grep @revue`. Environ 1,5 Mo par serie.
+apps/web/captures/
 # Lancement de Playwright depuis la racine par erreur : les artefacts y atterrissent.
 test-results/
 playwright-report/

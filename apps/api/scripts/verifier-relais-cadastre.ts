@@ -18,12 +18,32 @@ function tuilePour(lon: number, lat: number, z: number): { z: number; x: number;
   return { z, x, y };
 }
 
+/**
+ * Les lieux sondes, et pourquoi ceux-la.
+ *
+ * Les cinq premiers couvrent des structures parcellaires opposees, du remembrement beauceron au
+ * parcellaire morcele du Finistere : c'est la que se joue la question « le cadastre est-il complet la ou
+ * l'on cherche ».
+ *
+ * S'y ajoutent la CORSE et les cinq departements d'OUTRE-MER, pour repondre a une question distincte —
+ * « toutes les references cadastrales de France » inclut-il ces territoires ? Le releve les distingue de
+ * la reponse de l'application : le format d'identifiant les accepte (codes « 2A », « 97x »), le relais
+ * peut les servir, mais la carte est BORNEE a la France metropolitaine (`BORNES_FRANCE` cote interface,
+ * `limiterAlaFrance` cote API). La derniere ligne du rapport le rappelle.
+ */
 const LIEUX = [
   { nom: 'Beauce (28) — grandes parcelles', lon: 1.79, lat: 48.157 },
   { nom: 'Finistere (29) — parcellaire morcele', lon: -4.1, lat: 48.4 },
   { nom: 'Vaucluse (84) — petites parcelles', lon: 5.05, lat: 43.95 },
   { nom: 'Bas-Rhin (67) — Alsace', lon: 7.6, lat: 48.6 },
   { nom: 'Haute-Garonne (31)', lon: 1.44, lat: 43.6 },
+  { nom: 'Corse-du-Sud (2A) — Ajaccio', lon: 8.74, lat: 41.93 },
+  { nom: 'Haute-Corse (2B) — Bastia', lon: 9.44, lat: 42.7 },
+  { nom: 'Guadeloupe (971)', lon: -61.53, lat: 16.24 },
+  { nom: 'Martinique (972)', lon: -61.02, lat: 14.61 },
+  { nom: 'Guyane (973) — Cayenne', lon: -52.33, lat: 4.93 },
+  { nom: 'La Reunion (974)', lon: 55.45, lat: -20.88 },
+  { nom: 'Mayotte (976)', lon: 45.22, lat: -12.78 },
   { nom: 'Pleine mer (hors cadastre)', lon: -4.9, lat: 47.9 },
 ];
 

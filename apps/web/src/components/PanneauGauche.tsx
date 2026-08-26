@@ -56,25 +56,40 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
       </div>
 
       <div className="panneau-contenu">
+        {/*
+          LA PRESENTATION DE LA FILIERE EST REPLIEE, sauf son critere determinant.
+          Mesure sur une capture en 1600x1000 : ce bloc occupait 110 px en permanence pour trois
+          paragraphes qu'on lit une fois. Le critere determinant, lui, sert a chaque changement de
+          filiere — il reste donc a l'ecran, et le reste est a un clic.
+        */}
         {meta && (
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--bordure)' }}>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--texte-doux)' }}>{meta.description}</p>
-            <p style={{ margin: '6px 0 0', fontSize: 11.5 }}>
+          <div className="filiere-resume">
+            <p className="filiere-critere">
               <strong>Critere determinant :</strong> {meta.critereRoi}
             </p>
-            <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--texte-faible)' }}>
-              Surface indicative : {meta.surfaceUtileMinHa} ha minimum,{' '}
-              {meta.surfaceUtileOptimaleHa} ha pour une pleine competitivite (seuils economiques,
-              non reglementaires).
-            </p>
+            <details className="filiere-detail">
+              <summary>Ce que couvre cette filiere</summary>
+              <p>{meta.description}</p>
+              <p className="note">
+                Surface indicative : {meta.surfaceUtileMinHa} ha minimum,{' '}
+                {meta.surfaceUtileOptimaleHa} ha pour une pleine competitivite (seuils economiques,
+                non reglementaires).
+              </p>
+            </details>
           </div>
         )}
 
-        <Legende referentiel={referentiel} />
+        {/*
+          L'ORDRE EST CELUI DE L'USAGE, et il etait inverse.
+          La legende venait en premier, ouverte, et poussait filtres, calques et couches sous la
+          ligne de flottaison : sur une capture en 1600x1000, le panneau n'affichait RIEN
+          d'actionnable sans defiler. Une legende se consulte, des filtres se manipulent.
+        */}
         <Filtres referentiel={referentiel} pertinents={pertinents} />
-        <Ponderations referentiel={referentiel} />
-        <Calques referentiel={referentiel} />
         <Couches referentiel={referentiel} />
+        <Calques referentiel={referentiel} />
+        <Ponderations referentiel={referentiel} />
+        <Legende referentiel={referentiel} />
       </div>
     </aside>
   );
@@ -86,8 +101,16 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
 
 function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
   const p = referentiel.palette;
+  /**
+   * FERMEE PAR DEFAUT, et c'est un changement assume.
+   *
+   * Elle etait ouverte, en tete de panneau, et mesurait plus de 700 px : a elle seule, elle remplissait
+   * la hauteur de l'ecran et repoussait filtres, calques et couches hors de vue. Une legende est de la
+   * DOCUMENTATION — on la lit une fois, on y revient rarement — la ou les filtres sont l'outil de
+   * travail. Elle reste entiere, complete et a un clic ; rien n'est supprime.
+   */
   return (
-    <details className="section" open>
+    <details className="section">
       <summary>Legende</summary>
       <div className="section-corps">
         <div className="legende-bloc">

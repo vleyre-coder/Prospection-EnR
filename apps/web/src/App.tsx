@@ -259,7 +259,15 @@ export function App(): JSX.Element {
           {etat.vue === 'carte' && <OutilsCarte carteRef={carteRef} />}
         </div>
 
-        {etat.iduSelectionne && (
+        {/*
+          LA FICHE N'EST MONTEE QU'EN VUE CARTE, et c'est une correction d'ergonomie mesuree.
+          Elle restait affichee en vue liste et en tableau de bord, ou elle prenait 470 px sur 1 600.
+          Consequence observee sur une capture : le tableau de la liste, qui compte dix colonnes, etait
+          comprime dans 800 px — chaque cellule passait sur deux lignes et la derniere colonne etait
+          coupee au bord. Or la fiche n'a pas d'usage la : cliquer une ligne de la liste RAMENE a la
+          carte et l'ouvre (`ouvrirDepuisListe`). La selection est conservee, seul l'affichage attend.
+        */}
+        {etat.iduSelectionne && etat.vue === 'carte' && (
           <FicheParcelle idu={etat.iduSelectionne} filiere={etat.filiere} referentiel={ref} />
         )}
       </div>
@@ -282,7 +290,24 @@ function CarteMontee({
 }): JSX.Element {
   return (
     <div
-      style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden' }}
+      /**
+       * `opacity` EN PLUS de `visibility`, et c'est un correctif.
+       *
+       * `visibility: hidden` se laisse annuler par un descendant qui redeclare `visibility: visible` —
+       * ce que fait la feuille de style de MapLibre sur certains de ses controles. Resultat constate sur
+       * capture : en vue liste, l'attribution « © IGN — Geoplateforme | © IGN — Plan Cadastral
+       * Informatise » flottait par-dessus la derniere ligne du tableau.
+       *
+       * `opacity: 0` ne peut pas etre annulee par un descendant, et elle CONSERVE la mise en page : la
+       * carte garde ses dimensions, donc aucun redimensionnement ni scintillement au retour — ce qui
+       * etait la raison de ne pas employer `display: none`.
+       */
+      style={{
+        position: 'absolute',
+        inset: 0,
+        visibility: visible ? 'visible' : 'hidden',
+        opacity: visible ? 1 : 0,
+      }}
       aria-hidden={!visible}
     >
       <Carte

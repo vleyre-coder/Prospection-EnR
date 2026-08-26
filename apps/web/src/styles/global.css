@@ -160,9 +160,18 @@ button:focus-visible,
 .barre {
   display: flex;
   align-items: center;
+  /*
+   * `wrap` et hauteur MINIMALE, non fixe.
+   *
+   * Sur un ecran de 900 px, la barre debordait : « Sombre » et « Quitter » etaient coupes hors de
+   * l'ecran, donc inatteignables — constate sur capture. Une hauteur fixe interdisait tout report a la
+   * ligne. Elle se replie desormais au lieu de rogner ses commandes.
+   */
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 14px;
-  height: var(--hauteur-barre);
-  padding: 0 12px;
+  min-height: var(--hauteur-barre);
+  padding: 4px 12px;
   background: var(--fond-panneau);
   border-bottom: 1px solid var(--bordure);
   box-shadow: var(--ombre);
@@ -251,6 +260,12 @@ button:focus-visible,
   border-radius: 5px;
   font-size: 12.5px;
   color: var(--texte-doux);
+  /*
+   * `nowrap`, et ce n'est pas un detail cosmetique : « Tableau de bord » se cassait en TROIS lignes
+   * (« Tableau » / « de » / « bord »), y compris sur un ecran de 1 600 px, ce qui etirait la barre
+   * superieure entiere a la hauteur de trois lignes de texte. Constate sur capture.
+   */
+  white-space: nowrap;
 }
 
 .bouton-groupe[aria-pressed='true'] {
@@ -312,7 +327,16 @@ button:focus-visible,
 
 .recherche {
   position: relative;
+  /*
+   * La recherche ne se laisse plus comprimer. Sa largeur declaree etait de 380 px, mais elle etait
+   * `flex-shrink` par defaut dans une barre trop pleine : mesuree a environ 200 px sur capture, ou
+   * « Parcelle 0A 0094 » s'affichait tronque en « Parcelle 0A ». C'est l'entree la plus utilisee de
+   * l'application — celle par laquelle on retrouve une parcelle precise — et c'etait le champ le plus
+   * etroit de la barre.
+   */
   width: min(380px, 32vw);
+  min-width: 220px;
+  flex-shrink: 0;
 }
 
 .recherche input {
@@ -429,6 +453,87 @@ button:focus-visible,
 
 .bandeau p {
   margin: 0;
+}
+
+/*
+ * Le bandeau d'ETAT DES DONNEES : un `<details>`, donc une seule ligne repliee.
+ *
+ * `display: block` et non `flex` : un `<details>` en flex ne replie plus rien — son contenu devient un
+ * enfant de la boite au lieu d'etre gouverne par l'element. La mise en ligne se fait donc dans le
+ * `<summary>`, qui porte le flex a sa place.
+ */
+.bandeau-etat {
+  display: block;
+  padding: 0;
+}
+
+.bandeau-etat > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.bandeau-etat > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Un chevron, pour que l'element se signale comme depliable sans texte supplementaire. */
+.bandeau-etat > summary::after {
+  content: '⌄';
+  margin-left: auto;
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+
+.bandeau-etat[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.bandeau-detail {
+  padding: 0 12px 9px 35px;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.bandeau-detail p {
+  margin: 0;
+}
+
+/*
+ * Le resume de filiere : le critere determinant a l'ecran, le reste replie.
+ * Ce bloc occupait 110 px en permanence pour trois paragraphes qu'on lit une seule fois.
+ */
+.filiere-resume {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.filiere-critere {
+  margin: 0;
+  font-size: 11.5px;
+}
+
+.filiere-detail > summary {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--texte-faible);
+  cursor: pointer;
+}
+
+.filiere-detail p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+.filiere-detail p.note {
+  font-size: 11px;
+  color: var(--texte-faible);
 }
 
 .bandeau .fermer {
@@ -704,11 +809,34 @@ button:focus-visible,
   font-size: 10px;
 }
 
-.indice-zoom {
+/*
+ * PILE DE MESSAGES, au lieu de bulles superposees.
+ *
+ * Chaque bulle etait posee en absolu a `bottom: 34px; left: 50%` : deux messages simultanes se
+ * recouvraient donc EXACTEMENT — constate sur capture, « fond servi via le relais » et « vue nationale »
+ * l'un par-dessus l'autre. Les decalages etaient ensuite corriges a la main, bulle par bulle, avec des
+ * `bottom: 68` en style en ligne : une regle qui casse des qu'un troisieme message apparait.
+ */
+.pile-messages {
   position: absolute;
   bottom: 34px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 12;
+  max-width: calc(100% - 24px);
+  /* La pile ne doit pas intercepter les clics destines a la carte ; ses enfants, si. */
+  pointer-events: none;
+}
+
+.pile-messages > * {
+  pointer-events: auto;
+}
+
+.indice-zoom {
   padding: 7px 14px;
   background: var(--fond-panneau);
   border: 1px solid var(--bordure);
@@ -716,24 +844,46 @@ button:focus-visible,
   box-shadow: var(--ombre-forte);
   font-size: 12.5px;
   color: var(--texte-doux);
-  z-index: 12;
-  white-space: nowrap;
+  /* `normal` et non `nowrap` : dans la pile, un message long doit se replier plutot que deborder. */
+  white-space: normal;
+  text-align: center;
 }
 
+/*
+ * UNE BARRE D'OUTILS, ET NON QUATRE DALLES EMPILEES.
+ *
+ * Les quatre boutons etaient disposes en COLONNE au bord droit : sur capture, ils couvraient 200 px de
+ * hauteur au milieu de la zone utile, par-dessus le parcellaire qu'on vient precisement examiner, et le
+ * premier d'entre eux affleurait le bord de l'ecran. Reunis en une seule rangee ancree en haut a gauche,
+ * ils forment un objet unique et laissent le centre de la carte libre.
+ */
 .outils-carte {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-radius: calc(var(--rayon) + 3px);
+  box-shadow: var(--ombre-forte);
   z-index: 12;
+  max-width: calc(100% - 24px);
 }
 
 .outils-carte .bouton {
   justify-content: center;
-  box-shadow: var(--ombre);
-  padding: 7px 10px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 6px 10px;
+}
+
+.outils-carte .bouton:hover {
+  background: var(--fond-survol, rgba(127, 127, 127, 0.12));
 }
 
 .outils-carte .bouton[aria-pressed='true'] {

@@ -1303,54 +1303,63 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         </div>
       )}
 
-      {/* Retour de la qualification lancee au clic sur une parcelle non qualifiee.
-          `status` et `aria-live` : l'operation dure plusieurs secondes et son resultat n'est
-          annonce nulle part ailleurs. Sans ce retour, le clic paraitrait ignore — exactement
-          l'impression que ce chantier corrige. */}
-      {qualifClic && (
-        <div
-          className={qualifClic.etat === 'echec' ? 'erreur-encart' : 'indice-zoom'}
-          style={{ position: 'absolute', bottom: 68, left: 12, right: 12, zIndex: 5 }}
-          role="status"
-          aria-live="polite"
-        >
-          <strong>Parcelle {qualifClic.libelle}</strong>
-          {qualifClic.etat === 'en_cours' && <span className="tourniquet" style={{ margin: '0 6px' }} />}
-          {' — '}
-          {qualifClic.message}
-          <button
-            type="button"
-            className="bouton-discret"
-            style={{ marginLeft: 8 }}
-            onClick={() => setQualifClic(null)}
+      {/*
+        UNE SEULE PILE POUR TOUS LES MESSAGES DE LA CARTE.
+        Ils etaient poses en absolu, chacun avec son propre `bottom` — et deux d'entre eux au meme
+        endroit : « fond servi via le relais » et « vue nationale » se recouvraient exactement, constate
+        sur capture. Une pile les empile, quel que soit leur nombre, sans decalage a maintenir.
+      */}
+      <div className="pile-messages">
+        {/* Retour de la qualification lancee au clic sur une parcelle non qualifiee.
+            `status` et `aria-live` : l'operation dure plusieurs secondes et son resultat n'est
+            annonce nulle part ailleurs. Sans ce retour, le clic paraitrait ignore — exactement
+            l'impression que ce chantier corrige. */}
+        {qualifClic && (
+          <div
+            className={qualifClic.etat === 'echec' ? 'erreur-encart' : 'indice-zoom'}
+            role="status"
+            aria-live="polite"
           >
-            Fermer
-          </button>
-        </div>
-      )}
+            <strong>Parcelle {qualifClic.libelle}</strong>
+            {qualifClic.etat === 'en_cours' && (
+              <span className="tourniquet" style={{ margin: '0 6px' }} />
+            )}
+            {' — '}
+            {qualifClic.message}
+            <button
+              type="button"
+              className="bouton-discret"
+              style={{ marginLeft: 8 }}
+              onClick={() => setQualifClic(null)}
+            >
+              Fermer
+            </button>
+          </div>
+        )}
 
-      {/* Ces bandeaux apparaissent sans interaction, a la suite d'un echec reseau : ils
-          doivent etre annonces, sinon l'information n'existe que visuellement. */}
-      {fondInjoignable && (
-        <div className="indice-zoom" style={{ bottom: 68 }} role="status" aria-live="polite">
-          Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
-          l&apos;acces a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
-        </div>
-      )}
+        {/* Ces bandeaux apparaissent sans interaction, a la suite d'un echec reseau : ils
+            doivent etre annonces, sinon l'information n'existe que visuellement. */}
+        {fondInjoignable && (
+          <div className="indice-zoom" role="status" aria-live="polite">
+            Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
+            l&apos;acces a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
+          </div>
+        )}
 
-      {fondViaRelais && !fondInjoignable && (
-        <div className="indice-zoom" style={{ bottom: 68 }} role="status" aria-live="polite">
-          Fond cartographique servi via le relais de l&apos;application : l&apos;acces direct a
-          data.geopf.fr est bloque depuis ce poste.
-        </div>
-      )}
+        {fondViaRelais && !fondInjoignable && (
+          <div className="indice-zoom" role="status" aria-live="polite">
+            Fond cartographique servi via le relais de l&apos;application : l&apos;acces direct a
+            data.geopf.fr est bloque depuis ce poste.
+          </div>
+        )}
 
-      {enVueNationale && (
-        <div className="indice-zoom">
-          Vue nationale : potentiel par commune. Zoomez jusqu&apos;au niveau {ZOOM_MIN_PARCELLES} pour
-          afficher les parcelles.
-        </div>
-      )}
+        {enVueNationale && (
+          <div className="indice-zoom">
+            Vue nationale : potentiel par commune. Zoomez jusqu&apos;au niveau{' '}
+            {ZOOM_MIN_PARCELLES} pour afficher les parcelles.
+          </div>
+        )}
+      </div>
 
       {mesure && mesure.points.length > 0 && (
         <div className="mesure-info">
