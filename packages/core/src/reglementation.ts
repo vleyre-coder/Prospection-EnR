@@ -143,6 +143,47 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     reference: "Code de l'urbanisme, art. L.111-30 ; decret n°2024-318 du 8 avril 2024",
     dateEntreeEnVigueur: '2024-04-09',
   },
+  /**
+   * DEUX PROCEDURES QUI DECIDENT DU CALENDRIER, et qui manquaient au solaire.
+   *
+   * La compensation agricole collective se decouvre souvent trop tard : c'est une etude prealable, avec
+   * un delai d'instruction et une contribution financiere, declenchee par un seuil de surface fixe
+   * DEPARTEMENT par DEPARTEMENT. Et les garanties de demantelement conditionnent l'accord du proprietaire
+   * autant que celui de l'administration.
+   */
+  compensation_agricole: {
+    id: 'pv_compensation_agricole',
+    libelle: 'Etude prealable de compensation agricole collective',
+    reference:
+      'Code rural et de la peche maritime, art. L.112-1-3 ; decret n°2016-1190 du 31 aout 2016 ; art. ' +
+      'D.112-1-18 et suivants',
+    dateEntreeEnVigueur: '2016-12-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031104466`,
+    commentaire:
+      "Due lorsqu'un projet soustrait durablement des terres a l'usage agricole au-dela d'un seuil de " +
+      'surface fixe par ARRETE PREFECTORAL — de l\'ordre de un a cinq hectares selon les departements, ' +
+      "sans regle nationale. L'etude chiffre l'effet sur l'economie agricole du territoire et propose des " +
+      'mesures de compensation collective, souvent une contribution a un fonds. Compter plusieurs mois. Une ' +
+      'installation agrivoltaique qui maintient une production agricole significative peut y echapper : ' +
+      "c'est precisement l'un des interets du regime.",
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  demantelement: {
+    id: 'pv_demantelement',
+    libelle: 'Demantelement, remise en etat et garanties financieres',
+    reference:
+      "Code de l'urbanisme, art. L.111-29 (loi APER) ; decret n°2024-318 du 8 avril 2024 (reversibilite " +
+      "de l'installation agrivoltaique) ; Code de l'energie, art. R.314-108 et suivants",
+    dateEntreeEnVigueur: '2024-04-09',
+    commentaire:
+      "L'obligation de remise en etat est systematique ; ce qui varie, c'est l'exigence de GARANTIES " +
+      'FINANCIERES, que le prefet ou la collectivite peut imposer, et le contenu de la promesse de bail. ' +
+      "Pour l'agrivoltaisme, la reversibilite fait partie des conditions du regime lui-meme : une " +
+      "installation non reversible n'est pas agrivoltaique, et perd le benefice du dispositif. C'est " +
+      'souvent la premiere question du proprietaire.',
+    aValiderParJuriste: true,
+  },
   aop_viticole: {
     id: 'pv_aop_viticole',
     libelle: "Aire parcellaire delimitee d'AOP viticole : implantation photovoltaique exclue",
@@ -213,6 +254,44 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     commentaire:
       "Ordres de grandeur : 30 km (radar meteo bande C), 20 km (bande S), 10 km (radar de l'aviation civile), 5 km (radar portuaire), avec avis possible en deca. Consultation obligatoire de Meteo-France, la DGAC et l'armee.",
     instable: true,
+  },
+  /**
+   * DEUX AJOUTS POUR L'EOLIEN, tous deux appuyes sur une donnee que l'application MESURE ou sur un
+   * regime qu'elle connait deja.
+   */
+  faisceaux_hertziens: {
+    id: 'eol_faisceaux_hertziens',
+    libelle: 'Servitude de protection d’un centre radioelectrique',
+    reference:
+      'Code des postes et des communications electroniques, art. L.54 a L.56-1 (servitudes de protection ' +
+      'des centres radioelectriques d’emission et de reception)',
+    dateEntreeEnVigueur: '2004-06-11',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006070987/LEGISCTA000006112875`,
+    commentaire:
+      "Ces servitudes protegent les liaisons hertziennes contre les obstacles : un aerogenerateur de plus " +
+      "de cent metres en travers d'un faisceau est en principe incompatible. Elles sont annexees au " +
+      "document d'urbanisme et publiees comme servitudes d'utilite publique. Un deplacement de machine " +
+      "suffit parfois a degager le faisceau, d'ou un caractere derogeable plutot que bloquant : c'est " +
+      "une contrainte d'implantation, dont l'issue se juge sur un plan de masse.",
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  autorisation_environnementale: {
+    id: 'eol_autorisation_environnementale',
+    libelle: 'Autorisation environnementale : etude d’impact et enquete publique',
+    reference:
+      "Code de l'environnement, art. L.181-1 et suivants (autorisation environnementale unique) ; " +
+      'art. L.122-1 (evaluation environnementale) ; art. L.123-1 et suivants (enquete publique)',
+    dateEntreeEnVigueur: '2017-03-01',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074220/LEGISCTA000033929019`,
+    commentaire:
+      "Un parc eolien relevant de l'autorisation au titre de la rubrique 2980 est instruit dans le cadre de " +
+      "l'autorisation environnementale UNIQUE : elle absorbe l'etude d'impact, l'evaluation des incidences " +
+      "Natura 2000, la derogation especes protegees si elle est necessaire, le defrichement et le permis de " +
+      "construire. C'est une bonne nouvelle de procedure — un seul dossier, un seul recours — et une " +
+      'mauvaise de calendrier : compter de dix-huit a trente-six mois entre le depot et la decision, plus le ' +
+      'contentieux.',
+    aValiderParJuriste: true,
   },
 };
 
@@ -386,6 +465,45 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     commentaire:
       "Rejet d'eaux pluviales (surface interceptee) et assechement de zone humide : verifier le franchissement des seuils IOTA.",
   },
+  /**
+   * DEUX AJOUTS POUR LA METHANISATION. Le premier est le plus souvent oublie en prospection : un intrant
+   * d'origine animale fait entrer l'unite dans le champ sanitaire europeen, avec un agrement distinct de
+   * l'ICPE. Le second porte sur l'acces, qui pese 9 points au profil de cette filiere — le trafic est
+   * QUOTIDIEN, contrairement aux autres filieres.
+   */
+  sous_produits_animaux: {
+    id: 'metha_sous_produits_animaux',
+    libelle: 'Intrants d’origine animale : agrement sanitaire',
+    reference:
+      'Reglement (CE) n°1069/2009 du 21 octobre 2009 (sous-produits animaux) et reglement (UE) ' +
+      "n°142/2011 ; Code rural et de la peche maritime, art. L.226-1 et suivants",
+    dateEntreeEnVigueur: '2011-03-04',
+    commentaire:
+      "Des qu'un intrant contient des sous-produits animaux — lisier, fumier, contenus stomacaux, dechets " +
+      "de decoupe — l'unite releve du reglement sanitaire europeen, en plus de l'ICPE. Consequences " +
+      'concretes : agrement sanitaire delivre par la DDPP, hygienisation ou pasteurisation selon la ' +
+      "categorie des matieres, et tracabilite. Le rappel est declenche ici par la presence d'elevages dans " +
+      "le rayon d'approvisionnement, qui rend ces intrants probables ; la nature reelle du plan " +
+      "d'approvisionnement seule permet de conclure.",
+    aValiderParJuriste: true,
+  },
+  acces_engins: {
+    id: 'metha_acces_engins',
+    libelle: 'Acces poids lourds : trafic quotidien d’approvisionnement',
+    reference:
+      "Arrete ministériel du 12 aout 2010 (rubrique 2781, voies d'acces et de circulation) ; reglement " +
+      'departemental de defense exterieure contre l’incendie (art. R.2225-7 du code general des ' +
+      'collectivites territoriales)',
+    dateEntreeEnVigueur: '2010-08-13',
+    commentaire:
+      "La difference avec les autres filieres est le CARACTERE QUOTIDIEN du trafic : une unite de quelques " +
+      "dizaines de tonnes par jour represente plusieurs allers-retours de poids lourds chaque jour, sur " +
+      "toute la duree d'exploitation. L'acces conditionne donc l'autorisation ET l'acceptabilite locale — " +
+      "c'est l'un des premiers motifs d'opposition des riverains. S'y ajoute la voie engins exigee par le " +
+      'SDIS.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
   injection: {
     id: 'metha_injection',
     libelle: 'Injection de biomethane : droit a l\'injection et rebours',
@@ -552,6 +670,84 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
       'La loi APER a par ailleurs ouvert des possibilites en zone d’acceleration, ce que le moteur prend ' +
       'en compte lorsque la parcelle y figure pour la filiere etudiee.',
     instable: true,
+    aValiderParJuriste: true,
+  },
+  /**
+   * LES QUATRE PROCEDURES SUIVANTES SONT COMMUNES AUX QUATRE FILIERES, et aucune n'etait citee.
+   *
+   * Elles ne sont pas des motifs eliminatoires — ce sont des AUTORISATIONS a obtenir, dont le delai et
+   * le cout se decident tot. Les taire revient a laisser un prospecteur promettre un calendrier qu'il ne
+   * tiendra pas.
+   *
+   * Leur applicabilite est calculee QUAND LA DONNEE EXISTE, et laissee a « a verifier » sinon. La
+   * nuance n'est pas cosmetique : `preEnjeuEspeces` et `sensibiliteArcheologique` sont mis a `null` par
+   * les connecteurs, deliberement — le premier valait une valeur inventee, retiree a l'audit 6. Une
+   * procedure annoncee « non applicable » sur une donnee absente serait exactement le defaut fondateur
+   * de ces audits.
+   */
+  defrichement: {
+    id: 'commun_defrichement',
+    libelle: 'Autorisation de defrichement, et compensation',
+    reference:
+      'Code forestier, art. L.341-1 (definition), L.341-3 (autorisation prealable) et L.341-6 ' +
+      '(compensation en nature ou financiere)',
+    dateEntreeEnVigueur: '2012-07-01',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000025244092/LEGISCTA000025247458`,
+    commentaire:
+      "Le defrichement est le changement de destination d'un terrain boise, meme sans coupe : poser des " +
+      'panneaux sous couvert suffit a le constituer. L\'autorisation est instruite par la DDT, et la ' +
+      'compensation — jusqu\'a plusieurs fois la surface defrichee, ou son equivalent financier — pese ' +
+      'lourdement sur le bilan. Un terrain boise a plus de 5 % declenche ici le rappel, sur la base de la ' +
+      'couverture forestiere mesuree. Les seuils de dispense sont fixes par arrete PREFECTORAL et varient ' +
+      'd\'un departement a l\'autre.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  especes_protegees: {
+    id: 'commun_especes_protegees',
+    libelle: 'Especes protegees : interdiction, et derogation exceptionnelle',
+    reference:
+      "Code de l'environnement, art. L.411-1 (interdictions) et L.411-2 (derogation, dite « derogation " +
+      'especes protegees ») ; art. R.411-6 et suivants (procedure)',
+    dateEntreeEnVigueur: '2000-09-21',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033033465`,
+    commentaire:
+      "L'interdiction est de PRINCIPE : la derogation n'est possible qu'a trois conditions cumulatives — " +
+      "absence de solution alternative, raison imperative d'interet public majeur, et maintien de l'etat " +
+      'de conservation des populations. C\'est le motif de contentieux le plus frequent contre les projets ' +
+      'ENR. Aucune source nationale ne permet de le prejuger a la parcelle : l\'application ne l\'affirme ' +
+      'donc jamais et laisse « a verifier ». Seul un inventaire faune-flore sur quatre saisons conclut.',
+    aValiderParJuriste: true,
+  },
+  natura2000_incidences: {
+    id: 'commun_natura2000_incidences',
+    libelle: 'Evaluation des incidences Natura 2000',
+    reference:
+      "Code de l'environnement, art. L.414-4 et R.414-19 a R.414-23 (evaluation des incidences sur les " +
+      'sites Natura 2000)',
+    dateEntreeEnVigueur: '2010-04-11',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022478059`,
+    commentaire:
+      "L'evaluation est due meme lorsque le projet est situe HORS du site, des lors qu'il est susceptible " +
+      "de l'affecter : la proximite suffit a la declencher, et une liste locale arretee par le prefet peut " +
+      "l'imposer au-dela de la liste nationale. Une conclusion d'incidence significative sans mesure " +
+      'suffisante bloque le projet.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  archeologie_preventive: {
+    id: 'commun_archeologie_preventive',
+    libelle: 'Archeologie preventive : diagnostic et fouille eventuelle',
+    reference:
+      'Code du patrimoine, art. L.522-1 et suivants ; art. R.523-1 et R.523-4 (zones de presomption de ' +
+      'prescription archeologique)',
+    dateEntreeEnVigueur: '2004-02-24',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074236/LEGISCTA000006159940`,
+    commentaire:
+      "Le service regional de l'archeologie peut prescrire un diagnostic sur un projet d'emprise " +
+      "importante, et une fouille si le diagnostic est positif : compter plusieurs mois et un cout a la " +
+      "charge de l'amenageur. Les zones de presomption sont arretees par le prefet de region et ne sont " +
+      'pas publiees de facon homogene : l\'application ne les connait pas et laisse « a verifier ».',
     aValiderParJuriste: true,
   },
   site_classe: {

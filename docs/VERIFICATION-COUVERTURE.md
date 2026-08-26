@@ -275,3 +275,107 @@ résultat : c'est ce qui a permis de trouver les défauts A et B.
 un texte nommé et signalé comme à vérifier qu'un refus sans motif — mais elles partent dans un document
 remis à un propriétaire. La liste est dans `packages/core/src/reglementation.ts`, groupe `REGLES_COMMUNES`
 et trois entrées `bess_*` ; le test `fondement-knockouts` l'énumère.
+
+
+---
+
+## 5. Étoffement des trois autres filières
+
+Même méthode que pour le stockage : n'ajouter que ce que l'application **mesure**, rester au niveau du
+**régime applicable** plutôt que du seuil chiffré, et marquer toute référence non relue par un juriste.
+
+### Le référentiel, avant et après
+
+| Groupe | Avant | Après |
+|---|---|---|
+| **commun** (nouveau) | — | **14** |
+| solaire / agrivoltaïsme | 9 | **11** |
+| éolien terrestre | 5 | **7** |
+| stockage BESS | 3 | **6** |
+| méthanisation | 8 | **10** |
+| **total** | **25** | **48** |
+
+Seuils de procédure réellement affichés sur une fiche : solaire 3 → **9**, éolien 5 → **11**, BESS 3 →
+**10**, méthanisation 8 → **14**.
+
+### Quatre autorisations transversales, qui n'apparaissaient nulle part
+
+Elles décident du **calendrier** d'un projet, et aucune n'était citée — sur aucune des quatre filières.
+
+| Procédure | Référence | Applicabilité |
+|---|---|---|
+| Défrichement et compensation | c. forestier L.341-1, L.341-3, L.341-6 | **calculée** — couverture forestière mesurée |
+| Espèces protégées | c. env. L.411-1, L.411-2, R.411-6 et s. | toujours « à vérifier » |
+| Incidences Natura 2000 | c. env. L.414-4, R.414-19 à R.414-23 | **calculée** — recouvrement **ou** proximité ≤ 5 km |
+| Archéologie préventive | c. patrimoine L.522-1 et s., R.523-1, R.523-4 | toujours « à vérifier » |
+
+Les deux « à vérifier » ne sont pas une faiblesse, c'est la seule réponse honnête : `preEnjeuEspeces` et
+`sensibiliteArcheologique` sont mis à `null` **par les connecteurs, délibérément** — le premier portait
+une valeur inventée, retirée à l'audit 6. Annoncer « non applicable » sur une donnée absente serait le
+défaut fondateur de ces audits, et le plus dangereux de tous : **une ligne verte ne réveille personne.**
+Un test verrouille les deux.
+
+Pour Natura 2000, le point de droit qui compte est verrouillé lui aussi : l'évaluation est due **même hors
+du site** dès lors que le projet est susceptible de l'affecter. Conclure « non » sur la seule absence de
+recouvrement serait faux.
+
+### Et un défaut que ce chantier a révélé
+
+**`milieux.enjeuDefrichement` était mesuré et jeté.** L'enrichissement le calcule depuis la couverture
+forestière ingérée (`enrichissement.ts`), et **aucune règle de scoring ne le lisait**. Une donnée
+collectée, stockée, et exploitée par personne — alors qu'un défrichement porte une compensation pouvant
+atteindre plusieurs fois la surface défrichée.
+
+En cherchant, j'ai vérifié les cinq autres champs du même profil : `sensibiliteAvifaune`,
+`sensibiliteChiropteres`, `preEnjeuEspeces`, `inculteDepuis2013` et `covisibiliteIndice` sont mis à `null`
+**explicitement**, avec leur motif — ils portaient des valeurs inventées, retirées aux audits précédents.
+Ce sont donc des absences assumées, pas des oublis. `enjeuDefrichement` était le seul vrai gâchis.
+
+### Par filière
+
+**Solaire / agrivoltaïsme (+2).** `pv_compensation_agricole` — étude préalable de compensation agricole
+collective (c. rural L.112-1-3, décret n° 2016-1190) : le seuil de surface est fixé **par arrêté
+préfectoral**, entre un et cinq hectares selon les départements, donc l'application se prononce sur ce
+qu'elle sait — la nature du sol — et jamais sur la surface. Une configuration agrivoltaïque maintenant une
+production significative peut en dispenser, ce qui est l'un des intérêts du régime.
+`pv_demantelement` — remise en état et garanties financières ; pour l'agrivoltaïsme la **réversibilité est
+une condition du régime lui-même**, et c'est souvent la première question du propriétaire.
+
+**Éolien (+2, dont un motif éliminatoire).** `eol_faisceaux_hertziens` (CPCE L.54 à L.56-1) : `risques.faisceauxHertziens`
+était **mesuré** et n'alimentait qu'un critère noté. Un aérogénérateur de plus de cent mètres en travers
+d'un faisceau protégé est en principe incompatible — c'est plus que quelques points. Nouveau knock-out
+**`ko_eol_faisceau_hertzien`**, dérogeable : le faisceau se dégage souvent en déplaçant la machine.
+`eol_autorisation_environnementale` (c. env. L.181-1 et s., L.122-1, L.123-1 et s.) : l'autorisation
+unique absorbe étude d'impact, incidences Natura 2000, dérogation espèces, défrichement et permis de
+construire — bonne nouvelle de procédure, mauvaise de calendrier.
+
+**Méthanisation (+2, dont un motif éliminatoire).** `metha_sous_produits_animaux` (règlement CE
+1069/2009, règlement UE 142/2011, c. rural L.226-1 et s.) : dès qu'un intrant contient des sous-produits
+animaux, l'unité relève du régime sanitaire européen **en plus** de l'ICPE — agrément DDPP, hygiénisation,
+traçabilité. Déclenché par la présence d'élevages dans le rayon d'approvisionnement, qui rend ces intrants
+probables ; c'est un indice, et le commentaire le dit.
+`metha_acces_engins` + nouveau knock-out **`ko_metha_acces_engins`**, dérogeable. Le même fait mesuré n'a
+pas le même poids selon la filière : pour un stockage les conteneurs arrivent une fois, pour une unité de
+méthanisation c'est **plusieurs allers-retours de poids lourds chaque jour pendant vingt ans**. L'accès
+conditionne l'autorisation, la voie engins du SDIS, et l'acceptabilité — premier motif d'opposition des
+riverains sur cette filière.
+
+### Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run build` | 0 erreur |
+| `npm test`, base vierge | **662 tests, 0 échec**, 4 ignorés |
+| `packages/scoring` | 67/67, dont 6 nouveaux invariants de procédure |
+| Tests de bout en bout | 15/15 |
+| Mutations du chantier (`--filtre couverture`) | **16/16 attrapées** |
+
+Les **25 knock-outs** déclarés sont chacun déclenchés par un cas de test, et leur fondement relu sur le
+résultat.
+
+### Ce qui reste
+
+**23 règles portent `aValiderParJuriste`** — les 14 communes, plus deux par filière ajoutées ici et trois
+pour le stockage. C'est le seul point qui n'avance pas sans vous : elles sont utiles en l'état, mais elles
+s'impriment dans un document remis à un propriétaire. La liste s'obtient par le test
+`fondement-knockouts` ou en filtrant le référentiel sur ce champ.

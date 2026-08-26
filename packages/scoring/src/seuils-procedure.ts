@@ -28,6 +28,74 @@ function seuil(
   };
 }
 
+/**
+ * Un rappel de procedure COMMUN aux quatre filieres, lu dans le groupe `commun` du referentiel.
+ *
+ * Les autorisations transversales — defrichement, especes protegees, incidences Natura 2000, archeologie
+ * preventive — ne dependent pas de la filiere. Les dupliquer dans chaque bloc serait quatre fois la meme
+ * regle a corriger.
+ */
+function seuilCommun(
+  cle: string,
+  applicable: boolean | null,
+  commentaire: string | null = null,
+): SeuilProcedure | null {
+  const regle = REGLES['commun']?.[cle];
+  if (!regle) return null;
+  return {
+    regleId: regle.id,
+    libelle: regle.libelle,
+    reference: regle.reference,
+    dateEntreeEnVigueur: regle.dateEntreeEnVigueur,
+    applicable,
+    commentaire: commentaire ?? regle.commentaire ?? null,
+  };
+}
+
+/**
+ * LES QUATRE AUTORISATIONS TRANSVERSALES, avec leur applicabilite quand elle est MESUREE.
+ *
+ * `null` n'est pas un aveu de faiblesse ici, c'est la reponse juste : `preEnjeuEspeces` et
+ * `sensibiliteArcheologique` sont mis a `null` par les connecteurs, deliberement — le premier portait
+ * une valeur inventee, retiree a l'audit 6. Annoncer « non applicable » sur une donnee absente serait
+ * exactement le defaut que ces audits poursuivent. « A verifier » est la seule reponse honnete, et elle
+ * a de la valeur : elle rappelle au prospecteur ce qui reste a instruire.
+ */
+function proceduresTransversales(s: ParcelleSnapshot): Array<SeuilProcedure | null> {
+  const f = s.occupationSol.foret;
+  const natura =
+    s.milieux.natura2000Habitats.recouvre === true || s.milieux.natura2000Oiseaux.recouvre === true
+      ? true
+      : s.milieux.natura2000Habitats.recouvre == null && s.milieux.natura2000Oiseaux.recouvre == null
+        ? null
+        : // Hors site : l'evaluation reste due si le projet est susceptible d'affecter le site, ce que
+          // la proximite suffit a rendre plausible. On ne conclut donc « non » qu'au-dela de 5 km.
+          (() => {
+            const d = [s.milieux.natura2000Habitats.distanceM, s.milieux.natura2000Oiseaux.distanceM]
+              .filter((x): x is number => x != null)
+              .sort((a, b) => a - b)[0];
+            return d == null ? null : d <= 5000 ? true : false;
+          })();
+
+  return [
+    seuilCommun(
+      'defrichement',
+      s.milieux.enjeuDefrichement,
+      s.milieux.enjeuDefrichement === true
+        ? `Parcelle boisee${f.partBoisee != null ? ` a environ ${formatNombre(f.partBoisee * 100, '%', 0)}` : ''} : une autorisation de defrichement et sa compensation sont a prevoir, avec un delai d'instruction propre.`
+        : null,
+    ),
+    // Aucune source nationale ne prejuge l'enjeu especes a la parcelle : toujours « a verifier ».
+    seuilCommun('especes_protegees', null),
+    seuilCommun(
+      'natura2000_incidences',
+      natura,
+      natura === true ? 'Site Natura 2000 recouvrant ou proche : evaluation des incidences a produire.' : null,
+    ),
+    seuilCommun('archeologie_preventive', null),
+  ];
+}
+
 /** Puissance PV installable estimee, en MWc, a raison d'environ 1 MWc par hectare cloture. */
 export function puissancePvEstimeeMwc(surfaceHa: number | null, agrivoltaique: boolean): number | null {
   if (surfaceHa == null) return null;
@@ -42,7 +110,7 @@ export function construireSeuilsProcedure(
   surfaceHa: number | null,
   regimeImplantation: string | null,
 ): SeuilProcedure[] {
-  const out: Array<SeuilProcedure | null> = [];
+  const out: Array<SeuilProcedure | null> = [...proceduresTransversales(s)];
 
   if (filiere === 'solaire_sol') {
     const p =
@@ -63,6 +131,27 @@ export function construireSeuilsProcedure(
       seuil(filiere, 'eval_env_systematique', pct == null ? null : pct >= 3),
       seuil(filiere, 'eval_env_cas_par_cas', pct == null ? null : pct >= 0.3 && pct < 3),
     );
+    /**
+     * La compensation agricole collective : declenchee par la NATURE DU SOL, pas par la puissance.
+     *
+     * Le seuil de surface est fixe par arrete prefectoral, entre un et cinq hectares selon les
+     * departements : l'application ne peut donc pas trancher, et ne le pretend pas. Elle signale
+     * l'applicabilite probable des que le sol est agricole exploite, et laisse « a verifier » quand la
+     * nature du sol n'est pas connue.
+     */
+    const solAgricole = s.occupationSol.typeSol;
+    out.push(
+      seuil(
+        filiere,
+        'compensation_agricole',
+        solAgricole == null ? null : solAgricole === 'agricole_exploite',
+        solAgricole === 'agricole_exploite'
+          ? `Sol agricole exploite${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'etude prealable est probablement due. Le seuil de surface est fixe par arrete prefectoral — le verifier aupres de la DDT${regimeImplantation === 'agrivoltaisme' ? '. Une configuration agrivoltaique maintenant une production significative peut en dispenser' : ''}.`
+          : null,
+      ),
+      seuil(filiere, 'demantelement', true),
+    );
+
     if (regimeImplantation === 'agrivoltaisme') {
       out.push(
         seuil(filiere, 'agri_taux_couverture', true),
@@ -99,6 +188,22 @@ export function construireSeuilsProcedure(
         s.patrimoine.monumentHistorique.dansPerimetreProtection ?? null,
       ),
       seuil(filiere, 'radar', s.risques.radars.length > 0 ? true : null),
+    );
+  }
+
+  if (filiere === 'eolien_terrestre') {
+    out.push(
+      // Mesure directe : la servitude recouvre la parcelle, ou non, ou l'on ne sait pas.
+      seuil(
+        filiere,
+        'faisceaux_hertziens',
+        s.risques.faisceauxHertziens,
+        s.risques.faisceauxHertziens === true
+          ? "La parcelle est grevee d'une servitude de protection radioelectrique : l'implantation devra degager le faisceau, ce qui contraint fortement le plan de masse."
+          : null,
+      ),
+      // Systematique des lors que la rubrique 2980 est franchie, c'est-a-dire pour tout parc.
+      seuil(filiere, 'autorisation_environnementale', true),
     );
   }
 
@@ -166,6 +271,29 @@ export function construireSeuilsProcedure(
         s.raccordement.reseauGaz.distanceCanalisationKm == null
           ? null
           : s.raccordement.reseauGaz.distanceCanalisationKm <= 10,
+      ),
+      /**
+       * Les deux rappels ajoutes pour cette filiere.
+       *
+       * L'agrement sanitaire est declenche par la PRESENCE D'ELEVAGES dans le rayon
+       * d'approvisionnement, qui rend probables des intrants d'origine animale. C'est un indice, pas une
+       * certitude : le plan d'approvisionnement reel seul conclut, et le commentaire le dit.
+       */
+      seuil(
+        filiere,
+        'sous_produits_animaux',
+        s.gisement.elevagesRayon10km == null ? null : s.gisement.elevagesRayon10km > 0,
+        s.gisement.elevagesRayon10km != null && s.gisement.elevagesRayon10km > 0
+          ? `${s.gisement.elevagesRayon10km} elevage(s) dans le rayon d'approvisionnement : des intrants d'origine animale sont probables, ce qui appelle un agrement sanitaire distinct de l'ICPE.`
+          : null,
+      ),
+      seuil(
+        filiere,
+        'acces_engins',
+        s.acces.accesPoidsLourds == null ? null : true,
+        s.acces.accesPoidsLourds === false
+          ? "Aucun acces poids lourds identifie : sur cette filiere le trafic est QUOTIDIEN, et l'acces conditionne autant l'autorisation que l'acceptabilite locale."
+          : null,
       ),
     );
   }

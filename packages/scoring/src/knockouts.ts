@@ -382,6 +382,30 @@ const koRadar: RegleKo = (s) => {
   return null;
 };
 
+/**
+ * SERVITUDE RADIOELECTRIQUE : une contrainte d'implantation, pas une interdiction de droit.
+ *
+ * `risques.faisceauxHertziens` est MESURE — le connecteur des servitudes le renseigne depuis les
+ * servitudes d'utilite publique du Geoportail de l'urbanisme — et n'etait exploite que par un critere
+ * note. Or un aerogenerateur de plus de cent metres en travers d'un faisceau protege est en principe
+ * incompatible : c'est plus qu'une penalite de quelques points.
+ *
+ * DEROGEABLE, et c'est la lecture juste : le faisceau se degage souvent en deplacant la machine, la ou
+ * une protection forte ou un espace boise classe ne se contourne pas. La parcelle ressort donc en orange
+ * avec alerte forte, et le motif dit ce qu'il faut verifier.
+ */
+const koEolFaisceauHertzien: RegleKo = (s) => {
+  if (s.risques.faisceauxHertziens !== true) return null;
+  return ko(
+    'ko_eol_faisceau_hertzien',
+    'Servitude radioelectrique',
+    "La parcelle est grevee d'une servitude de protection d'un centre radioelectrique. Un aerogenerateur de plus de cent metres en travers d'un faisceau protege y est en principe incompatible. Un deplacement de machine peut suffire a degager la liaison : la contrainte se juge sur un plan de masse, apres consultation du gestionnaire du faisceau.",
+    'risques',
+    'eol_faisceaux_hertziens',
+    true,
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Methanisation
 // ---------------------------------------------------------------------------
@@ -469,6 +493,32 @@ const koMethaCoursEau: RegleKo = (s) => {
 // Composition par filiere
 // ---------------------------------------------------------------------------
 
+/**
+ * ACCES POIDS LOURDS EN METHANISATION : le trafic est QUOTIDIEN, et c'est ce qui change tout.
+ *
+ * Le meme fait mesure — `acces.accesPoidsLourds` a `false` — n'a pas le meme poids selon la filiere.
+ * Pour un stockage, les conteneurs arrivent une fois ; pour une unite de methanisation, ce sont
+ * plusieurs allers-retours de poids lourds CHAQUE JOUR pendant vingt ans. L'acces conditionne donc
+ * l'autorisation ET l'acceptabilite locale, premier motif d'opposition des riverains sur cette filiere.
+ *
+ * Le critere `acc_poids_lourds` pese deja 9 points au profil de la methanisation — le plus fort des
+ * quatre filieres. Mais neuf points sur cent ne disent pas « inexploitable » : le knock-out le dit,
+ * en restant derogeable puisqu'un acces se cree.
+ */
+const koMethaAccesEngins: RegleKo = (s) => {
+  if (s.acces.accesPoidsLourds !== false) return null;
+  return ko(
+    'ko_metha_acces_engins',
+    'Aucun acces poids lourds',
+    `Aucun acces poids lourds n'a ete identifie depuis le reseau routier${
+      s.acces.distanceVoirieM != null ? ` (voirie la plus proche a ${formatDistance(s.acces.distanceVoirieM)})` : ''
+    }. Une unite de methanisation genere plusieurs allers-retours de poids lourds par jour pendant toute son exploitation : l'acces conditionne l'autorisation, la voie engins exigee par le SDIS, et l'acceptabilite par les riverains. Un acces peut etre cree, mais son cout et son trace doivent etre etablis avant tout engagement.`,
+    'acces',
+    'metha_acces_engins',
+    true,
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Stockage par batteries (BESS)
 // ---------------------------------------------------------------------------
@@ -535,6 +585,7 @@ export const IDS_KNOCK_OUTS = [
   'ko_coeur_parc_national',
   'ko_ebc',
   'ko_emplacement_reserve',
+  'ko_eol_faisceau_hertzien',
   'ko_eol_habitation_500',
   'ko_eol_mh_500',
   'ko_eol_radar',
@@ -542,6 +593,7 @@ export const IDS_KNOCK_OUTS = [
   'ko_eol_site_classe',
   'ko_eol_zone_habitat_500',
   'ko_hors_document_cadre',
+  'ko_metha_acces_engins',
   'ko_metha_captage',
   'ko_metha_cours_eau',
   'ko_metha_habitation_200',
@@ -558,9 +610,9 @@ export type IdKnockOut = (typeof IDS_KNOCK_OUTS)[number];
 
 const REGLES_KO: Record<Filiere, RegleKo[]> = {
   solaire_sol: [...COMMUNS, koDocumentCadre, koAopViticole],
-  eolien_terrestre: [...COMMUNS, koDistanceHabitation500, koMonumentSiteClasse, koRadar],
+  eolien_terrestre: [...COMMUNS, koDistanceHabitation500, koMonumentSiteClasse, koRadar, koEolFaisceauHertzien],
   bess: [...COMMUNS, koBessAccesEngins],
-  methanisation: [...COMMUNS, koMethaHabitation200, koMethaCaptage, koMethaCoursEau],
+  methanisation: [...COMMUNS, koMethaHabitation200, koMethaCaptage, koMethaCoursEau, koMethaAccesEngins],
 };
 
 /**

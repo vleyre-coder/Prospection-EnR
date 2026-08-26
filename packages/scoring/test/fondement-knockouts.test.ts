@@ -54,6 +54,8 @@ const FONDEMENT_ATTENDU: Record<string, string | null> = {
   ko_metha_captage: 'metha_distance_eau',
   ko_metha_cours_eau: 'metha_distance_eau',
   ko_bess_acces_engins: 'bess_acces_engins',
+  ko_eol_faisceau_hertzien: 'eol_faisceaux_hertziens',
+  ko_metha_acces_engins: 'metha_acces_engins',
 
   /**
    * --- Attributions COMMUNES, ajoutees sur decision du proprietaire ---
@@ -91,15 +93,25 @@ const A_VALIDER = [
   'bess_effets_domino',
   'bess_raccordement_s3renr',
   'commun_appb',
+  'commun_archeologie_preventive',
   'commun_coeur_parc_national',
+  'commun_defrichement',
   'commun_ebc',
   'commun_emplacement_reserve',
+  'commun_especes_protegees',
+  'commun_natura2000_incidences',
   'commun_ppr_zone_rouge',
   'commun_pprt_zone_rouge',
   'commun_reserve_naturelle',
   'commun_site_classe',
   'commun_zone_humide',
   'commun_zone_n',
+  'eol_autorisation_environnementale',
+  'eol_faisceaux_hertziens',
+  'metha_acces_engins',
+  'metha_sous_produits_animaux',
+  'pv_compensation_agricole',
+  'pv_demantelement',
 ];
 
 // ---------------------------------------------------------------------------
@@ -344,6 +356,21 @@ const CAS: Array<{
   },
 
   // --- Stockage BESS ---
+  {
+    id: 'ko_eol_faisceau_hertzien',
+    filiere: 'eolien_terrestre',
+    poser: (s) => {
+      s.risques.faisceauxHertziens = true;
+    },
+  },
+  {
+    id: 'ko_metha_acces_engins',
+    filiere: 'methanisation',
+    poser: (s) => {
+      s.acces.accesPoidsLourds = false;
+      s.acces.distanceVoirieM = 1200;
+    },
+  },
   {
     id: 'ko_bess_acces_engins',
     filiere: 'bess',
