@@ -27,6 +27,15 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT_WEB = Number(process.env['E2E_PORT_WEB'] ?? 4180);
 const PORT_API = Number(process.env['E2E_PORT_API'] ?? 3180);
+/**
+ * Port du PORTAIL simule (`e2e/portail.spec.ts`).
+ *
+ * Cette specification place devant l'interface un relais qui applique la vraie fonction edge
+ * de `netlify/edge-functions/portail.ts`, avec le routage que Netlify appliquera — tout le site
+ * garde, `/api/*` exclu. C'est une simulation du routage, pas Netlify : ce qu'elle prouve, c'est
+ * que l'APPLICATION fonctionne derriere le portail, dans un vrai navigateur.
+ */
+const PORT_PORTAIL = Number(process.env['E2E_PORT_PORTAIL'] ?? 4181);
 
 /**
  * Le secret de signature et les identifiants du compte d'essai.
@@ -37,11 +46,16 @@ const PORT_API = Number(process.env['E2E_PORT_API'] ?? 3180);
 export const E2E = {
   portWeb: PORT_WEB,
   portApi: PORT_API,
+  portPortail: PORT_PORTAIL,
   urlWeb: `http://127.0.0.1:${PORT_WEB}`,
   urlApi: `http://127.0.0.1:${PORT_API}`,
+  urlPortail: `http://127.0.0.1:${PORT_PORTAIL}`,
   secretJwt: 'secret-de-bout-en-bout-uniquement-non-production',
   email: 'e2e@local',
   motDePasse: 'motdepasse-e2e-1234',
+  /** Identifiants du portail simule. Ils satisfont l'exigence de scripts/portail-mot-de-passe.mjs. */
+  portailUtilisateur: 'prospection',
+  portailMotDePasse: 'Tk9-fR2xQm7Ls4Bd8Wz1Hv',
 } as const;
 
 /**
@@ -152,8 +166,13 @@ export default defineConfig({
          * tiers. La base d'essai est semee separement, hors reseau, par `scripts/semer-e2e.ts`.
          */
         AMORCAGE_AUTO: 'false',
-        // L'origine de l'interface doit etre declaree, sinon le navigateur bloque les requetes.
-        ORIGINES_AUTORISEES: E2E.urlWeb,
+        /**
+         * Les origines de l'interface doivent etre declarees, sinon le navigateur bloque les
+         * requetes. La seconde est celle du portail simule (`portail.spec.ts`), qui sert la meme
+         * interface derriere une authentification Basic : sans elle, la specification du portail
+         * echouerait sur le CORS et non sur ce qu'elle verifie.
+         */
+        ORIGINES_AUTORISEES: `${E2E.urlWeb},${E2E.urlPortail}`,
       },
     },
     {

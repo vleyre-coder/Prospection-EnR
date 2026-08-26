@@ -92,7 +92,10 @@ Puis : choisir une filière, rechercher une commune, zoomer au niveau 14, clique
 **Qualifier l'emprise**, et cliquer sur une parcelle.
 
 Dépannage : [docs/INSTALLATION.md](docs/INSTALLATION.md). Mise en ligne pour un accès à
-plusieurs : [docs/HEBERGEMENT.md](docs/HEBERGEMENT.md).
+plusieurs : [docs/HEBERGEMENT.md](docs/HEBERGEMENT.md) — dont, si l'interface est publiée sur
+Netlify, le **portail d'accès** qui la ferme au public
+([§6](docs/HEBERGEMENT.md#6-sécuriser-laccès-au-site-publié-sur-netlify)). Ce portail protège
+l'interface ; ce sont les comptes et les jetons de l'API qui protègent les données.
 
 ## Données
 

@@ -1,0 +1,5 @@
+# Outil interne de prospection fonciere : aucun contenu a indexer.
+# L'en-tete X-Robots-Tag de netlify.toml dit la meme chose aux robots qui ne lisent
+# pas ce fichier, et le portail d'acces repond 401 a ceux qui l'ignorent.
+User-agent: *
+Disallow: /

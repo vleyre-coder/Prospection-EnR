@@ -5,9 +5,20 @@
 # l'API : elle a besoin d'un processus permanent, d'un disque persistant pour le raster
 # de vent et de PostGIS avec ST_AsMVT.
 #
-# Une variable a definir dans Netlify (Site configuration > Environment variables) :
+# Deux variables a definir dans Netlify (Site configuration > Environment variables) :
 #
-#   URL_API = https://mon-api.exemple.fr      (sans barre oblique finale)
+#   URL_API           = https://mon-api.exemple.fr      (sans barre oblique finale)
+#   MOT_DE_PASSE_SITE = <au moins 16 caracteres tires au hasard>
+#
+# MOT_DE_PASSE_SITE arme le portail d'acces (netlify/edge-functions/portail.ts) : sans lui,
+# la construction du site echoue, avec un message qui propose une valeur a copier. Pour
+# publier sciemment un site public, ajouter PORTAIL_DESACTIVE=1 plutot que de laisser la
+# variable vide. UTILISATEUR_SITE change l'identifiant, « prospection » par defaut.
+#
+# ATTENTION A CE QUE CE PORTAIL COUVRE. Il protege l'INTERFACE. Il ne protege pas les
+# donnees : l'API reste joignable a sa propre URL, et c'est son authentification — jetons,
+# roles, habilitation pour les donnees de proprietaires, journalisation — qui garde les
+# donnees. Le portail s'ajoute a cette authentification, il ne la remplace pas.
 #
 # Deux modes selon ce que vous choisissez, decrits dans scripts/netlify-build.sh :
 #   - par defaut, Netlify reproxifie /api vers URL_API : meme origine, aucun CORS a regler ;
@@ -17,6 +28,15 @@
 [build]
   command = "bash scripts/netlify-build.sh"
   publish = "apps/web/dist"
+
+# Le portail d'acces n'est pas declare ici, et c'est volontaire.
+#
+# Netlify decouvre les fonctions edge dans `netlify/edge-functions/` sans qu'on le lui dise, et
+# `netlify/edge-functions/portail.ts` porte sa propre declaration : `export const config` fixe
+# les chemins gardes (`/*`), le chemin exclu (`/api/*`) et le plafond de requetes. La reference
+# de configuration par fichier de Netlify ne documente AUCUNE cle `edge_functions` sous `[build]` ;
+# une premiere version en posait une, ecartee plutot que pariee. Un plafond de requetes ne peut de
+# toute facon se declarer que dans le code.
 
 [build.environment]
   NODE_VERSION = "22"
@@ -35,6 +55,10 @@
     # L'application n'a aucune raison d'etre embarquee dans un site tiers, et elle
     # affiche des donnees de prospection.
     X-Frame-Options = "DENY"
+    # Un outil de prospection interne n'a rien a faire dans un index de moteur de recherche.
+    # Le portail d'acces suffirait — un robot recoit 401 — mais cet en-tete tient aussi
+    # lorsque PORTAIL_DESACTIVE=1, et il couvre les robots qui ne lisent pas robots.txt.
+    X-Robots-Tag = "noindex, nofollow, noarchive"
 
 # Les redirections /api et le repli page unique sont ecrits dans dist/_redirects par
 # le script de construction, car leur cible depend de URL_API.

@@ -78,11 +78,17 @@ Si vous voulez garder votre chaîne Netlify, c'est possible : le dépôt contien
 3. dans **Site configuration → Environment variables**, ajouter :
 
    ```
-   URL_API = https://enr-api.onrender.com
+   URL_API           = https://enr-api.onrender.com
+   MOT_DE_PASSE_SITE = <au moins 16 caractères tirés au hasard>
    ```
 
 Netlify construit alors `apps/web` et **reproxifie `/api` vers votre API** : pour le
 navigateur tout vient de la même origine, il n'y a aucun CORS à régler.
+
+`MOT_DE_PASSE_SITE` arme le **portail d'accès** décrit au §6. Sans cette variable, la
+construction **échoue** avec un message qui propose une valeur à copier : on ne publie pas
+une interface de prospection en public par distraction. Pour publier sciemment un site
+public, ajouter `PORTAIL_DESACTIVE=1` plutôt que de laisser la variable vide.
 
 > **Une limite à connaître.** Les passerelles des hébergeurs statiques coupent les requêtes
 > longues, de l'ordre de la trentaine de secondes. La qualification d'une emprise peut
@@ -105,9 +111,15 @@ curl -X POST https://enr-api.onrender.com/api/qualification/emprise \
   -d '{"bbox":[1.70,48.10,1.80,48.20],"surfaceMinM2":10000}'
 ```
 
-Franchement : l'option C ajoute une plateforme, un domaine et un réglage CORS sans rien
-apporter que l'option B ne fasse déjà. Elle ne se justifie que si vous tenez à héberger
-l'interface avec vos autres sites.
+Franchement : l'option C ajoute une plateforme, un domaine et un réglage CORS. Elle apporte
+**une** chose que l'option B ne fait pas — un portail d'accès devant l'interface, décrit au
+§6, qui empêche qu'un inconnu voie même l'écran de connexion — au prix d'un second mot de
+passe à saisir. Sur la performance, l'option B reste devant : en `APPEL_DIRECT=1`, le chemin
+des tuiles paie environ 2,3 fois plus de requêtes qu'en origine unique — mesure faite sur la
+configuration de bout en bout de ce dépôt, 89 préflights `OPTIONS` pour 69 `GET` de tuiles,
+parce que l'en-tête `Authorization` rend chaque requête de tuile non simple au sens CORS.
+Choisissez C si vous tenez à héberger l'interface avec vos autres sites, ou si le fait que
+l'écran de connexion soit public vous dérange.
 
 ---
 
@@ -121,6 +133,8 @@ l'interface avec vos autres sites.
 | HTTPS et nom de domaine | non | oui | oui |
 | Requêtes longues | oui | oui | non, sauf `APPEL_DIRECT=1` |
 | Données hors de vos murs | non | oui | oui |
+| Interface non publique | oui (poste local) | non — l'écran de connexion est public | oui, portail §6 |
+| Nombre de mots de passe à saisir | 1 | 1 | 2 (portail, puis application) |
 
 ---
 
@@ -158,6 +172,116 @@ fois qu'une restauration fonctionne réellement.
 
 ---
 
+## 6. Sécuriser l'accès au site publié sur Netlify
+
+### 6.1 D'abord, ce qu'un portail Netlify peut et ne peut pas faire
+
+C'est le point qui décide de tout le reste, et il faut le dire avant de parler d'outils :
+**Netlify n'héberge que l'interface.** L'API et sa base tournent ailleurs et restent
+joignables à leur propre URL, qu'un portail existe ou non sur Netlify.
+
+| Ce qui est protégé | Par quoi |
+|---|---|
+| L'existence de l'outil, sa carte, ses écrans, son aspect | le portail Netlify (§6.2) |
+| Les **données** — parcelles, statuts de prospection, propriétaires | l'authentification de l'**API** : connexion, jetons JWT, rôles, habilitation explicite pour les données de propriétaires, journalisation des consultations |
+
+Autrement dit, le portail est une **porte de rue**, pas la serrure du coffre. Il s'ajoute à
+l'authentification de l'application ; il ne la remplace pas, et il ne peut pas la remplacer :
+un mot de passe partagé ne dit pas **qui** a consulté **quoi**, alors que le RGPD l'exige sur
+les données nominatives de propriétaires. Ce qui tient cette exigence, c'est l'API.
+
+Ce que le portail apporte quand même, et ce n'est pas rien : sans lui, l'écran de connexion
+de votre outil de prospection est public. N'importe qui — un concurrent, un moteur de
+recherche — voit qu'il existe, sur quel domaine, avec quelles filières, et peut essayer des
+mots de passe sur le formulaire de l'application. Avec lui, il ne voit rien.
+
+### 6.2 Les trois outils possibles, et lequel est retenu
+
+| Outil | Forfait Netlify requis | Retenu |
+|---|---|---|
+| **Password protection** intégrée (réglage du tableau de bord) | **Pro** — « basic password protection for your entire site is available on all Pro plans » | non : payant, et le mot de passe vit dans le tableau de bord, hors du dépôt |
+| **Role-based access control** avec JWT (Netlify Identity, Auth0, Okta) | **Enterprise** | non : hors de proportion, et l'application a déjà ses rôles |
+| **Fonction edge d'authentification HTTP Basic** écrite dans le dépôt | **tous**, y compris gratuit | **oui** |
+
+Le portail retenu est donc `netlify/edge-functions/portail.ts`. Il est versionné avec le
+reste du code, revu comme le reste du code, et testé : `apps/web/test/portail-netlify.test.ts`
+l'exécute — décodage de l'en-tête, comparaison du couple, réponse de refus, et un vrai
+aller-retour HTTP.
+
+Si vous passez un jour au forfait Pro, la protection intégrée de Netlify devient une
+alternative légitime : elle fait la même chose, un cran plus simple à administrer. Le portail
+du dépôt reste préférable sur un point — il est relu et testé avec le code.
+
+### 6.3 Mise en route
+
+Dans **Site configuration → Environment variables** :
+
+```
+MOT_DE_PASSE_SITE = <au moins 16 caractères, tirés au hasard>
+UTILISATEUR_SITE  = prospection            (optionnel ; « prospection » par défaut)
+```
+
+Pour obtenir une valeur acceptable :
+
+```bash
+node scripts/portail-mot-de-passe.mjs --proposer
+```
+
+Trois points à connaître :
+
+1. **La construction refuse de produire un site sans portail.** Pas de `MOT_DE_PASSE_SITE`,
+   pas de site — sauf `PORTAIL_DESACTIVE=1`, qui construit en affichant un avertissement.
+   C'est le même choix que `AUTH_DESACTIVEE` côté API : l'absence d'authentification doit
+   être une décision, jamais un oubli.
+2. **La robustesse du mot de passe est vérifiée**, pas espérée : au moins 16 caractères, au
+   moins 10 caractères distincts, et aucun marqueur des listes d'attaque (`azerty`,
+   `motdepasse`, `123456`…). Un mot de passe partagé n'a pas d'autre défense que sa longueur.
+3. **Laissez la variable active sur tous les contextes de déploiement.** Les Deploy Previews
+   et les branches sont servis sur des URL publiques ; sans la variable, ils seraient ouverts
+   alors que la production est fermée.
+
+### 6.4 Ce que le visiteur voit
+
+Le navigateur affiche sa boîte de dialogue d'identification. Une fois franchie, l'application
+demande **sa propre** connexion : deux mots de passe, donc. C'est le coût de la solution C —
+le portail ne connaît pas les comptes de l'application, et l'application ne connaît pas le
+portail. **L'option B n'a pas ce coût** : l'API sert elle-même l'interface, sur une seule
+origine, avec un seul formulaire de connexion et des comptes nominatifs. Si le double mot de
+passe vous gêne, c'est un argument de plus pour l'option B, pas pour retirer le portail.
+
+Si le visiteur annule la boîte de dialogue, il reçoit une page « Accès réservé » qui ne dit
+**rien** de ce qu'elle garde : ni le métier de l'outil, ni le nom de l'identifiant, ni celui
+des variables. C'est la seule page qu'un inconnu verra.
+
+### 6.5 Ce qui reste hors de portée du portail
+
+Trois limites, énoncées plutôt que dissimulées :
+
+- **`/api/*` est exclu du portail, et doit l'être.** En mode reproxification, l'interface pose
+  elle-même un en-tête `Authorization: Bearer <jeton>` sur chaque appel à son origine — c'est
+  le même en-tête que celui de l'authentification Basic. Soumettre `/api/*` au portail ferait
+  répondre 401 à tous les appels d'API après connexion, et l'application prendrait ce 401 pour
+  une session expirée : boucle de déconnexion sur une session valide. Cette exclusion ne coûte
+  rien : le même chemin est de toute façon ouvert à l'URL propre de l'API, où les jetons JWT le
+  gardent.
+- **La force brute n'est que freinée.** Un plafond de 300 requêtes par minute et par adresse IP
+  est déclaré dans la fonction (`rateLimit`, disponible sur tous les forfaits quand la règle est
+  écrite dans le code). Il se contourne avec plusieurs adresses. Ce qui rend l'attaque sans
+  espoir, c'est la longueur du mot de passe — d'où la vérification du §6.3.
+- **Aucune trace nominative.** Le portail ne sait pas qui entre. La traçabilité exigée sur les
+  données de propriétaires est tenue par l'API, et par elle seule.
+
+### 6.6 Deux réglages qui accompagnent le portail
+
+- `X-Robots-Tag: noindex, nofollow, noarchive` dans `netlify.toml`, et un `robots.txt` qui
+  interdit tout. Un outil interne n'a rien à faire dans un index. L'en-tête tient même lorsque
+  `PORTAIL_DESACTIVE=1`, et couvre les robots qui ne lisent pas `robots.txt`.
+- En mode `APPEL_DIRECT=1`, `ORIGINES_AUTORISEES` côté API doit contenir **exactement** l'URL
+  de votre site Netlify, et rien d'autre : c'est ce qui empêche une page tierce d'appeler votre
+  API depuis le navigateur d'un de vos utilisateurs connecté.
+
+---
+
 ## Sources
 
 - [Render — extensions PostgreSQL supportées, dont PostGIS](https://render.com/docs/postgresql-extensions)
@@ -167,3 +291,10 @@ fois qu'une restauration fonctionne réellement.
 - [Netlify — Background Functions, limite de 15 minutes](https://docs.netlify.com/build/functions/background-functions/)
 - [Neon — extension PostGIS](https://neon.com/docs/extensions/postgis)
 - [Netlify Database, propulsée par Neon](https://neon.com/blog/netlify-db-powered-by-neon)
+- [Netlify — Password Protection, réservée aux forfaits Pro](https://docs.netlify.com/manage/security/secure-access-to-sites/password-protection/)
+- [Netlify — Project visibility (« password protected » : Pro uniquement)](https://docs.netlify.com/manage/security/secure-access-to-sites/project-visibility/)
+- [Netlify — Role-based access control avec JWT (Enterprise)](https://docs.netlify.com/manage/security/secure-access-to-sites/role-based-access-control/)
+- [Netlify — API des fonctions edge (`context.next`, `Netlify.env`, `config.path` / `excludedPath`)](https://docs.netlify.com/build/edge-functions/api/)
+- [Netlify — limites des fonctions edge (50 ms de CPU par requête)](https://docs.netlify.com/build/edge-functions/limits/)
+- [Netlify — plafonds de requêtes déclarés dans le code, sur tous les forfaits](https://docs.netlify.com/manage/security/secure-access-to-sites/rate-limiting/)
+- [RFC 7235 — authentification HTTP, schéma `Basic` insensible à la casse](https://www.rfc-editor.org/rfc/rfc7235)

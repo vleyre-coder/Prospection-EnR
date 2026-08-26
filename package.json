@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "npm run build -w @enr/core && npm run build -w @enr/scoring && npm run build -w @enr/api && npm run build -w @enr/web",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && npm run typecheck:netlify",
+    "typecheck:netlify": "tsc -p netlify",
     "test": "npm run test --workspaces --if-present",
     "demarrer": "npm run build && npm run start -w @enr/api",
     "start": "npm run start -w @enr/api",
@@ -26,6 +27,7 @@
     "e2e": "npm run e2e --workspace @enr/web"
   },
   "devDependencies": {
+    "@netlify/edge-functions": "^4.0.0",
     "concurrently": "^9.1.0",
     "tsx": "^4.23.1",
     "typescript": "^5.7.2"

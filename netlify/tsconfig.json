@@ -1,0 +1,20 @@
+{
+  // Les fonctions edge tournent sous Deno chez Netlify, pas sous Node : `types: []`
+  // ecarte volontairement les types de Node, pour qu'une API absente du runtime edge
+  // ne passe pas la verification ici.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["edge-functions/**/*.ts"]
+}

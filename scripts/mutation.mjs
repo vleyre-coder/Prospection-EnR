@@ -711,6 +711,74 @@ const MUTATIONS = [
     construire: '@enr/core',
     tests: ['packages/core/test/composer-idu.test.ts'],
   },
+  // --- Portail d'acces Netlify -----------------------------------------------------------
+  //
+  // Un portail d'authentification est le pire endroit pour un test decoratif : il est vert
+  // aussi longtemps que personne n'essaie d'entrer. Les sept mutations ci-dessous cassent
+  // chacune une propriete que le portail est CENSE garantir.
+  {
+    audit: 'portail netlify',
+    quoi: 'le portail laisse entrer sans verifier le mot de passe',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: "  return (await coupleValide(presente, reglages)) ? 'ouvert' : 'refuse';",
+    vers: "  return 'ouvert';",
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: 'le couple identifiant/mot de passe est compare sans separateur',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: "const SEPARATEUR = '\\u0000';",
+    vers: "const SEPARATEUR = '';",
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: 'le defi HTTP reprend un caractere hors ASCII et fait planter la fonction',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: "const DOMAINE_AUTH = 'Prospection EnR - acces reserve';",
+    vers: "const DOMAINE_AUTH = 'Prospection EnR — acces reserve';",
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: 'la page de refus reapprend a un inconnu ce que garde le portail',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: "  <p>Cette application n'est pas publique.",
+    vers: "  <p>Cette application de prospection fonciere n'est pas publique.",
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: '`/api/*` cesse d’etre exclu du portail',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: "  excludedPath: ['/api/*'],",
+    vers: '  excludedPath: [],',
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: 'le plafond par IP devient si serre qu’il coupe un premier affichage',
+    fichier: 'netlify/edge-functions/portail.ts',
+    de: '    windowLimit: 300,',
+    vers: '    windowLimit: 3,',
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
+  {
+    audit: 'portail netlify',
+    quoi: 'l’exigence de variete du mot de passe ne s’applique plus',
+    fichier: 'scripts/portail-mot-de-passe.mjs',
+    de: '  if (distincts < DISTINCTS_MINIMAUX) {',
+    vers: '  if (false) {',
+    cwd: 'apps/web',
+    tests: ['test/portail-netlify.test.ts'],
+  },
 ];
 
 /**
