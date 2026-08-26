@@ -32,16 +32,16 @@ commandes à enchaîner.
 ### 1.2 Récupérer et lancer
 
 ```bash
-git clone https://github.com/vleyre-coder/Prospection-EnR.git
-cd Prospection-EnR
+git clone https://github.com/Llegender/Prospection_EnR.git
+cd Prospection_EnR
 ./demarrer.sh
 ```
 
 Sous Windows, dans PowerShell :
 
 ```powershell
-git clone https://github.com/vleyre-coder/Prospection-EnR.git
-cd Prospection-EnR
+git clone https://github.com/Llegender/Prospection_EnR.git
+cd Prospection_EnR
 .\demarrer.ps1
 ```
 

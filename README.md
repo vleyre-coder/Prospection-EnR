@@ -48,7 +48,7 @@ filtres.
 2. installer **[PostgreSQL](https://www.postgresql.org/download/windows/)** en cochant
    **PostGIS** dans le Stack Builder, à la fin de l'installation ;
 3. sur cette page GitHub : bouton vert **`< > Code` → Download ZIP**, extraire, puis
-   **déplacer le dossier en `C:\Prospection-EnR`** — un `&` ou un chemin trop long dans
+   **déplacer le dossier en `C:\Prospection_EnR`** — un `&` ou un chemin trop long dans
    l'emplacement fait échouer la compilation ;
 4. double-cliquer sur **`demarrer.bat`**.
 
@@ -60,8 +60,8 @@ Le navigateur s'ouvre sur <http://localhost:3000>. Marche à suivre détaillée,
 Aucune autre installation — ni Node, ni PostgreSQL.
 
 ```bash
-git clone https://github.com/vleyre-coder/Prospection-EnR.git
-cd Prospection-EnR
+git clone https://github.com/Llegender/Prospection_EnR.git
+cd Prospection_EnR
 ./demarrer.sh          # sous Windows : .\demarrer.ps1
 ```
 

@@ -50,15 +50,15 @@ dans le menu Démarrer, il est installé et se relance quand vous voulez.
 
 Pas besoin de Git.
 
-1. Ouvrir **<https://github.com/vleyre-coder/Prospection-EnR>**
+1. Ouvrir **<https://github.com/Llegender/Prospection_EnR>**
 2. Cliquer sur le bouton vert **`< > Code`**, puis sur **Download ZIP**.
 3. **Clic droit → Extraire tout**, puis **déplacer et renommer le dossier en
-   `C:\Prospection-EnR`.**
+   `C:\Prospection_EnR`.**
 
 > ### ⚠️ L'emplacement du dossier compte vraiment
 >
 > Mettez le dossier **à la racine du disque**, avec un nom court :
-> **`C:\Prospection-EnR`**. Ce n'est pas une préférence esthétique.
+> **`C:\Prospection_EnR`**. Ce n'est pas une préférence esthétique.
 >
 > **Un `&` dans le chemin casse la compilation.** Un dossier nommé
 > `Desktop\Prototype & Test\…` fait échouer la construction avec un message
@@ -67,7 +67,7 @@ Pas besoin de Git.
 > trouvé. Les caractères `^`, `!` et `%` posent le même problème.
 >
 > **Un chemin trop long échoue aussi.** Windows limite la longueur des chemins ; le nom que
-> GitHub donne au dossier (`Prospection-EnR-claude-enr-land-prospecting-app-i97pmk`), placé
+> GitHub donne au dossier (`Prospection_EnR-claude-enr-land-prospecting-app-i97pmk`), placé
 > sous plusieurs sous-dossiers, suffit à dépasser la limite.
 >
 > `demarrer.bat` vérifie ces deux points **avant** de télécharger quoi que ce soit et vous
@@ -117,9 +117,9 @@ page de téléchargement. Les situations les plus courantes :
 | `Connexion a PostgreSQL impossible` | soit le mot de passe saisi n'est pas le bon, soit le service est arrêté : tapez `services.msc` dans le menu Démarrer, cherchez la ligne `postgresql`, clic droit → **Démarrer** |
 | `PostGIS n'est pas installe` | lancer **Stack Builder** depuis le menu Démarrer et cocher PostGIS (point b de l'étape 2) |
 | `L'installation des composants a echoue` | accès Internet filtré. Si votre entreprise a un proxy, le message affiche les deux commandes à taper |
-| `Le dossier est a un emplacement que Windows ne sait pas gerer` | le chemin contient `&`, `^`, `!` ou `%` : déplacez le dossier vers `C:\Prospection-EnR` et relancez |
-| `Le chemin du dossier est trop long` | même correction : `C:\Prospection-EnR` |
-| `Cannot find module '…\typescript\bin\tsc'` pendant la compilation | c'est la signature d'un `&` dans le chemin : déplacez le dossier vers `C:\Prospection-EnR`, puis supprimez le dossier `node_modules` et relancez |
+| `Le dossier est a un emplacement que Windows ne sait pas gerer` | le chemin contient `&`, `^`, `!` ou `%` : déplacez le dossier vers `C:\Prospection_EnR` et relancez |
+| `Le chemin du dossier est trop long` | même correction : `C:\Prospection_EnR` |
+| `Cannot find module '…\typescript\bin\tsc'` pendant la compilation | c'est la signature d'un `&` dans le chemin : déplacez le dossier vers `C:\Prospection_EnR`, puis supprimez le dossier `node_modules` et relancez |
 | Windows affiche « Windows a protégé votre ordinateur » | **Informations complémentaires** → **Exécuter quand même**. Le fichier vient de votre propre dépôt, pas d'Internet |
 
 ---

@@ -31,8 +31,8 @@ dossier ordinaire :
 
 ```bash
 cd ~/Documents/Projets          # ou D:\Projets sous Windows
-git clone https://github.com/vleyre-coder/Prospection-EnR.git
-cd Prospection-EnR
+git clone https://github.com/Llegender/Prospection_EnR.git
+cd Prospection_EnR
 ./demarrer.sh
 ```
 
