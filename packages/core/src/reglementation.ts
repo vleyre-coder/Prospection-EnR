@@ -35,6 +35,20 @@ export interface RegleReglementaire {
    * l'interface doit alors afficher un avertissement renforce.
    */
   instable?: boolean;
+  /**
+   * `true` : REFERENCE PROPOSEE, PAS ENCORE VALIDEE PAR UN JURISTE.
+   *
+   * POURQUOI CE CHAMP EXISTE. Le referentiel portait jusqu'ici une seule date de revue globale
+   * (`REFERENTIEL_DERNIERE_VERIFICATION`), qui affirme implicitement que TOUTE regle du fichier a ete
+   * relue. Des references ont ete ajoutees depuis, sur decision du proprietaire, pour combler des
+   * knock-outs qui ecartaient une parcelle sans citer aucun texte — mais elles n'ont pas ete relues par
+   * un juriste. Les faire passer pour verifiees en les melangeant aux autres serait exactement la faute
+   * que ce projet traque : affirmer plus que ce que l'on sait.
+   *
+   * L'interface et le rapport PDF DOIVENT donc le dire. Un test l'exige, et un autre interdit qu'une
+   * regle perde ce marquage sans qu'une date de validation le remplace.
+   */
+  aValiderParJuriste?: boolean;
 }
 
 const LEGIFRANCE = 'https://www.legifrance.gouv.fr';
@@ -237,6 +251,67 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
     commentaire:
       "La chimie LFP reduit fortement le risque d'emballement thermique par rapport aux chimies NMC, et facilite l'instruction ICPE et l'avis du SDIS.",
   },
+  /**
+   * LES TROIS REGLES SUIVANTES ETOFFENT LA FILIERE LA PLUS MINCE DU REFERENTIEL.
+   *
+   * Mesure : le stockage portait 3 regles, contre 8 et 9 pour la methanisation et le solaire, et l'une
+   * des trois etait explicitement non reglementaire. Surtout, `REGLES_KO` lui donnait `[...COMMUNS]` :
+   * AUCUN motif eliminatoire propre au stockage. Une batterie ne pouvait donc jamais etre ecartee pour
+   * une raison qui lui soit propre.
+   *
+   * Ce qui est ajoute ici reste au niveau que je peux defendre : le REGIME applicable et la contrainte
+   * PHYSIQUE, pas un seuil chiffre que je ne saurais pas verifier. Les distances d'eloignement de la
+   * rubrique 2925 en particulier ne sont pas transcrites : elles figurent dans l'arrete de prescriptions
+   * generales, elles varient selon le regime, et une valeur fausse serait pire que son absence.
+   */
+  acces_engins: {
+    id: 'bess_acces_engins',
+    libelle: 'Voie engins et acces poids lourds : condition d’exploitation et d’intervention',
+    reference:
+      "Arrete de prescriptions generales applicable a la rubrique 2925 (voie engins, aire de mise en " +
+      'station) ; reglement departemental de defense exterieure contre l’incendie (art. R.2225-7 du code ' +
+      'general des collectivites territoriales)',
+    dateEntreeEnVigueur: '2015-02-17',
+    commentaire:
+      "Deux exigences se cumulent et sont souvent sous-estimees en prospection. L’EXPLOITATION : les " +
+      'conteneurs arrivent par semi-remorque et pesent plusieurs dizaines de tonnes, ce qui suppose une ' +
+      'voie carrossable jusqu’a la parcelle. L’INTERVENTION : le SDIS exige une voie engins praticable et ' +
+      'une ressource en eau dimensionnee, sans quoi son avis est defavorable. La date retenue est celle du ' +
+      'decret du 27 fevrier 2015 relatif a la defense exterieure contre l’incendie ; le reglement ' +
+      'departemental applicable est celui du departement du projet.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  effets_domino: {
+    id: 'bess_effets_domino',
+    libelle: 'Voisinage industriel : examen des effets domino',
+    reference:
+      "Code de l'environnement, art. R.181-13 et R.512-46-4 (contenu du dossier : etude des effets " +
+      'domino) ; art. L.515-15 a L.515-19 pour le voisinage d’un site Seveso seuil haut',
+    dateEntreeEnVigueur: '2017-03-01',
+    commentaire:
+      "Un stockage electrochimique implante pres d’une installation a risque est instruit sous l’angle des " +
+      'effets domino, dans les deux sens : ce que le site voisin peut declencher sur les batteries, et ' +
+      'l’inverse. C’est un motif d’instruction longue plus qu’un refus, mais il se decide tot — d’ou son ' +
+      'interet en prospection.',
+    aValiderParJuriste: true,
+  },
+  raccordement_s3renr: {
+    id: 'bess_raccordement_s3renr',
+    libelle: 'Raccordement : le stockage n’a pas de priorite au titre du S3REnR',
+    reference:
+      "Code de l'energie, art. L.321-7 et D.321-10 et suivants (schemas regionaux de raccordement au " +
+      'reseau des energies renouvelables)',
+    dateEntreeEnVigueur: '2012-04-21',
+    commentaire:
+      "Point de methode propre a cette filiere, et la raison pour laquelle le raccordement pese 42 % du " +
+      'score du stockage : les capacites reservees par un S3REnR sont destinees aux installations de ' +
+      'PRODUCTION d’energie renouvelable. Un stockage pur ne s’inscrit pas necessairement dans cette ' +
+      'reservation et peut se voir appliquer le regime de droit commun, avec un cout et un delai ' +
+      'differents. A confirmer aupres du gestionnaire de reseau AVANT toute promesse au proprietaire.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -322,7 +397,183 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Regles communes a toutes les filieres
+// ---------------------------------------------------------------------------
+
+/**
+ * Les contraintes qui ne dependent pas de la filiere : urbanisme, eau, risques, sites proteges.
+ *
+ * POURQUOI CE GROUPE EXISTE. Sept knock-outs ecartaient une parcelle — parfois definitivement — sans
+ * citer aucun texte. Le rapport PDF remis au proprietaire annoncait donc « Zone humide cartographiee »
+ * ou « Espace boise classe » comme un fait de nature, sans le fondement qui permet de le contester, de
+ * le verifier, ou d'y chercher une derogation. C'est une perte pour l'utilisateur comme pour le
+ * proprietaire.
+ *
+ * TOUTES CES REGLES PORTENT `aValiderParJuriste`. Elles ont ete redigees a la demande du proprietaire,
+ * a partir des textes que je peux nommer avec confiance — mais je ne suis pas juriste, et une reference
+ * juridique dans un document remis a un tiers merite une relecture par quelqu'un qui l'est. Le
+ * marquage est visible dans la fiche et dans le rapport ; il ne disparaitra qu'avec une validation
+ * explicite, ce qu'un test verrouille.
+ *
+ * CE QUI EST DELIBEREMENT ABSENT : la valeur chiffree. Un seuil (1 ha pour la rubrique 3.3.1.0, par
+ * exemple) se verifie plus difficilement qu'un article, et se perime plus vite. Ces regles nomment le
+ * REGIME applicable, pas le seuil.
+ */
+export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
+  coeur_parc_national: {
+    id: 'commun_coeur_parc_national',
+    libelle: 'Coeur de parc national : travaux soumis a autorisation speciale',
+    reference:
+      "Code de l'environnement, art. L.331-4 et L.331-4-1 (reglementation du coeur de parc national)",
+    dateEntreeEnVigueur: '2006-04-16',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022478094`,
+    commentaire:
+      "Dans le coeur d’un parc national, les travaux sont interdits sauf autorisation speciale de " +
+      'l’etablissement du parc, et la reglementation propre a chaque parc peut aller plus loin. La date ' +
+      'retenue est celle de la loi du 14 avril 2006 qui a refonde le regime.',
+    aValiderParJuriste: true,
+  },
+  reserve_naturelle: {
+    id: 'commun_reserve_naturelle',
+    libelle: 'Reserve naturelle : modification de l’etat ou de l’aspect interdite',
+    reference:
+      "Code de l'environnement, art. L.332-3 (reglementation de la reserve) et L.332-9 (interdiction de " +
+      'modifier l’etat ou l’aspect des lieux, sauf autorisation speciale)',
+    dateEntreeEnVigueur: '2000-09-21',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022479113`,
+    commentaire:
+      "L’article L.332-9 pose une interdiction de principe de detruire ou modifier l’etat ou l’aspect de " +
+      'la reserve ; l’acte de classement fixe le detail. Une derogation existe mais reste exceptionnelle ' +
+      'et n’a jamais, a ma connaissance, porte un projet de production d’energie.',
+    aValiderParJuriste: true,
+  },
+  appb: {
+    id: 'commun_appb',
+    libelle: 'Arrete prefectoral de protection de biotope : interdictions fixees par l’arrete',
+    reference: "Code de l'environnement, art. R.411-15 a R.411-17 (protection des biotopes)",
+    dateEntreeEnVigueur: '1977-09-27',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074220/LEGISCTA000006189070`,
+    commentaire:
+      "La portee depend ENTIEREMENT de l’arrete prefectoral : certains interdisent toute activite, " +
+      'd’autres seulement certaines pratiques a certaines periodes. Lire l’arrete plutot que conclure du ' +
+      'zonage. La date retenue est celle du decret du 25 novembre 1977 qui a cree le dispositif.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  zone_humide: {
+    id: 'commun_zone_humide',
+    libelle: 'Zone humide : evitement prioritaire et procedure au titre de la loi sur l’eau',
+    reference:
+      "Code de l'environnement, art. L.211-1 (definition) et R.214-1, rubrique 3.3.1.0 (assechement, " +
+      'mise en eau, impermeabilisation) ; art. L.163-1 (obligations de compensation)',
+    dateEntreeEnVigueur: '2019-07-26',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000038846010`,
+    commentaire:
+      "La date retenue est celle de la loi du 24 juillet 2019, qui a retabli le caractere ALTERNATIF des " +
+      'criteres pedologique et floristique : un seul des deux suffit a caracteriser la zone humide, ce qui ' +
+      'a elargi le champ. Un inventaire cartographique n’est pas opposable en lui-meme — seul un sondage ' +
+      'pedologique conclut — mais il fonde la presomption et donc la charge de la preuve.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  ppr_zone_rouge: {
+    id: 'commun_ppr_zone_rouge',
+    libelle: 'Zone rouge d’un plan de prevention des risques naturels',
+    reference:
+      "Code de l'environnement, art. L.562-1 et R.562-1 et suivants (plans de prevention des risques " +
+      'naturels previsibles : inondation, incendie de foret, mouvement de terrain)',
+    dateEntreeEnVigueur: '1995-02-03',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033034238`,
+    commentaire:
+      "L'interdiction n'est PAS portee par le code : elle l'est par le REGLEMENT du plan approuve, qui " +
+      'varie d’un departement a l’autre et parfois d’une zone a l’autre du meme plan. Le code rend ce ' +
+      'reglement opposable et l’annexe au document d’urbanisme. Consulter le reglement de la zone avant ' +
+      'toute conclusion : certains plans admettent des installations techniques non habitees.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  pprt_zone_rouge: {
+    id: 'commun_pprt_zone_rouge',
+    libelle: 'Zone d’interdiction d’un plan de prevention des risques technologiques',
+    reference:
+      "Code de l'environnement, art. L.515-15 a L.515-19 (plans de prevention des risques " +
+      'technologiques autour des installations Seveso seuil haut)',
+    dateEntreeEnVigueur: '2003-08-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031210232`,
+    commentaire:
+      'Institue par la loi du 30 juillet 2003. Comme pour un plan naturel, la portee exacte est celle du ' +
+      'reglement du plan : les zones les plus exposees interdisent toute construction nouvelle, les ' +
+      'suivantes l’autorisent sous prescriptions. Un stockage de batteries a proximite d’un site Seveso ' +
+      'appelle en outre l’examen des effets domino par la DREAL.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  ebc: {
+    id: 'commun_ebc',
+    libelle: 'Espace boise classe : defrichement rejete de plein droit',
+    reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boises classes)",
+    dateEntreeEnVigueur: '2016-01-01',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074075/LEGISCTA000031211122`,
+    commentaire:
+      "Le classement entraine le REJET DE PLEIN DROIT de toute demande de defrichement (art. L.113-2) : " +
+      'ce n’est pas une appreciation de l’administration, c’est une consequence automatique. Le ' +
+      'declassement suppose une revision ou une modification du PLU, avec enquete publique. La date ' +
+      'retenue est celle de la recodification du livre Ier ; le dispositif lui-meme est bien plus ancien ' +
+      '(ex-article L.130-1).',
+    aValiderParJuriste: true,
+  },
+  emplacement_reserve: {
+    id: 'commun_emplacement_reserve',
+    libelle: 'Emplacement reserve : foncier affecte a un autre usage',
+    reference:
+      "Code de l'urbanisme, art. L.151-41 (emplacements reserves) ; art. L.152-2 (droit de delaissement " +
+      'du proprietaire)',
+    dateEntreeEnVigueur: '2016-01-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031211183`,
+    commentaire:
+      "La reserve n’interdit pas materiellement d’occuper le terrain, elle le DESTINE a un equipement, une " +
+      'voie ou un espace vert au benefice d’une collectivite : un projet privé de longue duree y est ' +
+      'incompatible en pratique. Elle peut etre levee par modification du PLU, ou tomber si la ' +
+      'collectivite renonce.',
+    aValiderParJuriste: true,
+  },
+  zone_n: {
+    id: 'commun_zone_n',
+    libelle: 'Zone naturelle et forestiere (N) : constructibilite tres limitee',
+    reference:
+      "Code de l'urbanisme, art. R.151-24 et R.151-25 (zones naturelles et forestieres) ; art. L.151-13 " +
+      '(secteurs de taille et de capacite d’accueil limitees)',
+    dateEntreeEnVigueur: '2016-01-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031720483`,
+    commentaire:
+      "Deux voies existent et elles n’ont pas le meme cout : le STECAL de l’article L.151-13, qui suppose " +
+      'une modification du PLU et l’avis de la CDPENAF, ou une revision du zonage. Compter 12 a 24 mois. ' +
+      'La loi APER a par ailleurs ouvert des possibilites en zone d’acceleration, ce que le moteur prend ' +
+      'en compte lorsque la parcelle y figure pour la filiere etudiee.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  site_classe: {
+    id: 'commun_site_classe',
+    libelle: 'Site classe : autorisation speciale de l’autorite ministerielle',
+    reference:
+      "Code de l'environnement, art. L.341-1 (classement) et L.341-10 (travaux soumis a autorisation " +
+      'speciale)',
+    dateEntreeEnVigueur: '2000-09-21',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006833752`,
+    commentaire:
+      "En site classe, aucun travail modifiant l’etat ou l’aspect des lieux ne peut etre entrepris sans " +
+      'autorisation SPECIALE, delivree au niveau ministeriel apres avis de la commission superieure des ' +
+      'sites : c’est une procedure lourde, dont l’issue est defavorable pour un amenagement de production ' +
+      'd’energie dans la quasi-totalite des cas. La date retenue est celle de l’entree en vigueur du code ' +
+      'de l’environnement, qui a recodifie la loi du 2 mai 1930.',
+    aValiderParJuriste: true,
+  },
+};
+
 export const REGLES: Record<string, Record<string, RegleReglementaire>> = {
+  commun: REGLES_COMMUNES,
   solaire_sol: REGLES_SOLAIRE,
   eolien_terrestre: REGLES_EOLIEN,
   bess: REGLES_BESS,

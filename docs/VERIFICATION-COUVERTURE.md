@@ -74,6 +74,10 @@ physiques, même raccordement, seul le régime change. Il mérite d'être su.
 
 ### Trois constats qui appellent une décision
 
+> **Suite donnée, à votre demande.** Les trois constats ci-dessous ont été traités : la section 4 de ce
+> document rend compte du travail et de ce qu'il a lui-même révélé. Les constats restent écrits tels
+> qu'ils étaient, parce qu'ils décrivent l'état trouvé.
+
 **A. Le stockage BESS est la filière la plus mince, et de loin.** Trois règles contre huit ou neuf, dont
 une explicitement marquée « Recommandation technique — non réglementaire » (chimie LFP). Surtout :
 **aucun knock-out spécifique**. `REGLES_KO` donne `bess: [...COMMUNS]` — un projet BESS ne peut donc jamais
@@ -156,3 +160,118 @@ l'est correctement, partout, y compris sur les bandeaux et le panneau — `prefe
 
 La mutation « les avertissements de la section 12 cessent d'être affichés » est toujours attrapée : le
 remaniement des bandeaux n'a pas affaibli la clause non négociable.
+
+
+---
+
+## 4. Suite donnée : étoffer le BESS, et fonder les knock-outs
+
+Les deux chantiers demandés après la lecture des constats ci-dessus.
+
+### Les références juridiques : proposées, pas validées
+
+Onze knock-outs écartaient une parcelle sans citer aucun texte. Ils en portent désormais un — **et le
+disent comme tel.**
+
+| Knock-out | Fondement ajouté |
+|---|---|
+| `ko_zone_humide` | c. env., art. L.211-1 et R.214-1 rubr. 3.3.1.0 ; L.163-1 |
+| `ko_ppri_rouge`, `ko_pprif_rouge` | c. env., art. L.562-1 et R.562-1 et s. |
+| `ko_pprt_rouge` | c. env., art. L.515-15 à L.515-19 |
+| `ko_ebc` | c. urb., art. L.113-1 et L.113-2 |
+| `ko_emplacement_reserve` | c. urb., art. L.151-41 ; L.152-2 |
+| `ko_zonage_naturel` | c. urb., art. R.151-24, R.151-25 ; L.151-13 (STECAL) |
+| `ko_eol_site_classe` | c. env., art. L.341-1 et L.341-10 |
+| `ko_coeur_parc_national` | c. env., art. L.331-4 et L.331-4-1 |
+| `ko_reserve_naturelle` | c. env., art. L.332-3 et L.332-9 |
+| `ko_appb` | c. env., art. R.411-15 à R.411-17 |
+
+**Je ne suis pas juriste, et le référentiel le dit maintenant explicitement.** Un champ
+`aValiderParJuriste` marque ces treize règles ; la fiche affiche « référence à faire valider par un
+juriste » à côté du texte, et le rapport PDF l'imprime dans le document remis au propriétaire. Un test
+verrouille le marquage : il ne disparaîtra qu'en le retirant à la main, ce qui est le geste par lequel
+quelqu'un déclare avoir validé.
+
+Chaque commentaire de règle distingue ce qui est certain de ce qui ne l'est pas. Le plus important :
+pour un PPR, **l'interdiction n'est pas portée par le code mais par le règlement du plan approuvé**, qui
+varie d'un département à l'autre — le commentaire le dit, et invite à le lire.
+
+Une seule référence reste absente, volontairement : `ko_eol_servitude_aero`. Le texte qui fonde une
+servitude aéronautique de dégagement n'est pas celui que je saurais nommer avec assez de certitude, et
+une référence fausse est pire qu'aucune — c'est le défaut que ce chantier venait corriger.
+
+### Le BESS : de 3 règles et 0 motif éliminatoire à 6 et 1
+
+| | Avant | Après |
+|---|---|---|
+| Règles réglementaires | 3 (dont 1 non réglementaire) | **6** |
+| Seuils affichés sur une fiche | 3 | **6** |
+| Knock-outs propres à la filière | **0** | **1** |
+
+Les trois règles ajoutées restent au niveau que je peux défendre — le **régime** applicable, pas un seuil
+chiffré que je ne saurais pas vérifier. Les distances d'éloignement de la rubrique 2925 ne sont
+délibérément **pas** transcrites : elles figurent dans l'arrêté de prescriptions générales, elles varient
+selon le régime, et une valeur fausse serait pire que son absence.
+
+- **`bess_acces_engins`** — voie engins et accès poids lourds. Deux exigences se cumulent : la livraison
+  des conteneurs par semi-remorque, et la voie engins que le SDIS exige pour intervenir.
+- **`bess_effets_domino`** — voisinage industriel, examiné dans les deux sens. Évalué seulement quand
+  `icpeProches` est renseigné ; sinon laissé à « à vérifier ».
+- **`bess_raccordement_s3renr`** — **le point de méthode le plus coûteux à découvrir tard** : les
+  capacités réservées par un S3REnR visent les installations de *production*. Un stockage pur peut
+  relever du droit commun, avec un coût et un délai différents. C'est aussi la raison pour laquelle le
+  raccordement pèse 42 % du score de cette filière.
+
+Le knock-out `ko_bess_acces_engins` est **dérogeable** — orange avec alerte forte, jamais rouge : un
+accès se crée, c'est un coût et un délai, pas une impossibilité de droit.
+
+### Trois défauts que ce chantier a révélés
+
+Le premier est de méthode. Ma première version du test relisait la **source** pour en extraire les
+arguments passés à `ko(...)`. Elle était aveugle à la moitié du sujet : plusieurs knock-outs reçoivent
+leur identifiant et leur fondement **par variable**. Remplacée par une vérification **par exécution** —
+déclencher réellement chaque knock-out et lire ce qu'il produit — qui a immédiatement trouvé les deux
+suivants.
+
+**A. `ko_metha_captage` était inatteignable en production.** La condition exigeait
+`type === 'immediat' || type === 'rapproche'`. Or le connecteur des servitudes écrit `type: null`, et il a
+raison : le GPU expose l'assiette de la servitude sans distinguer les périmètres, et le code refuse de
+l'inventer. La condition ne pouvait donc **jamais** être vraie sur de la donnée réelle : une unité de
+méthanisation dans un périmètre de protection de captage n'était jamais écartée.
+
+Corrigé sans rien supposer : le knock-out se déclenche sur le fait établi — la parcelle **est** dans un
+périmètre — et son caractère dépend de ce que l'on sait. Sous-périmètre connu → rédhibitoire ;
+sous-périmètre inconnu → dérogeable, avec un motif qui dit d'aller lire l'arrêté de DUP.
+
+**B. Le recul éolien de 500 m n'examinait pas la zone d'habitat sans bâtiment mesuré.** La fonction
+sortait sur `if (d == null) return null` avant de tester la distance à la **zone destinée à
+l'habitation** — alors que l'article L.515-44 vise les deux. Cas réel : une parcelle en lisière d'une zone
+U encore non bâtie a `distanceHabitationM` à null, et une zone d'habitat à moins de 500 m. Le knock-out le
+plus structurant de la filière ne se déclenchait pas.
+
+**C. Trois knock-outs étaient absents de `IDS_KNOCK_OUTS`.** Les protections fortes — cœur de parc
+national, réserve naturelle, APPB — recevaient leur identifiant par interpolation (`ko_${suffixe}`), donc
+invisible à toute énumération. Conséquence : **il était impossible de désactiver le knock-out le plus
+sévère de l'application**, la route refusant l'identifiant comme inconnu. Les identifiants sont désormais
+des littéraux, et un test exige que chaque identifiant déclaré soit **réellement atteignable**.
+
+### Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run build` | 0 erreur |
+| `npm test`, base vierge | **656 tests, 0 échec**, 4 ignorés (destructifs) |
+| `packages/scoring` | 61/61, dont 6 invariants de fondement juridique |
+| Tests de bout en bout | 15/15 |
+| Mutations du chantier (`--filtre couverture`) | **10/10 attrapées** |
+| Relecture des rapports PDF, 4 filières + écartée | 6/6 |
+
+Les 22 knock-outs déclarés sont chacun **déclenchés par un cas de test** et leur fondement lu sur le
+résultat : c'est ce qui a permis de trouver les défauts A et B.
+
+### Ce qui reste à faire, et qui n'est pas de mon ressort
+
+**Faire relire les treize règles marquées `aValiderParJuriste`.** Elles sont utiles en l'état — mieux vaut
+un texte nommé et signalé comme à vérifier qu'un refus sans motif — mais elles partent dans un document
+remis à un propriétaire. La liste est dans `packages/core/src/reglementation.ts`, groupe `REGLES_COMMUNES`
+et trois entrées `bess_*` ; le test `fondement-knockouts` l'énumère.

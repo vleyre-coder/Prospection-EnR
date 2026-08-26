@@ -364,6 +364,8 @@ function CarteKnockOut({ ko, referentiel }: { ko: KnockOut; referentiel: Referen
         <div className="regle">
           {regle.reference} &middot; en vigueur depuis le {formatDate(regle.dateEntreeEnVigueur)}
           {regle.instable && ' · seuil susceptible d’avoir evolue'}
+          {/* Une reference redigee sans relecture juridique le dit : voir REGLES_COMMUNES. */}
+          {regle.aValiderParJuriste && ' · reference a faire valider par un juriste'}
         </div>
       )}
       {ko.source && (

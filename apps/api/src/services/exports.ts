@@ -458,8 +458,17 @@ export function ficheParcellePdf(
        * l'etait pas.
        */
       const regle = k.regleLiee ? REGLES_PAR_ID[k.regleLiee] : undefined;
+      /**
+       * UNE REFERENCE NON RELUE PAR UN JURISTE LE DIT, dans le document lui-meme.
+       *
+       * Onze knock-outs ecartaient une parcelle sans citer aucun texte ; les references qui comblent ce
+       * vide ont ete redigees a la demande du proprietaire, mais sans relecture juridique. Les imprimer
+       * comme les autres reviendrait a affirmer une verification qui n'a pas eu lieu — dans le document
+       * meme que le prospecteur remet au proprietaire pour justifier un refus.
+       */
       const fondement = regle
-        ? `Fondement : ${regle.reference} (en vigueur depuis le ${dateFr(regle.dateEntreeEnVigueur)})`
+        ? `Fondement : ${regle.reference} (en vigueur depuis le ${dateFr(regle.dateEntreeEnVigueur)})` +
+          (regle.aValiderParJuriste ? ' - reference a faire valider par un juriste' : '')
         : k.regleLiee
           ? `Fondement : ${k.regleLiee}`
           : null;
@@ -670,7 +679,10 @@ export function ficheParcellePdf(
           // `dateFr` et non la date brute : le rapport ecrit « rapport du 07/08/2026 » en tete, et
           // affichait « depuis le 2022-10-01 » ici. Deux conventions de date dans un document remis a
           // un proprietaire ou a un financeur (audit 10, defaut B2).
-          `${s.reference} - depuis le ${dateFr(s.dateEntreeEnVigueur)}`,
+          `${s.reference} - depuis le ${dateFr(s.dateEntreeEnVigueur)}` +
+            (REGLES_PAR_ID[s.regleId]?.aValiderParJuriste
+              ? ' - reference a faire valider par un juriste'
+              : ''),
         ],
         pastille: s.applicable === true ? 'orange' : s.applicable === false ? 'vert' : 'gris',
       })),

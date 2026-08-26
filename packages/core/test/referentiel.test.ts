@@ -115,6 +115,8 @@ test('chaque identifiant de regle porte le prefixe de sa filiere', () => {
   // C'est ce qui rend l'unicite STRUCTURELLE et non accidentelle : sans prefixe, la premiere
   // regle homonyme ajoutee dans une autre filiere ecraserait l'existante sans bruit.
   const prefixes: Record<string, readonly string[]> = {
+    // `commun` : les contraintes qui ne dependent pas de la filiere (urbanisme, eau, risques, sites).
+    commun: ['commun'],
     solaire_sol: ['pv', 'agri'],
     eolien_terrestre: ['eol'],
     bess: ['bess'],

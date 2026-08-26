@@ -39,19 +39,39 @@ function ko(
 // Knock-outs communs a toutes les filieres
 // ---------------------------------------------------------------------------
 
+/**
+ * LES IDENTIFIANTS SONT DES LITTERAUX, et c'etait un defaut.
+ *
+ * Ils etaient construits par interpolation (`ko_${suffixe}`), si bien que les trois knock-outs de
+ * protection forte n'apparaissaient NULLE PART sous leur nom : ils manquaient a `IDS_KNOCK_OUTS`, donc
+ * a la validation de `knockOutsDesactives` cote API. Consequence mesurable : il etait impossible de
+ * desactiver le knock-out le plus severe de l'application — la requete etait refusee avec un
+ * identifiant « inconnu ». Un identifiant construit echappe a toute enumeration.
+ */
 const koProtectionForte: RegleKo = (s) => {
-  const candidats: Array<[string, boolean | null, string]> = [
-    ['coeur_parc_national', s.milieux.coeurParcNational.recouvre, "coeur de parc national"],
-    ['reserve_naturelle', s.milieux.reserveNaturelle.recouvre, "reserve naturelle"],
-    ['appb', s.milieux.appb.recouvre, "arrete prefectoral de protection de biotope"],
+  const candidats: Array<[string, boolean | null, string, string]> = [
+    [
+      'ko_coeur_parc_national',
+      s.milieux.coeurParcNational.recouvre,
+      'coeur de parc national',
+      'commun_coeur_parc_national',
+    ],
+    [
+      'ko_reserve_naturelle',
+      s.milieux.reserveNaturelle.recouvre,
+      'reserve naturelle',
+      'commun_reserve_naturelle',
+    ],
+    ['ko_appb', s.milieux.appb.recouvre, 'arrete prefectoral de protection de biotope', 'commun_appb'],
   ];
-  for (const [suffixe, recouvre, libelle] of candidats) {
+  for (const [id, recouvre, libelle, regle] of candidats) {
     if (recouvre === true) {
       return ko(
-        `ko_${suffixe}`,
+        id,
         'Zone de protection forte',
         `La parcelle est recouverte par une ${libelle}. Ces zonages interdisent en pratique tout amenagement de production d'energie.`,
         'environnement',
+        regle,
       );
     }
   }
@@ -65,6 +85,7 @@ const koZoneHumide: RegleKo = (s) => {
       'Zone humide cartographiee',
       "La parcelle est identifiee comme zone humide dans les inventaires. La sequence eviter-reduire-compenser impose l'evitement en priorite ; une compensation de 100 a 200 % de la surface est rarement mobilisable. A confirmer par sondages pedologiques : une infirmation de terrain leve ce critere.",
       'environnement',
+      'commun_zone_humide',
     );
   }
   return null;
@@ -78,7 +99,60 @@ const koPpriRouge: RegleKo = (s) => {
       'PPRI zone rouge',
       `La parcelle est en zone rouge du plan de prevention du risque inondation (${s.risques.ppri.zonage}), ou toute construction nouvelle est en principe interdite.`,
       'risques',
+      'commun_ppr_zone_rouge',
     );
+  }
+  return null;
+};
+
+/**
+ * ZONE ROUGE D'UN PPRIF, ET ZONE D'INTERDICTION D'UN PPRT — deux motifs qui manquaient.
+ *
+ * Mesure : seul le PPR INONDATION etait traite. Les deux autres plans etaient pourtant ingeres et
+ * notes — `risq_incendie` et `risq_technologique` sont des criteres de toutes les filieres — mais leur
+ * zone la plus severe ne pesait qu'en points, jamais en motif eliminatoire. Une parcelle en zone rouge
+ * de PPRIF pouvait donc ressortir ORANGE, c'est-a-dire « a etudier », quand le reglement du plan y
+ * interdit toute construction nouvelle.
+ *
+ * Le meme raisonnement s'applique aux trois plans, d'ou une regle unique parametree plutot que trois
+ * copies : une regle ecrite trois fois se corrige une fois sur trois.
+ */
+const koPlanRisqueRouge: RegleKo = (s) => {
+  const plans: Array<{
+    id: string;
+    plan: { present: boolean | null; zonage: string | null };
+    libelle: string;
+    quoi: string;
+    regle: string;
+  }> = [
+    {
+      id: 'ko_pprif_rouge',
+      plan: s.risques.pprif,
+      libelle: 'PPRIF zone rouge',
+      quoi: "plan de prevention du risque d'incendie de foret",
+      regle: 'commun_ppr_zone_rouge',
+    },
+    {
+      id: 'ko_pprt_rouge',
+      plan: s.risques.pprt,
+      libelle: 'PPRT zone d’interdiction',
+      quoi: 'plan de prevention des risques technologiques',
+      regle: 'commun_pprt_zone_rouge',
+    },
+  ];
+  for (const p of plans) {
+    const z = p.plan.zonage?.toLowerCase() ?? '';
+    // Meme lecture que pour le PPRI : « rouge » explicite, ou un zonage commencant par R. Les
+    // reglements francais emploient l'un ou l'autre, jamais autre chose pour la zone la plus severe.
+    if (p.plan.present === true && (z.includes('rouge') || /^r/.test(z))) {
+      return ko(
+        p.id,
+        p.libelle,
+        `La parcelle est en zone ${p.plan.zonage} du ${p.quoi}, ou toute construction nouvelle est en principe interdite. Le reglement du plan approuve fixe la portee exacte : le consulter avant de conclure, certains plans admettent des installations techniques non habitees.`,
+        'risques',
+        p.regle,
+      );
+    }
   }
   return null;
 };
@@ -92,6 +166,7 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
       'Espace boise classe',
       "La parcelle est grevee d'un espace boise classe : tout defrichement et tout changement d'affectation du sol compromettant la conservation des boisements est interdit. Le declassement suppose une revision du PLU.",
       'urbanisme',
+      'commun_ebc',
     );
   }
   const er = s.urbanisme.prescriptions.find((p) => p.estEmplacementReserve);
@@ -101,7 +176,7 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
       'Emplacement reserve',
       `La parcelle est grevee d'un emplacement reserve (${er.libelle ?? 'objet non precise'}) au benefice d'une collectivite : le foncier est destine a un autre usage.`,
       'urbanisme',
-      null,
+      'commun_emplacement_reserve',
       true,
     );
   }
@@ -134,7 +209,7 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
         'Zonage naturel (N)',
         `La parcelle est en zone ${dominant.libelle ?? t}, ou les installations de production d'energie ne sont generalement pas admises. ${etendue} Une implantation suppose un secteur de taille et de capacite d'accueil limitees (STECAL) ou une evolution du document d'urbanisme, soit 12 a 24 mois de procedure.`,
         'urbanisme',
-        null,
+        'commun_zone_n',
         true,
       );
     }
@@ -202,14 +277,27 @@ const koAopViticole: RegleKo = (s) => {
 // Eolien terrestre
 // ---------------------------------------------------------------------------
 
+/**
+ * LE RECUL DE 500 M : deux grandeurs INDEPENDANTES, et elles ne l'etaient pas.
+ *
+ * DEFAUT TROUVE en declenchant chaque knock-out un par un. La fonction commencait par
+ * `if (d == null) return null` sur la distance au BATIMENT le plus proche, et sortait donc avant
+ * d'examiner la distance a la ZONE D'HABITAT. Or l'article L.515-44 vise les habitations ET les zones
+ * destinees a l'habitation : ce sont deux contraintes distinctes, et la seconde s'applique meme quand
+ * aucun batiment n'a ete mesure.
+ *
+ * Le cas n'est pas theorique : une parcelle en lisiere d'une zone U encore non batie a
+ * `distanceHabitationM` a null — aucun batiment dans le rayon de recherche de la BD TOPO — et une zone
+ * d'habitat a moins de 500 m. Le knock-out le plus structurant de la filiere eolienne ne se declenchait
+ * pas, et rien ne le signalait.
+ */
 const koDistanceHabitation500: RegleKo = (s, ctx) => {
   const d = s.bati.distanceHabitationM;
-  if (d == null) return null;
 
   // Redhibitoire seulement si le seuil reste hors d'atteinte MEME en implantant
   // l'aerogenerateur au point le plus eloigne de la parcelle.
-  const atteignable = distanceAtteignableM(d, ctx.surfaceHa);
-  if (atteignable < 500) {
+  const atteignable = d == null ? null : distanceAtteignableM(d, ctx.surfaceHa);
+  if (d != null && atteignable != null && atteignable < 500) {
     // Le deport est recalcule pour le message : il est la grandeur que l'utilisateur doit voir
     // pour comprendre pourquoi la parcelle est ecartee malgre une distance de bord acceptable.
     const deport = deportPossibleM(ctx.surfaceHa);
@@ -239,8 +327,9 @@ const koMonumentSiteClasse: RegleKo = (s) => {
     return ko(
       'ko_eol_site_classe',
       'Site classe',
-      `La parcelle est en site classe${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc eolien y est incompatible avec l'objectif de conservation du site.`,
+      `La parcelle est en site classe${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc eolien y est incompatible avec l'objectif de conservation du site : tout travail y suppose une autorisation speciale delivree au niveau ministeriel.`,
       'patrimoine',
+      'commun_site_classe',
     );
   }
   const d = s.patrimoine.monumentHistorique.distanceM;
@@ -317,8 +406,39 @@ const koMethaHabitation200: RegleKo = (s, ctx) => {
   return null;
 };
 
+/**
+ * CAPTAGE AEP : le knock-out etait INATTEIGNABLE EN PRODUCTION.
+ *
+ * DEFAUT TROUVE en declenchant chaque knock-out un par un. La condition exigeait
+ * `type === 'immediat' || type === 'rapproche'`. Or le connecteur des servitudes ecrit `type: null`, et
+ * il a raison de le faire : le GPU expose l'assiette de la servitude sans distinguer les perimetres
+ * immediat, rapproche et eloigne — la sous-categorie se lit sur l'arrete de declaration d'utilite
+ * publique, et le code refuse de l'inventer.
+ *
+ * Consequence : la condition ne pouvait JAMAIS etre vraie sur de la donnee reelle. Une unite de
+ * methanisation dans un perimetre de protection de captage n'etait donc jamais ecartee, alors que c'est
+ * l'une des incompatibilites les plus nettes de la filiere.
+ *
+ * LE CORRECTIF NE SUPPOSE RIEN. Le knock-out se declenche sur le fait etabli — la parcelle EST dans un
+ * perimetre de protection — et son caractere depend de ce que l'on sait :
+ *   - sous-perimetre connu (immediat ou rapproche) : REDHIBITOIRE, l'interdiction est certaine ;
+ *   - sous-perimetre inconnu : DEROGEABLE, c'est-a-dire orange avec alerte forte, et le motif dit
+ *     d'aller lire l'arrete. C'est la seule formulation qui n'affirme ni plus ni moins que le su.
+ */
 const koMethaCaptage: RegleKo = (s) => {
   const c = s.eau.captageAep;
+  if (c.dansPerimetre === true && c.type == null) {
+    return ko(
+      'ko_metha_captage',
+      'Perimetre de protection de captage',
+      "La parcelle est dans un perimetre de protection d'un captage d'eau destinee a la consommation humaine. Le sous-perimetre — immediat, rapproche ou eloigne — n'est pas publie par le Geoportail de l'urbanisme : il se lit sur l'arrete de declaration d'utilite publique du captage. En perimetre immediat toute activite est interdite ; en perimetre rapproche l'arrete fixe les interdictions, qui visent presque toujours le stockage d'effluents. A verifier avant toute autre depense.",
+      // Meme famille que les deux autres reculs de la methanisation : c'est bien une distance
+      // reglementaire, meme lorsque le sous-perimetre reste a etablir.
+      'distances_reglementaires',
+      'metha_distance_eau',
+      true,
+    );
+  }
   if (c.dansPerimetre === true && (c.type === 'immediat' || c.type === 'rapproche')) {
     return ko(
       'ko_metha_captage',
@@ -349,7 +469,49 @@ const koMethaCoursEau: RegleKo = (s) => {
 // Composition par filiere
 // ---------------------------------------------------------------------------
 
-const COMMUNS: RegleKo[] = [koProtectionForte, koZoneHumide, koPpriRouge, koZonageIncompatible, koPosteSature];
+// ---------------------------------------------------------------------------
+// Stockage par batteries (BESS)
+// ---------------------------------------------------------------------------
+
+/**
+ * LE PREMIER MOTIF ELIMINATOIRE PROPRE AU STOCKAGE.
+ *
+ * Mesure : `REGLES_KO` donnait `bess: [...COMMUNS]`. La filiere n'avait AUCUN motif qui lui soit propre,
+ * et ses trois regles reglementaires ne pouvaient donc jamais ecarter une parcelle — elles n'existaient
+ * qu'en rappel de procedure. Une batterie ne se distinguait d'une centrale solaire, du point de vue des
+ * criteres eliminatoires, par rien.
+ *
+ * L'acces des engins est le bon premier candidat, pour deux raisons. Il est PROPRE a la filiere : les
+ * conteneurs arrivent par semi-remorque et pesent des dizaines de tonnes, la ou des modules
+ * photovoltaiques se manutentionnent autrement. Et il est MESURE : `acces.accesPoidsLourds` vient du
+ * reseau routier de la BD TOPO, il n'est pas suppose.
+ *
+ * DEROGEABLE, et c'est la nuance qui compte : un acces se cree — elargissement, convention de passage,
+ * renforcement de chaussee. C'est un cout et un delai, pas une impossibilite de droit. La parcelle
+ * ressort donc en ORANGE avec alerte forte, jamais en rouge.
+ */
+const koBessAccesEngins: RegleKo = (s) => {
+  if (s.acces.accesPoidsLourds !== false) return null;
+  return ko(
+    'ko_bess_acces_engins',
+    'Aucun acces poids lourds',
+    `Aucun acces poids lourds n'a ete identifie depuis le reseau routier${
+      s.acces.distanceVoirieM != null ? ` (voirie la plus proche a ${formatDistance(s.acces.distanceVoirieM)})` : ''
+    }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un acces peut etre cree — elargissement, convention de passage, renforcement de chaussee — mais le cout et le delai doivent etre chiffres avant toute promesse au proprietaire.`,
+    'acces',
+    'bess_acces_engins',
+    true,
+  );
+};
+
+const COMMUNS: RegleKo[] = [
+  koProtectionForte,
+  koZoneHumide,
+  koPpriRouge,
+  koPlanRisqueRouge,
+  koZonageIncompatible,
+  koPosteSature,
+];
 
 /**
  * Identifiants de toutes les regles redhibitoires.
@@ -365,6 +527,12 @@ const COMMUNS: RegleKo[] = [koProtectionForte, koZoneHumide, koPpriRouge, koZona
  */
 export const IDS_KNOCK_OUTS = [
   'ko_aop_viticole',
+  // Les trois protections fortes MANQUAIENT a cette liste : leurs identifiants etaient construits par
+  // interpolation, donc invisibles a toute enumeration. Il etait impossible de desactiver le knock-out
+  // le plus severe de l'application — la route refusait l'identifiant comme inconnu.
+  'ko_appb',
+  'ko_bess_acces_engins',
+  'ko_coeur_parc_national',
   'ko_ebc',
   'ko_emplacement_reserve',
   'ko_eol_habitation_500',
@@ -379,6 +547,9 @@ export const IDS_KNOCK_OUTS = [
   'ko_metha_habitation_200',
   'ko_poste_sature',
   'ko_ppri_rouge',
+  'ko_pprif_rouge',
+  'ko_pprt_rouge',
+  'ko_reserve_naturelle',
   'ko_zonage_naturel',
   'ko_zone_humide',
 ] as const;
@@ -388,7 +559,7 @@ export type IdKnockOut = (typeof IDS_KNOCK_OUTS)[number];
 const REGLES_KO: Record<Filiere, RegleKo[]> = {
   solaire_sol: [...COMMUNS, koDocumentCadre, koAopViticole],
   eolien_terrestre: [...COMMUNS, koDistanceHabitation500, koMonumentSiteClasse, koRadar],
-  bess: [...COMMUNS],
+  bess: [...COMMUNS, koBessAccesEngins],
   methanisation: [...COMMUNS, koMethaHabitation200, koMethaCaptage, koMethaCoursEau],
 };
 

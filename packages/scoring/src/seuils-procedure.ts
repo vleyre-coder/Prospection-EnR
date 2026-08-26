@@ -115,6 +115,36 @@ export function construireSeuilsProcedure(
       ),
       seuil(filiere, 'securite_incendie', true),
       seuil(filiere, 'chimie_lfp', true),
+      /**
+       * LES TROIS RAPPELS AJOUTES POUR ETOFFER LA FILIERE LA PLUS MINCE.
+       *
+       * Leur applicabilite est EVALUEE quand la donnee existe, et laissee a `null` sinon — jamais
+       * affirmee. C'est la difference entre un rappel de procedure et une conclusion.
+       */
+      // L'acces engins : `false` signifie « pas d'acces poids lourds identifie », donc exigence
+      // certainement critique ; `true` ne dispense pas de la voie engins du SDIS, d'ou `true` aussi.
+      seuil(
+        filiere,
+        'acces_engins',
+        s.acces.accesPoidsLourds == null ? null : true,
+        s.acces.accesPoidsLourds === false
+          ? 'Aucun acces poids lourds identifie : la livraison des conteneurs et la voie engins du SDIS ' +
+            'sont a traiter avant tout engagement.'
+          : null,
+      ),
+      // Les effets domino ne s'examinent que s'il y a un voisinage industriel. `icpeProches` compte les
+      // installations classees a proximite ; `null` = couche non ingeree, et l'on ne conclut pas.
+      seuil(
+        filiere,
+        'effets_domino',
+        s.risques.icpeProches == null ? null : s.risques.icpeProches > 0,
+        s.risques.icpeProches != null && s.risques.icpeProches > 0
+          ? `${s.risques.icpeProches} installation(s) classee(s) a proximite : l'instruction examinera les effets domino dans les deux sens.`
+          : null,
+      ),
+      // Le S3REnR : rappel systematique, parce que c'est le point de methode le plus couteux a
+      // decouvrir tard sur cette filiere.
+      seuil(filiere, 'raccordement_s3renr', true),
     );
   }
 
