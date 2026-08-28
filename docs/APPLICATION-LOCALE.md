@@ -1,11 +1,12 @@
 # L'application locale portable
 
-> **État de ce chantier.** Le socle est construit et **vérifié par exécution** : la base
-> embarquée s'initialise, démarre, applique les 15 migrations et produit de vraies tuiles
-> vectorielles ; le garde qui empêche la base de partir sur GitHub est couvert par 9 tests et
-> 4 mutations. **L'empaquetage Windows — le `.exe`, l'archive, la base pré-remplie — reste à
-> faire**, et il ne pourra être éprouvé que sur un poste Windows. La section 5 dit exactement
-> ce qui manque.
+> **État de ce chantier.** L'archive est **fabriquée et mesurée** : 482,7 Mo décompressée,
+> **191,8 Mo en ZIP**. Tout ce qui était vérifiable sans Windows l'a été en exécution réelle —
+> la base s'initialise et produit de vraies tuiles vectorielles, le dossier livré est une copie
+> de travail git fonctionnelle, le garde d'envoi refuse ce qu'il doit refuser. **Ce qui reste :
+> le double-clic sur un poste Windows, et la base pré-remplie.** La section 6 le dit exactement.
+>
+> Fabrication : `node scripts/portable/construire.mjs --depot <url-de-votre-depot>`
 
 ## 1. Ce que c'est
 
@@ -14,15 +15,18 @@ Un dossier posé sur le bureau. Dedans : l'application, ses deux moteurs, et vos
 ```
 Prospection-EnR/
   Prospection-EnR.exe        double-clic : ouvre l'application dans le navigateur
-  Mettre-a-jour.exe          récupère les dernières modifications depuis GitHub
-  Pousser-vers-GitHub.exe    renvoie VOS modifications de code sur GitHub
+  Prospection-EnR.cmd        le meme lanceur, sans injection — le filet de secours
+  Mettre-a-jour.cmd          récupère les dernières modifications depuis GitHub
+  Pousser-vers-GitHub.cmd    renvoie VOS modifications sur GitHub
+  LISEZ-MOI.txt
   moteurs/
-    node/                    Node.js — aucune installation
-    postgres/                PostgreSQL + PostGIS — aucune installation
-  application/               le code, compilé
+    node/node.exe            Node.js — aucune installation
+    postgres/                PostgreSQL 16.4 + PostGIS 3.6.2 — aucune installation
+  application/               copie de travail git : sources, historique, et le build
   donnees/
     pgdata/                  LA BASE : vos parcelles, votre pipeline
-    journal.txt
+    amorce.sql.gz            données de référence, restaurées au premier lancement
+    journal.txt              le détail technique du dernier démarrage
 ```
 
 Copiez le dossier sur une clé USB, branchez-la sur un autre PC, double-cliquez : mêmes
@@ -87,6 +91,12 @@ Deux propriétés du garde méritent d'être connues, parce qu'elles sont délib
 Un `.gitignore` seul ne suffisait pas : il se contourne d'un `git add -f`, ne suit pas un
 dossier renommé, et n'avertit de rien quand il agit.
 
+**Et la première protection n'est ni l'un ni l'autre : c'est la disposition des dossiers.**
+`donnees/` est à la racine de l'archive, tandis que la copie de travail git est
+`application/`. La base est donc **hors du champ de vision de git**, structurellement. Le
+garde couvre ce que cette disposition ne couvre pas : un `.env`, un export, une sauvegarde ou
+des données déposées par erreur *à l'intérieur* de `application/`.
+
 ### Pourquoi c'est irréversible, et donc pourquoi le garde existe
 
 Un fichier poussé sur GitHub **reste dans l'historique** et dans toutes les copies clonées,
@@ -103,20 +113,58 @@ L'authentification passe par un **jeton d'accès personnel** (GitHub n'accepte p
 passe de compte depuis août 2021) : Settings → Developer settings → Personal access tokens,
 portée `repo`. Le gestionnaire d'identifiants de Windows le retient après la première saisie.
 
-## 5. Ce qui reste à faire
+## 5. Le poids de l'archive, et comment il a été obtenu
 
-| Reste | Pourquoi ce n'est pas fait |
+| Poste | Poids |
 |---|---|
-| `scripts/portable/construire.mjs` : téléchargement, élagage et assemblage de l'archive | à écrire ; les binaires sont accessibles et pesés (PostgreSQL 323 Mo à élaguer, `node.exe` 83 Mo, PostGIS bundle 3.6.2) |
-| Le `.exe` de lancement | produisible depuis Linux par injection dans `node.exe`, **mais non exécutable ici** : la vérification du double-clic devra se faire sur un poste Windows |
-| La base pré-remplie | suppose une ingestion nationale complète (35 000 communes, 3 119 postes, 43 873 monuments) ; à produire puis à mesurer |
-| `Mettre-a-jour.exe` / `Pousser-vers-GitHub.exe` | enveloppes autour de `scripts/portable/depot.mjs`, déjà écrit et testé |
+| `moteurs/postgres` | 259,6 Mo |
+| `moteurs/node` | 83,0 Mo |
+| `application` (clone + build + dépendances serveur) | 56,9 Mo |
+| `Prospection-EnR.exe` | 83,2 Mo |
+| **Total décompressé** | **482,7 Mo** |
+| **Archive ZIP** | **191,8 Mo** |
 
-**La limite honnête de ce chantier** : je ne peux ni produire ni éprouver un exécutable
-Windows depuis cet environnement Linux. Tout ce qui est vérifiable sans Windows l'a été, en
-exécution réelle ; le double-clic, lui, restera à confirmer sur votre poste.
+Trois élagages, chacun appuyé sur une mesure :
 
-## 6. Le risque qu'il faut assumer
+1. **Les dossiers de développement de PostgreSQL** : 919,8 → 119,7 Mo. `include`, `doc`,
+   `symbols`, `pgAdmin 4` et `StackBuilder` ne servent ni à exécuter ni à interroger la base.
+2. **Les dépendances de l'interface** : 137,5 → 50,5 Mo de `node_modules`. `--omit=dev` seul
+   installait encore maplibre-gl (41 Mo), jsts (13 Mo), @turf (9,6 Mo), @maplibre (9,2 Mo) et
+   @tanstack (4,9 Mo) — alors que l'interface est **déjà compilée** et ne charge plus aucun
+   paquet à l'exécution. L'installation est donc restreinte aux trois espaces serveur.
+3. **Ce qu'aucun chemin d'exécution n'atteint** : 401,0 → 259,6 Mo. Sur les 275 binaires livrés
+   par le paquet PostGIS, **40 seulement** sont atteignables depuis les programmes réellement
+   invoqués. Les 235 autres — GDAL (34,8 Mo), SFCGAL (11,3 Mo), wxWidgets et GTK pour une
+   interface graphique de chargement de shapefiles, pgRouting, MobilityDB — pèsent 114,7 Mo.
+   S'y ajoutent 24,1 Mo de scripts SQL d'extensions jamais créées et 2,6 Mo de données GDAL
+   devenues orphelines.
+
+Le troisième élagage n'est pas une devinette sur les noms de fichiers : c'est une **fermeture
+transitive des tables d'importation** réelles, imports différés compris. Elle a confirmé deux
+choses utiles au passage :
+
+- `postgis-3.dll` n'importe **ni GDAL ni SFCGAL** — mais bien `libprotobuf-c-1.dll`, c'est-à-dire
+  exactement ce qui manquait à PGlite pour produire des tuiles ;
+- `icudt67.dll` (27 Mo) **est** atteignable. Le retirer sur la foi de son nom aurait tué
+  PostgreSQL.
+
+Si l'application se plaignait d'une DLL manquante sur un poste, reconstruisez avec
+`--sans-elagage-fin` : l'archive complète fait 624 Mo, et le fait savoir.
+
+## 6. Ce qui reste à faire
+
+| Reste | Pourquoi |
+|---|---|
+| **Le double-clic** | Je ne peux ni lancer ni éprouver un exécutable Windows depuis un environnement Linux. C'est la seule vérification qui vaille, et elle vous revient. L'archive contient donc **deux** lanceurs : `Prospection-EnR.exe` (injection SEA dans `node.exe`) et `Prospection-EnR.cmd`, qui fait la même chose sans dépendre d'aucune injection. Si l'un échoue, l'autre reste. |
+| **La base pré-remplie** | `--amorce <dump.sql.gz>` embarque un `pg_dump` que le premier lancement restaure. Le dump reste à produire : il suppose une ingestion nationale complète (35 000 communes, 3 119 postes, 43 873 monuments). Sans lui l'archive fonctionne, mais le premier démarrage télécharge les données (5 à 10 minutes). |
+| **Le premier envoi** | Le dossier livré est bien une copie de travail git (62 commits, 280 fichiers suivis, origine réglée par `--depot`), et le garde a été éprouvé depuis l'intérieur. Seul le `git push` réel reste à faire : il demande votre jeton d'accès. |
+
+> **Un mot sur l'avertissement de signature.** L'injection SEA modifie `node.exe`, dont la
+> signature Microsoft devient invalide — l'outil le dit (« signature seems corrupted »).
+> Windows peut afficher un écran SmartScreen au premier lancement. C'est attendu, et c'est une
+> raison de plus de garder le `.cmd` sous la main.
+
+## 7. Le risque qu'il faut assumer
 
 Ce dossier contient des **données nominatives de propriétaires, en clair**. Une clé USB perdue
 est une violation de données à notifier à la CNIL sous 72 heures. Trois mesures, par ordre

@@ -31,6 +31,7 @@
  * Usage :
  *   node scripts/portable/construire.mjs [--sortie distribution] [--amorce donnees.sql.gz]
  *                                        [--depot <url>] [--sans-archive] [--reutiliser-cache]
+ *                                        [--sans-elagage-fin]
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -188,6 +189,168 @@ function fusionnerPostgis(cache, postgres) {
   if (dllPostgis.length === 0) throw new Error('Aucune bibliotheque PostGIS dans lib/.');
   console.log(`  controle : ${dllPostgis.join(', ')}`);
   rmSync(extrait, { recursive: true, force: true });
+}
+
+// ----------------------------------------------------------------------------- elagage fin ---
+
+/**
+ * Programmes et modules que l'application invoque ou charge REELLEMENT.
+ *
+ * Les extensions actives sont celles que `lanceur.mjs` cree : postgis, pgcrypto, btree_gist.
+ * `postgis_topology` est ajoute par prudence — il accompagne postgis de pres et ne pese rien.
+ */
+export const GRAINES = [
+  'postgres.exe', 'initdb.exe', 'psql.exe', 'pg_ctl.exe', 'pg_isready.exe',
+  // pg_dump/pg_restore servent aux sauvegardes documentees dans docs/HEBERGEMENT.md.
+  'pg_dump.exe', 'pg_restore.exe',
+  'postgis-3.dll', 'postgis_topology-3.dll', 'pgcrypto.dll', 'btree_gist.dll',
+];
+
+/**
+ * Familles de `share/extension` a NE PAS livrer. Liste de REFUS et non d'autorisation : une
+ * famille inconnue est gardee. Retirer un fichier SQL de trop ne casse que le
+ * `CREATE EXTENSION` de cette extension-la — que l'application ne fait jamais pour celles-ci.
+ */
+export const EXTENSIONS_REFUSEES = [
+  'pgrouting', 'mobilitydb', 'postgis_raster', 'postgis_sfcgal',
+  'postgis_tiger_geocoder', 'postgis_tiger_geocoder_pre', 'tiger_geocoder', 'tiger_geocoder.in',
+  'address_standardizer', 'address_standardizer_data_us', 'ogr_fdw', 'h3', 'h3_postgis',
+  'pointcloud', 'pointcloud_postgis',
+];
+
+/** Table d'importation d'un binaire PE, y compris les imports differes. */
+function importsPE(chemin) {
+  const r = spawnSync('objdump', ['-p', chemin], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.status !== 0) return null;
+  return [...r.stdout.matchAll(/DLL Name:\s*(\S+)/g)].map((m) => m[1].toLowerCase());
+}
+
+/**
+ * Retire ce qu'aucun chemin d'execution n'atteint.
+ *
+ * MESURE QUI JUSTIFIE CETTE ETAPE : le paquet PostGIS fait passer l'arbre de 119,7 Mo a
+ * 401,0 Mo, et sur 275 binaires livres, **40 seulement** sont atteignables depuis les graines
+ * ci-dessus. Le reste — GDAL (34,8 Mo), SFCGAL (11,3 Mo), wxWidgets et GTK pour une interface
+ * graphique de chargement de shapefiles, pgRouting, MobilityDB — n'est jamais charge par cette
+ * application.
+ *
+ * LE RAISONNEMENT DE SURETE, ET SA LIMITE, HONNETEMENT. La fermeture est calculee sur les
+ * tables d'importation reelles des binaires, imports differes compris, et non sur les noms de
+ * fichiers. Elle a d'ailleurs confirme deux choses utiles : `postgis-3.dll` n'importe NI GDAL
+ * NI SFCGAL, et `icudt67.dll` (27 Mo) EST atteignable — le retirer aurait tue PostgreSQL.
+ * Ce que la fermeture ne voit pas : un `LoadLibrary` par nom, decide a l'execution. Le seul
+ * cas de ce genre ici serait un `CREATE EXTENSION` sur une extension retiree, ce que
+ * l'application ne fait pas.
+ *
+ * En cas de doute sur un poste, `--sans-elagage-fin` produit l'archive complete.
+ */
+export function elaguerFin(postgres) {
+  etape('Elagage fin : ce qu’aucun chemin d’execution n’atteint');
+  const avant = poids(postgres);
+
+  // 1. Index de tous les binaires, par nom de fichier en minuscules.
+  const index = new Map();
+  const parcourir = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const c = join(d, e.name);
+      if (e.isDirectory()) parcourir(c);
+      else if (/\.(dll|exe)$/i.test(e.name)) index.set(e.name.toLowerCase(), c);
+    }
+  };
+  parcourir(postgres);
+
+  // 2. Fermeture transitive depuis les graines.
+  const atteignables = new Set();
+  const file = [];
+  for (const graine of GRAINES) {
+    const cle = graine.toLowerCase();
+    if (index.has(cle)) {
+      atteignables.add(cle);
+      file.push(cle);
+    } else {
+      console.log(`  graine absente de l'archive : ${graine}`);
+    }
+  }
+  let objdumpMuet = 0;
+  while (file.length > 0) {
+    const nom = file.shift();
+    const deps = importsPE(index.get(nom));
+    if (deps == null) {
+      objdumpMuet += 1;
+      continue;
+    }
+    for (const dep of deps) {
+      if (index.has(dep) && !atteignables.has(dep)) {
+        atteignables.add(dep);
+        file.push(dep);
+      }
+    }
+  }
+  if (objdumpMuet > 0) {
+    // Sans lecture fiable des tables d'importation, on ne retire RIEN : une archive un peu
+    // grosse vaut infiniment mieux qu'une archive muette sur le poste de l'utilisateur.
+    throw new Error(
+      `objdump n'a pas su lire ${objdumpMuet} binaire(s) : elagage abandonne. ` +
+        'Relancez avec --sans-elagage-fin.',
+    );
+  }
+
+  // 3. Retrait des binaires inatteignables.
+  let retires = 0;
+  let gagne = 0;
+  const plusGros = [];
+  for (const [nom, chemin] of index) {
+    if (atteignables.has(nom)) continue;
+    const taille = statSync(chemin).size;
+    plusGros.push([taille, chemin.slice(postgres.length + 1)]);
+    rmSync(chemin);
+    retires += 1;
+    gagne += taille;
+  }
+  console.log(`  binaires : ${index.size} presents, ${atteignables.size} atteignables`);
+  console.log(`  retires  : ${retires} fichiers, ${mo(gagne)}`);
+  for (const [taille, nom] of plusGros.sort((a, b) => b[0] - a[0]).slice(0, 6)) {
+    console.log(`      ${mo(taille).padStart(9)}  ${nom}`);
+  }
+
+  // 4. Scripts SQL des extensions qu'on ne cree jamais.
+  const dossierExt = join(postgres, 'share', 'extension');
+  let gagneSql = 0;
+  if (existsSync(dossierExt)) {
+    for (const fichier of readdirSync(dossierExt)) {
+      const famille = fichier.split('--')[0].replace(/\.(control|sql)$/, '');
+      if (!EXTENSIONS_REFUSEES.includes(famille)) continue;
+      const chemin = join(dossierExt, fichier);
+      gagneSql += statSync(chemin).size;
+      rmSync(chemin);
+    }
+  }
+  // GDAL n'est plus la : ses donnees de reference ne servent plus a rien.
+  const gdalData = join(postgres, 'gdal-data');
+  let gagneGdal = 0;
+  if (existsSync(gdalData) && !atteignables.has('libgdal-35.dll')) {
+    gagneGdal = poids(gdalData);
+    rmSync(gdalData, { recursive: true, force: true });
+  }
+  console.log(`  scripts d'extensions inutilisees : ${mo(gagneSql)}`);
+  console.log(`  donnees GDAL devenues orphelines : ${mo(gagneGdal)}`);
+
+  // 5. Le controle qui compte : l'archive doit encore pouvoir servir PostGIS.
+  const vitaux = [
+    join(postgres, 'bin', 'postgres.exe'),
+    join(postgres, 'bin', 'initdb.exe'),
+    join(postgres, 'bin', 'psql.exe'),
+    join(postgres, 'bin', 'pg_isready.exe'),
+    join(postgres, 'bin', 'pg_ctl.exe'),
+    join(postgres, 'lib', 'postgis-3.dll'),
+    join(postgres, 'share', 'extension', 'postgis.control'),
+    join(postgres, 'share', 'extension', 'postgis--3.6.2.sql'),
+  ];
+  const perdus = vitaux.filter((v) => !existsSync(v));
+  if (perdus.length > 0) {
+    throw new Error(`L'elagage a retire des fichiers vitaux :\n  ${perdus.join('\n  ')}`);
+  }
+  console.log(`  ${mo(avant)} -> ${mo(poids(postgres))}`);
 }
 
 // -------------------------------------------------------------------------------- application ---
@@ -514,6 +677,7 @@ async function principal() {
   telecharger(cache, reutiliser);
   const postgres = preparerPostgres(cache, travail);
   fusionnerPostgis(cache, postgres);
+  if (!process.argv.includes('--sans-elagage-fin')) elaguerFin(postgres);
   const application = construireApplication(travail, depot);
   assembler({ travail, sortie, postgres, application, cache, amorce });
   const exeFait = fabriquerExecutable({ travail, sortie });
