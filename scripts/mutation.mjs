@@ -779,6 +779,48 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/portail-netlify.test.ts'],
   },
+  // --- Garde d'envoi de l'application locale ----------------------------------------------
+  //
+  // La faute que ce garde empeche est la seule du depot qu'on ne puisse PAS corriger apres
+  // coup : un fichier de base pousse sur GitHub reste dans l'historique et dans toutes les
+  // copies clonees. Les quatre mutations ci-dessous cassent chacune une des quatre proprietes
+  // qui le rendent efficace.
+  {
+    audit: 'application locale',
+    quoi: 'les chemins Windows echappent au garde faute de normalisation',
+    fichier: 'scripts/portable/depot.mjs',
+    de: "    const chemin = brut.replace(/\\\\/g, '/').replace(/^\\.\\//, '');",
+    vers: "    const chemin = brut.replace(/^\\.\\//, '');",
+    cwd: 'apps/web',
+    tests: ['test/portable-depot.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'le dossier de la base n’est plus reconnu comme interdit',
+    fichier: 'scripts/portable/depot.mjs',
+    de: '    motif: /^donnees\\//,',
+    vers: '    motif: /^__jamais_rencontre__\\//,',
+    cwd: 'apps/web',
+    tests: ['test/portable-depot.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'l’exception des jeux d’essai disparait et bloque le travail ordinaire',
+    fichier: 'scripts/portable/depot.mjs',
+    de: '      (i) => i.motif.test(chemin) && !(i.saufSi && i.saufSi.test(chemin)),',
+    vers: '      (i) => i.motif.test(chemin),',
+    cwd: 'apps/web',
+    tests: ['test/portable-depot.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'un fichier interdit n’arrete plus l’envoi',
+    fichier: 'scripts/portable/depot.mjs',
+    de: "  if (refuses.length > 0 && !forcer) return { action: 'refuser', autorises, refuses };",
+    vers: "  if (false) return { action: 'refuser', autorises, refuses };",
+    cwd: 'apps/web',
+    tests: ['test/portable-depot.test.ts'],
+  },
 ];
 
 /**

@@ -16,6 +16,20 @@ apps/api/dist/
 packages/*/dist/
 data/
 
+# --- Application locale portable -------------------------------------------------------
+# LE DOSSIER LE PLUS SENSIBLE DU PROJET. Il contient la base PostgreSQL de l'installation
+# locale : pipeline commercial, et potentiellement des donnees nominatives de proprietaires.
+# Un envoi sur GitHub serait DEFINITIF — meme supprime ensuite, un fichier pousse reste dans
+# l'historique et dans toutes les copies clonees.
+#
+# Ces trois lignes ne sont PAS la seule protection, et c'est voulu : un `.gitignore` se
+# contourne d'un `git add -f`, ne suit pas un dossier renomme, et n'avertit de rien quand il
+# agit. Le garde execute de scripts/portable/depot.mjs refuse l'envoi ET explique pourquoi ;
+# quatre mutations verifient qu'il protege reellement.
+donnees/
+pgdata/
+jeton-github.txt
+
 # Sorties des tests de bout en bout (rapports, traces, captures)
 apps/web/playwright-report/
 apps/web/test-results/
