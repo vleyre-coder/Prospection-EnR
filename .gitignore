@@ -29,6 +29,12 @@ data/
 donnees/
 pgdata/
 jeton-github.txt
+# Fabrication de l'archive portable : moteurs telecharges, arborescence intermediaire et
+# archive produite. Plusieurs centaines de megaoctets, tous reconstituables par
+# `node scripts/portable/construire.mjs`.
+.cache-portable/
+.travail-portable/
+distribution/
 
 # Sorties des tests de bout en bout (rapports, traces, captures)
 apps/web/playwright-report/
