@@ -47,3 +47,6 @@ apps/web/captures/
 # Lancement de Playwright depuis la racine par erreur : les artefacts y atterrissent.
 test-results/
 playwright-report/
+
+# Filet du script de mutation : trace d une execution en cours, effacee a la fin.
+.mutation-en-cours

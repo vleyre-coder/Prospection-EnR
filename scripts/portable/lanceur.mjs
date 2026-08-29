@@ -156,9 +156,19 @@ export async function demarrerBase({ racine, binaires, pgdata, port, journal = c
   const debut = Date.now();
   const limiteMs = 60_000;
   for (;;) {
-    const pret = spawnSync(outil(binaires, 'pg_isready'), ['-h', '127.0.0.1', '-p', String(port)], {
-      encoding: 'utf8',
-    });
+    /**
+     * `-U COMPTE` n'est pas decoratif. Sans lui, `pg_isready` se connecte sous le nom du
+     * compte du systeme, qui n'existe pas comme role dans cette base : PostgreSQL repond
+     * bien — c'est tout ce que `pg_isready` demande — mais inscrit un `FATAL: role "..."
+     * does not exist` dans le journal, a CHAQUE demarrage. Or `donnees/journal.txt` est le
+     * fichier qu'on ouvre quand quelque chose ne va pas : y laisser une erreur fatale de
+     * routine, c'est apprendre a ignorer les erreurs fatales.
+     */
+    const pret = spawnSync(
+      outil(binaires, 'pg_isready'),
+      ['-h', '127.0.0.1', '-p', String(port), '-U', COMPTE, '-d', 'postgres'],
+      { encoding: 'utf8' },
+    );
     if (pret.status === 0) break;
     if (processus.exitCode != null) {
       throw new Error(

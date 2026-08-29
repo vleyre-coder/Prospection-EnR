@@ -30,7 +30,7 @@
  *
  * Usage :
  *   node scripts/portable/construire.mjs [--sortie distribution] [--amorce donnees.sql.gz]
- *                                        [--depot <url>] [--sans-archive] [--reutiliser-cache]
+ *                                        [--sans-archive] [--reutiliser-cache]
  *                                        [--sans-elagage-fin]
  */
 
@@ -40,6 +40,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit';
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -355,50 +356,36 @@ export function elaguerFin(postgres) {
 
 // -------------------------------------------------------------------------------- application ---
 
-function construireApplication(travail, depot) {
+function construireApplication(travail) {
   etape("Construction de l'application");
   executer('npm', ['run', 'build'], { cwd: RACINE });
 
   /**
-   * Un `node_modules` de PRODUCTION, fabrique a part, ET RESTREINT AUX TROIS ESPACES SERVEUR.
+   * Une COPIE, et non un clone git.
    *
-   * Copier celui du depot embarquerait Playwright, Vite, TypeScript et leurs navigateurs :
-   * plusieurs centaines de megaoctets qui ne servent qu'a developper.
+   * Une version anterieure clonait le depot pour permettre `Pousser-vers-GitHub`. Cette
+   * boucle a ete ecartee : l'archive n'embarque donc plus ni historique ni sources, ce qui
+   * lui epargne une dizaine de megaoctets et supprime la seule piece qui pouvait envoyer
+   * quelque chose hors du poste. Une mise a jour se fait en retelechargeant l'archive.
    *
-   * MAIS `--omit=dev` SEUL NE SUFFISAIT PAS, et la mesure l'a montre. La premiere version
-   * installait les quatre espaces de travail : 137 Mo de `node_modules`, dont maplibre-gl
-   * (41 Mo), jsts (13 Mo), @turf (9,6 Mo), @maplibre (9,2 Mo) et @tanstack (4,9 Mo) — 78 Mo
-   * de dependances de l'INTERFACE, alors que l'interface est deja compilee dans
-   * `apps/web/dist` et n'a plus besoin d'aucun paquet a l'execution. Les selectionner
-   * explicitement fait tomber ce poste a une quarantaine de megaoctets.
-   *
-   * Les quatre `package.json` sont tout de meme copies : sans eux, le graphe d'espaces de
-   * travail ne correspondrait plus au fichier de verrouillage et `npm ci` refuserait.
+   * Le `node_modules` est RESTREINT AUX TROIS ESPACES SERVEUR. `--omit=dev` seul laissait
+   * encore entrer maplibre-gl (41 Mo), jsts (13 Mo), @turf (9,6 Mo), @maplibre (9,2 Mo) et
+   * @tanstack (4,9 Mo) — 78 Mo de dependances de l'INTERFACE, alors que l'interface est deja
+   * compilee dans `apps/web/dist` et ne charge plus aucun paquet a l'execution.
    */
   const app = join(travail, 'application');
   rmSync(app, { recursive: true, force: true });
+  mkdirSync(app, { recursive: true });
 
-  /**
-   * `application/` est une VRAIE COPIE DE TRAVAIL GIT, pas un tas de fichiers construits.
-   *
-   * LA PREMIERE VERSION NE COPIAIT QUE LES SORTIES DE CONSTRUCTION — `dist/`, les migrations,
-   * quatre `package.json`. Elle demarrait parfaitement, et elle rendait `Pousser-vers-GitHub`
-   * inutile : sans les sources ni l'historique, il n'y a rien a envoyer. Or c'est la moitie de
-   * ce que l'application locale doit permettre. Le defaut ne se voyait qu'en essayant
-   * d'envoyer, c'est-a-dire trop tard.
-   *
-   * Un clone donc, avec son historique (une soixantaine de commits, une dizaine de Mo). Les
-   * sorties de construction et `node_modules` y sont deposees par-dessus : elles sont ignorees
-   * par `.gitignore`, donc invisibles pour git et sans effet sur ce qui sera pousse.
-   */
-  const branche = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-    cwd: RACINE, encoding: 'utf8',
-  }).trim();
-  executer('git', ['clone', '--no-hardlinks', '--branch', branche, `file://${RACINE}`, app]);
-  // L'origine devient le depot vers lequel l'utilisateur poussera, et non le chemin local
-  // qui a servi a fabriquer l'archive et qui n'existe pas sur son poste.
-  executer('git', ['remote', 'set-url', 'origin', depot], { cwd: app });
-  console.log(`  clone de la branche ${branche}, origine -> ${depot}`);
+  // Les quatre manifestes sont copies meme si l'on n'installe que trois espaces : sans eux,
+  // le graphe d'espaces de travail ne correspondrait plus au verrou et `npm ci` refuserait.
+  for (const fichier of ['package.json', 'package-lock.json']) {
+    cpSync(join(RACINE, fichier), join(app, fichier));
+  }
+  for (const espace of ['packages/core', 'packages/scoring', 'apps/api', 'apps/web']) {
+    mkdirSync(join(app, espace), { recursive: true });
+    cpSync(join(RACINE, espace, 'package.json'), join(app, espace, 'package.json'));
+  }
   executer(
     'npm',
     [
@@ -408,19 +395,23 @@ function construireApplication(travail, depot) {
     { cwd: app },
   );
 
-  // Les sorties de construction, deposees par-dessus le clone. Ignorees par git.
   for (const chemin of [
     'packages/core/dist', 'packages/scoring/dist', 'apps/api/dist', 'apps/web/dist',
+    'db/migrations',
   ]) {
     cpSync(join(RACINE, chemin), join(app, chemin), { recursive: true });
   }
+  // Le lanceur voyage avec l'application. `depot.mjs` n'est PAS embarque : la boucle GitHub
+  // est ecartee, et un fichier livre mais inutilisable est une invitation a l'erreur.
+  mkdirSync(join(app, 'scripts', 'portable'), { recursive: true });
+  for (const f of ['lanceur.mjs', 'demarrer.mjs']) {
+    cpSync(join(RACINE, 'scripts', 'portable', f), join(app, 'scripts', 'portable', f));
+  }
 
   /**
-   * Les cartes de source de l'interface ne partent pas.
-   *
-   * Elles pesent 2,7 Mo, ne servent qu'a deboguer dans la console du navigateur, et exposent
-   * le code source complet a quiconque ouvre les outils de developpement sur un poste ou
-   * l'archive a ete copiee. Aucun de ces deux effets n'est souhaite dans une distribution.
+   * Les cartes de source de l'interface ne partent pas : 2,7 Mo qui ne servent qu'a deboguer
+   * dans la console du navigateur, et qui exposeraient le code source complet a quiconque
+   * ouvre les outils de developpement sur un poste ou l'archive a ete copiee.
    */
   for (const carte of readdirSync(join(app, 'apps', 'web', 'dist', 'assets')).filter((f) =>
     f.endsWith('.map'),
@@ -485,6 +476,14 @@ export function controlerPortabilite(app) {
 
 // ---------------------------------------------------------------------------------- assemblage ---
 
+/**
+ * Les lanceurs livres, en fichiers de lot.
+ *
+ * PLUS DE BOUCLE GITHUB : le proprietaire du projet l'a ecartee. `Mettre-a-jour.cmd` et
+ * `Pousser-vers-GitHub.cmd` ont donc disparu de l'archive, ainsi que le clone git qui les
+ * rendait possibles. Une mise a jour se fait desormais en retelechargeant l'archive — le
+ * dossier `donnees/` se recopie tel quel dans la nouvelle, et rien n'est perdu.
+ */
 const LANCEURS = {
   'Prospection-EnR.cmd': `@echo off
 title Prospection EnR
@@ -493,26 +492,41 @@ set RACINE_PORTABLE=%~dp0
 "%~dp0moteurs\\node\\node.exe" "%~dp0application\\scripts\\portable\\demarrer.mjs"
 if errorlevel 1 pause
 `,
-  'Mettre-a-jour.cmd': `@echo off
-title Prospection EnR - mise a jour
-cd /d "%~dp0application"
-"%~dp0moteurs\\node\\node.exe" "%~dp0application\\scripts\\portable\\depot.mjs" mettre-a-jour
-pause
-`,
-  'Pousser-vers-GitHub.cmd': `@echo off
-title Prospection EnR - envoi vers GitHub
-cd /d "%~dp0application"
-set /p MESSAGE=Decrivez vos modifications (Entree pour un libelle par defaut) :
-"%~dp0moteurs\\node\\node.exe" "%~dp0application\\scripts\\portable\\depot.mjs" pousser "%MESSAGE%"
+  /**
+   * Le raccourci sur le bureau, pose par PowerShell.
+   *
+   * Un fichier .lnk est un format binaire Windows : il ne peut pas etre fabrique de facon
+   * fiable depuis Linux, et un .lnk mal forme est pire qu'absent — Windows l'affiche puis
+   * refuse de l'ouvrir. Il est donc CREE SUR LE POSTE, par l'objet WScript.Shell, qui est le
+   * mecanisme officiel et present sur toute installation depuis Windows 2000.
+   *
+   * `-ExecutionPolicy Bypass` porte sur cette invocation seule et ne modifie aucun reglage de
+   * la machine : sans lui, la strategie par defaut refuserait le script sur beaucoup de postes
+   * d'entreprise.
+   */
+  'Creer-un-raccourci.cmd': `@echo off
+title Prospection EnR - raccourci
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$b=[Environment]::GetFolderPath('Desktop');" ^
+  "$s=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $b 'Prospection EnR.lnk'));" ^
+  "$s.TargetPath=(Join-Path '%~dp0' 'Prospection-EnR.exe');" ^
+  "$s.WorkingDirectory='%~dp0';" ^
+  "$s.IconLocation=(Join-Path '%~dp0' 'Prospection-EnR.exe');" ^
+  "$s.Description='Prospection fonciere pour projets d''energies renouvelables';" ^
+  "$s.Save();" ^
+  "Write-Host 'Raccourci cree sur le bureau.'"
 pause
 `,
 };
 
-const LISEZ_MOI = `Prospection EnR - application locale
-====================================
+const LISEZ_MOI = `Prospection EnR - application de bureau
+==========================================
 
 DEMARRER : double-cliquez sur Prospection-EnR.exe
            (ou Prospection-EnR.cmd s'il ne repond pas)
+
+RACCOURCI : double-cliquez une fois sur Creer-un-raccourci.cmd et l'icone
+            apparait sur votre bureau.
 
 La premiere ouverture prepare la base de donnees : comptez une trentaine de
 secondes. Les suivantes sont immediates.
@@ -525,6 +539,10 @@ CE DOSSIER EST TRANSPORTABLE
 Copiez-le entier sur une cle USB, branchez-la sur un autre PC, double-cliquez :
 memes donnees, aucune installation, aucun droit administrateur.
 
+METTRE A JOUR : retelechargez l'archive, decompressez-la ailleurs, puis recopiez
+votre dossier donnees\\ par-dessus celui de la nouvelle version. Vos parcelles,
+vos notes et votre pipeline suivent.
+
 
 ATTENTION - DONNEES PERSONNELLES
 Le sous-dossier donnees\\ contient votre base : parcelles, pipeline commercial,
@@ -532,9 +550,6 @@ et potentiellement des noms de proprietaires, EN CLAIR.
 
 Une cle USB perdue est une violation de donnees a notifier a la CNIL sous
 72 heures. Chiffrez le support (BitLocker, VeraCrypt).
-
-Ce dossier n'est JAMAIS envoye sur GitHub : Pousser-vers-GitHub le refuse et
-vous explique pourquoi.
 
 
 INTERNET
@@ -547,6 +562,7 @@ EN CAS DE PROBLEME
 donnees\\journal.txt contient le detail technique du dernier lancement.
 Documentation : application\\docs\\APPLICATION-LOCALE.md
 `;
+
 
 function assembler({ travail, sortie, postgres, application, cache, amorce }) {
   etape("Assemblage de l'arborescence");
@@ -577,6 +593,84 @@ function assembler({ travail, sortie, postgres, application, cache, amorce }) {
     );
   }
   return sortie;
+}
+
+/**
+ * Grave l'icone et les metadonnees dans l'executable Windows.
+ *
+ * POURQUOI CA COMPTE PLUS QU'IL N'Y PARAIT. Sans cette etape, l'application s'appelle
+ * « Prospection-EnR.exe » mais porte l'icone verte de Node.js, et le clic droit > Proprietes
+ * annonce « Node.js JavaScript Runtime, Node.js Foundation ». Sur le bureau d'un prospecteur,
+ * a cote d'Outlook et d'Excel, ca ne ressemble pas a un outil de travail : ca ressemble a
+ * quelque chose qu'on a telecharge par erreur. L'icone et le nom d'editeur sont ce qui fait la
+ * difference entre un logiciel et un fichier suspect.
+ *
+ * `resedit` est du JavaScript pur : il reecrit la section de ressources d'un binaire PE sans
+ * aucun outil Windows, donc depuis cet environnement Linux. La signature Microsoft de
+ * `node.exe` est de toute facon deja invalidee par l'injection SEA qui precede.
+ */
+function habillerExecutable(exe) {
+  /**
+   * `ignoreCert` est indispensable, et la mesure l'a impose : sans lui, `resedit` refuse
+   * d'ouvrir le binaire — « Parsing signed executable binary is not allowed by default ».
+   * `node.exe` arrive signe par Microsoft ; l'injection SEA qui precede a de toute facon deja
+   * rendu cette signature caduque. On demande donc explicitement a ignorer — et a laisser
+   * tomber — une signature qui ne vaut plus rien.
+   */
+  const binaire = NtExecutable.from(readFileSync(exe), { ignoreCert: true });
+  const ressources = NtExecutableResource.from(binaire);
+
+  /**
+   * LES RESSOURCES D'ICONE EXISTANTES SONT D'ABORD SUPPRIMEES, et ce n'est pas un exces de
+   * zele. `replaceIconsForResource` n'a pas remplace celles de `node.exe` : il a AJOUTE un
+   * groupe dans une autre langue. L'executable est ressorti avec deux groupes d'icone
+   * concurrents — id=1 lang=1033 (le logo vert de Node) et id=1 lang=1036 (le notre). Windows
+   * choisit selon la langue du systeme : sur un poste anglophone, c'est le logo de Node qui
+   * se serait affiche. Le defaut n'apparait pas sur la machine de fabrication, et pas non
+   * plus sur un Windows francais : exactement le genre de bug qu'on ne rencontre que chez
+   * quelqu'un d'autre. Constate en relisant la table des ressources du binaire produit.
+   *
+   * Tout est donc pose en 1033 (en-US), la langue de repli universelle de Windows, apres
+   * avoir vide les types 3 (images d'icone) et 14 (groupes d'icone).
+   */
+  const LANGUE = 1033;
+  for (let i = ressources.entries.length - 1; i >= 0; i -= 1) {
+    const type = ressources.entries[i].type;
+    if (type === 3 || type === 14) ressources.entries.splice(i, 1);
+  }
+
+  const ico = Data.IconFile.from(readFileSync(join(RACINE, 'scripts', 'portable', 'icone.ico')));
+  Resource.IconGroupEntry.replaceIconsForResource(
+    ressources.entries,
+    1,
+    LANGUE,
+    ico.icons.map((i) => i.data),
+  );
+
+  // Les metadonnees lues par l'explorateur, la barre des taches et SmartScreen. Sans elles,
+  // le clic droit > Proprietes annonce « Node.js JavaScript Runtime, Node.js Foundation ».
+  const versions = Resource.VersionInfo.fromEntries(ressources.entries);
+  const version = versions[0] ?? Resource.VersionInfo.createEmpty();
+  version.setFileVersion(0, 1, 0, 0);
+  version.setProductVersion(0, 1, 0, 0);
+  version.lang = LANGUE;
+  version.removeAllStringValues({ lang: LANGUE, codepage: 1200 });
+  version.setStringValues(
+    { lang: LANGUE, codepage: 1200 },
+    {
+      FileDescription: 'Prospection EnR - aide a la decision fonciere',
+      ProductName: 'Prospection EnR',
+      CompanyName: 'Prospection EnR',
+      LegalCopyright: 'Application interne',
+      OriginalFilename: 'Prospection-EnR.exe',
+      InternalName: 'Prospection-EnR',
+    },
+  );
+  version.outputToResourceEntries(ressources.entries);
+
+  ressources.outputResource(binaire);
+  writeFileSync(exe, Buffer.from(binaire.generate()));
+  console.log('  icone et metadonnees gravees');
 }
 
 /**
@@ -628,6 +722,18 @@ enfant.on('exit', (code) => process.exit(code === null ? 0 : code));
       '--yes', 'postject@1.0.0-alpha.6', exe, 'NODE_SEA_BLOB', blob,
       '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
     ]);
+    /**
+     * L'habillage est TENTE A PART, et son echec n'annule pas l'executable.
+     * La premiere version l'appelait dans le meme `try` que l'injection : une erreur d'icone
+     * a fait tomber tout le bloc, et l'archive est sortie SANS executable du tout — pour un
+     * probleme purement decoratif. Une icone manquante se voit ; un executable manquant
+     * empeche de travailler.
+     */
+    try {
+      habillerExecutable(exe);
+    } catch (erreur) {
+      console.log(`  icone non gravee (${erreur.message}) — l'executable reste utilisable`);
+    }
     console.log(`  Prospection-EnR.exe : ${mo(statSync(exe).size)}`);
     return true;
   } catch (erreur) {
@@ -658,27 +764,17 @@ async function principal() {
   const cache = resolve(argument('cache', join(RACINE, '.cache-portable')));
   const travail = resolve(argument('travail', join(RACINE, '.travail-portable')));
   const amorce = argument('amorce', null);
-  /**
-   * Depot vers lequel l'utilisateur poussera. Par defaut l'origine de CETTE copie, ce qui
-   * est le comportement attendu ; `--depot` sert a viser un autre compte, par exemple
-   * https://github.com/Llegender/Prospection_EnR.git
-   */
-  const depot = argument(
-    'depot',
-    execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: RACINE, encoding: 'utf8' }).trim(),
-  );
   const reutiliser = process.argv.includes('--reutiliser-cache');
 
   console.log('Fabrication de l\'application locale Windows');
   console.log(`  PostgreSQL ${VERSIONS.postgres} · PostGIS ${VERSIONS.postgis} · Node ${VERSIONS.node}`);
-  console.log(`  depot d'envoi : ${depot}`);
 
   mkdirSync(travail, { recursive: true });
   telecharger(cache, reutiliser);
   const postgres = preparerPostgres(cache, travail);
   fusionnerPostgis(cache, postgres);
   if (!process.argv.includes('--sans-elagage-fin')) elaguerFin(postgres);
-  const application = construireApplication(travail, depot);
+  const application = construireApplication(travail);
   assembler({ travail, sortie, postgres, application, cache, amorce });
   const exeFait = fabriquerExecutable({ travail, sortie });
 

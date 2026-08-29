@@ -15,7 +15,7 @@
  * un defaut REELLEMENT survenu, et porte la reference de l'audit qui l'a trouve.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 /**
@@ -821,6 +821,47 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/portable-depot.test.ts'],
   },
+  // --- Ecran de demarrage de l'application de bureau ---------------------------------------
+  //
+  // Une animation cassee ne fait rien planter : elle rend seulement l'attente illisible, ou le
+  // journal impossible a relire. C'est exactement le genre de regression qui traverse des mois
+  // sans etre vue. Chacune des quatre mutations casse une propriete verifiee.
+  {
+    audit: 'application locale',
+    quoi: 'les codes d’echappement partent aussi sans terminal',
+    fichier: 'scripts/portable/animation.mjs',
+    de: "    if (this.interactif) this.ecrire('\\r\\u001b[2K');",
+    vers: "    this.ecrire('\\r\\u001b[2K');",
+    cwd: 'apps/web',
+    tests: ['test/portable-animation.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'la roue retient le processus en vie',
+    fichier: 'scripts/portable/animation.mjs',
+    de: "    if (typeof this.minuterie.unref === 'function') this.minuterie.unref();",
+    vers: '    /* mutation : plus de unref */',
+    cwd: 'apps/web',
+    tests: ['test/portable-animation.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'l’ecran de demarrage avale l’erreur pour rester joli',
+    fichier: 'scripts/portable/animation.mjs',
+    de: '      throw erreur;',
+    vers: '      return undefined;',
+    cwd: 'apps/web',
+    tests: ['test/portable-animation.test.ts'],
+  },
+  {
+    audit: 'application locale',
+    quoi: 'les durees perdent leur changement de precision',
+    fichier: 'scripts/portable/animation.mjs',
+    de: "  return s < 10 ? `${s.toFixed(1).replace('.', ',')} s` : `${Math.round(s)} s`;",
+    vers: "  return `${s.toFixed(1).replace('.', ',')} s`;",
+    cwd: 'apps/web',
+    tests: ['test/portable-animation.test.ts'],
+  },
 ];
 
 /**
@@ -850,6 +891,34 @@ if (filtre) {
   if (A_JOUER.length === 0) process.exit(1);
 }
 
+/**
+ * FILET CONTRE L'INTERRUPTION, ajoute apres un incident reel.
+ *
+ * Le `finally` de la boucle restaure le fichier mute — sauf si le processus est TUE avant d'y
+ * arriver. C'est arrive : une execution arretee par un depassement de delai a laisse
+ * `scripts/portable/animation.mjs` avec deux mutations encore appliquees. Symptome a
+ * l'execution suivante : « motif introuvable » sur ces deux entrees, c'est-a-dire un message
+ * qui accuse le CODE d'avoir change alors que c'est l'outil qui l'avait abime. Sans relecture
+ * attentive, un fichier volontairement casse partait au commit.
+ *
+ * Une copie de sauvegarde est donc ecrite sur le disque AVANT chaque mutation et effacee
+ * apres. Si elle existe au demarrage, c'est qu'une execution precedente a ete interrompue :
+ * on restaure, on le dit, et on continue.
+ */
+const SAUVEGARDE = '.mutation-en-cours';
+
+function restaurerApresInterruption() {
+  if (!existsSync(SAUVEGARDE)) return;
+  const { fichier, contenu } = JSON.parse(readFileSync(SAUVEGARDE, 'utf8'));
+  writeFileSync(fichier, contenu);
+  rmSync(SAUVEGARDE);
+  console.log(
+    `Execution precedente interrompue : ${fichier} a ete restaure avant de continuer.\n`,
+  );
+}
+
+restaurerApresInterruption();
+
 let echecs = 0;
 for (const m of A_JOUER) {
   const original = readFileSync(m.fichier, 'utf8');
@@ -860,6 +929,7 @@ for (const m of A_JOUER) {
     echecs += 1;
     continue;
   }
+  writeFileSync(SAUVEGARDE, JSON.stringify({ fichier: m.fichier, contenu: original }));
   writeFileSync(m.fichier, original.replace(m.de, m.vers));
   let attrapee = false;
   try {
@@ -882,6 +952,7 @@ for (const m of A_JOUER) {
     if (m.construire) {
       execFileSync('npm', ['run', 'build', '--workspace', m.construire], { stdio: 'pipe' });
     }
+    rmSync(SAUVEGARDE, { force: true });
   }
   if (attrapee) {
     console.log(`OK   (${m.audit}) ${m.quoi}`);

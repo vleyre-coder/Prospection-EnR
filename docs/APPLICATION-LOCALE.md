@@ -1,12 +1,15 @@
 # L'application locale portable
 
-> **État de ce chantier.** L'archive est **fabriquée et mesurée** : 482,7 Mo décompressée,
-> **191,8 Mo en ZIP**. Tout ce qui était vérifiable sans Windows l'a été en exécution réelle —
-> la base s'initialise et produit de vraies tuiles vectorielles, le dossier livré est une copie
-> de travail git fonctionnelle, le garde d'envoi refuse ce qu'il doit refuser. **Ce qui reste :
-> le double-clic sur un poste Windows, et la base pré-remplie.** La section 6 le dit exactement.
+> **État de ce chantier.** L'archive est **fabriquée, lancée et mesurée** : 477 Mo décompressée,
+> **188,9 Mo en ZIP**. La séquence complète de démarrage a été exécutée pour de vrai —
+> `initdb`, moteur, schéma, API, interface servie, arrêt propre — et elle a livré trois
+> défauts que la relecture n'aurait pas donnés. **Ce qui reste : le double-clic sur un poste
+> Windows, et la base pré-remplie.** La section 7 le dit exactement.
 >
-> Fabrication : `node scripts/portable/construire.mjs --depot <url-de-votre-depot>`
+> Fabrication : `node scripts/portable/construire.mjs`
+>
+> *La boucle GitHub et la version Netlify ont été écartées : ce document ne traite plus que
+> l'application de bureau.*
 
 ## 1. Ce que c'est
 
@@ -14,15 +17,14 @@ Un dossier posé sur le bureau. Dedans : l'application, ses deux moteurs, et vos
 
 ```
 Prospection-EnR/
-  Prospection-EnR.exe        double-clic : ouvre l'application dans le navigateur
-  Prospection-EnR.cmd        le meme lanceur, sans injection — le filet de secours
-  Mettre-a-jour.cmd          récupère les dernières modifications depuis GitHub
-  Pousser-vers-GitHub.cmd    renvoie VOS modifications sur GitHub
+  Prospection-EnR.exe        double-clic : ouvre l'application, avec son icône
+  Prospection-EnR.cmd        le même lanceur, sans injection — le filet de secours
+  Creer-un-raccourci.cmd     pose l'icône sur le bureau
   LISEZ-MOI.txt
   moteurs/
     node/node.exe            Node.js — aucune installation
     postgres/                PostgreSQL 16.4 + PostGIS 3.6.2 — aucune installation
-  application/               copie de travail git : sources, historique, et le build
+  application/               l'application compilée et ses dépendances serveur
   donnees/
     pgdata/                  LA BASE : vos parcelles, votre pipeline
     amorce.sql.gz            données de référence, restaurées au premier lancement
@@ -57,61 +59,94 @@ base. Sans `ST_AsMVT`, il aurait fallu réécrire l'encodage des tuiles en JavaS
 > répondait « `ST_AsMVT` PRÉSENT ». C'était faux dans les faits : la fonction est bien au
 > catalogue, mais elle lève une erreur dès qu'on l'appelle. Seule l'exécution l'a montré.
 
-## 3. La boucle GitHub
+## 3. L'habillage de bureau
 
-Trois gestes, sans ligne de commande :
+Trois choses demandées, trois choses faites — et chacune a demandé une vérification sur
+l'artefact produit, pas sur l'intention.
 
-| Action | Ce qu'elle fait |
-|---|---|
-| **Mettre-a-jour** | `git pull --ff-only` puis reconstruction. En avance rapide seulement : une fusion automatique que personne ne relit produirait des conflits silencieux. |
-| **Pousser-vers-GitHub** | trie les fichiers, refuse ceux qui ne doivent pas partir, puis commit et push. |
+### L'icône
 
-### Ce qui ne partira jamais sur GitHub
+Dessinée par `scripts/portable/faire-icone.py` : un fond bleu-nuit arrondi, une **parcelle**
+(un quadrilatère irrégulier — un rectangle ferait « document », c'est l'irrégularité qui évoque
+le cadastre) et un **soleil** ambre. Sept tailles, de 16 à 256 pixels.
 
-`scripts/portable/depot.mjs` refuse l'envoi — et explique pourquoi — dès qu'un de ces chemins
-apparaît :
+La géométrie a été arrêtée **en regardant le rendu à 16 px**, la taille de la barre des tâches :
+la première version collait la parcelle au soleil et les deux masses fusionnaient en une seule
+tache. La parcelle a été descendue et rétrécie.
 
-| Motif | Raison |
-|---|---|
-| `donnees/`, `pgdata/` | la base : pipeline commercial et données de propriétaires |
-| `.env` | `SECRET_JWT`, mots de passe |
-| `jeton-*.txt` | jeton d'accès GitHub |
-| `*.dump`, `*.sql.gz`, `*.bak` | sauvegardes de base |
-| `exports/`, `*.csv`, `*.geojson`, `*.shp` | exports pouvant nommer des propriétaires |
+L'icône est gravée dans l'exécutable, avec les métadonnées lues par l'explorateur. Sans elles,
+le clic droit → Propriétés annonce « Node.js JavaScript Runtime, Node.js Foundation » : sur un
+bureau, à côté d'Outlook, ça ne ressemble pas à un outil de travail mais à un fichier
+téléchargé par erreur.
 
-Deux propriétés du garde méritent d'être connues, parce qu'elles sont délibérées :
+> **Un défaut que seule la relecture du binaire a donné.** `replaceIconsForResource` n'a pas
+> *remplacé* l'icône de Node : il en a **ajouté** une dans une autre langue. Le binaire est
+> sorti avec deux groupes concurrents — `id=1 lang=1033` (le logo vert de Node) et
+> `id=1 lang=1036` (le nôtre). Windows choisit selon la langue du système : **sur un poste
+> anglophone, c'est le logo de Node qui se serait affiché.** Invisible sur la machine de
+> fabrication, invisible sur un Windows français. Les ressources d'icône existantes sont
+> désormais supprimées avant l'ajout, et le binaire produit ne contient plus qu'un groupe.
 
-1. **Un seul fichier interdit bloque tout l'envoi.** Écarter le fichier fautif pour envoyer le
-   reste serait pire : ça habituerait à voir passer des avertissements, jusqu'au jour où l'un
-   d'eux compterait.
-2. **Les chemins Windows sont normalisés avant comparaison.** Sans cela,
-   `donnees\pgdata\base\1\2601` échapperait au motif `^donnees/` — le garde serait inopérant
-   exactement sur la plateforme qu'il protège. Un test l'exige, une mutation le prouve.
+### Le raccourci sur le bureau
 
-Un `.gitignore` seul ne suffisait pas : il se contourne d'un `git add -f`, ne suit pas un
-dossier renommé, et n'avertit de rien quand il agit.
+Posé automatiquement à la première ouverture, et re-créable à volonté par
+`Creer-un-raccourci.cmd`. Il passe par `WScript.Shell`, le mécanisme officiel de Windows, et
+non par l'écriture directe d'un `.lnk` : ce format binaire ne se fabrique pas de façon fiable
+depuis Linux, et **un `.lnk` mal formé est pire qu'absent** — l'icône apparaît, puis le
+double-clic échoue sans message utile.
 
-**Et la première protection n'est ni l'un ni l'autre : c'est la disposition des dossiers.**
-`donnees/` est à la racine de l'archive, tandis que la copie de travail git est
-`application/`. La base est donc **hors du champ de vision de git**, structurellement. Le
-garde couvre ce que cette disposition ne couvre pas : un `.env`, un export, une sauvegarde ou
-des données déposées par erreur *à l'intérieur* de `application/`.
+Un échec de création n'est jamais fatal : une application qui refuserait de démarrer parce
+qu'elle n'a pas su décorer un bureau serait absurde.
 
-### Pourquoi c'est irréversible, et donc pourquoi le garde existe
+### L'animation de démarrage
 
-Un fichier poussé sur GitHub **reste dans l'historique** et dans toutes les copies clonées,
-même supprimé ensuite. C'est la seule faute de ce dépôt qu'on ne puisse pas corriger après
-coup. D'où un garde exécuté, testé et muté, plutôt qu'une ligne de configuration.
+Entre le double-clic et la carte il s'écoule cinq secondes, une trentaine à la première
+ouverture. Une fenêtre noire et muette pendant ce temps-là, ce n'est pas un problème
+d'esthétique : c'est un utilisateur qui croit à une panne, ferme la fenêtre, et recommence.
 
-## 4. Relier le dossier à GitHub
+```
+  ┌──────────────────────────────────────────────┐
+  │  Prospection EnR                             │
+  │  aide a la decision fonciere                 │
+  └──────────────────────────────────────────────┘
+  ✓  Preparation de la base (une seule fois)  (0,9 s)
+  ✓  Demarrage du moteur de donnees — port 54329  (0,3 s)
+  ✓  Ouverture de la base applicative  (1,2 s)
+  ✓  Application du schema  (0,4 s)
+  ✓  Chargement des donnees de reference — 182 Mo  (4,1 s)
+  ✓  Demarrage de l'application — http://127.0.0.1:3000  (2,1 s)
+     Raccourci « Prospection EnR » place sur votre bureau.
+```
 
-Une archive ZIP téléchargée depuis GitHub **ne contient pas l'historique** : on ne peut rien
-pousser depuis un dossier obtenu ainsi. Le dossier portable doit être une vraie copie de
-travail. `Pousser-vers-GitHub` le détecte et le dit.
+Une roue tourne pendant chaque étape, la ligne se réécrit sur place, et le temps écoulé
+s'affiche — c'est ce qui rend une lenteur diagnosticable. **Sans terminal**, aucun caractère
+de contrôle n'est émis : la sortie va alors dans `donnees/journal.txt`, précisément le fichier
+qu'on lit quand quelque chose a mal tourné, et un journal farci de codes d'échappement est
+illisible au moment où il faudrait le lire.
 
-L'authentification passe par un **jeton d'accès personnel** (GitHub n'accepte plus les mots de
-passe de compte depuis août 2021) : Settings → Developer settings → Personal access tokens,
-portée `repo`. Le gestionnaire d'identifiants de Windows le retient après la première saisie.
+Six tests couvrent ces propriétés, quatre mutations prouvent qu'ils ne sont pas décoratifs.
+
+## 4. Trois défauts que l'exécution a livrés
+
+Aucun des trois n'était visible à la relecture. Tous ont été trouvés en lançant réellement la
+séquence complète sur une arborescence portable.
+
+**1. Le lanceur se tuait après avoir tout réussi.** L'ouverture du navigateur appelait `spawn`
+sans écouter l'événement `error`. Le programme d'ouverture absent, Node a relancé l'erreur
+comme un événement non géré : la fenêtre s'est fermée une seconde après avoir annoncé
+« L'application est ouverte » — alors que la base tournait et que l'interface répondait 200.
+L'utilisateur aurait conclu à une panne totale pour un échec purement cosmétique.
+
+**2. Le deuxième double-clic affichait « le démarrage a échoué ».** C'est le geste le plus
+courant sur un bureau : on ne voit pas la fenêtre derrière les autres, on reclique. Le second
+lancement butait sur `lock file "postmaster.pid" already exists`. Désormais il constate que
+l'application répond, ramène simplement la fenêtre, et sort.
+
+**3. Un `FATAL` inscrit au journal à chaque démarrage.** `pg_isready` se connectait sous le nom
+du compte du système, qui n'existe pas comme rôle : PostgreSQL répondait — tout ce que
+`pg_isready` demande — mais journalisait `FATAL: role "..." does not exist`. Laisser une erreur
+fatale de routine dans le fichier de diagnostic, c'est apprendre à ignorer les erreurs fatales.
+Vérifié après correction : **zéro `FATAL`** dans le journal d'une base neuve.
 
 ## 5. Le poids de l'archive, et comment il a été obtenu
 
