@@ -39,6 +39,29 @@ export const config = {
     /** En developpement, permet de travailler sans compte. Interdit en production. */
     desactivee: booleen('AUTH_DESACTIVEE', false),
     /**
+     * Application de BUREAU : un poste, un utilisateur, une base dans son propre dossier.
+     *
+     * POURQUOI CE DRAPEAU EXISTE PLUTOT QU'UN MENSONGE SUR NODE_ENV. L'application portable
+     * (scripts/portable/) tourne avec `NODE_ENV=production` — c'est ce qui garde la politique
+     * CORS restrictive et les journaux sobres. Mais elle n'a aucun compte a proposer : son
+     * utilisateur a deja ouvert la session Windows et double-clique sur une icone. Elle posait
+     * donc aussi `AUTH_DESACTIVEE=true`, combinaison que le serveur REFUSE — a juste titre.
+     *
+     * Constate en lancant vraiment l'archive : l'interface s'affichait, et toutes les routes
+     * utiles rendaient 500 « AUTH_DESACTIVEE est interdit en production ». Une carte vide et
+     * rien d'autre.
+     *
+     * Les deux mauvaises reponses etaient : basculer en `NODE_ENV=development`, ce qui ouvre
+     * la politique CORS a TOUTES les origines — n'importe quelle page web visitee par
+     * l'utilisateur aurait alors pu lire ses donnees de proprietaires sur 127.0.0.1 ; ou
+     * affaiblir le garde-fou de production, qui protege un vrai serveur.
+     *
+     * `MODE_BUREAU` nomme la situation au lieu de la deguiser, et il est lui-meme garde : il
+     * n'est accepte que si le serveur n'ecoute que la boucle locale (voir serveur.ts). Sur une
+     * machine joignable depuis le reseau, il ne donne rien.
+     */
+    modeBureau: booleen('MODE_BUREAU', false),
+    /**
      * Secret de signature des jetons. Laisse vide, l'instance en genere un au premier
      * demarrage et le conserve en base (voir amorcage.ts) : une installation sans
      * configuration reste ainsi securisee.

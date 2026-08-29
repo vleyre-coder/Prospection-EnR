@@ -126,10 +126,59 @@ illisible au moment où il faudrait le lire.
 
 Six tests couvrent ces propriétés, quatre mutations prouvent qu'ils ne sont pas décoratifs.
 
-## 4. Trois défauts que l'exécution a livrés
+## 4. Aucun mot de passe : comment, et à quelles conditions
 
-Aucun des trois n'était visible à la relecture. Tous ont été trouvés en lançant réellement la
-séquence complète sur une arborescence portable.
+**Vous double-cliquez, l'application s'ouvre. Rien à saisir.** L'utilisateur a déjà ouvert sa
+session Windows, la base est dans son dossier, le serveur n'écoute que sa propre machine :
+un écran de connexion n'ajouterait aucune protection.
+
+Mais ça ne pouvait pas se faire n'importe comment.
+
+> **Le défaut le plus grave de ce chantier, et il n'a été trouvé qu'en lançant l'archive.**
+> Le lanceur posait `NODE_ENV=production` — ce qui garde la politique CORS restrictive — et
+> `AUTH_DESACTIVEE=true`. Or le serveur **refuse** cette combinaison, à juste titre : c'est le
+> garde-fou qui empêche de mettre en ligne un serveur sans authentification.
+>
+> Résultat : l'interface s'affichait, `/api/sante` répondait 200, et **toutes les routes
+> utiles rendaient 500** — `AUTH_DESACTIVEE est interdit en production`. Une carte vide et
+> rien d'autre. Le défaut était invisible à la relecture (les deux variables sont correctes
+> prises séparément) et invisible sur la route de santé.
+
+Les deux mauvaises réponses possibles méritent d'être dites, parce qu'elles étaient
+tentantes :
+
+- **basculer en `NODE_ENV=development`** — c'est ce que fait `demarrer.bat`. Mais en
+  développement la politique CORS accepte **toutes** les origines : n'importe quelle page web
+  visitée par l'utilisateur aurait alors pu lire ses données de propriétaires sur
+  `127.0.0.1:3000` ;
+- **affaiblir le garde-fou de production**, qui protège un vrai serveur.
+
+La réponse retenue nomme la situation au lieu de la déguiser : **`MODE_BUREAU`**, accepté
+uniquement si le serveur n'écoute que la **boucle locale**. Sur `0.0.0.0` — le défaut, et le
+cas de tout hébergement — le drapeau ne donne rien. C'est cette seconde condition qui a du
+mordant : elle porte sur ce que la machine expose réellement, pas sur une variable qu'on
+recopie d'un fichier de configuration à l'autre.
+
+> **Un piège évité de justesse.** Ma première version testait la boucle locale par
+> `startsWith('127.')`. Elle acceptait `127.0.0.1.exemple.fr` — un nom de domaine que son
+> propriétaire fait pointer où il veut, y compris sur une adresse publique. Le serveur se
+> serait cru local tout en étant joignable par tout le monde, **sans authentification**.
+> Trouvé par le test, pas par la relecture. L'adresse est désormais validée, pas préfixée.
+
+Vérifié sur l'application lancée, après correction :
+
+| | |
+|---|---|
+| `/api/auth/moi` | **200** — « Poste local », rôle admin, aucun mot de passe saisi |
+| `/api/leads`, `/api/carte/parcelles`, `/api/carte/postes-sources` | **200** |
+| `/api/carte/tuiles/parcelles/...` (tuiles protégées) | **200** |
+| Requête depuis `https://site-malveillant.fr` | **refusée** — aucun en-tête CORS renvoyé |
+| Requête depuis `http://127.0.0.1:3000` | acceptée |
+
+## 5. Trois autres défauts que l'exécution a livrés
+
+Aucun n'était visible à la relecture. Tous ont été trouvés en lançant réellement la séquence
+complète sur une arborescence portable.
 
 **1. Le lanceur se tuait après avoir tout réussi.** L'ouverture du navigateur appelait `spawn`
 sans écouter l'événement `error`. Le programme d'ouverture absent, Node a relancé l'erreur
@@ -148,7 +197,7 @@ du compte du système, qui n'existe pas comme rôle : PostgreSQL répondait — 
 fatale de routine dans le fichier de diagnostic, c'est apprendre à ignorer les erreurs fatales.
 Vérifié après correction : **zéro `FATAL`** dans le journal d'une base neuve.
 
-## 5. Le poids de l'archive, et comment il a été obtenu
+## 6. Le poids de l'archive, et comment il a été obtenu
 
 | Poste | Poids |
 |---|---|
@@ -186,7 +235,7 @@ choses utiles au passage :
 Si l'application se plaignait d'une DLL manquante sur un poste, reconstruisez avec
 `--sans-elagage-fin` : l'archive complète fait 624 Mo, et le fait savoir.
 
-## 6. Ce qui reste à faire
+## 7. Ce qui reste à faire
 
 | Reste | Pourquoi |
 |---|---|
@@ -199,7 +248,7 @@ Si l'application se plaignait d'une DLL manquante sur un poste, reconstruisez av
 > Windows peut afficher un écran SmartScreen au premier lancement. C'est attendu, et c'est une
 > raison de plus de garder le `.cmd` sous la main.
 
-## 7. Le risque qu'il faut assumer
+## 8. Le risque qu'il faut assumer
 
 Ce dossier contient des **données nominatives de propriétaires, en clair**. Une clé USB perdue
 est une violation de données à notifier à la CNIL sous 72 heures. Trois mesures, par ordre

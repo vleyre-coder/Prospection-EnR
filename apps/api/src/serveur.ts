@@ -54,6 +54,42 @@ export interface OptionsServeur {
   secretJwt?: string;
 }
 
+/**
+ * L'application de bureau peut-elle se passer d'authentification ?
+ *
+ * DEUX CONDITIONS, ET LES DEUX SONT NECESSAIRES.
+ *
+ *   1. `MODE_BUREAU=true` — la situation est DECLAREE. Un reglage implicite finit toujours
+ *      par etre herite par une installation qui n'aurait pas du l'avoir.
+ *   2. Le serveur n'ecoute QUE la boucle locale. C'est la condition qui a du mordant : elle ne
+ *      se contourne pas par une variable d'environnement oubliee, parce qu'elle porte sur ce
+ *      que la machine expose reellement. Sur `0.0.0.0` — le defaut, et le cas de tout
+ *      hebergement — le mode bureau ne donne rien.
+ *
+ * `::1` couvre la boucle locale IPv6, qu'une pile IPv6 preferera parfois a `127.0.0.1`.
+ */
+export function estBoucleLocale(hote: string): boolean {
+  const h = hote.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h === '::1') return true;
+  /**
+   * L'adresse est VALIDEE, pas seulement prefixee. Un simple `startsWith('127.')` — ma
+   * premiere version — acceptait `127.0.0.1.exemple.fr`, c'est-a-dire un nom de domaine que
+   * son proprietaire fait pointer ou il veut, y compris sur une adresse publique. Le serveur
+   * se serait alors cru sur la boucle locale tout en etant joignable par tout le monde, SANS
+   * authentification. Trouve par le test, pas par la relecture.
+   */
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (!v4) return false;
+  const octets = v4.slice(1).map(Number);
+  if (octets.some((o) => o > 255)) return false;
+  // Tout 127.0.0.0/8 est de la boucle locale, pas seulement 127.0.0.1.
+  return octets[0] === 127;
+}
+
+function modeBureauRecevable(): boolean {
+  return config.auth.modeBureau && estBoucleLocale(config.hote);
+}
+
 export async function construireServeur(options: OptionsServeur = {}) {
   const app = Fastify({
     // Fastify 5 distingue `logger` (options de configuration) de `loggerInstance`
@@ -129,19 +165,36 @@ export async function construireServeur(options: OptionsServeur = {}) {
     if (req.url.startsWith('/api/carte/polices/')) return;
 
     if (config.auth.desactivee) {
-      if (config.env === 'production') {
-        // Garde-fou : ne jamais demarrer sans authentification en production.
+      if (config.env === 'production' && !modeBureauRecevable()) {
+        /**
+         * Garde-fou : ne jamais servir sans authentification en production.
+         *
+         * L'unique exception est l'application de BUREAU, et elle doit se declarer :
+         * `MODE_BUREAU=true` ET une ecoute limitee a la boucle locale. Un serveur joignable
+         * depuis le reseau ne peut donc pas s'en prevaloir, meme en posant le drapeau.
+         */
         return rep.code(500).send({
           erreur: {
             code: 'configuration_invalide',
-            message: "AUTH_DESACTIVEE est interdit en production.",
+            message: config.auth.modeBureau
+              ? `MODE_BUREAU exige une ecoute sur la boucle locale ; HOTE vaut « ${config.hote} ».`
+              : "AUTH_DESACTIVEE est interdit en production.",
           },
         });
       }
+      /**
+       * L'identite locale. Le libelle suit le mode : « Mode developpement » affiche sur le
+       * poste d'un prospecteur n'aurait aucun sens et ferait douter de ce qu'il regarde.
+       *
+       * `habiliteDonneesProprietaires` a `true` se justifie ici et nulle part ailleurs : la
+       * base est dans le dossier de cet utilisateur, sur sa machine, et il en est deja le seul
+       * lecteur possible. La journalisation des consultations continue de tout consigner.
+       */
+      const bureau = modeBureauRecevable();
       req.utilisateur = {
         id: '00000000-0000-0000-0000-000000000000',
-        email: 'developpement@local',
-        nom: 'Mode developpement',
+        email: bureau ? 'poste-local' : 'developpement@local',
+        nom: bureau ? 'Poste local' : 'Mode developpement',
         role: 'admin',
         habiliteDonneesProprietaires: true,
       };

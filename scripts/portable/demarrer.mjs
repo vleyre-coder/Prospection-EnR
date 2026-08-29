@@ -254,6 +254,22 @@ async function principal() {
              * Ici il est explicite et assume.
              */
             AUTH_DESACTIVEE: 'true',
+            /**
+             * LE DRAPEAU SANS LEQUEL RIEN NE MARCHE, et il a manque.
+             *
+             * `AUTH_DESACTIVEE` seul est REFUSE quand `NODE_ENV` vaut `production` — a juste
+             * titre : c'est le garde-fou qui empeche de mettre en ligne un serveur sans
+             * authentification. Constate en lancant vraiment l'archive : l'interface
+             * s'affichait, et toutes les routes utiles rendaient 500
+             * « AUTH_DESACTIVEE est interdit en production ». Une carte vide, et rien d'autre.
+             *
+             * `MODE_BUREAU` nomme l'exception au lieu de la deguiser en environnement de
+             * developpement — ce qui aurait ouvert la politique CORS a toutes les origines,
+             * donc permis a n'importe quelle page visitee de lire les donnees sur 127.0.0.1.
+             * Le serveur ne l'accepte que s'il n'ecoute que la boucle locale, ce que la ligne
+             * `HOTE` ci-dessus garantit.
+             */
+            MODE_BUREAU: 'true',
           },
           stdio: ['ignore', 'ignore', 'inherit'],
         },

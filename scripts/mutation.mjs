@@ -862,6 +862,27 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/portable-animation.test.ts'],
   },
+  // --- Mode bureau : pas de mot de passe sur un poste, et rien de plus --------------------
+  //
+  // Ce garde est le seul qui autorise une API sans authentification. S'il cede, une
+  // installation joignable depuis le reseau sert les donnees de proprietaires a qui les
+  // demande. Les deux mutations attaquent sa piece portante.
+  {
+    audit: 'mode bureau',
+    quoi: 'n’importe quelle adresse passe pour la boucle locale',
+    fichier: 'apps/api/src/serveur.ts',
+    de: '  return octets[0] === 127;',
+    vers: '  return true;',
+    tests: ['apps/api/test/mode-bureau.test.ts'],
+  },
+  {
+    audit: 'mode bureau',
+    quoi: 'le controle par prefixe revient, et un nom de domaine passe',
+    fichier: 'apps/api/src/serveur.ts',
+    de: '  if (!v4) return false;',
+    vers: "  if (!v4) return h.startsWith('127.');",
+    tests: ['apps/api/test/mode-bureau.test.ts'],
+  },
 ];
 
 /**
