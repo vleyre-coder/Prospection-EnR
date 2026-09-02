@@ -68,8 +68,22 @@ async function parcelleAvecSnapshot(dateSnapshot: string): Promise<void> {
   );
 }
 
-/** Declare une ingestion dans le departement de la parcelle, horodatee a `date`. */
+/**
+ * Declare une ingestion dans le departement de la parcelle, horodatee a `date`.
+ *
+ * LE CONNECTEUR EST CREE S'IL MANQUE, et ce n'est pas une precaution decorative.
+ * `couverture_ingestion.connecteur` est une cle etrangere vers `source_donnee`, table peuplee
+ * par `synchroniserReferentiel()` au DEMARRAGE DU SERVEUR — jamais par les tests. Ces cinq
+ * tests passaient donc sur une base ou le serveur avait deja tourne, et echouaient sur une
+ * base fraichement migree, avec pour seul message une violation de contrainte a dix lignes de
+ * la vraie cause. Un test doit etablir sa propre precondition.
+ */
 async function ingestionA(date: string): Promise<void> {
+  await requete(
+    `INSERT INTO source_donnee (connecteur, nom, mode_acces)
+     VALUES ('patrimoine_sites', '[essai] patrimoine (sites classes et inscrits)', 'api')
+     ON CONFLICT (connecteur) DO NOTHING`,
+  );
   await requete(
     `INSERT INTO couverture_ingestion (connecteur, type, code_departement, nb_objets, date_ingestion)
      VALUES ('patrimoine_sites', 'site_classe', $1, 12, $2::timestamptz)

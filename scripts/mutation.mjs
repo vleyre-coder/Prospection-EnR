@@ -883,6 +883,43 @@ const MUTATIONS = [
     vers: "  if (!v4) return h.startsWith('127.');",
     tests: ['apps/api/test/mode-bureau.test.ts'],
   },
+  // --- Amorce nationale : ce que l'archive distribuee embarque ----------------------------
+  //
+  // La faute que ces gardes empechent n'a aucun rattrapage : un fichier distribue ne se
+  // reprend pas. Une table de trop, et ce sont des donnees nominatives de proprietaires — ou
+  // le secret de signature des jetons — diffusees en autant de copies que de telechargements.
+  {
+    audit: 'amorce',
+    quoi: 'le secret de signature n’est plus ecarte de l’amorce',
+    fichier: 'scripts/portable/amorce.mjs',
+    de: "  parametre: 'secret de signature des jetons (« Ne jamais exposer », dit le schema)',",
+    vers: '  // mutation : classement retire',
+    tests: ['apps/api/test/amorce-nationale.test.ts'],
+  },
+  {
+    audit: 'amorce',
+    quoi: 'une table inconnue est embarquee au lieu d’exiger une decision',
+    fichier: 'scripts/portable/amorce.mjs',
+    de: '    else nonClassees.push(t);',
+    vers: '    else embarquees.push(t);',
+    tests: ['apps/api/test/amorce-nationale.test.ts'],
+  },
+  {
+    audit: 'amorce',
+    quoi: 'le controle ne voit plus les tables ecrites sans prefixe de schema',
+    fichier: 'scripts/portable/amorce.mjs',
+    de: "        const copie = /^COPY\\s+(?:public\\.)?([a-z_][a-z0-9_]*)/i.exec(ligne);",
+    vers: "        const copie = /^COPY\\s+public\\.([a-z_][a-z0-9_]*)/i.exec(ligne);",
+    tests: ['apps/api/test/amorce-nationale.test.ts'],
+  },
+  {
+    audit: 'amorce',
+    quoi: 'les tables interdites trouvees dans le fichier ne sont plus signalees',
+    fichier: 'scripts/portable/amorce.mjs',
+    de: '        if (interdites.includes(table)) fautes.push(table);',
+    vers: '        /* mutation : faute avalee */',
+    tests: ['apps/api/test/amorce-nationale.test.ts'],
+  },
 ];
 
 /**

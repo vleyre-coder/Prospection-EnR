@@ -82,13 +82,37 @@ export async function supprimerCommunesFictives(): Promise<void> {
   await requete(`DELETE FROM commune WHERE code_insee = ANY($1)`, [[INSEE_LOCAL, INSEE_VOISIN]]);
 }
 
-/** Declare une couche ingeree pour un departement fictif. */
+/**
+ * Declare une couche ingeree pour un departement fictif.
+ *
+ * LE DEFAUT QUE CETTE FONCTION PORTAIT, et il rendait 23 tests dependants de l'HISTOIRE de la
+ * base. `couverture_ingestion.connecteur` est une cle etrangere vers `source_donnee` — table
+ * peuplee par `synchroniserReferentiel()` au DEMARRAGE DU SERVEUR, jamais par les tests. Sur
+ * une base ou le serveur avait deja tourne, l'insertion passait ; sur une base fraichement
+ * migree, elle echouait sur `couverture_ingestion_connecteur_fkey`.
+ *
+ * Consequence mesuree : `DATABASE_URL=... npm test` rendait 23 echecs sur une base neuve et
+ * zero sur une base deja utilisee, sans qu'aucun message n'oriente vers la cause. Et la CI
+ * n'en voyait rien : elle lance `npm test` SANS `DATABASE_URL`, donc ces tests s'y ignorent —
+ * ils etaient rouges depuis un moment sans que personne le sache.
+ *
+ * Le remede suit la regle deja appliquee deux fois dans ce depot : **un test etablit sa propre
+ * precondition**. Le connecteur est donc cree s'il manque, avec des valeurs minimales et un
+ * libelle qui dit d'ou il vient — pour qu'une ligne d'essai retrouvee en base ne passe pas
+ * pour une source reelle.
+ */
 export async function declarerCouvertureFictive(
   connecteur: string,
   type: string,
   dep: string,
   nbObjets = 1,
 ): Promise<void> {
+  await requete(
+    `INSERT INTO source_donnee (connecteur, nom, mode_acces)
+     VALUES ($1, $2, 'api')
+     ON CONFLICT (connecteur) DO NOTHING`,
+    [connecteur, `[essai] connecteur fictif ${connecteur}`],
+  );
   await requete(
     `INSERT INTO couverture_ingestion (connecteur, type, code_departement, nb_objets)
      VALUES ($1, $2, $3, $4)

@@ -4,7 +4,7 @@
 > **188,9 Mo en ZIP**. La séquence complète de démarrage a été exécutée pour de vrai —
 > `initdb`, moteur, schéma, API, interface servie, arrêt propre — et elle a livré trois
 > défauts que la relecture n'aurait pas donnés. **Ce qui reste : le double-clic sur un poste
-> Windows, et la base pré-remplie.** La section 7 le dit exactement.
+> Windows, et la base pré-remplie.** La section 8 le dit exactement.
 >
 > Fabrication : `node scripts/portable/construire.mjs`
 >
@@ -235,20 +235,76 @@ choses utiles au passage :
 Si l'application se plaignait d'une DLL manquante sur un poste, reconstruisez avec
 `--sans-elagage-fin` : l'archive complète fait 624 Mo, et le fait savoir.
 
-## 7. Ce qui reste à faire
+## 7. L'amorce nationale : ce que l'archive embarque, et surtout ce qu'elle n'embarque pas
+
+Sans amorce, le premier démarrage télécharge les données de référence depuis une vingtaine
+d'API publiques : cinq à dix minutes, et une dépendance à la disponibilité de services tiers
+le jour où l'utilisateur ouvre l'application pour la première fois. L'amorce est un `pg_dump`
+de ces données, restauré en quelques secondes.
+
+```bash
+node scripts/portable/amorce.mjs --url postgres://… --sortie donnees/amorce.sql.gz
+node scripts/portable/construire.mjs --amorce donnees/amorce.sql.gz
+```
+
+### Le classement des 26 tables
+
+**9 embarquées** — publiques, retéléchargeables, identiques pour tout le monde : `commune`,
+`poste_source`, `contrainte`, `zaer`, `canalisation_gaz`, `point_injection_gaz`,
+`document_cadre_pv`, `source_donnee`, `couverture_ingestion`.
+
+**17 écartées.** Quatre méritent d'être nommées :
+
+| Table | Pourquoi |
+|---|---|
+| `proprietaire_parcelle` | **données nominatives** — jamais, sous aucun prétexte |
+| `parametre` | **le secret de signature des jetons.** Le commentaire de schéma dit littéralement « Ne jamais exposer ». L'embarquer aurait posé le même secret dans chaque copie distribuée : de quoi forger un jeton valide sur l'installation de n'importe qui |
+| `utilisateur` | comptes et empreintes de mots de passe |
+| `journal_acces` | journal des consultations — donnée RGPD |
+
+### Pourquoi une liste d'autorisation ici, alors que le garde d'envoi git utilisait l'inverse
+
+Ce n'est pas une incohérence, c'est la même règle appliquée à une asymétrie inversée. Pour un
+envoi git, oublier d'**interdire** un fichier de données était irréparable et oublier
+d'**autoriser** un fichier de code n'était qu'ennuyeux — d'où une liste d'interdits. Ici
+l'archive part vers quiconque la reçoit : oublier d'**exclure** une table diffuse des données,
+oublier d'**inclure** une table de référence coûte un retéléchargement. L'asymétrie s'inverse,
+donc la liste aussi.
+
+### Prouvé, pas affirmé
+
+**Sur une vraie base**, ensemencée de données de référence *et* de fausses données sensibles
+volontairement reconnaissables :
+
+| Marqueur cherché dans le fichier produit | Résultat |
+|---|---|
+| `SECRET-QUI-NE-DOIT-JAMAIS-SORTIR-8f3a91` | **absent** |
+| `HASH-PRIVE-a71c`, `victor@dimeo-energie.fr`, `Victor Leyre` | **absents** |
+| `secret_jwt` | **absent** |
+| `Commune 250`, `Poste 60`, `apicarto.ign.fr` | présents |
+
+9 blocs `COPY` pour 9 tables autorisées. Et le contrôle **refuse** bien un fichier fautif :
+sur un dump fabriqué exprès avec `utilisateur` et `parametre`, les deux intrus sont nommés.
+
+Trois propriétés sont verrouillées par 9 tests et 4 mutations — dont une qui a trouvé un vrai
+trou : mon test du classement passait la liste réelle du schéma, où tout est déjà classé, si
+bien que **la branche « table inconnue » ne s'exécutait jamais**. La propriété qui protège
+l'avenir — une migration future qui ajoute une table — n'était donc pas testée du tout. C'est
+maintenant fait avec une table synthétique.
+
+## 8. Ce qui reste à faire
 
 | Reste | Pourquoi |
 |---|---|
-| **Le double-clic** | Je ne peux ni lancer ni éprouver un exécutable Windows depuis un environnement Linux. C'est la seule vérification qui vaille, et elle vous revient. L'archive contient donc **deux** lanceurs : `Prospection-EnR.exe` (injection SEA dans `node.exe`) et `Prospection-EnR.cmd`, qui fait la même chose sans dépendre d'aucune injection. Si l'un échoue, l'autre reste. |
-| **La base pré-remplie** | `--amorce <dump.sql.gz>` embarque un `pg_dump` que le premier lancement restaure. Le dump reste à produire : il suppose une ingestion nationale complète (35 000 communes, 3 119 postes, 43 873 monuments). Sans lui l'archive fonctionne, mais le premier démarrage télécharge les données (5 à 10 minutes). |
-| **Le premier envoi** | Le dossier livré est bien une copie de travail git (62 commits, 280 fichiers suivis, origine réglée par `--depot`), et le garde a été éprouvé depuis l'intérieur. Seul le `git push` réel reste à faire : il demande votre jeton d'accès. |
+| **Le double-clic** | Je ne peux ni lancer ni éprouver un exécutable Windows depuis un environnement Linux. C'est la seule vérification qui vaille, et elle vous revient. L'archive contient donc **deux** lanceurs : `Prospection-EnR.exe` et `Prospection-EnR.cmd`, qui fait la même chose sans dépendre d'aucune injection. |
+| **L'ingestion nationale réelle** | L'outillage de l'amorce est écrit, testé et prouvé sur des données de test. Produire l'amorce *nationale* suppose une ingestion complète (35 000 communes, 3 119 postes, 43 873 monuments) : quelques minutes contre les API publiques, à lancer une fois. Sans amorce, l'archive fonctionne — le premier démarrage télécharge simplement les données. |
 
 > **Un mot sur l'avertissement de signature.** L'injection SEA modifie `node.exe`, dont la
 > signature Microsoft devient invalide — l'outil le dit (« signature seems corrupted »).
 > Windows peut afficher un écran SmartScreen au premier lancement. C'est attendu, et c'est une
 > raison de plus de garder le `.cmd` sous la main.
 
-## 8. Le risque qu'il faut assumer
+## 9. Le risque qu'il faut assumer
 
 Ce dossier contient des **données nominatives de propriétaires, en clair**. Une clé USB perdue
 est une violation de données à notifier à la CNIL sous 72 heures. Trois mesures, par ordre
