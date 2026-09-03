@@ -1,5 +1,10 @@
 # Audit 11 — l'intégration continue était rouge, et je disais le contraire
 
+> **Issue de l'audit.** La CI est verte sur les trois jobs au run 40 — pour la première fois de
+> l'histoire du dépôt. Tous les chiffres du §4 sont désormais relevés sur la machine de GitHub,
+> plus sur la mienne. Neuf défauts ont été trouvés et corrigés, chacun avec sa mesure ; ce qui
+> reste est au §3, sans fard.
+
 ## 0. Le fait le plus important de cet audit
 
 **Les trois jobs de la CI échouaient sur `0e15643`, et sur les sept livraisons précédentes.**
@@ -315,8 +320,7 @@ reprendre.
 
 | # | Sujet | État |
 |---|---|---|
-| 1 | **Job e2e de la CI** | **Vert en CI**, étape de mutation comprise (run 39). |
-| 1 bis | **Job migrations** | Plafond de durée relevé à 30 min : reste à confirmer au prochain passage, la campagne n'ayant jamais pu s'y terminer jusqu'ici. |
+| 1 | **Les trois jobs de la CI** | **Verts au run 40.** Plus rien à confirmer sur ce point. |
 | 2 | **Des tests appellent les vraies API publiques** | `acces-roles.test.ts` et `routes-validation.test.ts` déclenchent `POST /api/qualification/emprise`, soit une qualification RÉELLE — mesuré : 1 082 parcelles trouvées, 300 retenues. Conséquence : `DATABASE_URL=… npm test` a dépassé 9 min 50 s et j'ai dû l'interrompre. Un test ne devrait pas dépendre de la disponibilité d'un service public ni consommer son quota. **Non corrigé.** |
 | 3 | **`enr_test`, ma base locale** | Polluée par des mois d'exécutions : c'est elle qui faisait tout paraître vert. Toute vérification future doit partir d'une base fraîchement migrée. |
 | 4 | **Le double-clic sous Windows** | Toujours invérifiable depuis Linux. Deux lanceurs sont livrés pour que l'un rattrape l'autre. |
@@ -328,7 +332,20 @@ reprendre.
 
 ## 4. État mesuré à la fin de l'audit
 
-Sur une base **fraîchement migrée** (`enr_neuf`, 15 migrations, 26 tables métier) :
+### Sur la machine de GitHub — run 40, les trois jobs verts
+
+C'est la mesure qui compte, et c'est celle qui manquait à tous les audits précédents.
+
+| Job | Résultat |
+|---|---|
+| Typage, construction et tests | **succès** — build, typecheck 0 erreur, puis API 479 / 471 passent / 0 échec / 8 ignorés, core 57/57, scoring 67/67, web 125/125 |
+| Migrations SQL et calculs PostGIS | **succès** en 18 min 13 s — campagne de mutation **101/101 attrapées** (elle s'arrêtait à 92), puis PostGIS 5/5, patrimoine 7/7, lot sérialisé de 11 fichiers **64/64**, migrations 4/4. **Les quatre dernières étapes n'avaient jamais tourné en CI.** |
+| Tests de bout en bout | **succès** — 19 réussis / 2 ignorés en 36,6 s, et la vérification par mutation **2/2** (elle était à 1/2) |
+
+### Localement, sur une base fraîchement migrée
+
+`enr_neuf`, 15 migrations, 26 tables métier — et non `enr_test`, que des mois d'exécutions ont
+peuplée et qui faisait tout paraître vert.
 
 | Vérification | Résultat |
 |---|---|
@@ -336,12 +353,10 @@ Sur une base **fraîchement migrée** (`enr_neuf`, 15 migrations, 26 tables mét
 | `npm run typecheck` (après build, comme la CI corrigée) | 0 erreur |
 | `npm test` API (sans base, comme la CI) | 479 tests, 471 passent, 0 échec, 8 ignorés |
 | `npm run test:base` API (sérialisé, base neuve) | 80 tests, 76 passent, 0 échec, 4 ignorés |
-| `npm test` core | 57 / 57 |
-| `npm test` scoring | 67 / 67 |
-| `npm test` web | 125 / 125 |
-| Playwright bout en bout | 18 réussis / 2 ignorés en local ; **18 réussis / 2 ignorés en CI**, 40,2 s |
-| Campagne de mutation (hors navigateur) | **101 mutations, 101 attrapées, 0 test décoratif** |
-| Campagne de mutation (avec navigateur) | **2 / 2 attrapées** — 1/2 avant cet audit |
+| `npm test` core / scoring / web | 57/57, 67/67, 125/125 |
+| Playwright bout en bout | 18 réussis / 2 ignorés, 47,9 s |
+| Campagne de mutation (hors navigateur) | 101 / 101 attrapées |
+| Campagne de mutation (avec navigateur) | 2 / 2 attrapées — 1/2 avant cet audit |
 
 ## 5. Vérification par mutation
 
