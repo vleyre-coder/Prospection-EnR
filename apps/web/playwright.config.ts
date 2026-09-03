@@ -146,7 +146,15 @@ export default defineConfig({
     {
       command: 'npx tsx src/serveur.ts',
       cwd: '../api',
-      port: PORT_API,
+      /**
+       * `url` ET NON `port` — voir le bloc du serveur web ci-dessous pour la mesure.
+       *
+       * En resume : `port` laisse Playwright choisir l'adresse qu'il sonde, alors que les tests
+       * naviguent vers une adresse ECRITE. Quand les deux divergent, Playwright declare le
+       * serveur pret et le navigateur se fait refuser la connexion. Sonder exactement l'adresse
+       * que les tests utilisent supprime la divergence par construction.
+       */
+      url: `${E2E.urlApi}/api/sante`,
       reuseExistingServer: !process.env['CI'],
       timeout: 120_000,
       stdout: 'pipe',
@@ -176,9 +184,44 @@ export default defineConfig({
       },
     },
     {
-      command: `npm run build && npx vite preview --port ${PORT_WEB} --strictPort`,
+      /**
+       * ══════════════════════════════════════════════════════════════════════════════════════
+       * `--host 127.0.0.1` EST LA CORRECTION DU JOB DE BOUT EN BOUT — audit 11
+       * ══════════════════════════════════════════════════════════════════════════════════════
+       *
+       * Le job echouait en CI depuis huit livraisons, en douze secondes, sur :
+       *
+       *     Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:4180/
+       *     1 failed, 19 did not run
+       *
+       * Et il passait en local, y compris avec `CI=1`. La ligne qui a tout expliqué se trouvait
+       * dans la sortie du serveur, dans le journal du runner :
+       *
+       *     [WebServer]   ➜  Local:   http://localhost:4180/
+       *
+       * `vite preview` s'attache par defaut a **`localhost`**, pas a `127.0.0.1`. Sur le runner
+       * GitHub, `localhost` resout d'abord vers `::1` : le serveur n'ecoutait donc qu'en IPv6,
+       * tandis que les tests naviguent vers l'adresse IPv4 ECRITE dans `E2E.urlWeb`. D'ou un
+       * refus de connexion immediat. Sur ma machine, `localhost` resout vers `127.0.0.1`, et
+       * c'est tout ce qui separait « ca marche chez moi » de « rouge depuis huit livraisons ».
+       *
+       * La lecon depasse ce projet : **une adresse d'ecoute par defaut n'est pas une adresse.**
+       * Dès qu'un test navigue vers une adresse litterale, le serveur doit s'attacher a cette
+       * adresse-la, explicitement.
+       *
+       * `npm run build` reste dans la commande pour l'usage local, ou personne n'a construit
+       * avant de lancer les tests ; en CI l'etape `npm run build` du job l'a deja fait, et le
+       * rejouer ne coute que quatre secondes.
+       */
+      command: `npm run build && npx vite preview --port ${PORT_WEB} --strictPort --host 127.0.0.1`,
       cwd: '.',
-      port: PORT_WEB,
+      /**
+       * `url` et non `port`, et c'est le second volet du meme defaut. Avec `port`, Playwright
+       * sonde une adresse de son choix et peut donc declarer pret un serveur que les tests
+       * n'atteindront pas — exactement ce qui s'est produit : la sonde etait satisfaite, le
+       * navigateur refuse. Avec `url`, la sonde et les tests visent la meme adresse.
+       */
+      url: `${E2E.urlWeb}/`,
       reuseExistingServer: !process.env['CI'],
       timeout: 180_000,
       stdout: 'pipe',

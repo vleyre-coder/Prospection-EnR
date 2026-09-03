@@ -1048,6 +1048,33 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/portable-animation.test.ts'],
   },
+
+  /**
+   * L'ADRESSE D'ECOUTE DU SERVEUR DE TEST. Ces deux mutations retablissent le defaut qui a
+   * rendu le job de bout en bout rouge huit livraisons de suite : un serveur attache a
+   * `localhost` — donc a `::1` sur un runner GitHub — pendant que les tests visent 127.0.0.1.
+   * Elles n'exigent aucun navigateur : le garde lit la configuration.
+   */
+  {
+    audit: 'audit 11',
+    quoi: 'le serveur de previsualisation reprend une adresse d’ecoute par defaut',
+    fichier: 'apps/web/playwright.config.ts',
+    de: ' --strictPort --host 127.0.0.1`,',
+    vers: ' --strictPort`,',
+    tests: ['apps/web/test/e2e-adresse-ecoute.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/e2e-adresse-ecoute.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'la sonde de disponibilite redevient un simple numero de port',
+    fichier: 'apps/web/playwright.config.ts',
+    de: '      url: `${E2E.urlWeb}/`,',
+    vers: '      port: PORT_WEB,',
+    tests: ['apps/web/test/e2e-adresse-ecoute.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/e2e-adresse-ecoute.test.ts'],
+  },
 ];
 
 /**

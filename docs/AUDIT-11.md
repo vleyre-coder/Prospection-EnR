@@ -79,7 +79,7 @@ commande, donc loin des tests qui en dépendent :
   tests rouges sans que personne le sache à la livraison précédente : une liste tenue à la main
   se périme en silence.
 
-### Job « Tests de bout en bout » — non reproduit, et je le dis
+### Job « Tests de bout en bout » — une adresse d'écoute par défaut n'est pas une adresse
 
 ```
 Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:4180/
@@ -87,14 +87,31 @@ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:4180/
   1 failed, 19 did not run
 ```
 
-Le serveur web de prévisualisation n'a jamais répondu, en douze secondes — donc sans atteindre
-aucun des délais configurés (120 s pour l'API, 180 s pour le web).
+Douze secondes, et la suite passait chez moi — y compris avec `CI=1`. J'ai d'abord écrit dans ce
+document que je n'avais pas d'explication mesurée. Elle tenait à **une ligne** du journal du
+runner, quelques centaines de lignes plus haut que le résumé d'échec :
 
-**Je n'ai pas reproduit cet échec** : ici la suite passe, 18 réussis / 2 ignorés en 47,7 s, y
-compris avec `CI=1` (qui met `reuseExistingServer` à `false`, la seule différence de
-configuration que j'aie identifiée). Je n'ai pas d'explication mesurée, et je ne vais pas en
-inventer une. Le prochain passage de CI, avec les deux autres jobs réparés, produira un rapport
-frais sur lequel travailler.
+```
+[WebServer]   ➜  Local:   http://localhost:4180/
+```
+
+`vite preview` s'attache par défaut à **`localhost`**, pas à `127.0.0.1`. Sur le runner GitHub,
+`localhost` résout d'abord vers `::1` : le serveur n'écoutait donc **qu'en IPv6**, tandis que les
+tests naviguent vers l'adresse IPv4 littérale de `E2E.urlWeb`. D'où un refus de connexion
+immédiat. Sur ma machine, `localhost` résout vers `127.0.0.1` — et c'est tout ce qui séparait
+« ça marche chez moi » de « rouge depuis huit livraisons ».
+
+**Le second volet est plus insidieux** : la sonde de disponibilité était déclarée par `port`, ce
+qui laisse Playwright choisir l'adresse qu'il interroge. Elle était donc **satisfaite** pendant
+que le navigateur se faisait refuser la connexion. Une sonde qui n'interroge pas l'adresse que
+les tests utilisent ne prouve rien — c'est la même faute de forme que celle du §2.G, vérifier la
+présence d'une chose plutôt que la chose elle-même.
+
+**Corrigé** : `--host 127.0.0.1` sur `vite preview`, et `url:` — l'adresse exacte — au lieu de
+`port:` pour les deux serveurs. Vérifié : `Local: http://127.0.0.1:4180/`, 18 réussis / 2
+ignorés. Un garde (`test/e2e-adresse-ecoute.test.ts`) relit la configuration et exige les deux
+propriétés ; il ne lance aucun navigateur, ce qui lui permet de tourner dans la suite unitaire —
+c'est-à-dire là où ce défaut aurait été vu huit livraisons plus tôt.
 
 ---
 
@@ -240,7 +257,7 @@ reprendre.
 
 | # | Sujet | État |
 |---|---|---|
-| 1 | **Job e2e de la CI** | Échec précis connu (`ERR_CONNECTION_REFUSED` sur 4180), **non reproduit ici**, non expliqué. À reprendre sur le prochain rapport de CI. |
+| 1 | **Job e2e de la CI** | Cause trouvée et corrigée (§1) : reste à confirmer au prochain passage de CI, la correction n'ayant été mesurée qu'ici. |
 | 2 | **Des tests appellent les vraies API publiques** | `acces-roles.test.ts` et `routes-validation.test.ts` déclenchent `POST /api/qualification/emprise`, soit une qualification RÉELLE — mesuré : 1 082 parcelles trouvées, 300 retenues. Conséquence : `DATABASE_URL=… npm test` a dépassé 9 min 50 s et j'ai dû l'interrompre. Un test ne devrait pas dépendre de la disponibilité d'un service public ni consommer son quota. **Non corrigé.** |
 | 3 | **`enr_test`, ma base locale** | Polluée par des mois d'exécutions : c'est elle qui faisait tout paraître vert. Toute vérification future doit partir d'une base fraîchement migrée. |
 | 4 | **Le double-clic sous Windows** | Toujours invérifiable depuis Linux. Deux lanceurs sont livrés pour que l'un rattrape l'autre. |
@@ -262,14 +279,14 @@ Sur une base **fraîchement migrée** (`enr_neuf`, 15 migrations, 26 tables mét
 | `npm run test:base` API (sérialisé, base neuve) | 80 tests, 76 passent, 0 échec, 4 ignorés |
 | `npm test` core | 57 / 57 |
 | `npm test` scoring | 67 / 67 |
-| `npm test` web | 121 / 121 |
+| `npm test` web | 125 / 125 |
 | Playwright bout en bout (local) | 18 réussis, 2 ignorés, 47,7 s |
-| Campagne de mutation (hors navigateur) | **99 mutations, 99 attrapées, 0 test décoratif** |
+| Campagne de mutation (hors navigateur) | **101 mutations, 101 attrapées, 0 test décoratif** |
 
 ## 5. Vérification par mutation
 
-La liste compte désormais **102 entrées**, dont 3 exigent un navigateur. La campagne complète
-hors navigateur rend **99 / 99 attrapées** : aucun test décoratif.
+La liste compte désormais **104 entrées**, dont 3 exigent un navigateur. La campagne complète
+hors navigateur rend **101 / 101 attrapées** : aucun test décoratif.
 
 La campagne a par ailleurs fait son office sur elle-même. Deux mutations de la famille
 `mode bureau` désignaient `apps/api/src/serveur.ts`, où `estBoucleLocale` ne vit plus : elle a
@@ -277,7 +294,7 @@ répondu « motif introuvable dans apps/api/src/serveur.ts — le code a changé
 compter comme attrapées. C'est exactement le comportement attendu d'un outil qui refuse de
 s'auto-congratuler ; les deux entrées ont été repointées et sont de nouveau attrapées.
 
-La famille `audit 11` compte **11 mutations, 11 attrapées**. Chacune rétablit un des défauts
+La famille `audit 11` compte **13 mutations, 13 attrapées**. Chacune rétablit un des défauts
 ci-dessus et doit faire échouer au moins un test :
 
 - la restauration après interruption supprimée ;
@@ -290,4 +307,6 @@ ci-dessus et doit faire échouer au moins un test :
 - n'importe quel service sur le port repris pour « notre application déjà ouverte » ;
 - un fichier de port abîmé cru sur parole ;
 - la pause de lecture qui attend une touche même sans terminal ;
-- la fenêtre d'échec qui ne se referme plus jamais.
+- la fenêtre d'échec qui ne se referme plus jamais ;
+- le serveur de prévisualisation revenu à une adresse d'écoute par défaut ;
+- la sonde de disponibilité redevenue un simple numéro de port.
