@@ -152,3 +152,36 @@ export class Progression {
     }
   }
 }
+
+/**
+ * Laisse a l'utilisateur le temps de LIRE avant que la fenetre disparaisse.
+ *
+ * POURQUOI CETTE PAUSE EXISTE. `Prospection-EnR.exe` est une application de console : lancee
+ * par un double-clic dans l'explorateur, Windows lui alloue une fenetre et la DETRUIT a la fin
+ * du processus. Le message d'echec s'affichait donc puis s'effacait dans la meme seconde, et
+ * l'utilisateur ne gardait qu'une fenetre noire qui a clignote. Le lanceur en lot
+ * `Prospection-EnR.cmd` s'en protegeait deja (`if errorlevel 1 pause`) — mais c'est l'`.exe`
+ * que le raccourci du bureau appelle, donc celui que tout le monde utilise.
+ *
+ * La pause n'a lieu que sur un terminal interactif : en integration continue ou dans un tuyau,
+ * attendre une touche bloquerait indefiniment. Un delai maximal la borne, pour qu'une fenetre
+ * oubliee finisse par se fermer plutot que de retenir la base ouverte.
+ */
+export function attendreLecture(entree = process.stdin, sortie = process.stdout, plafondMs = 300_000) {
+  if (!sortie.isTTY || !entree.isTTY) return Promise.resolve('non interactif');
+  sortie.write('  Appuyez sur une touche pour fermer cette fenetre.\n');
+  return new Promise((resoudre) => {
+    const finir = (raison) => {
+      clearTimeout(minuterie);
+      entree.removeListener('data', surTouche);
+      if (entree.isTTY && entree.setRawMode) entree.setRawMode(false);
+      entree.pause();
+      resoudre(raison);
+    };
+    const surTouche = () => finir('touche');
+    const minuterie = setTimeout(() => finir('delai'), plafondMs);
+    if (entree.setRawMode) entree.setRawMode(true);
+    entree.resume();
+    entree.once('data', surTouche);
+  });
+}

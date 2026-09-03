@@ -18,7 +18,13 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IMAGES, Progression, banniere, duree } from '../../../scripts/portable/animation.mjs';
+import {
+  IMAGES,
+  Progression,
+  attendreLecture,
+  banniere,
+  duree,
+} from '../../../scripts/portable/animation.mjs';
 
 /** Flux d'ecriture minimal, qui retient tout ce qu'on lui envoie. */
 function fluxFactice(): { write: (t: string) => boolean; texte: () => string } {
@@ -120,4 +126,67 @@ test('le bandeau tient dans une fenetre de console etroite', () => {
     assert.ok([...ligne].length <= 78, `ligne trop large (${[...ligne].length}) : ${ligne}`);
   }
   assert.match(banniere(), /Prospection EnR/);
+});
+
+// ---------------------------------------------------------------------------
+// La pause qui laisse LIRE le message d'echec — audit 11
+// ---------------------------------------------------------------------------
+
+test('sur une sortie non interactive, la pause ne bloque RIEN', async () => {
+  /**
+   * LE PIEGE A EVITER ABSOLUMENT. `Prospection-EnR.exe` est une application de console : lancee
+   * par un double-clic dans l'explorateur, Windows lui alloue une fenetre et la DETRUIT a la fin
+   * du processus. Le message « Le demarrage a echoue : ... » s'affichait donc et disparaissait
+   * dans la meme seconde ; l'utilisateur ne gardait qu'une fenetre noire qui avait clignote. Le
+   * lanceur en lot s'en protegeait deja (`if errorlevel 1 pause`), mais c'est l'`.exe` que le
+   * raccourci du bureau appelle.
+   *
+   * La pause doit donc exister — et ne JAMAIS se declencher hors d'un terminal interactif :
+   * attendre une touche dans un tuyau ou en integration continue bloquerait pour toujours, ce
+   * qui serait un defaut bien pire que celui qu'on corrige.
+   */
+  const ecrit: string[] = [];
+  const sortie = { isTTY: false, write: (t: string) => ecrit.push(t) };
+  const entree = { isTTY: false };
+  const raison = await attendreLecture(entree, sortie, 1_000);
+  assert.equal(raison, 'non interactif');
+  assert.deepEqual(ecrit, [], 'rien ne doit meme etre affiche : personne ne peut repondre');
+});
+
+test('sur un terminal, une touche referme la fenetre', async () => {
+  const ecrit: string[] = [];
+  const auditeurs: Record<string, Array<(d: unknown) => void>> = {};
+  let brut: boolean | null = null;
+  const entree = {
+    isTTY: true,
+    setRawMode: (v: boolean) => (brut = v),
+    resume: () => {},
+    pause: () => {},
+    once: (e: string, f: (d: unknown) => void) => ((auditeurs[e] ??= []).push(f), entree),
+    removeListener: () => entree,
+  };
+  const sortie = { isTTY: true, write: (t: string) => ecrit.push(t) };
+
+  const attente = attendreLecture(entree, sortie, 60_000);
+  assert.match(ecrit.join(''), /touche/i, 'il faut DIRE quoi faire, sinon la pause ressemble a un gel');
+  // La frappe.
+  for (const f of auditeurs['data'] ?? []) f('x');
+  assert.equal(await attente, 'touche');
+  assert.equal(brut, false, 'le mode brut doit etre rendu : sinon le terminal reste abime apres');
+});
+
+test('une fenetre oubliee finit par se fermer seule', async () => {
+  /**
+   * Le delai n'est pas du confort : tant que le lanceur vit, il retient la base ouverte et son
+   * verrou `postmaster.pid`. Une fenetre laissee ouverte toute la nuit sur un message d'echec
+   * empecherait le lancement suivant de reussir.
+   */
+  const entree = {
+    isTTY: true, setRawMode: () => {}, resume: () => {}, pause: () => {},
+    once: () => entree, removeListener: () => entree,
+  };
+  const debut = Date.now();
+  const raison = await attendreLecture(entree, { isTTY: true, write: () => {} }, 120);
+  assert.equal(raison, 'delai');
+  assert.ok(Date.now() - debut >= 110, 'le delai doit reellement etre attendu');
 });

@@ -27,6 +27,7 @@ import {
   PART_SUPPRESSION_MAX,
   suppressionAutorisee,
 } from '../src/ingestion/disparus.js';
+import { DEP_LOCAL } from './aides/communes-fictives.js';
 
 // ---------------------------------------------------------------------------
 // La porte : fonction pure, testée branche par branche, sans base ni réseau
@@ -90,7 +91,8 @@ test('le plafond est exactement a la valeur annoncee, et la borne est stricte', 
  */
 const CONNECTEUR = 'test_disparus';
 const TYPE = 'site_classe';
-const DEP = '99';
+/** Territoire fictif PARTAGE : importe, pour passer par le garde de serialisation (audit 11). */
+const DEP = DEP_LOCAL;
 const PREFIXE = 'TEST-DISPARUS-';
 
 let baseDisponible = false;

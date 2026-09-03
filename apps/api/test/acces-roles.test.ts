@@ -216,23 +216,50 @@ test('la limitation de debit annonce le delai a respecter', async () => {
  * les utilisateurs.
  */
 test('la sonde de sante signale une configuration fatale', async () => {
-  const { readFileSync } = await import('node:fs');
-  const { fileURLToPath } = await import('node:url');
-  const source = readFileSync(
-    fileURLToPath(new URL('../src/routes/referentiel.ts', import.meta.url)),
-    'utf8',
-  );
+  /**
+   * ════════════════════════════════════════════════════════════════════════════════════════
+   * CE TEST LISAIT LE TEXTE DU CODE. IL EXERCE MAINTENANT SON COMPORTEMENT — audit 11.
+   * ════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Version precedente : trois `assert.match` sur la SOURCE de `routes/referentiel.ts`,
+   * cherchant les chaines `configurationsFatales`, `hors_service`, et litteralement
+   * `config.auth.desactivee && config.env === 'production'`.
+   *
+   * Deux consequences, et les deux se sont produites.
+   *
+   *   1. **Il n'a jamais attrape le defaut.** La sonde declarait l'application de bureau
+   *      `hors_service` avec le conseil « Retirez cette variable » — qui casse precisement
+   *      l'application — pendant que ses routes protegees rendaient 200. Un test qui verifie
+   *      la PRESENCE d'une condition ne peut rien dire de sa JUSTESSE.
+   *   2. **Il a casse quand le code s'est ameliore.** La condition, deplacee dans une fonction
+   *      pure et testable, ne s'ecrivait plus a l'identique : le test est passe au rouge alors
+   *      que le comportement etait devenu correct. Un test qui s'oppose aux corrections est
+   *      une charge, pas une protection.
+   *
+   * La regle qui en decoule, et qui vaut pour les autres tests par filtrage de source de ce
+   * fichier : on affirme sur ce que le code FAIT. Les quatre cas de configuration sont
+   * exerces un a un dans `mode-bureau.test.ts` ; ici on garde le cas d'origine du quatrieme
+   * audit, celui qui a motive la sonde.
+   */
+  const { configurationsFatales } = await import('../src/config.js');
 
-  assert.match(source, /configurationsFatales/, 'la sonde doit exposer les configurations fatales');
-  assert.match(
-    source,
-    /hors_service/,
-    "un statut distinct de 'degrade' : degrade signifie « fonctionne moins bien », ici rien ne fonctionne",
-  );
-  assert.match(
-    source,
-    /config\.auth\.desactivee && config\.env === 'production'/,
-    'AUTH_DESACTIVEE en production est la configuration fatale a detecter',
+  const fatales = configurationsFatales({
+    env: 'production',
+    hote: '0.0.0.0',
+    auth: { desactivee: true, modeBureau: false },
+  });
+  assert.equal(fatales.length, 1, 'AUTH_DESACTIVEE en production est une configuration fatale');
+  assert.match(fatales[0] ?? '', /AUTH_DESACTIVEE/, 'la variable fautive doit etre nommee');
+
+  // Le temoin, absent de la version par filtrage de source : une instance correctement
+  // configuree ne doit rien signaler, sinon « configuration fatale » ne veut plus rien dire.
+  assert.deepEqual(
+    configurationsFatales({
+      env: 'production',
+      hote: '0.0.0.0',
+      auth: { desactivee: false, modeBureau: false },
+    }),
+    [],
   );
 });
 

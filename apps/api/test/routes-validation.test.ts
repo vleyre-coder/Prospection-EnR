@@ -27,7 +27,7 @@
  * `preHandler` ou a la validation, donc aucune base n'est necessaire.
  */
 
-import { test, after } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { construireServeur } from '../src/serveur.js';
 import { reinitialiserDebit } from '../src/debit.js';
@@ -86,6 +86,45 @@ const PARAMETRES_NUMERIQUES: Array<{ url: string; parametre: string }> = [
 /** Valeurs qui produisaient toutes une erreur 500 avant correction. */
 const VALEURS_FAUTIVES = ['abc', '-5', '1e400', 'NaN', '', '1.5.2', '  '];
 
+/**
+ * DEUX FAMILLES DE VALEURS, ET ELLES NE S'ARRETENT PAS AU MEME ENDROIT.
+ *
+ * `abc`, `-5`, `1e400`, `NaN`, `1.5.2` sont des fautes d'appel : la validation les refuse et la
+ * requete N'ATTEINT JAMAIS la base. L'affirmation « jamais 500 » y est donc vraie sans aucune
+ * condition, et c'est bien la propriete qu'on veut garder.
+ *
+ * `''` est autre chose : elle vaut « parametre absent », la valeur par defaut s'applique, et la
+ * requete INTERROGE LA BASE. Sans base joignable, la reponse est un 500 parfaitement legitime
+ * — « database ... does not exist » — qui ne dit rien de la validation.
+ *
+ * `'  '` a l'air d'appartenir a cette seconde famille et n'en est PAS : la validation la refuse
+ * en 400 « entier attendu (chiffres uniquement) ». Mesure faite en executant la route, contre
+ * l'idee de depart. Le test d'origine s'y trompait aussi — son `valeur.trim() !== ''` la rangeait
+ * parmi les valeurs « absentes » et n'exigeait donc AUCUN code de retour pour elle, alors que la
+ * route en rend un, et le bon. Le controle ci-dessous est donc resserre a `valeur !== ''`.
+ *
+ * LE DEFAUT QUE CETTE DISTINCTION CORRIGE, trouve a l'audit 11 en executant `npm test` comme le
+ * fait la CI, c'est-a-dire SANS `DATABASE_URL`. Le test affirmait « jamais 500 » pour les sept
+ * valeurs, y compris les deux qui vont en base : il ne pouvait donc pas passer dans le seul
+ * environnement pour lequel il est ecrit. Verifie dans les deux sens : avec une base, ce test
+ * passe ; sans base, il echouait sur `limite=""` en accusant la validation d'un defaut qui
+ * n'existait pas. Un test qui echoue pour une raison etrangere a ce qu'il verifie est pire
+ * qu'absent — il apprend a ignorer le rouge.
+ */
+function vaEnBase(valeur: string): boolean {
+  return valeur === '';
+}
+
+let baseJoignable = false;
+before(async () => {
+  if (!process.env['DATABASE_URL']) return;
+  const { requete } = await import('../src/bdd.js');
+  await requete('SELECT 1').then(
+    () => (baseJoignable = true),
+    () => (baseJoignable = false),
+  );
+});
+
 test('C7 : un parametre numerique malforme produit 400, et jamais 500', async () => {
   const app = await serveur();
   for (const { url, parametre } of PARAMETRES_NUMERIQUES) {
@@ -96,15 +135,31 @@ test('C7 : un parametre numerique malforme produit 400, et jamais 500', async ()
         url: `${url}${separateur}${parametre}=${encodeURIComponent(valeur)}`,
         headers: entetes(app, 'prospection'),
       });
-      assert.notEqual(
-        rep.statusCode,
-        500,
-        `${url} avec ${parametre}=${JSON.stringify(valeur)} ne doit jamais produire une erreur serveur ` +
-          `(recu ${rep.statusCode} : ${rep.body.slice(0, 200)})`,
-      );
-      // Une chaine vide est traitee comme « parametre absent » : la valeur par defaut s'applique.
-      // Toutes les autres sont des fautes d'appel, et doivent etre refusees comme telles.
-      if (valeur.trim() !== '') {
+      if (!vaEnBase(valeur) || baseJoignable) {
+        assert.notEqual(
+          rep.statusCode,
+          500,
+          `${url} avec ${parametre}=${JSON.stringify(valeur)} ne doit jamais produire une erreur serveur ` +
+            `(recu ${rep.statusCode} : ${rep.body.slice(0, 200)})`,
+        );
+      } else {
+        /**
+         * Sans base, une valeur « absente » va jusqu'a la requete : le 500 est alors attendu.
+         * Ce qui reste verifiable, et qui est verifie ici, c'est que l'echec vient bien de la
+         * BASE et non d'une conversion qui aurait laisse passer une valeur invalide. La nuance
+         * est ce qui distingue un test honnete d'un test desactive.
+         */
+        assert.match(
+          rep.body,
+          /erreur_interne|database|connect|ECONNREFUSED/i,
+          `${url} avec ${parametre}=${JSON.stringify(valeur)} : sans base, l'echec doit venir de ` +
+            `la base, pas de la validation (recu ${rep.statusCode} : ${rep.body.slice(0, 200)})`,
+        );
+      }
+      // Seule la chaine VIDE est traitee comme « parametre absent » : la valeur par defaut
+      // s'applique. Toutes les autres — les blancs compris, verifie a l'execution — sont des
+      // fautes d'appel et doivent etre refusees comme telles.
+      if (valeur !== '') {
         assert.equal(
           rep.statusCode,
           400,

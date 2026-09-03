@@ -870,7 +870,10 @@ const MUTATIONS = [
   {
     audit: 'mode bureau',
     quoi: 'n’importe quelle adresse passe pour la boucle locale',
-    fichier: 'apps/api/src/serveur.ts',
+    // `estBoucleLocale` a demenage de `serveur.ts` vers `config.ts` a l'audit 11, pour que la
+    // sonde `/api/sante` puisse la lire sans import circulaire. La campagne l'a signale
+    // elle-meme — « motif introuvable » — au lieu de laisser la mutation passer pour attrapee.
+    fichier: 'apps/api/src/config.ts',
     de: '  return octets[0] === 127;',
     vers: '  return true;',
     tests: ['apps/api/test/mode-bureau.test.ts'],
@@ -878,7 +881,7 @@ const MUTATIONS = [
   {
     audit: 'mode bureau',
     quoi: 'le controle par prefixe revient, et un nom de domaine passe',
-    fichier: 'apps/api/src/serveur.ts',
+    fichier: 'apps/api/src/config.ts',
     de: '  if (!v4) return false;',
     vers: "  if (!v4) return h.startsWith('127.');",
     tests: ['apps/api/test/mode-bureau.test.ts'],
@@ -920,7 +923,193 @@ const MUTATIONS = [
     vers: '        /* mutation : faute avalee */',
     tests: ['apps/api/test/amorce-nationale.test.ts'],
   },
+
+  // --------------------------------------------------------- audit 11 : le filet de cet outil ---
+  /**
+   * CES DEUX ENTREES MUTENT CE FICHIER-CI, et c'est volontaire. Le filet contre l'interruption
+   * est du code comme un autre : il a ete ecrit une fois, place au mauvais endroit, et n'a
+   * protege personne pendant un commit entier. Il doit donc etre verifie par les memes moyens
+   * que le reste. L'execution en cours a deja charge sa propre source, la mutation ne la
+   * derange pas ; et si elle etait interrompue, la restauration au demarrage la reparerait.
+   */
+  {
+    audit: 'audit 11',
+    quoi: 'la restauration apres interruption est purement et simplement supprimee',
+    fichier: 'scripts/mutation.mjs',
+    de: '\nrestaurerApresInterruption();\n',
+    vers: '\n/* mutation : plus aucune reparation au demarrage */\n',
+    tests: ['apps/web/test/mutation-filet.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/mutation-filet.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'un filtre sans correspondance sort en succes et laisse croire que tout va bien',
+    fichier: 'scripts/mutation.mjs',
+    de: '  if (A_JOUER.length === 0) process.exit(1);',
+    vers: '  if (A_JOUER.length === 0) process.exit(0);',
+    tests: ['apps/web/test/mutation-filet.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/mutation-filet.test.ts'],
+  },
+
+  /**
+   * LA COURSE ENTRE FICHIERS DE TEST, qui a rendu la CI rouge huit livraisons de suite.
+   * Ces mutations verifient les deux moities du remede : la fonction qui decide du refus, et
+   * son BRANCHEMENT — un garde calcule puis ignore serait le pire des deux mondes.
+   */
+  {
+    audit: 'audit 11',
+    quoi: 'le refus de course ne refuse plus jamais rien',
+    fichier: 'apps/api/test/aides/communes-fictives.ts',
+    de: '  if (!env.DATABASE_URL) return null;',
+    vers: '  return null; // mutation : garde neutralise',
+    tests: ['apps/api/test/serialisation-base.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/serialisation-base.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'le refus est calcule puis jete a la poubelle, sans etre leve',
+    fichier: 'apps/api/test/aides/communes-fictives.ts',
+    de: 'if (refus) throw new Error(refus);',
+    vers: 'if (refus) void refus; // mutation : garde debranche',
+    tests: ['apps/api/test/serialisation-base.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/serialisation-base.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'le rayon de raccordement redevient un Number() non valide, apres la requete',
+    fichier: 'apps/api/src/routes/carte.ts',
+    de: "    const rayonDemande = nombreRequete(q.rayonKm, 'rayonKm', { defaut: 0, max: 500 });",
+    vers: '    const rayonDemande = Number(q.rayonKm ?? 0); // mutation : plus aucune validation',
+    tests: ['apps/api/test/routes-validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/routes-validation.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'la sonde de sante redevient aveugle au mode bureau et prescrit de casser l’application',
+    fichier: 'apps/api/src/config.ts',
+    de: '  if (c.env === \'production\' && !bureauRecevable) {',
+    vers: "  if (c.env === 'production') {",
+    tests: ['apps/api/test/mode-bureau.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/mode-bureau.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'un mode bureau expose au reseau n’est plus signale par la sonde',
+    fichier: 'apps/api/src/config.ts',
+    de: '  if (c.auth.modeBureau && !estBoucleLocale(c.hote)) {',
+    vers: '  if (false) {',
+    tests: ['apps/api/test/mode-bureau.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/mode-bureau.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'n’importe quel service sur le port redevient « notre application deja ouverte »',
+    fichier: 'scripts/portable/lanceur.mjs',
+    de: '  return typeof corps.versionMoteur === \'string\' && typeof corps.baseDeDonnees === \'string\';',
+    vers: '  return true; // mutation : tout 200 vaut acquiescement',
+    tests: ['apps/web/test/portable-port.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/portable-port.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'un fichier de port abime est cru sur parole',
+    fichier: 'scripts/portable/lanceur.mjs',
+    de: '    return Number.isInteger(port) && port > 0 && port < 65536 ? port : null;',
+    vers: '    return port; // mutation : aucune validation du port relu',
+    tests: ['apps/web/test/portable-port.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/portable-port.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'la pause de lecture attend une touche meme sans terminal, donc pour toujours',
+    fichier: 'scripts/portable/animation.mjs',
+    de: "  if (!sortie.isTTY || !entree.isTTY) return Promise.resolve('non interactif');",
+    vers: '  // mutation : la pause vaut aussi hors terminal',
+    tests: ['apps/web/test/portable-animation.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/portable-animation.test.ts'],
+  },
+  {
+    audit: 'audit 11',
+    quoi: 'la fenetre laissee sur un echec ne se ferme plus jamais, et retient la base',
+    fichier: 'scripts/portable/animation.mjs',
+    de: "    const minuterie = setTimeout(() => finir('delai'), plafondMs);",
+    vers: '    const minuterie = null; // mutation : plus aucun delai maximal',
+    tests: ['apps/web/test/portable-animation.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/portable-animation.test.ts'],
+  },
 ];
+
+/**
+ * FILET CONTRE L'INTERRUPTION, ajoute apres un incident reel.
+ *
+ * Le `finally` de la boucle restaure le fichier mute — sauf si le processus est TUE avant d'y
+ * arriver. C'est arrive : une execution arretee par un depassement de delai a laisse
+ * `scripts/portable/animation.mjs` avec deux mutations encore appliquees. Symptome a
+ * l'execution suivante : « motif introuvable » sur ces deux entrees, c'est-a-dire un message
+ * qui accuse le CODE d'avoir change alors que c'est l'outil qui l'avait abime. Sans relecture
+ * attentive, un fichier volontairement casse partait au commit.
+ *
+ * Une copie de sauvegarde est donc ecrite sur le disque AVANT chaque mutation et effacee
+ * apres. Si elle existe au demarrage, c'est qu'une execution precedente a ete interrompue :
+ * on restaure, on le dit, et on continue.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI CE BLOC EST TOUT EN HAUT, ET PAS APRES L'ANALYSE DE LA LIGNE DE COMMANDE
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Il y etait, et le filet ne servait a rien dans le seul cas ou on en a besoin. L'audit 11 l'a
+ * montre a l'execution : une campagne tuee par un depassement de delai avait laisse
+ * `scripts/portable/amorce.mjs` mute et le marqueur en place ; l'execution suivante — un
+ * `--filtre` qui ne correspondait a rien, exactement ce qu'on tape pour rejouer l'entree
+ * interrompue — sortait sur `process.exit(1)` AVANT d'atteindre la restauration. Le fichier
+ * restait casse, et l'outil n'en disait pas un mot.
+ *
+ * La regle qui en decoule : une reparation d'etat ne se place jamais derriere une porte de
+ * sortie. Elle vient avant tout ce qui peut terminer le processus.
+ */
+const SAUVEGARDE = '.mutation-en-cours';
+
+function restaurerApresInterruption() {
+  if (!existsSync(SAUVEGARDE)) return;
+  let marqueur;
+  try {
+    marqueur = JSON.parse(readFileSync(SAUVEGARDE, 'utf8'));
+  } catch (erreur) {
+    /**
+     * Le marqueur lui-meme peut etre tronque : le processus peut mourir PENDANT son ecriture.
+     * On ne sait alors plus quel contenu restaurer, et l'aveu vaut mieux qu'une exception
+     * brute — qui laisserait l'utilisateur devant une pile d'appels sans savoir qu'un fichier
+     * de son depot est volontairement casse.
+     */
+    console.error(
+      `${SAUVEGARDE} est illisible (${erreur.message}).\n` +
+        'Une execution precedente a ete interrompue et la restauration automatique est ' +
+        'impossible.\nControlez le depot a la main : `git status` puis `git checkout -- ' +
+        '<fichier>`, et supprimez ' +
+        `${SAUVEGARDE}.`,
+    );
+    process.exit(1);
+  }
+  const { fichier, contenu } = marqueur;
+  writeFileSync(fichier, contenu);
+  rmSync(SAUVEGARDE);
+  console.log(
+    `Execution precedente interrompue : ${fichier} a ete restaure avant de continuer.\n`,
+  );
+}
+
+restaurerApresInterruption();
 
 /**
  * Filtre optionnel : `node scripts/mutation.mjs --filtre "audit 11"`.
@@ -948,34 +1137,6 @@ if (filtre) {
   console.log(`Filtre « ${filtre} » : ${A_JOUER.length} mutation(s) sur ${MUTATIONS.length}.\n`);
   if (A_JOUER.length === 0) process.exit(1);
 }
-
-/**
- * FILET CONTRE L'INTERRUPTION, ajoute apres un incident reel.
- *
- * Le `finally` de la boucle restaure le fichier mute — sauf si le processus est TUE avant d'y
- * arriver. C'est arrive : une execution arretee par un depassement de delai a laisse
- * `scripts/portable/animation.mjs` avec deux mutations encore appliquees. Symptome a
- * l'execution suivante : « motif introuvable » sur ces deux entrees, c'est-a-dire un message
- * qui accuse le CODE d'avoir change alors que c'est l'outil qui l'avait abime. Sans relecture
- * attentive, un fichier volontairement casse partait au commit.
- *
- * Une copie de sauvegarde est donc ecrite sur le disque AVANT chaque mutation et effacee
- * apres. Si elle existe au demarrage, c'est qu'une execution precedente a ete interrompue :
- * on restaure, on le dit, et on continue.
- */
-const SAUVEGARDE = '.mutation-en-cours';
-
-function restaurerApresInterruption() {
-  if (!existsSync(SAUVEGARDE)) return;
-  const { fichier, contenu } = JSON.parse(readFileSync(SAUVEGARDE, 'utf8'));
-  writeFileSync(fichier, contenu);
-  rmSync(SAUVEGARDE);
-  console.log(
-    `Execution precedente interrompue : ${fichier} a ete restaure avant de continuer.\n`,
-  );
-}
-
-restaurerApresInterruption();
 
 let echecs = 0;
 for (const m of A_JOUER) {

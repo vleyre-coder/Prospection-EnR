@@ -55,40 +55,18 @@ export interface OptionsServeur {
 }
 
 /**
- * L'application de bureau peut-elle se passer d'authentification ?
+ * Les deux predicats du mode bureau vivent desormais dans `config.ts`, et sont REEXPORTES ici.
  *
- * DEUX CONDITIONS, ET LES DEUX SONT NECESSAIRES.
+ * POURQUOI CE DEPLACEMENT — audit 11. La sonde `/api/sante` doit rendre le meme verdict que le
+ * crochet `onRequest` sur la meme configuration, sinon elle diagnostique une panne qui n'existe
+ * pas et prescrit un remede qui, lui, en cree une. Or `routes/referentiel.ts` ne peut pas
+ * importer `serveur.ts` : c'est `serveur.ts` qui importe les routes, et le cycle serait fragile.
+ * `config.ts` est le seul module que les deux importent deja, et il n'importe ni l'un ni l'autre.
  *
- *   1. `MODE_BUREAU=true` — la situation est DECLAREE. Un reglage implicite finit toujours
- *      par etre herite par une installation qui n'aurait pas du l'avoir.
- *   2. Le serveur n'ecoute QUE la boucle locale. C'est la condition qui a du mordant : elle ne
- *      se contourne pas par une variable d'environnement oubliee, parce qu'elle porte sur ce
- *      que la machine expose reellement. Sur `0.0.0.0` — le defaut, et le cas de tout
- *      hebergement — le mode bureau ne donne rien.
- *
- * `::1` couvre la boucle locale IPv6, qu'une pile IPv6 preferera parfois a `127.0.0.1`.
+ * La reexportation garde intacts les appelants existants, dont `test/mode-bureau.test.ts`.
  */
-export function estBoucleLocale(hote: string): boolean {
-  const h = hote.trim().toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h === '::1') return true;
-  /**
-   * L'adresse est VALIDEE, pas seulement prefixee. Un simple `startsWith('127.')` — ma
-   * premiere version — acceptait `127.0.0.1.exemple.fr`, c'est-a-dire un nom de domaine que
-   * son proprietaire fait pointer ou il veut, y compris sur une adresse publique. Le serveur
-   * se serait alors cru sur la boucle locale tout en etant joignable par tout le monde, SANS
-   * authentification. Trouve par le test, pas par la relecture.
-   */
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (!v4) return false;
-  const octets = v4.slice(1).map(Number);
-  if (octets.some((o) => o > 255)) return false;
-  // Tout 127.0.0.0/8 est de la boucle locale, pas seulement 127.0.0.1.
-  return octets[0] === 127;
-}
-
-function modeBureauRecevable(): boolean {
-  return config.auth.modeBureau && estBoucleLocale(config.hote);
-}
+export { estBoucleLocale, modeBureauRecevable } from './config.js';
+import { modeBureauRecevable } from './config.js';
 
 export async function construireServeur(options: OptionsServeur = {}) {
   const app = Fastify({

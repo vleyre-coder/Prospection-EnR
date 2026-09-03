@@ -27,10 +27,33 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import { join } from 'node:path';
-import { Progression, banniere } from './animation.mjs';
+import { Progression, attendreLecture, banniere } from './animation.mjs';
 import {
-  demarrerBase, dossierBinaires, portLibre, preparerBase, preparerSchema, racinePortable,
+  PORT_APPLICATION_DEPART,
+  demarrerBase, dossierBinaires, enregistrerPort, estNotreApplication, journaliser,
+  lirePortEnregistre, portLibre, preparerBase, preparerSchema, racinePortable,
 } from './lanceur.mjs';
+
+/**
+ * L'application repond-elle DEJA sur ce port, et est-ce bien la notre ?
+ *
+ * Rend l'adresse si oui, `null` sinon. La verification du CORPS est la correction du defaut
+ * mesure a l'audit 11 : la version precedente se contentait du code 200, si bien que n'importe
+ * quel service occupant le port 3000 — Docker, un serveur de developpement, Grafana — faisait
+ * annoncer « l'application etait deja ouverte », ouvrir le navigateur SUR CE SERVICE, et sortir
+ * en succes. Verifie en placant un service tiers sur 3000 : le lanceur ouvrait sa page et
+ * l'application ne demarrait jamais, sans un mot.
+ */
+async function applicationDejaLa(port) {
+  const adresse = `http://127.0.0.1:${port}`;
+  try {
+    const rep = await fetch(`${adresse}/api/sante`, { signal: AbortSignal.timeout(1500) });
+    if (!rep.ok) return null;
+    return estNotreApplication(await rep.text()) ? adresse : null;
+  } catch {
+    return null;
+  }
+}
 
 const SOUS_WINDOWS = process.platform === 'win32';
 const NODE = SOUS_WINDOWS ? 'node.exe' : 'node';
@@ -153,7 +176,6 @@ async function principal() {
   try {
     const binaires = dossierBinaires(racine);
     const muet = { log: () => {}, error: () => {} };
-    const adresse = 'http://127.0.0.1:3000';
 
     /**
      * DEUXIEME DOUBLE-CLIC : on ouvre la fenetre, on ne redemarre rien.
@@ -163,18 +185,31 @@ async function principal() {
      * echouait sur `lock file "postmaster.pid" already exists` et affichait « le demarrage a
      * echoue », alors que l'application marchait parfaitement. Constate en test, message
      * releve dans le journal.
+     *
+     * ON CHERCHE D'ABORD LE PORT NOTE PAR LE LANCEMENT PRECEDENT, puis le port historique.
+     * Le second essai n'est pas du zele : une installation deja utilisee avant cette correction
+     * tourne sur 3000 sans avoir de `port.txt`, et il ne faut pas lui demarrer un second
+     * exemplaire par-dessus.
      */
-    try {
-      const deja = await fetch(`${adresse}/api/sante`, { signal: AbortSignal.timeout(1500) });
-      if (deja.ok) {
+    for (const candidat of [lirePortEnregistre(racine), PORT_APPLICATION_DEPART]) {
+      if (candidat == null) continue;
+      const ouverte = await applicationDejaLa(candidat);
+      if (ouverte) {
         progression.note("L'application etait deja ouverte — je ramene simplement sa fenetre.");
-        ouvrirNavigateur(adresse, progression);
-        process.stdout.write(`\n  ${adresse}\n\n`);
+        ouvrirNavigateur(ouverte, progression);
+        process.stdout.write(`\n  ${ouverte}\n\n`);
         process.exit(0);
       }
-    } catch {
-      /* rien n'ecoute : demarrage normal */
     }
+
+    /**
+     * Le port de l'application est CHOISI, plus impose. Voir `PORT_APPLICATION_DEPART` pour la
+     * mesure qui l'exige : sur un port occupe, la version precedente n'ouvrait pas seulement
+     * une mauvaise page, elle ne demarrait jamais l'application.
+     */
+    const portApp = await portLibre(PORT_APPLICATION_DEPART, 50);
+    const adresse = `http://127.0.0.1:${portApp}`;
+    enregistrerPort(racine, portApp);
 
     const premiere = !existsSync(join(racine, 'donnees', 'pgdata', 'PG_VERSION'));
     const { pgdata } = await progression.pendant(
@@ -236,7 +271,7 @@ async function principal() {
             ...process.env,
             DATABASE_URL: url,
             HOTE: '127.0.0.1',
-            PORT: '3000',
+            PORT: String(portApp),
             NODE_ENV: 'production',
             SERVIR_WEB: 'true',
             MIGRATIONS_AUTO: 'true',
@@ -271,9 +306,21 @@ async function principal() {
              */
             MODE_BUREAU: 'true',
           },
-          stdio: ['ignore', 'ignore', 'inherit'],
+          /**
+           * LA SORTIE D'ERREUR DE L'API EST CAPTUREE, ET PAS SEULEMENT AFFICHEE.
+           *
+           * Elle etait en `inherit` : elle partait donc sur la console, c'est-a-dire sur une
+           * fenetre qui se ferme. Pendant ce temps, le message d'echec du lanceur renvoyait
+           * vers `donnees\\journal.txt` — un fichier qui ne contenait que les lignes de
+           * PostgreSQL. L'API est pourtant le composant qui echoue le plus volontiers
+           * (migrations, port deja pris, base incomplete), et son erreur etait la seule chose
+           * qui n'atterrissait nulle part de durable. Trouve a l'audit 11 en cherchant ce que
+           * le fichier annonce contenait vraiment.
+           */
+          stdio: ['ignore', 'ignore', 'pipe'],
         },
       );
+      api.stderr.on('data', (d) => journaliser(racine, `api: ${String(d).trimEnd()}`));
       api.on('exit', (code) => arretPropre(code ?? 0));
 
       const debut = Date.now();
@@ -296,10 +343,23 @@ async function principal() {
     process.stdout.write('  Laissez cette fenetre ouverte. Fermez-la pour arreter.\n\n');
     ouvrirNavigateur(adresse, progression);
   } catch (erreur) {
+    /**
+     * LA CAUSE EST ECRITE DANS LE JOURNAL AVANT TOUT, parce que la fenetre, elle, ne dure pas.
+     *
+     * Le message annoncait « Detail technique dans donnees\journal.txt » sans jamais y ecrire
+     * la cause de SON echec : le journal ne recevait que les lignes de PostgreSQL. Le seul
+     * endroit ou l'erreur apparaissait etait la console — et une console allouee par un
+     * double-clic dans l'explorateur est detruite quand le processus se termine. Autrement dit,
+     * le message qu'il faut lire etait precisement celui qu'on ne pouvait pas lire.
+     */
+    journaliser(racine, `demarrage: ECHEC — ${erreur.stack ?? erreur.message}`);
     process.stdout.write(`\n  Le demarrage a echoue : ${erreur.message}\n`);
     process.stdout.write('  Detail technique dans donnees\\journal.txt\n\n');
+    await attendreLecture();
     arretPropre(1);
   }
 }
+
+
 
 principal();

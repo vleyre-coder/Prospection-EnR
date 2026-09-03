@@ -38,10 +38,12 @@ import assert from 'node:assert/strict';
 import { pool, requete } from '../src/bdd.js';
 import { rechercher } from '../src/services/recherche.js';
 import { viderCacheHttp } from '../src/http.js';
+import { DEP_LOCAL, INSEE_LOCAL } from './aides/communes-fictives.js';
 
 /** Departement fictif : aucune donnee reelle ne le porte, la base ne peut donc pas le contenir. */
-const DEP = '99';
-const INSEE = '99001';
+/** Territoire fictif PARTAGE : importe, pour passer par le garde de serialisation (audit 11). */
+const DEP = DEP_LOCAL;
+const INSEE = INSEE_LOCAL;
 const IDU_INCONNUE = '99001000ZT0002';
 const IDU_CONNUE = '99001000ZT0003';
 const COMMUNE = 'Commune fictive de test';

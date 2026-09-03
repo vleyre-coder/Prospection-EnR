@@ -34,10 +34,19 @@ import assert from 'node:assert/strict';
 import { pool, requete } from '../src/bdd.js';
 import { filtrerParcelles } from '../src/services/recherche.js';
 import { listerLeads } from '../src/depots/prospection.js';
+import { DEP_LOCAL, INSEE_LOCAL } from './aides/communes-fictives.js';
 
-/** Departement fictif : aucune donnee reelle ne porte ce code. */
-const DEP = '99';
-const INSEE = '99001';
+/**
+ * Departement fictif : aucune donnee reelle ne porte ce code.
+ *
+ * IMPORTE, ET PLUS ECRIT EN DUR. Ce territoire est PARTAGE par treize fichiers de test, dont
+ * plusieurs font le menage par `DELETE ... WHERE code_departement = '99'`. En parallele ils
+ * s'effacaient mutuellement leur population : c'est ce qui rendait la CI rouge, avec des
+ * echecs differents a chaque execution. L'import n'est pas cosmetique — il fait passer ce
+ * fichier par le garde de `communes-fictives.ts`, qui refuse une execution en parallele.
+ */
+const DEP = DEP_LOCAL;
+const INSEE = INSEE_LOCAL;
 /** Emprise de test, en pleine mer au large de la Bretagne : rien de reel ne s'y trouve. */
 const LON0 = -6.5;
 const LAT0 = 47.0;

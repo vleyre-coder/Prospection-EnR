@@ -39,11 +39,19 @@ jobs:
       - name: Installer les dependances
         run: npm ci
 
-      - name: Verifier le typage
-        run: npm run typecheck
-
+      # LA CONSTRUCTION VIENT AVANT LE TYPAGE, ET CE N'EST PAS UNE PREFERENCE DE STYLE.
+      # `apps/web` et `apps/api` importent `@enr/core` et `@enr/scoring` par leurs types
+      # DECLARES, donc par les `dist/*.d.ts` de ces paquets. Sans construction prealable,
+      # `tsc --noEmit` rend « Cannot find module '@enr/core' » puis une trentaine d'erreurs
+      # en cascade — et comme `Verifier le typage` etait la premiere etape, les etapes
+      # `Construire` et `Tester` etaient SAUTEES : la suite unitaire complete n'a pas tourne
+      # en CI pendant huit livraisons, alors que le tableau de bord affichait seulement
+      # « typage en echec ». Constate a l'audit 11, sur le journal du job.
       - name: Construire
         run: npm run build
+
+      - name: Verifier le typage
+        run: npm run typecheck
 
       - name: Tester
         run: npm test
@@ -149,7 +157,7 @@ jobs:
       - name: Tester les calculs geometriques contre PostGIS
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
-        run: npx tsx --test test/postgis.test.ts
+        run: npx tsx --test --test-concurrency=1 test/postgis.test.ts
         working-directory: apps/api
 
       # `patrimoine()` portait le defaut le plus grave des huit audits, et aucun test ne pouvait le
@@ -159,7 +167,7 @@ jobs:
       - name: Tester la presence des couches patrimoniales contre PostGIS
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
-        run: npx tsx --test test/patrimoine-couches.test.ts
+        run: npx tsx --test --test-concurrency=1 test/patrimoine-couches.test.ts
         working-directory: apps/api
 
       # Audit 9. Deux familles de defauts n'etaient visibles qu'en base :
@@ -173,11 +181,12 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/enr_ci
         run: >-
-          npx tsx --test test/pagination-stable.test.ts test/couverture-disque.test.ts
+          npx tsx --test --test-concurrency=1 test/pagination-stable.test.ts test/couverture-disque.test.ts
           test/snapshot-perime-par-donnee.test.ts test/disparus.test.ts
           test/reprise-couverture-reseaux.test.ts test/sql-analysable.test.ts
           test/ingestion-exclusive.test.ts test/rapport-pdf.test.ts
           test/effacement-cycle.test.ts test/recherche-parcelle-inconnue.test.ts
+          test/serialisation-base.test.ts
         working-directory: apps/api
 
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :
@@ -188,7 +197,7 @@ jobs:
           # Opt-in obligatoire : sans lui, ces tests s'ignorent, pour qu'un `npm test` lance
           # avec un DATABASE_URL de production ne touche jamais au schema.
           TESTS_MIGRATIONS: '1'
-        run: npx tsx --test test/migrations.test.ts
+        run: npx tsx --test --test-concurrency=1 test/migrations.test.ts
         working-directory: apps/api
 
   bout-en-bout:

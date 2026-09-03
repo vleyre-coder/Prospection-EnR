@@ -24,6 +24,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { estBoucleLocale } from '../src/serveur.js';
+import { configurationsFatales } from '../src/config.js';
 
 test('la boucle locale est reconnue sous toutes ses ecritures', () => {
   for (const hote of ['127.0.0.1', 'localhost', 'LOCALHOST', '::1', '[::1]', '127.0.1.1', ' 127.0.0.1 ']) {
@@ -50,5 +51,68 @@ test('une adresse qui COMMENCE par 127 mais n’en est pas une reste refusee', (
    */
   for (const hote of ['127.0.0.1.exemple.fr', '1270.0.0.1', '127exemple.fr', 'localhost.evil.com']) {
     assert.equal(estBoucleLocale(hote), false, `${hote} ne doit pas passer pour la boucle locale`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// La SONDE doit dire la meme chose que les ROUTES — audit 11
+// ---------------------------------------------------------------------------
+
+test('la sonde declare l’application de bureau OPERANTE sur la boucle locale', () => {
+  /**
+   * LE DEFAUT MESURE. `/api/sante` repondait `hors_service` avec « AUTH_DESACTIVEE est actif en
+   * production : toutes les routes protegees repondent en erreur. Retirez cette variable » —
+   * pendant que `GET /api/leads?limite=5` rendait 200 sur le meme serveur. Verifie en lancant
+   * les deux, port 3231, base reelle.
+   *
+   * Le diagnostic errone n'etait pas le plus grave : le CONSEIL cassait l'application. Retirer
+   * `MODE_BUREAU` est exactement ce qui fait rendre 500 a toutes les routes utiles, et
+   * `donnees/journal.txt` est le fichier qu'un utilisateur ouvre quand quelque chose ne va pas.
+   */
+  assert.deepEqual(
+    configurationsFatales({
+      env: 'production',
+      hote: '127.0.0.1',
+      auth: { desactivee: true, modeBureau: true },
+    }),
+    [],
+    "le mode bureau sur la boucle locale est l'exception NOMMEE : rien n'est fatal",
+  );
+});
+
+test('la sonde nomme le vrai danger quand le mode bureau est expose au reseau', () => {
+  // Mesure : sur `0.0.0.0`, les routes protegees rendent 500. La sonde doit le dire, et surtout
+  // dire POURQUOI — une instance joignable sans authentification, ce qui n'est pas la meme faute
+  // qu'un `AUTH_DESACTIVEE` oublie.
+  const f = configurationsFatales({
+    env: 'production',
+    hote: '0.0.0.0',
+    auth: { desactivee: true, modeBureau: true },
+  });
+  assert.equal(f.length, 2, 'les deux causes sont reelles et distinctes');
+  assert.ok(
+    f.some((m) => m.includes('0.0.0.0') && /boucle locale/.test(m)),
+    "l'hote fautif doit etre cite : c'est lui qu'il faut changer",
+  );
+});
+
+test('la sonde signale AUTH_DESACTIVEE en production sans mode bureau', () => {
+  const f = configurationsFatales({
+    env: 'production',
+    hote: '0.0.0.0',
+    auth: { desactivee: true, modeBureau: false },
+  });
+  assert.equal(f.length, 1);
+  assert.match(f[0] ?? '', /AUTH_DESACTIVEE/);
+});
+
+test('le temoin : une authentification active ne declenche rien', () => {
+  // Sans ce temoin, une fonction qui refuserait tout passerait les trois tests precedents.
+  for (const hote of ['0.0.0.0', '127.0.0.1', 'enr.exemple.fr']) {
+    assert.deepEqual(
+      configurationsFatales({ env: 'production', hote, auth: { desactivee: false, modeBureau: false } }),
+      [],
+      `aucune configuration fatale attendue sur ${hote} quand l'authentification est active`,
+    );
   }
 });

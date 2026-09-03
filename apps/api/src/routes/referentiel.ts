@@ -25,7 +25,7 @@ import {
 } from '@enr/core';
 import { VERSION_MOTEUR, LIBELLES_REGIME, RESERVE_REGIME } from '@enr/scoring';
 import { bddDisponible, requeteUne } from '../bdd.js';
-import { config } from '../config.js';
+import { config, configurationsFatales } from '../config.js';
 import { CALQUES } from '../calques.js';
 import { etatAmorcage } from '../amorcage.js';
 import { nbARafraichir } from '../depots/parcelles.js';
@@ -86,14 +86,18 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
      * Le choix d'echouer a la requete plutot qu'au demarrage reste le bon — cela echoue ferme et
      * laisse `/api/sante` diagnostiquer — mais il exige que la sonde le sache.
      */
-    const configurationsFatales: string[] = [];
-    if (config.auth.desactivee && config.env === 'production') {
-      configurationsFatales.push(
-        'AUTH_DESACTIVEE est actif en production : toutes les routes protegees repondent en erreur. ' +
-          'Retirez cette variable.',
-      );
-    }
-    const fatale = configurationsFatales.length > 0;
+    /**
+     * Le calcul vit dans `config.ts` — voir `configurationsFatales()` — et non ici.
+     *
+     * POURQUOI IL A DEMENAGE, audit 11. Ecrit en ligne, il lisait le `config` global : pour
+     * l'exercer il fallait lancer un vrai serveur avec un environnement prepare, ce qu'aucun test
+     * ne faisait. Il etait donc faux sans que rien ne le dise — il ignorait `MODE_BUREAU`, donc
+     * declarait l'application de bureau `hors_service` a la seconde ou ses routes protegees
+     * rendaient 200, et prescrivait de retirer la variable qui la fait marcher. Deplace et
+     * parametre, il est teste en quatre cas sans lancer quoi que ce soit.
+     */
+    const fatales = configurationsFatales(config);
+    const fatale = fatales.length > 0;
 
     return {
       // `hors_service` et non `degrade` : degrade signifie « fonctionne moins bien », ici rien ne
@@ -103,7 +107,7 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
       versionMoteur: VERSION_MOTEUR,
       baseDeDonnees: bdd ? 'ok' : 'indisponible',
       /** Vide en fonctionnement normal. Non vide : l'instance ne doit pas recevoir de trafic. */
-      configurationsFatales,
+      configurationsFatales: fatales,
       // Avancement du chargement initial des donnees nationales : sans cette information,
       // un premier demarrage donne une carte vide sans explication.
       amorcage,

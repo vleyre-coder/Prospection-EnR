@@ -34,8 +34,66 @@ export const DEPS_FICTIFS = [DEP_LOCAL, DEP_VOISIN];
 /** Point de test, en pleine mer : aucune commune reelle ne s'y trouve. */
 export const PT: [number, number] = [-6.5, 47.0];
 
-const INSEE_LOCAL = '99001';
-const INSEE_VOISIN = '98001';
+export const INSEE_LOCAL = '99001';
+export const INSEE_VOISIN = '98001';
+
+/**
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ * LE TERRITOIRE FICTIF EST PARTAGE, DONC IL DOIT ETRE PARCOURU EN SERIE
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE L'AUDIT 11 A MESURE, et c'est la cause de l'echec de l'integration continue depuis
+ * huit livraisons. Treize fichiers de test ecrivent dans la MEME base et se partagent ce
+ * territoire fictif : le departement 99, la commune 99001, l'espace des IDU `99001000AA…`.
+ * Plusieurs d'entre eux commencent et finissent par un menage du genre
+ * `DELETE FROM parcelle WHERE code_departement = '99'`.
+ *
+ * Or `node --test` execute les FICHIERS en parallele, dans des processus distincts. Le menage
+ * de l'un efface donc la population de l'autre en pleine execution. Mesures faites sur une
+ * base fraichement migree, memes fichiers, meme commande a un drapeau pres :
+ *
+ *   - en parallele : 51/57 puis 75/77 — et **les tests en echec changent d'une execution a
+ *     l'autre**, ce qui est la signature d'une course et ce qui faisait ressembler la CI a une
+ *     panne differente chaque fois ;
+ *   - en serie     : 57/57 puis 77/77, de facon reproductible.
+ *
+ * Le prix de la serialisation a ete mesure, parce qu'un choix de conception se paie : 44 s
+ * contre 34 s sur les treize fichiers. **Dix secondes.** Il n'existe donc aucun argument de
+ * vitesse pour conserver la course, et le diagnostic « c'est le parallelisme » — pose lors de
+ * la livraison precedente puis laisse en l'etat — n'avait aucune excuse a ne pas etre traite.
+ *
+ * POURQUOI UN GARDE PLUTOT QU'UN COMMENTAIRE. Le drapeau vit dans la commande, c'est-a-dire
+ * loin des tests qui en dependent. Un fichier ajoute demain, ou une commande recopiee sans le
+ * drapeau, ramenerait la course — en silence, et sous la forme d'un echec qui accuse le code
+ * teste. Le garde transforme ce silence en refus qui nomme la commande a utiliser.
+ */
+export const DRAPEAU_SERIE = '--test-concurrency=1';
+
+/**
+ * Rend le message de refus si l'execution risque la course, `null` si tout va bien.
+ *
+ * Fonction PURE, et parametree, pour etre testable sans manipuler l'etat du processus.
+ * Sans base de donnees il n'y a rien a partager : ces fichiers s'ignorent, et exiger la serie
+ * ferait echouer un `npm test` ordinaire pour rien.
+ */
+export function refusDeCourse(
+  execArgv: readonly string[],
+  env: { DATABASE_URL?: string | undefined },
+): string | null {
+  if (!env.DATABASE_URL) return null;
+  if (execArgv.includes(DRAPEAU_SERIE)) return null;
+  return (
+    'Ces tests ecrivent dans une base partagee et se partagent le departement fictif ' +
+    `${DEP_LOCAL} : executes en parallele, ils s'effacent mutuellement leurs donnees et ` +
+    'rendent des echecs qui changent a chaque fois.\n' +
+    `Relancez-les en serie : \`npm run test:base --workspace @enr/api\` (qui ajoute ${DRAPEAU_SERIE}).\n` +
+    "Mesure de l'audit 11 : 77/77 en serie, 75/77 puis 51/57 en parallele, pour dix secondes " +
+    'de difference.'
+  );
+}
+
+const refus = refusDeCourse(process.execArgv, process.env);
+if (refus) throw new Error(refus);
 
 /** Metres par degre de longitude a la latitude du point de test. */
 const M_PAR_DEG_LON = 111320 * Math.cos((PT[1] * Math.PI) / 180);

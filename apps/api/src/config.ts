@@ -202,3 +202,91 @@ export const config = {
 } as const;
 
 export type Config = typeof config;
+
+/**
+ * L'application de bureau peut-elle se passer d'authentification ?
+ *
+ * DEUX CONDITIONS, ET LES DEUX SONT NECESSAIRES.
+ *
+ *   1. `MODE_BUREAU=true` — la situation est DECLAREE. Un reglage implicite finit toujours
+ *      par etre herite par une installation qui n'aurait pas du l'avoir.
+ *   2. Le serveur n'ecoute QUE la boucle locale. C'est la condition qui a du mordant : elle ne
+ *      se contourne pas par une variable d'environnement oubliee, parce qu'elle porte sur ce
+ *      que la machine expose reellement. Sur `0.0.0.0` — le defaut, et le cas de tout
+ *      hebergement — le mode bureau ne donne rien.
+ *
+ * `::1` couvre la boucle locale IPv6, qu'une pile IPv6 preferera parfois a `127.0.0.1`.
+ */
+export function estBoucleLocale(hote: string): boolean {
+  const h = hote.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h === '::1') return true;
+  /**
+   * L'adresse est VALIDEE, pas seulement prefixee. Un simple `startsWith('127.')` — ma
+   * premiere version — acceptait `127.0.0.1.exemple.fr`, c'est-a-dire un nom de domaine que
+   * son proprietaire fait pointer ou il veut, y compris sur une adresse publique. Le serveur
+   * se serait alors cru sur la boucle locale tout en etant joignable par tout le monde, SANS
+   * authentification. Trouve par le test, pas par la relecture.
+   */
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (!v4) return false;
+  const octets = v4.slice(1).map(Number);
+  if (octets.some((o) => o > 255)) return false;
+  // Tout 127.0.0.0/8 est de la boucle locale, pas seulement 127.0.0.1.
+  return octets[0] === 127;
+}
+
+/**
+ * EXPORTEE, et pas seulement par commodite d'organisation.
+ *
+ * Le crochet `onRequest` ci-dessous et la sonde `/api/sante` doivent rendre le MEME verdict sur
+ * la meme configuration. Ils ne le rendaient pas : la sonde ignorait `MODE_BUREAU` et declarait
+ * l'instance `hors_service` avec le message « toutes les routes protegees repondent en erreur.
+ * Retirez cette variable », a la seconde ou une route protegee repondait 200 — mesure faite a
+ * l'audit 11 sur l'application de bureau reellement lancee.
+ *
+ * Le pire n'etait pas le diagnostic errone mais le CONSEIL : retirer `MODE_BUREAU` casse
+ * l'application de bureau, precisement. Un fichier de diagnostic qui prescrit la panne est plus
+ * nuisible qu'un silence. Deux lecteurs d'une meme regle doivent lire la meme fonction.
+ */
+export function modeBureauRecevable(): boolean {
+  return config.auth.modeBureau && estBoucleLocale(config.hote);
+}
+
+/**
+ * Les configurations qui rendent l'instance INOPERANTE, avec ce qu'il faut faire.
+ *
+ * FONCTION PURE ET PARAMETREE, et c'est le seul moyen de la tester honnetement. Cette liste
+ * vivait en ligne dans `/api/sante`, ou elle lisait le `config` global : pour l'exercer il
+ * fallait donc lancer un serveur avec un environnement prepare — quinze secondes par cas, et
+ * quatre cas. Elle n'etait donc exercee par aucun test, et elle etait fausse.
+ *
+ * Ce qu'elle doit dire, verifie a l'execution sur quatre serveurs reellement lances :
+ *   - `AUTH_DESACTIVEE` en production, sans mode bureau  → inoperante ; routes protegees : 500 ;
+ *   - `AUTH_DESACTIVEE` + `MODE_BUREAU` sur 127.0.0.1    → OPERANTE  ; routes protegees : 200 ;
+ *   - `AUTH_DESACTIVEE` + `MODE_BUREAU` sur 0.0.0.0      → inoperante ; routes protegees : 500,
+ *     et c'est le cas qu'il faut nommer : une instance joignable par le reseau sans
+ *     authentification ;
+ *   - authentification active                            → rien a signaler.
+ */
+export function configurationsFatales(
+  c: Pick<typeof config, 'env' | 'hote'> & { auth: Pick<typeof config.auth, 'desactivee' | 'modeBureau'> },
+): string[] {
+  const fatales: string[] = [];
+  if (!c.auth.desactivee) return fatales;
+  const bureauRecevable = c.auth.modeBureau && estBoucleLocale(c.hote);
+
+  if (c.env === 'production' && !bureauRecevable) {
+    fatales.push(
+      'AUTH_DESACTIVEE est actif en production : toutes les routes protegees repondent en erreur. ' +
+        'Retirez cette variable.',
+    );
+  }
+  if (c.auth.modeBureau && !estBoucleLocale(c.hote)) {
+    fatales.push(
+      `MODE_BUREAU n'est recevable que sur la boucle locale, or HOTE vaut « ${c.hote} » : ` +
+        "cette instance est joignable par le reseau et n'aurait aucune authentification. " +
+        'Retirez AUTH_DESACTIVEE et MODE_BUREAU, ou faites ecouter le serveur sur 127.0.0.1.',
+    );
+  }
+  return fatales;
+}

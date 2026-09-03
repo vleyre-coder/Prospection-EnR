@@ -372,6 +372,26 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     const bbox = bboxDepuisChaine(q.bbox ?? '-5.5,41,10,51.5');
     if (!bbox) return erreur(rep, 400, 'bbox_invalide', 'Parametre `bbox` invalide');
 
+    /**
+     * LE RAYON EST VALIDE ICI, AVANT LA REQUETE — et il ne l'etait pas.
+     *
+     * `nombreRequete` etait appele une centaine de lignes plus bas, apres l'interrogation de
+     * `poste_source`. Le refus arrivait donc bien, avec le bon code 400, mais APRES avoir fait
+     * travailler la base pour rien : un appel fautif coutait un aller-retour SQL complet.
+     *
+     * Ce n'est pas une optimisation, c'est ce qui a rendu un test impossible a satisfaire. Le
+     * fichier `routes-validation.test.ts` annonce en tete que « les cas ci-dessous s'arretent
+     * avant tout acces a la base, donc aucune base n'est necessaire », et la CI lance
+     * precisement `npm test` SANS base. Sur cette seule route l'affirmation etait fausse : la
+     * requete partait, echouait sur « database does not exist », et le 500 remplacait le 400
+     * attendu. Le test accusait alors la validation d'un defaut qui etait un defaut d'ORDRE.
+     * Constate a l'audit 11 en sondant les cinq routes une a une : quatre refusaient en 400
+     * sans base, celle-ci rendait 500.
+     *
+     * `0` sert de sentinelle « non demande », le rayon minimal utile etant strictement positif.
+     */
+    const rayonDemande = nombreRequete(q.rayonKm, 'rayonKm', { defaut: 0, max: 500 });
+
     const conditions = ['geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)'];
     const params: unknown[] = [bbox[0], bbox[1], bbox[2], bbox[3]];
     if (q.gestionnaire) {
@@ -432,10 +452,8 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
       },
     }));
 
-    // Rayons de raccordement economique indicatifs, calcules a la demande.
-    // Un rayon non numerique doit valoir 400, et non NaN puis 500. `0` sert de sentinelle
-    // « non demande », le rayon minimal utile etant strictement positif.
-    const rayonDemande = nombreRequete(q.rayonKm, 'rayonKm', { defaut: 0, max: 500 });
+    // Rayons de raccordement economique indicatifs, calcules a la demande. La validation de
+    // `rayonKm` a lieu en tete de route, avant toute requete — voir le commentaire la-bas.
     const rayonKm = rayonDemande > 0 ? rayonDemande : null;
     const rayons =
       rayonKm && rayonKm > 0

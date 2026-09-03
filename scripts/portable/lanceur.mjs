@@ -39,7 +39,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -62,6 +62,73 @@ export const PORT_BASE_DEPART = 54329;
 export function racinePortable(env = process.env) {
   if (env['RACINE_PORTABLE']) return resolve(env['RACINE_PORTABLE']);
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+}
+
+/**
+ * Port de depart de l'APPLICATION, distinct de celui de la base.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════
+ * POURQUOI CE N'EST PLUS 3000, ET C'EST LE DEFAUT LE PLUS PROBABLE DE TOUT CE CHANTIER
+ * ═══════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Le lanceur servait l'application sur 3000, en dur, et commencait par demander
+ * `GET http://127.0.0.1:3000/api/sante` : si ca repondait, il concluait « elle est deja
+ * ouverte », ouvrait le navigateur et sortait en SUCCES. Or 3000 est l'un des ports les plus
+ * disputes d'un poste de travail — Docker, un serveur de developpement, Grafana, une
+ * application Electron.
+ *
+ * MESURE, audit 11. Un service tiers quelconque place sur 3000, qui repond 200 comme le font la
+ * plupart : le lanceur annonce « l'application etait deja ouverte », ouvre le navigateur SUR CE
+ * SERVICE, et sort en 0. L'utilisateur double-clique, voit s'ouvrir une page qui n'est pas la
+ * sienne, et l'application ne demarre jamais. Aucun message, aucune trace, code de sortie 0.
+ *
+ * Deux fautes distinctes, corrigees separement :
+ *   1. la sonde acceptait N'IMPORTE QUEL 200 — voir `estNotreApplication()` ;
+ *   2. le port etait fige, donc meme reconnu, le squatteur bloquait l'application — d'ou ce
+ *      port de depart et la recherche d'un port libre, comme cela se faisait deja pour
+ *      PostgreSQL. Le port retenu est ecrit dans `donnees/port.txt`, sans quoi le second
+ *      double-clic ne saurait plus ou chercher la fenetre a ramener.
+ */
+export const PORT_APPLICATION_DEPART = 3000;
+
+/** Fichier ou le lanceur note le port retenu, pour que le prochain lancement le retrouve. */
+const FICHIER_PORT = 'port.txt';
+
+/**
+ * Est-ce BIEN notre application qui repond, et pas un inconnu sur le meme port ?
+ *
+ * Fonction pure, pour etre testable sans reseau. Le critere est la signature de la reponse de
+ * `/api/sante` : `versionMoteur` et `baseDeDonnees` y sont toujours presents et ne se
+ * rencontrent pas ailleurs par hasard. Un simple code 200 ne prouve rien — c'est exactement ce
+ * qui a fait ouvrir le navigateur sur le service d'un tiers.
+ */
+export function estNotreApplication(corps) {
+  if (typeof corps === 'string') {
+    try {
+      corps = JSON.parse(corps);
+    } catch {
+      return false;
+    }
+  }
+  if (corps === null || typeof corps !== 'object') return false;
+  return typeof corps.versionMoteur === 'string' && typeof corps.baseDeDonnees === 'string';
+}
+
+/** Port note par un lancement precedent, ou `null` si le fichier manque ou est illisible. */
+export function lirePortEnregistre(racine) {
+  try {
+    const brut = readFileSync(join(racine, 'donnees', FICHIER_PORT), 'utf8').trim();
+    const port = Number(brut);
+    return Number.isInteger(port) && port > 0 && port < 65536 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+export function enregistrerPort(racine, port) {
+  const fichier = join(racine, 'donnees', FICHIER_PORT);
+  mkdirSync(dirname(fichier), { recursive: true });
+  writeFileSync(fichier, `${port}\n`);
 }
 
 /** Premier port TCP libre a partir de `depart`, sur la boucle locale. */
@@ -107,7 +174,15 @@ function outil(binaires, nom) {
   return join(binaires, `${nom}${EXE}`);
 }
 
-function journaliser(racine, ligne) {
+/**
+ * EXPORTEE depuis l'audit 11. `demarrer.mjs` en a besoin pour y verser la sortie d'erreur de
+ * l'API, qui n'y allait pas : le message d'echec renvoyait vers `donnees\\journal.txt` alors
+ * que ce fichier ne contenait que les lignes de PostgreSQL. Or l'API est le composant qui
+ * echoue le plus volontiers — migrations, port, base — et son erreur partait sur une console
+ * qui se ferme. Renvoyer quelqu'un vers un fichier qui ne contient pas la reponse est une
+ * fausse piste, pas une aide.
+ */
+export function journaliser(racine, ligne) {
   const fichier = join(racine, 'donnees', 'journal.txt');
   mkdirSync(dirname(fichier), { recursive: true });
   appendFileSync(fichier, `${new Date().toISOString()}  ${ligne}\n`);

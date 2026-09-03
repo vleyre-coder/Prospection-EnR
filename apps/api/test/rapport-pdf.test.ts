@@ -30,6 +30,7 @@ import { pool, requete } from '../src/bdd.js';
 import { FILIERES, FILIERES_META } from '@enr/core';
 import { texteDuPdf } from './aides/texte-pdf.js';
 import { effacerDepartement, lireFiches, reidentifier, semerFiche } from './aides/semer-fiches.js';
+import { DEP_LOCAL, INSEE_LOCAL } from './aides/communes-fictives.js';
 
 const SECRET = 'secret-de-test-uniquement';
 
@@ -59,8 +60,9 @@ const PARCELLES = new Map<string, string>();
 const ECARTEES = new Map<string, string>();
 
 /** Commune fictive : aucune donnee reelle ne porte le departement 99. */
-const DEP_FICTIF = '99';
-const INSEE_FICTIF = '99001';
+/** Territoire fictif PARTAGE : importe, pour passer par le garde de serialisation (audit 11). */
+const DEP_FICTIF = DEP_LOCAL;
+const INSEE_FICTIF = INSEE_LOCAL;
 
 before(async () => {
   if (!process.env['DATABASE_URL']) return;

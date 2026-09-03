@@ -20,6 +20,7 @@ import { partCouverte, partsCouvertesExactes } from '../src/connecteurs/distance
 import { nbGroupesContigus } from '../src/depots/prospection.js';
 import { requete } from '../src/bdd.js';
 import type { GeoJsonGeometry } from '../src/geo.js';
+import { DEP_LOCAL } from './aides/communes-fictives.js';
 
 /** Rectangle en WGS84, en coordonnees [ouest, est] x [sud, nord]. */
 function rect(o: number, e: number, s: number, n: number): GeoJsonGeometry {
@@ -115,10 +116,10 @@ test('la contiguite tolere une voirie et separe une vraie distance', async (t) =
       await requete(
         `INSERT INTO parcelle (idu, code_insee, code_departement, prefixe, section, numero,
                                nom_commune, geom, centroide)
-         VALUES ($1::text, '99199', '99', '000', 'Z', substr($1::text, 11, 4), 'Test',
+         VALUES ($1::text, '99199', $4::text, '000', 'Z', substr($1::text, 11, 4), 'Test',
                  ST_Multi(ST_MakeEnvelope($2::float8, 48.15, $3::float8, 48.151, 4326)),
                  ST_SetSRID(ST_Point(($2::float8 + $3::float8) / 2, 48.1505), 4326))`,
-        [idu, o, e],
+        [idu, o, e, DEP_LOCAL],
       );
     }
 
