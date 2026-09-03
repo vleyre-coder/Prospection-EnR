@@ -43,7 +43,9 @@ livraisons.
 
 **Corrigé** : `Construire` passe avant `Verifier le typage`.
 
-### Job « Migrations SQL et calculs PostGIS » — une course entre fichiers de test
+### Job « Migrations SQL et calculs PostGIS » — deux défauts, dont un que j'ai d'abord mal lu
+
+#### a) Une course entre fichiers de test
 
 Treize fichiers de test écrivent dans la même base et se partagent le **département fictif 99** :
 la commune 99001, l'espace des IDU `99001000AA…`. Plusieurs commencent et finissent par un
@@ -78,6 +80,29 @@ commande, donc loin des tests qui en dépendent :
   partagé figure dans les deux listes. C'est la protection contre le défaut qui a laissé 22
   tests rouges sans que personne le sache à la livraison précédente : une liste tenue à la main
   se périme en silence.
+
+#### b) Le job était silencieusement tronqué par son plafond de durée
+
+Après la correction ci-dessus, ce job restait rouge — et j'ai d'abord annoncé qu'il était vert,
+parce que le filtre « jobs en échec » de l'API ne le listait pas. **Il ne l'était pas : il était
+`cancelled`.** Un job qui dépasse `timeout-minutes` n'est pas rapporté comme `failure`, il est
+rapporté comme annulé — donc il n'apparaît dans aucun filtre d'échecs et se lit comme un incident
+d'infrastructure plutôt que comme une vérification qui n'a pas eu lieu.
+
+Mesures sur deux exécutions consécutives, plafond à 10 minutes :
+
+| exécution | durée du job | issue |
+|---|---|---|
+| run 38 | 10 min 13 s | `The operation was canceled` après **92 mutations sur 101** |
+| run 39 | 9 min 37 s | idem |
+
+La campagne de mutation demande à elle seule neuf à dix minutes et grossit à chaque audit. Le
+plafond était donc atteint avant sa fin, et **les quatre étapes PostGIS qui suivent n'ont jamais
+tourné en CI** — c'est-à-dire précisément les tests que ce job existe pour exécuter.
+
+**Corrigé** : plafond porté à 30 minutes, avec la mesure inscrite à côté. Un plafond de durée est
+une sécurité contre un blocage, pas un budget à serrer : le régler au ras de la mesure transforme
+la moindre croissance en vérification perdue, sans un mot.
 
 ### Job « Tests de bout en bout » — une adresse d'écoute par défaut n'est pas une adresse
 
@@ -290,7 +315,8 @@ reprendre.
 
 | # | Sujet | État |
 |---|---|---|
-| 1 | **Job e2e de la CI** | Deux causes trouvées et corrigées (§1) : l'adresse d'écoute, confirmée verte en CI pour la suite Playwright, puis le test décoratif qu'elle cachait. Reste à confirmer le job entier au prochain passage. |
+| 1 | **Job e2e de la CI** | **Vert en CI**, étape de mutation comprise (run 39). |
+| 1 bis | **Job migrations** | Plafond de durée relevé à 30 min : reste à confirmer au prochain passage, la campagne n'ayant jamais pu s'y terminer jusqu'ici. |
 | 2 | **Des tests appellent les vraies API publiques** | `acces-roles.test.ts` et `routes-validation.test.ts` déclenchent `POST /api/qualification/emprise`, soit une qualification RÉELLE — mesuré : 1 082 parcelles trouvées, 300 retenues. Conséquence : `DATABASE_URL=… npm test` a dépassé 9 min 50 s et j'ai dû l'interrompre. Un test ne devrait pas dépendre de la disponibilité d'un service public ni consommer son quota. **Non corrigé.** |
 | 3 | **`enr_test`, ma base locale** | Polluée par des mois d'exécutions : c'est elle qui faisait tout paraître vert. Toute vérification future doit partir d'une base fraîchement migrée. |
 | 4 | **Le double-clic sous Windows** | Toujours invérifiable depuis Linux. Deux lanceurs sont livrés pour que l'un rattrape l'autre. |

@@ -59,7 +59,25 @@ jobs:
   migrations:
     name: Migrations SQL et calculs PostGIS
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # ══════════════════════════════════════════════════════════════════════════════════════════
+    # 30 MINUTES, ET NON 10 : CE JOB ETAIT SILENCIEUSEMENT TRONQUE — audit 11
+    # ══════════════════════════════════════════════════════════════════════════════════════════
+    #
+    # La campagne de mutation, seule, demande de neuf a dix minutes et grossit a chaque audit
+    # (101 entrees hors navigateur a ce jour). Le plafond de 10 minutes etait donc atteint AVANT
+    # la fin de la campagne : mesures relevees sur deux executions consecutives — 10 min 13 s et
+    # 9 min 37 s, toutes deux terminees par « The operation was canceled » apres 92 mutations
+    # sur 101. Les quatre etapes PostGIS qui suivent n'ont donc jamais tourne en CI.
+    #
+    # ET C'EST CE QUI L'A RENDU INVISIBLE : un job depassant `timeout-minutes` est rapporte
+    # « cancelled », pas « failure ». Il n'apparait dans aucun filtre d'echecs, et se lit comme
+    # un incident d'infrastructure plutot que comme une verification qui n'a pas eu lieu. Je
+    # m'y suis moi-meme trompe en premiere lecture, et j'ai annonce ce job vert alors qu'il ne
+    # l'etait pas.
+    #
+    # Un plafond de duree est une securite contre un blocage, pas un budget a serrer : le regler
+    # au ras de la mesure transforme la moindre croissance en verification perdue, sans un mot.
+    timeout-minutes: 30
 
     # Les migrations sont le seul endroit ou une faute ne se voit ni au typage ni aux tests
     # unitaires : une colonne mal nommee ne casse qu'au demarrage, chez l'utilisateur. Une
