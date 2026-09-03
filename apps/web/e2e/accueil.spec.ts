@@ -90,3 +90,86 @@ test('l’ecran d’ouverture ne revient pas dans la meme session', async ({ pag
   await expect(page.getByRole('group', { name: 'Vue' })).toBeVisible();
   await expect(page.getByRole('status', { name: /ouverture de prospection/i })).toBeHidden();
 });
+
+test('L’ECRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l’application', async ({
+  page,
+}) => {
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════════
+   * LA MUTATION QUE LES QUATRE TESTS CI-DESSUS NE VOYAIENT PAS — audit 11
+   * ══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `App.tsx` rend `Demarrage` a DEUX endroits : dans la branche de chargement et dans la
+   * branche principale. React reconcilie par position ; si les deux structures ne s'alignent
+   * pas, l'element change de parent au passage de l'une a l'autre, donc React le DEMONTE puis
+   * le REMONTE. Ses deux minuteurs repartent de zero et ses ecouteurs sont reposes : l'animation
+   * recommence au moment meme ou l'application devient prete, et une touche pressee avant la
+   * transition est perdue. Le commentaire de la branche de chargement raconte ce defaut, et
+   * l'alignement des deux structures le corrige.
+   *
+   * SAUF QUE RIEN NE LE VERIFIAIT. La mutation qui defait l'alignement — `Demarrage` sorti de
+   * `div.application` dans un fragment — ne faisait echouer AUCUN des quatre tests
+   * precedents : `1/2 mutations attrapees` dans le job de bout en bout. Et personne ne pouvait
+   * le savoir, parce que ce job mourait avant, sur un refus de connexion (voir
+   * `playwright.config.ts`). Une correction documentee, commentee sur vingt lignes, et sans
+   * garde.
+   *
+   * POURQUOI LES QUATRE AUTRES NE POUVAIENT PAS LE VOIR. Ils observent l'ecran APRES la
+   * transition, ou pressent une touche sans se soucier du moment. Or `Demarrage` abrege en
+   * appelant `onTermine` tout de suite : une fois la touche prise en compte, l'ecran ne revient
+   * jamais, remontage ou pas. Le symptome n'est visible que si l'on se place PENDANT le
+   * chargement, et le seul moyen d'y etre a coup sur est de retenir la reponse du referentiel.
+   *
+   * CE QUE CE TEST AFFIRME, et pourquoi ce n'est pas un budget de temps. Mesurer « l'animation
+   * a-t-elle recommence ? » demanderait un delai, donc une intermittence — le defaut le plus
+   * couteux d'un parc de bout en bout. On observe donc la PROPRIETE que le correctif etablit :
+   * aucun nouvel element d'accueil n'apparait au passage. Un observateur de mutations DOM,
+   * installe juste avant la transition, compte les APPARITIONS. Zero attendu ; le remontage en
+   * produit une. Aucun delai, aucune marge, aucune chance de passer par hasard.
+   */
+  let libererReferentiel: () => void = () => {};
+  const referentielRetenu = new Promise<void>((resoudre) => {
+    libererReferentiel = resoudre;
+  });
+  await page.route('**/api/referentiel*', async (route) => {
+    await referentielRetenu;
+    await route.continue();
+  });
+
+  await connexionBrute(page);
+
+  // On est dans la branche de chargement, avec l'ecran d'ouverture par-dessus.
+  await expect(page.getByText(/Chargement du referentiel/i)).toBeVisible({ timeout: 30_000 });
+  const accueil = page.getByRole('status', { name: /ouverture de prospection/i });
+  await expect(accueil).toBeVisible();
+
+  // L'observateur est pose MAINTENANT : ce qui suit ne concerne plus que la transition.
+  await page.evaluate(() => {
+    const fenetre = window as unknown as { __apparitionsAccueil?: number };
+    fenetre.__apparitionsAccueil = 0;
+    new MutationObserver((lots) => {
+      for (const lot of lots) {
+        for (const noeud of lot.addedNodes) {
+          if (!(noeud instanceof HTMLElement)) continue;
+          if (noeud.matches('.accueil') || noeud.querySelector('.accueil')) {
+            fenetre.__apparitionsAccueil = (fenetre.__apparitionsAccueil ?? 0) + 1;
+          }
+        }
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  });
+
+  // La reponse arrive : l'application passe du chargement a la carte.
+  libererReferentiel();
+  await expect(page.getByRole('group', { name: 'Vue' })).toBeVisible({ timeout: 30_000 });
+
+  const apparitions = await page.evaluate(
+    () => (window as unknown as { __apparitionsAccueil?: number }).__apparitionsAccueil ?? -1,
+  );
+  expect(
+    apparitions,
+    "l'ecran d'ouverture a ete remonte au passage du chargement a l'application : ses minuteurs " +
+      'repartent de zero, l’animation recommence, et une touche pressee avant la transition est ' +
+      'perdue. Alignez la structure des deux branches de App.tsx.',
+  ).toBe(0);
+});

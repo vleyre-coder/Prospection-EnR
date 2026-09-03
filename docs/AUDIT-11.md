@@ -113,6 +113,39 @@ ignorés. Un garde (`test/e2e-adresse-ecoute.test.ts`) relit la configuration et
 propriétés ; il ne lance aucun navigateur, ce qui lui permet de tourner dans la suite unitaire —
 c'est-à-dire là où ce défaut aurait été vu huit livraisons plus tôt.
 
+#### Et ce que ce job cachait : un test de bout en bout décoratif
+
+La correction a rendu le job utilisable, et il a immédiatement livré autre chose. La suite
+Playwright passe en CI — 18 réussis, 2 ignorés, 40,2 s, sur `http://127.0.0.1:4180/` — puis
+l'étape suivante tombe :
+
+```
+OK    (bout en bout) les tuiles de calque repartent sans jeton, et leur 401 deconnecte l'utilisateur
+ECHEC (bout en bout) : « l'ecran d'ouverture change de parent et son minuteur repart,
+                        perdant la touche pressee » ne fait echouer AUCUN test.
+1/2 mutations attrapees.
+```
+
+`App.tsx` rend `Demarrage` à deux endroits — branche de chargement et branche principale. React
+réconcilie par position : si les deux structures ne s'alignent pas, l'élément change de parent au
+passage de l'une à l'autre, donc React le **démonte puis le remonte**. Ses minuteurs repartent de
+zéro, l'animation recommence au moment même où l'application devient prête, et une touche pressée
+avant la transition est perdue. Le défaut est raconté sur vingt lignes de commentaire dans
+`App.tsx`, la correction est en place — **et aucun test ne la gardait.** Personne ne pouvait le
+savoir : le job mourait avant d'arriver là.
+
+Pourquoi les quatre tests existants ne pouvaient pas le voir : ils observent l'écran *après* la
+transition, ou pressent une touche sans se soucier du moment. Or `Demarrage` abrège en appelant
+`onTermine` tout de suite — une fois la touche prise en compte, l'écran ne revient jamais,
+remontage ou pas. Le symptôme n'existe que **pendant** le chargement.
+
+**Corrigé** par un cinquième test qui retient la réponse de `/api/referentiel` — donc qui se place
+à coup sûr dans la phase de chargement — pose un observateur de mutations DOM juste avant la
+transition, et exige **zéro apparition** d'un nouvel écran d'accueil. Pas de budget de temps, donc
+pas d'intermittence : on affirme la propriété que le correctif établit, et non un symptôme
+chronométré. Mesure : 6/6 sur le code correct, et la mutation est désormais attrapée — famille
+`bout en bout` à **2/2**.
+
 ---
 
 ## 2. Défauts trouvés hors CI, tous mesurés
@@ -257,7 +290,7 @@ reprendre.
 
 | # | Sujet | État |
 |---|---|---|
-| 1 | **Job e2e de la CI** | Cause trouvée et corrigée (§1) : reste à confirmer au prochain passage de CI, la correction n'ayant été mesurée qu'ici. |
+| 1 | **Job e2e de la CI** | Deux causes trouvées et corrigées (§1) : l'adresse d'écoute, confirmée verte en CI pour la suite Playwright, puis le test décoratif qu'elle cachait. Reste à confirmer le job entier au prochain passage. |
 | 2 | **Des tests appellent les vraies API publiques** | `acces-roles.test.ts` et `routes-validation.test.ts` déclenchent `POST /api/qualification/emprise`, soit une qualification RÉELLE — mesuré : 1 082 parcelles trouvées, 300 retenues. Conséquence : `DATABASE_URL=… npm test` a dépassé 9 min 50 s et j'ai dû l'interrompre. Un test ne devrait pas dépendre de la disponibilité d'un service public ni consommer son quota. **Non corrigé.** |
 | 3 | **`enr_test`, ma base locale** | Polluée par des mois d'exécutions : c'est elle qui faisait tout paraître vert. Toute vérification future doit partir d'une base fraîchement migrée. |
 | 4 | **Le double-clic sous Windows** | Toujours invérifiable depuis Linux. Deux lanceurs sont livrés pour que l'un rattrape l'autre. |
@@ -280,8 +313,9 @@ Sur une base **fraîchement migrée** (`enr_neuf`, 15 migrations, 26 tables mét
 | `npm test` core | 57 / 57 |
 | `npm test` scoring | 67 / 67 |
 | `npm test` web | 125 / 125 |
-| Playwright bout en bout (local) | 18 réussis, 2 ignorés, 47,7 s |
+| Playwright bout en bout | 18 réussis / 2 ignorés en local ; **18 réussis / 2 ignorés en CI**, 40,2 s |
 | Campagne de mutation (hors navigateur) | **101 mutations, 101 attrapées, 0 test décoratif** |
+| Campagne de mutation (avec navigateur) | **2 / 2 attrapées** — 1/2 avant cet audit |
 
 ## 5. Vérification par mutation
 
