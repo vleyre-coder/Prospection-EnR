@@ -658,8 +658,8 @@ const MUTATIONS = [
     quoi: 'une servitude aeronautique se refonde sur l’arrete « radars », qui ne la regit pas',
     fichier: 'packages/scoring/src/knockouts.ts',
     construire: '@enr/scoring',
-    de: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est a vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n    );",
-    vers: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est a vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n      'eol_radar',\n    );",
+    de: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est à vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n    );",
+    vers: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est à vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n      'eol_radar',\n    );",
     tests: ['packages/scoring/test/fondement-knockouts.test.ts'],
   },
   {
@@ -1215,26 +1215,38 @@ if (ecartees > 0) {
  * au code avant le `git push`. La CI, elle, les joue.
  *
  * Or verifier qu'un motif existe encore ne demande AUCUN navigateur : c'est une recherche de
- * chaine dans un fichier. Seule l'execution du test en a besoin. Le controle est donc fait ici,
- * pour toutes les mutations ecartees, et il echoue comme les autres.
+ * chaine dans un fichier. Seule l'execution du test en a besoin.
  *
- * Ce que cela coute : une lecture de fichier par mutation. Ce que cela evite : une livraison
- * rouge dont la cause n'a rien a voir avec le code livre.
+ * ET LE CONTROLE PORTE SUR TOUTES LES MUTATIONS, pas seulement sur les ecartees — parce que la
+ * premiere version de ce garde, restreinte aux ecartees, a laisse passer le cas suivant le jour
+ * meme : une passe de correction du texte a invalide le motif d'une mutation ORDINAIRE, et la
+ * campagne l'a signale au bout de vingt minutes, une fois arrivee a elle. Le motif de chaque
+ * mutation est verifie avant d'en jouer une seule : une lecture de fichier par mutation, contre
+ * vingt minutes pour apprendre qu'il fallait corriger une ligne.
  */
 const ECARTEES = candidates === MUTATIONS ? [] : MUTATIONS.filter((m) => m.e2e);
 let motifsPerdus = 0;
-for (const m of ECARTEES) {
+for (const m of MUTATIONS) {
   if (readFileSync(m.fichier, 'utf8').includes(m.de)) continue;
-  console.error(`ECHEC (${m.audit}) : motif introuvable dans ${m.fichier}, pour une mutation ECARTEE.`);
+  const jouee = A_JOUER.includes(m);
+  console.error(`ECHEC (${m.audit}) : motif introuvable dans ${m.fichier}.`);
   console.error(`  « ${m.quoi} »`);
-  console.error('  Son test exige un navigateur, mais son motif se verifie sans : il a change.');
+  console.error(
+    jouee
+      ? '  Le code a change : mettez la mutation a jour, ou retirez-la si l\'invariant a disparu.'
+      : "  Cette mutation n'est meme pas jouee ici (navigateur requis ou filtre), mais son motif " +
+        'se verifie sans : il a change, et la CI la jouera.',
+  );
   console.error(`  Motif attendu :\n${m.de}\n`);
   motifsPerdus += 1;
 }
-if (motifsPerdus > 0) {
+if (motifsPerdus === 0) {
+  // Un controle silencieux est un controle dont on ne sait pas s'il a tourne.
+  console.log(`Les ${MUTATIONS.length} motifs de mutation s'appliquent tous au code actuel.\n`);
+} else {
   console.error(
-    `${motifsPerdus} mutation(s) ecartee(s) ne s'appliquent plus au code. Corrigez-les avant de ` +
-      'livrer : la CI les joue, elle.',
+    `${motifsPerdus} mutation(s) ne s'appliquent plus au code. Corrigez-les avant de livrer : ` +
+      'la CI les joue, elle.',
   );
   // ARRET IMMEDIAT, et non a la fin. La campagne dure vingt minutes ; ces motifs doivent etre
   // corriges puis la campagne relancee de toute facon, donc jouer les cent autres mutations
