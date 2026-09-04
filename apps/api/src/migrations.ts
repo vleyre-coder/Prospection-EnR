@@ -83,8 +83,8 @@ async function appliquerMigrationsSansVerrou(
 
   if (options.adopterSansExecuter && !(await schemaDejaInstalle())) {
     throw new Error(
-      "Adoption refusee : la table « parcelle » est absente, donc le schema n'est pas installe. " +
-        'Marquer les migrations comme appliquees laisserait une base vide reputee a jour. ' +
+      "Adoption refusée : la table « parcelle » est absente, donc le schéma n'est pas installe. " +
+        'Marquer les migrations comme appliquées laisserait une base vide réputée à jour. ' +
         'Appliquez les migrations normalement.',
     );
   }
@@ -113,7 +113,7 @@ async function appliquerMigrationsSansVerrou(
       throw new Error(
         `La migration ${fichier} a deja ete appliquee mais son contenu a change ` +
           `(empreinte ${existante} attendue, ${empreinte} trouvee). ` +
-          `Creez une nouvelle migration plutot que de modifier celle-ci.`,
+          `Creez une nouvelle migration plutôt que de modifier celle-ci.`,
       );
     }
 
@@ -127,7 +127,7 @@ async function appliquerMigrationsSansVerrou(
       ]);
       await client.query('COMMIT');
       if (options.adopterSansExecuter) {
-        journal.warn({ fichier }, 'Migration enregistree sans etre executee (adoption)');
+        journal.warn({ fichier }, 'Migration enregistrée sans être exécutée (adoption)');
         adoptees += 1;
       } else {
         journal.info({ fichier }, 'Migration appliquee');
@@ -135,7 +135,7 @@ async function appliquerMigrationsSansVerrou(
       }
     } catch (err) {
       await client.query('ROLLBACK').catch(() => undefined);
-      journal.error({ err, fichier }, 'Echec de migration');
+      journal.error({ err, fichier }, 'Échec de migration');
       throw err;
     } finally {
       client.release();

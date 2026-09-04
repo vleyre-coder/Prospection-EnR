@@ -90,7 +90,7 @@ function proceduresTransversales(s: ParcelleSnapshot): Array<SeuilProcedure | nu
     seuilCommun(
       'natura2000_incidences',
       natura,
-      natura === true ? 'Site Natura 2000 recouvrant ou proche : evaluation des incidences a produire.' : null,
+      natura === true ? 'Site Natura 2000 recouvrant ou proche : évaluation des incidences à produire.' : null,
     ),
     seuilCommun('archeologie_preventive', null),
   ];
@@ -160,7 +160,7 @@ export function construireSeuilsProcedure(
           'agri_zone_temoin',
           true,
           surfaceHa != null && surfaceHa <= 1
-            ? "Installation de moins de 1 ha : une dispense de zone temoin est envisageable."
+            ? "Installation de moins de 1 ha : une dispense de zone témoin est envisageable."
             : null,
         ),
         seuil(filiere, 'agri_avis_cdpenaf', true),
@@ -199,7 +199,7 @@ export function construireSeuilsProcedure(
         'faisceaux_hertziens',
         s.risques.faisceauxHertziens,
         s.risques.faisceauxHertziens === true
-          ? "La parcelle est grevee d'une servitude de protection radioelectrique : l'implantation devra degager le faisceau, ce qui contraint fortement le plan de masse."
+          ? "La parcelle est grevee d'une servitude de protection radioélectrique : l'implantation devra dégager le faisceau, ce qui contraint fortement le plan de masse."
           : null,
       ),
       // Systematique des lors que la rubrique 2980 est franchie, c'est-a-dire pour tout parc.
@@ -215,7 +215,7 @@ export function construireSeuilsProcedure(
         'icpe_2925_2',
         p == null ? true : p * 1000 > 600,
         p == null
-          ? "Tout projet de taille industrielle depasse le seuil de 600 kW : regime de declaration a minima."
+          ? "Tout projet de taille industrielle depasse le seuil de 600 kW : régime de déclaration a minima."
           : `Puissance envisagee ${p} MW : ${p * 1000 > 600 ? 'declaration ICPE 2925-2 requise' : 'sous le seuil de declaration'}.`,
       ),
       seuil(filiere, 'securite_incendie', true),
@@ -233,8 +233,8 @@ export function construireSeuilsProcedure(
         'acces_engins',
         s.acces.accesPoidsLourds == null ? null : true,
         s.acces.accesPoidsLourds === false
-          ? 'Aucun acces poids lourds identifie : la livraison des conteneurs et la voie engins du SDIS ' +
-            'sont a traiter avant tout engagement.'
+          ? 'Aucun accès poids lourds identifie : la livraison des conteneurs et la voie engins du SDIS ' +
+            'sont à traiter avant tout engagement.'
           : null,
       ),
       // Les effets domino ne s'examinent que s'il y a un voisinage industriel. `icpeProches` compte les
@@ -292,7 +292,7 @@ export function construireSeuilsProcedure(
         'acces_engins',
         s.acces.accesPoidsLourds == null ? null : true,
         s.acces.accesPoidsLourds === false
-          ? "Aucun acces poids lourds identifie : sur cette filiere le trafic est QUOTIDIEN, et l'acces conditionne autant l'autorisation que l'acceptabilite locale."
+          ? "Aucun accès poids lourds identifie : sur cette filière le trafic est QUOTIDIEN, et l'accès conditionne autant l'autorisation que l'acceptabilité locale."
           : null,
       ),
     );

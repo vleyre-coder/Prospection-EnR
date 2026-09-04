@@ -885,7 +885,7 @@ describe('reproductibilite et transparence', () => {
     );
     const c = r.criteres.find((x) => x.id === 'urb_zonage')!;
     assert.match(c.valeurAffichee, /dominant indetermine/);
-    assert.match(c.commentaire ?? '', /ordre de reponse du service/);
+    assert.match(c.commentaire ?? '', /ordre de réponse du service/);
   });
 
   it('un zonage dominant etabli sur les surfaces n’est pas signale', () => {

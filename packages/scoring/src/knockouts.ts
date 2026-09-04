@@ -62,7 +62,7 @@ const koProtectionForte: RegleKo = (s) => {
       'reserve naturelle',
       'commun_reserve_naturelle',
     ],
-    ['ko_appb', s.milieux.appb.recouvre, 'arrete prefectoral de protection de biotope', 'commun_appb'],
+    ['ko_appb', s.milieux.appb.recouvre, 'arrêté préfectoral de protection de biotope', 'commun_appb'],
   ];
   for (const [id, recouvre, libelle, regle] of candidats) {
     if (recouvre === true) {
@@ -83,7 +83,7 @@ const koZoneHumide: RegleKo = (s) => {
     return ko(
       'ko_zone_humide',
       'Zone humide cartographiee',
-      "La parcelle est identifiee comme zone humide dans les inventaires. La sequence eviter-reduire-compenser impose l'evitement en priorite ; une compensation de 100 a 200 % de la surface est rarement mobilisable. A confirmer par sondages pedologiques : une infirmation de terrain leve ce critere.",
+      "La parcelle est identifiée comme zone humide dans les inventaires. La séquence éviter-réduire-compenser impose l'évitement en priorité ; une compensation de 100 a 200 % de la surface est rarement mobilisable. À confirmer par sondages pédologiques : une infirmation de terrain leve ce critère.",
       'environnement',
       'commun_zone_humide',
     );
@@ -129,14 +129,14 @@ const koPlanRisqueRouge: RegleKo = (s) => {
       id: 'ko_pprif_rouge',
       plan: s.risques.pprif,
       libelle: 'PPRIF zone rouge',
-      quoi: "plan de prevention du risque d'incendie de foret",
+      quoi: "plan de prévention du risque d'incendie de foret",
       regle: 'commun_ppr_zone_rouge',
     },
     {
       id: 'ko_pprt_rouge',
       plan: s.risques.pprt,
       libelle: 'PPRT zone d’interdiction',
-      quoi: 'plan de prevention des risques technologiques',
+      quoi: 'plan de prévention des risques technologiques',
       regle: 'commun_pprt_zone_rouge',
     },
   ];
@@ -164,7 +164,7 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
     return ko(
       'ko_ebc',
       'Espace boise classe',
-      "La parcelle est grevee d'un espace boise classe : tout defrichement et tout changement d'affectation du sol compromettant la conservation des boisements est interdit. Le declassement suppose une revision du PLU.",
+      "La parcelle est grevee d'un espace boise classe : tout défrichement et tout changement d'affectation du sol compromettant la conservation des boisements est interdit. Le déclassement suppose une révision du PLU.",
       'urbanisme',
       'commun_ebc',
     );
@@ -193,9 +193,9 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
       const part = dominant.partRecouvrement;
       const etendue =
         part == null
-          ? "La part de la parcelle couverte par cette zone n'a pas pu etre estimee : verifiez le plan de zonage, la parcelle peut etre a cheval sur plusieurs zones."
+          ? "La part de la parcelle couverte par cette zone n'a pas pu être estimée : verifiez le plan de zonage, la parcelle peut être a cheval sur plusieurs zones."
           : part >= 0.95
-            ? 'La zone couvre la totalite de la parcelle.'
+            ? 'La zone couvre la totalité de la parcelle.'
             : `La zone couvre environ ${Math.round(part * 100)} % de la parcelle${
                 zonages.length > 1
                   ? `, le reste relevant de ${zonages
@@ -228,7 +228,7 @@ const koPosteSature: RegleKo = (s) => {
     'Poste source sature',
     renfort
       ? `Le poste source ${p.nom} est sature, mais un renforcement est inscrit au S3REnR${p.renforcement.horizon ? ` a l'horizon ${p.renforcement.horizon}` : ''}${p.renforcement.capaciteAttendueMw != null ? ` (+${formatNombre(p.renforcement.capaciteAttendueMw, 'MW')})` : ''}. La parcelle reste interessante si le calendrier du projet s'aligne sur celui du renforcement.`
-      : `Le poste source ${p.nom} est sature et aucun renforcement n'est programme au S3REnR. Sans perspective de capacite a l'horizon du projet, le raccordement est bloquant. Un poste alternatif plus eloigne peut etre etudie.`,
+      : `Le poste source ${p.nom} est sature et aucun renforcement n'est programme au S3REnR. Sans perspective de capacité à l'horizon du projet, le raccordement est bloquant. Un poste alternatif plus eloigne peut etre etudie.`,
     'raccordement',
     null,
     renfort,
@@ -281,12 +281,12 @@ const koAopViticole: RegleKo = (s) => {
  * LE RECUL DE 500 M : deux grandeurs INDEPENDANTES, et elles ne l'etaient pas.
  *
  * DEFAUT TROUVE en declenchant chaque knock-out un par un. La fonction commencait par
- * `if (d == null) return null` sur la distance au BATIMENT le plus proche, et sortait donc avant
- * d'examiner la distance a la ZONE D'HABITAT. Or l'article L.515-44 vise les habitations ET les zones
- * destinees a l'habitation : ce sont deux contraintes distinctes, et la seconde s'applique meme quand
- * aucun batiment n'a ete mesure.
+ * `if (d == null) return null` sur la distance au BÂTIMENT le plus proche, et sortait donc avant
+ * d'examiner la distance à la ZONE D'HABITAT. Or l'article L.515-44 vise les habitations ET les zones
+ * destinées à l'habitation : ce sont deux contraintes distinctes, et la seconde s'applique même quand
+ * aucun bâtiment n'a été mesure.
  *
- * Le cas n'est pas theorique : une parcelle en lisiere d'une zone U encore non batie a
+ * Le cas n'est pas théorique : une parcelle en lisière d'une zone U encore non batie a
  * `distanceHabitationM` a null — aucun batiment dans le rayon de recherche de la BD TOPO — et une zone
  * d'habitat a moins de 500 m. Le knock-out le plus structurant de la filiere eolienne ne se declenchait
  * pas, et rien ne le signalait.
@@ -314,7 +314,7 @@ const koDistanceHabitation500: RegleKo = (s, ctx) => {
     return ko(
       'ko_eol_zone_habitat_500',
       "Zone destinee a l'habitation a moins de 500 m",
-      `Une zone du document d'urbanisme destinee a l'habitation est a ${formatDistance(dz)}. Le seuil de 500 m s'applique aussi aux zones destinees a l'habitation, et non seulement au bati existant.`,
+      `Une zone du document d'urbanisme destinee a l'habitation est a ${formatDistance(dz)}. Le seuil de 500 m s'applique aussi aux zones destinées à l'habitation, et non seulement au bati existant.`,
       'distances_reglementaires',
       'eol_distance_habitation',
     );
@@ -434,7 +434,7 @@ const koMethaHabitation200: RegleKo = (s, ctx) => {
  * CAPTAGE AEP : le knock-out etait INATTEIGNABLE EN PRODUCTION.
  *
  * DEFAUT TROUVE en declenchant chaque knock-out un par un. La condition exigeait
- * `type === 'immediat' || type === 'rapproche'`. Or le connecteur des servitudes ecrit `type: null`, et
+ * `type === 'immediat' || type === 'rapproche'`. Or le connecteur des servitudes écrit `type: null`, et
  * il a raison de le faire : le GPU expose l'assiette de la servitude sans distinguer les perimetres
  * immediat, rapproche et eloigne — la sous-categorie se lit sur l'arrete de declaration d'utilite
  * publique, et le code refuse de l'inventer.
@@ -496,12 +496,12 @@ const koMethaCoursEau: RegleKo = (s) => {
 /**
  * ACCES POIDS LOURDS EN METHANISATION : le trafic est QUOTIDIEN, et c'est ce qui change tout.
  *
- * Le meme fait mesure — `acces.accesPoidsLourds` a `false` — n'a pas le meme poids selon la filiere.
- * Pour un stockage, les conteneurs arrivent une fois ; pour une unite de methanisation, ce sont
- * plusieurs allers-retours de poids lourds CHAQUE JOUR pendant vingt ans. L'acces conditionne donc
- * l'autorisation ET l'acceptabilite locale, premier motif d'opposition des riverains sur cette filiere.
+ * Le meme fait mesure — `acces.accesPoidsLourds` a `false` — n'a pas le même poids selon la filière.
+ * Pour un stockage, les conteneurs arrivent une fois ; pour une unité de méthanisation, ce sont
+ * plusieurs allers-retours de poids lourds CHAQUE JOUR pendant vingt ans. L'accès conditionne donc
+ * l'autorisation ET l'acceptabilité locale, premier motif d'opposition des riverains sur cette filière.
  *
- * Le critere `acc_poids_lourds` pese deja 9 points au profil de la methanisation — le plus fort des
+ * Le critère `acc_poids_lourds` pese deja 9 points au profil de la methanisation — le plus fort des
  * quatre filieres. Mais neuf points sur cent ne disent pas « inexploitable » : le knock-out le dit,
  * en restant derogeable puisqu'un acces se cree.
  */
@@ -526,14 +526,14 @@ const koMethaAccesEngins: RegleKo = (s) => {
 /**
  * LE PREMIER MOTIF ELIMINATOIRE PROPRE AU STOCKAGE.
  *
- * Mesure : `REGLES_KO` donnait `bess: [...COMMUNS]`. La filiere n'avait AUCUN motif qui lui soit propre,
- * et ses trois regles reglementaires ne pouvaient donc jamais ecarter une parcelle — elles n'existaient
- * qu'en rappel de procedure. Une batterie ne se distinguait d'une centrale solaire, du point de vue des
- * criteres eliminatoires, par rien.
+ * Mesure : `REGLES_KO` donnait `bess: [...COMMUNS]`. La filière n'avait AUCUN motif qui lui soit propre,
+ * et ses trois règles réglementaires ne pouvaient donc jamais écarter une parcelle — elles n'existaient
+ * qu'en rappel de procédure. Une batterie ne se distinguait d'une centrale solaire, du point de vue des
+ * critères éliminatoires, par rien.
  *
- * L'acces des engins est le bon premier candidat, pour deux raisons. Il est PROPRE a la filiere : les
+ * L'accès des engins est le bon premier candidat, pour deux raisons. Il est PROPRE à la filière : les
  * conteneurs arrivent par semi-remorque et pesent des dizaines de tonnes, la ou des modules
- * photovoltaiques se manutentionnent autrement. Et il est MESURE : `acces.accesPoidsLourds` vient du
+ * photovoltaïques se manutentionnent autrement. Et il est MESURE : `acces.accesPoidsLourds` vient du
  * reseau routier de la BD TOPO, il n'est pas suppose.
  *
  * DEROGEABLE, et c'est la nuance qui compte : un acces se cree — elargissement, convention de passage,
@@ -567,13 +567,13 @@ const COMMUNS: RegleKo[] = [
  * Identifiants de toutes les regles redhibitoires.
  *
  * POURQUOI CETTE LISTE EXISTE. `OptionsScoring.knockOutsDesactives` permet d'explorer un scenario
- * derogatoire en neutralisant une regle. Les routes acceptaient n'importe quelle chaine : un
- * identifiant mal orthographie — `ko_ppri_rouges` — etait accepte sans bruit, et l'utilisateur croyait
- * explorer un scenario qui n'etait pas applique. La liste ferme l'ensemble.
+ * dérogatoire en neutralisant une règle. Les routes acceptaient n'importe quelle chaine : un
+ * identifiant mal orthographie — `ko_ppri_rouges` — était accepte sans bruit, et l'utilisateur croyait
+ * explorer un scenario qui n'était pas applique. La liste ferme l'ensemble.
  *
- * Elle est verifiee par un test qui relit les appels `ko(...)` de ce fichier : une regle ajoutee sans
+ * Elle est vérifiée par un test qui relit les appels `ko(...)` de ce fichier : une regle ajoutee sans
  * etre inscrite ici, ou inscrite sans exister, fait echouer la construction. Une liste maintenue a la
- * main se perime — c'est ce qui est arrive au controle de contrat de l'audit 7.
+ * main se perime — c'est ce qui est arrive au contrôle de contrat de l'audit 7.
  */
 export const IDS_KNOCK_OUTS = [
   'ko_aop_viticole',

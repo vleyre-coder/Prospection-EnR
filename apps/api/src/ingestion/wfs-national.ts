@@ -152,7 +152,7 @@ async function* objetsWfs(typeName: string, etat?: EtatPagination): AsyncGenerat
         if (attente == null) break;
         journal.warn(
           { typeName, page, tentative: tentative + 1, attenteMs: attente },
-          'Page WFS en echec : nouvelle tentative apres attente',
+          'Page WFS en échec : nouvelle tentative après attente',
         );
         await new Promise((r) => setTimeout(r, attente));
       }
@@ -177,7 +177,7 @@ async function* objetsWfs(typeName: string, etat?: EtatPagination): AsyncGenerat
   // qu'on prendrait pour complet.
   journal.warn(
     { typeName, pagesMax: PAGES_MAX },
-    'Pagination WFS interrompue par la borne de securite : le jeu ingere est peut-etre incomplet',
+    'Pagination WFS interrompue par la borne de sécurité : le jeu ingere est peut-être incomplet',
   );
 }
 
@@ -400,7 +400,7 @@ export async function ingererZaer(): Promise<{
     }
     await viderLot();
   } catch (err) {
-    journal.error({ err }, "Echec de l'ingestion des ZAER");
+    journal.error({ err }, "Échec de l'ingestion des ZAER");
     await enregistrerIngestion('zaer_local', 'echec', (err as Error).message, nbObjets);
     return { connecteur: 'zaer_local', nbObjets, nbSansGeometrie, nbSansFiliere, millesime: null };
   }
@@ -428,8 +428,8 @@ export async function ingererZaer(): Promise<{
   if (Object.keys(nonReconnus).length > 0) {
     journal.warn(
       { nonReconnus },
-      'Vocabulaires de filiere ZAER non reconnus : ces zones ont ete ignorees plutot que rangees par ' +
-        'defaut. Completer filieresZaer() si l’une de ces filieres entre dans le perimetre.',
+      'Vocabulaires de filière ZAER non reconnus : ces zones ont été ignorées plutôt que rangées par ' +
+        'défaut. Compléter filieresZaer() si l’une de ces filières entre dans le périmètre.',
     );
   }
 
@@ -652,11 +652,11 @@ export async function ingererSitesProteges(): Promise<{
         nbObjets += 1;
         if (lot.length >= 500) await viderLot();
       }
-      journal.info({ couche, nbObjets }, 'Couche de sites ingeree');
+      journal.info({ couche, nbObjets }, 'Couche de sites ingérée');
     }
     await viderLot();
   } catch (err) {
-    journal.error({ err }, "Echec de l'ingestion des sites proteges");
+    journal.error({ err }, "Échec de l'ingestion des sites protégés");
     await enregistrerIngestion('patrimoine_sites', 'echec', (err as Error).message, nbObjets);
     return { connecteur: 'patrimoine_sites', nbObjets, nbSansGeometrie, nbNonReconnus, millesime: null };
   }
@@ -677,8 +677,8 @@ export async function ingererSitesProteges(): Promise<{
   if ((communes[0]?.n ?? 0) === 0) {
     journal.warn(
       { nbObjets },
-      'Sites ingeres mais table `commune` vide : impossible de les rattacher a un departement, donc ' +
-        'aucune couverture enregistree et critere patrimonial toujours gris. Lancer ' +
+      'Sites ingérés mais table `commune` vide : impossible de les rattacher à un département, donc ' +
+        'aucune couverture enregistrée et critère patrimonial toujours gris. Lancer ' +
         '`npm run ingest -- communes` puis relancer cette ingestion.',
     );
   } else {
@@ -695,7 +695,7 @@ export async function ingererSitesProteges(): Promise<{
     );
     journal.info(
       { rattaches: rattaches[0]?.n ?? 0, total: nbObjets },
-      'Sites rattaches a leur departement par jointure spatiale',
+      'Sites rattaches à leur département par jointure spatiale',
     );
   }
 

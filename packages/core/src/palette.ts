@@ -50,16 +50,16 @@ export const LIBELLES_SCORE: Record<Feu, string> = {
 export const LIBELLE_REDHIBITOIRE = 'Redhibitoire';
 
 export const DESCRIPTIONS_SCORE: Record<Feu, string> = {
-  vert: "Aucun critere redhibitoire et score global au-dessus du seuil : parcelle a demarcher en priorite.",
+  vert: "Aucun critère rédhibitoire et score global au-dessus du seuil : parcelle à démarcher en priorité.",
   orange:
-    "Aucun critere redhibitoire, mais des points de vigilance abaissent le score : a etudier avant demarchage.",
+    "Aucun critère rédhibitoire, mais des points de vigilance abaissent le score : à étudier avant démarchage.",
   rouge:
-    "Aucun critere redhibitoire, mais un score tres bas : parcelle peu interessante en l'etat, sans obstacle de droit. Elle peut remonter si le contexte evolue (renforcement de poste, changement de ponderation).",
-  gris: "Couverture de donnees insuffisante pour conclure. L'absence de donnee ne vaut pas absence de contrainte.",
+    "Aucun critère rédhibitoire, mais un score très bas : parcelle peu intéressante en l'état, sans obstacle de droit. Elle peut remonter si le contexte evolue (renforcement de poste, changement de pondération).",
+  gris: "Couverture de données insuffisante pour conclure. L'absence de donnée ne vaut pas absence de contrainte.",
 };
 
 export const DESCRIPTION_REDHIBITOIRE =
-  "Au moins un critere eliminatoire est declenche (recul reglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est ecartee en l'etat du droit, et non simplement mal classee.";
+  "Au moins un critère éliminatoire est declenche (recul réglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est écartée en l'état du droit, et non simplement mal classée.";
 
 export const COULEURS_SATURATION: Record<string, string> = {
   disponible: '#15803d',

@@ -93,8 +93,8 @@ async function main(): Promise<void> {
   process.stdout.write(
     `\nOrdre de grandeur : une commune (~1 500 parcelles > 1 ha) demanderait ` +
       `~${(1500 / parHeure).toFixed(1)} h.\n` +
-      `L'ecart entre la mediane et le p90 mesure le surcout du tissu dense, ou le connecteur WFS\n` +
-      `doit resserrer son emprise pour obtenir une reponse complete.\n`,
+      `L'écart entre la médiane et le p90 mesure le surcout du tissu dense, ou le connecteur WFS\n` +
+      `doit resserrer son emprise pour obtenir une réponse complete.\n`,
   );
   await pool.end();
 }

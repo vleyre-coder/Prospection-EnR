@@ -468,7 +468,7 @@ export function ficheParcellePdf(
        */
       const fondement = regle
         ? `Fondement : ${regle.reference} (en vigueur depuis le ${dateFr(regle.dateEntreeEnVigueur)})` +
-          (regle.aValiderParJuriste ? ' - reference a faire valider par un juriste' : '')
+          (regle.aValiderParJuriste ? ' - référence à faire valider par un juriste' : '')
         : k.regleLiee
           ? `Fondement : ${k.regleLiee}`
           : null;
@@ -481,7 +481,7 @@ export function ficheParcellePdf(
 
   // ============================================================ limites
   if (score.limitesViabilite.length > 0) {
-    titreSection(doc, 'Limites de viabilite economique');
+    titreSection(doc, 'Limites de viabilité économique');
     tableau(
       doc,
       [
@@ -498,7 +498,7 @@ export function ficheParcellePdf(
   // =========================================================== synthese
   titreSection(doc, 'Synthese');
   if (score.pointsForts.length === 0 && score.pointsVigilance.length === 0) {
-    doc.fontSize(8.6).fillColor(ENCRE_FAIBLE).text('Aucun point saillant : tous les criteres evalues sont dans la moyenne.', MARGE, doc.y, { width: total });
+    doc.fontSize(8.6).fillColor(ENCRE_FAIBLE).text('Aucun point saillant : tous les critères évalués sont dans la moyenne.', MARGE, doc.y, { width: total });
     doc.fillColor(ENCRE);
   } else {
     const lignes: Array<{ cellules: string[]; pastille?: Feu }> = [
@@ -520,7 +520,7 @@ export function ficheParcellePdf(
   }
 
   // ================================================= carte d'identite
-  titreSection(doc, 'Carte d\'identite de la parcelle');
+  titreSection(doc, 'Carte d\'identité de la parcelle');
   const urba = snapshot.urbanisme;
   const zonagePrincipal = [...urba.zonages].sort((a, b) => (b.partRecouvrement ?? 0) - (a.partRecouvrement ?? 0))[0];
   grilleCles(doc, [
@@ -623,8 +623,8 @@ export function ficheParcellePdf(
         .text(
           net(
             `Trace estime = vol d'oiseau majore de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
-              '(contournement du parcellaire et de la voirie). C\'est cette valeur qui est notee ' +
-              'dans la synthese ; elle ne remplace pas une etude de trace.',
+              '(contournement du parcellaire et de la voirie). C\'est cette valeur qui est notée ' +
+              'dans la synthèse ; elle ne remplace pas une étude de trace.',
           ),
           MARGE,
           doc.y + 2,
@@ -664,13 +664,13 @@ export function ficheParcellePdf(
 
   // ================================================= seuils de procedure
   if (score.seuilsProcedure.length > 0) {
-    titreSection(doc, 'Seuils de procedure applicables');
+    titreSection(doc, 'Seuils de procédure applicables');
     tableau(
       doc,
       [
         { titre: 'Procedure', part: 0.46 },
         { titre: 'Applicable', part: 0.14 },
-        { titre: 'Fondement et date d\'entree en vigueur', part: 0.4 },
+        { titre: 'Fondement et date d\'entrée en vigueur', part: 0.4 },
       ],
       score.seuilsProcedure.map((s) => ({
         cellules: [
@@ -681,7 +681,7 @@ export function ficheParcellePdf(
           // un proprietaire ou a un financeur (audit 10, defaut B2).
           `${s.reference} - depuis le ${dateFr(s.dateEntreeEnVigueur)}` +
             (REGLES_PAR_ID[s.regleId]?.aValiderParJuriste
-              ? ' - reference a faire valider par un juriste'
+              ? ' - référence à faire valider par un juriste'
               : ''),
         ],
         pastille: s.applicable === true ? 'orange' : s.applicable === false ? 'vert' : 'gris',
@@ -692,11 +692,11 @@ export function ficheParcellePdf(
   // ============================================ detail des criteres
   // Le detail est long : on reserve de quoi loger le titre, sa note de lecture, l'en-tete
   // du tableau et ses premieres rangees, sinon la section s'ouvre en fin de page pour rien.
-  titreSection(doc, 'Detail des criteres evalues', 140);
+  titreSection(doc, 'Détail des critères évalués', 140);
   doc.fontSize(8).fillColor(ENCRE_FAIBLE).text(
     net(
-      'La pastille porte le feu du critere. Une pastille grise signale une donnee indisponible : ' +
-        'le critere n\'est alors pas note et ne participe pas au score, ce qui abaisse la couverture des donnees.',
+      'La pastille porte le feu du critère. Une pastille grise signale une donnée indisponible : ' +
+        'le critère n\'est alors pas note et ne participe pas au score, ce qui abaisse la couverture des données.',
     ),
     MARGE,
     doc.y,
@@ -743,7 +743,7 @@ export function ficheParcellePdf(
   // ============================================== commentaires des criteres
   const commentes = score.criteres.filter((c) => c.commentaire);
   if (commentes.length > 0) {
-    titreSection(doc, 'Precisions par critere', 90);
+    titreSection(doc, 'Précisions par critère', 90);
     tableau(
       doc,
       [
@@ -755,7 +755,7 @@ export function ficheParcellePdf(
   }
 
   // ===================================================== sources
-  titreSection(doc, 'Sources et fraicheur des donnees');
+  titreSection(doc, 'Sources et fraicheur des données');
   const sources = Object.values(snapshot.sources);
   tableau(
     doc,
@@ -782,7 +782,7 @@ export function ficheParcellePdf(
   if (connecteursEnEchec.length > 0) {
     encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
       `${connecteursEnEchec.join(', ')}. Les criteres qui en dependent sont restes non evalues. ` +
-        'Relancer la qualification de la parcelle permettra de les completer.',
+        'Relancer la qualification de la parcelle permettra de les compléter.',
     ]);
   }
 
@@ -802,7 +802,7 @@ export function ficheParcellePdf(
     net(
       `Referentiel reglementaire verifie le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
         'Le contour cadastral est issu du Plan Cadastral Informatise : il est indicatif et sans valeur juridique. ' +
-        'Seul un document d\'arpentage etabli par un geometre-expert fait foi.',
+        'Seul un document d\'arpentage établi par un géomètre-expert fait foi.',
     ),
     MARGE,
     doc.y,
@@ -937,7 +937,7 @@ export function csvResultats(lignes: LigneResultatFiltre[]): string {
       l.nbKnockOutsBloquants > 0 ? 'oui' : 'non',
       nombre(l.scoreGlobal),
       // `null` signifie « aucun suivi ouvert », ce qui n'est pas un statut : la case reste vide,
-      // plutot que de fabriquer un libelle pour une absence.
+      // plutôt que de fabriquer un libelle pour une absence.
       l.statutProspection ? STATUTS_PROSPECTION_META[l.statutProspection]?.libelle : '',
       nombre(l.distancePosteKm),
       nombre(l.lineaireRaccordementKm),
@@ -969,7 +969,7 @@ export function geojsonParcelles(
       producteur: 'Prospection EnR',
       dateExport: new Date().toISOString(),
       avertissement:
-        "Contours issus du Plan Cadastral Informatise : indicatifs, sans valeur juridique. Scores fournis a titre d'aide a la decision.",
+        "Contours issus du Plan Cadastral Informatise : indicatifs, sans valeur juridique. Scores fournis à titre d'aide à la décision.",
     },
     features: parcelles.map(({ parcelle, score }) => ({
       type: 'Feature',

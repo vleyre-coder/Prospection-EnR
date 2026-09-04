@@ -118,7 +118,7 @@ export function analyser(contenu: string): LigneVersement[] {
     .replace(/^﻿/, '')
     .split(/\r?\n/)
     .filter((l) => l.trim() !== '');
-  if (lignes.length < 2) throw new Error('fichier vide ou reduit a ses en-tetes');
+  if (lignes.length < 2) throw new Error('fichier vide ou réduit à ses en-têtes');
 
   const entetes = decouperLigneCsv(lignes[0]!).map((e) => e.trim().toLowerCase());
   const requis = ['idu', 'origine_donnee', 'purge_prevue_le'];
@@ -146,8 +146,8 @@ export function analyser(contenu: string): LigneVersement[] {
     const origine = lire('origine_donnee');
     if (origine === '') {
       throw situe(
-        "origine_donnee est obligatoire : sans provenance documentee, la detention d'une donnee " +
-          "personnelle n'est pas justifiable et un droit d'acces est impossible a honorer",
+        "origine_donnee est obligatoire : sans provenance documentée, la détention d'une donnée " +
+          "personnelle n'est pas justifiable et un droit d'accès est impossible à honorer",
       );
     }
 
@@ -155,7 +155,7 @@ export function analyser(contenu: string): LigneVersement[] {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(purge)) {
       throw situe(
         `purge_prevue_le est obligatoire au format AAAA-MM-JJ (recu « ${purge} ») : une donnee ` +
-          'personnelle conservee sans echeance est conservee illicitement',
+          'personnelle conservée sans échéance est conservée illicitement',
       );
     }
     if (Number.isNaN(Date.parse(purge))) throw situe(`date de purge invalide : ${purge}`);
@@ -172,7 +172,7 @@ export function analyser(contenu: string): LigneVersement[] {
       try {
         nominatif = JSON.parse(brutNominatif);
       } catch {
-        throw situe('nominatif doit etre du JSON valide');
+        throw situe('nominatif doit être du JSON valide');
       }
     }
 
@@ -199,7 +199,7 @@ async function principal(): Promise<void> {
   if (!chemin) {
     journal.error(
       'Usage : npm run verser:proprietaires --workspace @enr/api -- fichier.csv\n' +
-        'Format documente en tete de src/scripts/verser-proprietaires.ts',
+        'Format documente en tête de src/scripts/verser-propriétaires.ts',
     );
     process.exit(2);
   }
@@ -218,7 +218,7 @@ async function principal(): Promise<void> {
     journal.error(
       { idus: inconnus.map((i) => i.idu) },
       `${inconnus.length} IDU absent(s) de la table parcelle : qualifiez d'abord ces parcelles, ` +
-        'sinon le versement echouerait sur la cle etrangere',
+        'sinon le versement echouerait sur la clé étrangère',
     );
     process.exit(1);
   }
@@ -254,7 +254,7 @@ async function principal(): Promise<void> {
   journal.info(
     { verses, fichier: chemin },
     `${verses} enregistrement(s) de propriete verse(s). Les consultations sont desormais ` +
-      'possibles pour les utilisateurs habilites, avec motif obligatoire et journalisation.',
+      'possibles pour les utilisateurs habilités, avec motif obligatoire et journalisation.',
   );
   await pool.end();
 }

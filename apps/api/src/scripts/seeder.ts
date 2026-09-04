@@ -23,7 +23,7 @@ const SECTEURS = [
     departement: '28',
   },
   {
-    nom: 'Plaine du Rhone (Gard) - risque inondation, viticulture',
+    nom: 'Plaine du Rhône (Gard) - risque inondation, viticulture',
     bbox: [4.62, 43.78, 4.66, 43.81] as [number, number, number, number],
     departement: '30',
   },
@@ -42,7 +42,7 @@ const SECTEURS = [
  * a « il n'y a pas de ZAER ici » : une affirmation d'absence fondee sur un jeu fictif.
  */
 async function amorcerCouchesLocales(): Promise<void> {
-  const MARQUE = 'EXEMPLE DE DEMONSTRATION - a remplacer par la deliberation officielle';
+  const MARQUE = 'EXEMPLE DE DÉMONSTRATION - à remplacer par la délibération officielle';
 
   for (const secteur of SECTEURS) {
     const [minLon, minLat, maxLon, maxLat] = secteur.bbox;
@@ -69,7 +69,7 @@ async function amorcerCouchesLocales(): Promise<void> {
     );
   }
   journal.info(
-    'Couches locales de demonstration amorcees (marquees est_demonstration = true, ecartees du moteur)',
+    'Couches locales de démonstration amorcées (marquées est_demonstration = true, écartées du moteur)',
   );
 }
 
@@ -82,32 +82,32 @@ async function main(): Promise<void> {
 
   if (tout || etapes.includes('communes')) {
     journal.info('Ingestion des communes (contours nationaux) - plusieurs minutes');
-    await ingererCommunes().catch((err: unknown) => journal.error({ err }, 'Ingestion des communes echouee'));
+    await ingererCommunes().catch((err: unknown) => journal.error({ err }, 'Ingestion des communes échouée'));
   }
 
   if (tout || etapes.includes('postes')) {
     journal.info('Ingestion des postes sources (Capareseau)');
     await ingererPostesSources().catch((err: unknown) =>
-      journal.error({ err }, 'Ingestion des postes sources echouee'),
+      journal.error({ err }, 'Ingestion des postes sources échouée'),
     );
   }
 
   if (tout || etapes.includes('patrimoine')) {
     journal.info('Ingestion du patrimoine (monuments historiques)');
-    await ingererPatrimoine().catch((err: unknown) => journal.error({ err }, 'Ingestion du patrimoine echouee'));
+    await ingererPatrimoine().catch((err: unknown) => journal.error({ err }, 'Ingestion du patrimoine échouée'));
   }
 
   if (tout || etapes.includes('locales')) {
     await amorcerCouchesLocales().catch((err: unknown) =>
-      journal.error({ err }, 'Amorcage des couches locales echoue'),
+      journal.error({ err }, 'Amorçage des couches locales echoue'),
     );
   }
 
   if (tout || etapes.includes('secteurs')) {
     for (const secteur of SECTEURS) {
-      journal.info({ secteur: secteur.nom }, 'Qualification du secteur de demonstration');
+      journal.info({ secteur: secteur.nom }, 'Qualification du secteur de démonstration');
       const r = await qualifierEmprise(secteur.bbox, { surfaceMinM2: 10000 }).catch((err: unknown) => {
-        journal.error({ err, secteur: secteur.nom }, 'Qualification du secteur echouee');
+        journal.error({ err, secteur: secteur.nom }, 'Qualification du secteur échouée');
         return null;
       });
       if (r) {

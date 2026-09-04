@@ -345,7 +345,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
         idu: parcelle.idu,
         anomalies: anomalies.map((a) => `${a.chemin} = ${a.valeur} ${a.unite} (borne ${a.min}..${a.max})`),
       },
-      'Grandeurs hors bornes de vraisemblance : ramenees a « donnee indisponible ». ' +
+      'Grandeurs hors bornes de vraisemblance : ramenées a « donnée indisponible ». ' +
         'Verifiez le connecteur ou le calcul concerne.',
     );
   }

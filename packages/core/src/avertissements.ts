@@ -41,9 +41,9 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'aide_decision',
     portee: 'global',
     niveau: 'attention',
-    titre: "Aide a la decision, pas une garantie de faisabilite",
+    titre: "Aide à la décision, pas une garantie de faisabilité",
     texte:
-      "Les scores et indicateurs presentes sont une aide a la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilite d'un projet. Chaque donnee doit etre re-verifiee au moment du depot du dossier et a l'echelon departemental, aupres des services instructeurs competents.",
+      "Les scores et indicateurs presentes sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et a l'échelon départemental, auprès des services instructeurs compétents.",
   },
   {
     id: 'cadastre_indicatif',
@@ -51,7 +51,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: "Le contour cadastral n'a pas de valeur juridique",
     texte:
-      "Les contours parcellaires proviennent du Plan Cadastral Informatise. Ils sont fournis a titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage etabli par un geometre-expert fait foi. Les surfaces calculees sur ces contours peuvent differer de la contenance cadastrale.",
+      "Les contours parcellaires proviennent du Plan Cadastral Informatise. Ils sont fournis à titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi. Les surfaces calculées sur ces contours peuvent différer de la contenance cadastrale.",
     // `parcelles` retire : ce n'est ni un critere, ni une rubrique de la fiche.
     cible: ['identite', 'surf_utile', 'surf_un_seul_tenant'],
   },
@@ -59,17 +59,17 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'seuils_evolutifs',
     portee: 'global',
     niveau: 'attention',
-    titre: 'Les seuils reglementaires evoluent',
+    titre: 'Les seuils réglementaires evoluent',
     texte:
-      "Les seuils applicables aux projets ENR changent frequemment : les seuils solaires ont ete modifies deux fois en deux ans. Chaque seuil affiche par l'application porte la date d'entree en vigueur de la regle appliquee et la date de derniere verification du referentiel. Verifiez la version en vigueur a la date de votre depot.",
+      "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifies deux fois en deux ans. Chaque seuil affiche par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de derniere vérification du référentiel. Verifiez la version en vigueur à la date de votre dépôt.",
   },
   {
     id: 'capareseau_indicatif',
     portee: 'contextuel',
     niveau: 'attention',
-    titre: 'Capacites de raccordement indicatives',
+    titre: 'Capacités de raccordement indicatives',
     texte:
-      "Les capacites d'accueil et etats de saturation proviennent de Capareseau et des donnees ouvertes des gestionnaires de reseau. Ils sont indicatifs, evoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une etude de raccordement, puis une proposition technique et financiere du gestionnaire, engagent une capacite.",
+      "Les capacités d'accueil et états de saturation proviennent de Capareseau et des données ouvertes des gestionnaires de réseau. Ils sont indicatifs, evoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une étude de raccordement, puis une proposition technique et financiere du gestionnaire, engagent une capacité.",
     // `postes_sources` retire : la rubrique Raccordement cible `racc_capacite_residuelle`.
     cible: ['racc_distance_poste', 'racc_capacite_residuelle', 'racc_quote_part'],
   },
@@ -77,9 +77,9 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'zone_humide_terrain',
     portee: 'contextuel',
     niveau: 'attention',
-    titre: 'Zone humide : pre-reperage a confirmer sur le terrain',
+    titre: 'Zone humide : pre-repérage à confirmer sur le terrain',
     texte:
-      "La cartographie des zones humides est un pre-reperage. Le caractere humide d'une parcelle se determine par sondages pedologiques et releves floristiques, selon l'arrete du 24 juin 2008 modifie. Une parcelle non cartographiee peut etre humide, et inversement.",
+      "La cartographie des zones humides est un pre-repérage. Le caractère humide d'une parcelle se determine par sondages pédologiques et relevés floristiques, selon l'arrêté du 24 juin 2008 modifie. Une parcelle non cartographiée peut être humide, et inversement.",
     // `zones_humides` retire : la rubrique cible directement le critere.
     cible: ['env_zone_humide'],
   },
@@ -87,9 +87,9 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'especes_terrain',
     portee: 'contextuel',
     niveau: 'attention',
-    titre: 'Especes protegees : inventaires de terrain indispensables',
+    titre: 'Espèces protégées : inventaires de terrain indispensables',
     texte:
-      "Les indicateurs de sensibilite especes, avifaune et chiropteres sont derives de donnees d'occurrence et de zonages d'inventaire. Ils ne remplacent pas un cycle biologique complet d'inventaires de terrain, seul a permettre d'apprecier le risque de derogation especes protegees.",
+      "Les indicateurs de sensibilité espèces, avifaune et chiroptères sont dérives de données d'occurrence et de zonages d'inventaire. Ils ne remplacent pas un cycle biologique complet d'inventaires de terrain, seul à permettre d'apprécier le risque de dérogation espèces protégées.",
     /**
      * `env_avifaune` et `env_chiropteres` retires : ces criteres n'ont JAMAIS existe dans le
      * catalogue. L'intention — rattacher la reserve d'inventaire quatre saisons aux criteres
@@ -105,7 +105,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'info',
     titre: 'Documents-cadres et ZAER : couverture partielle',
     texte:
-      "Les zones d'acceleration des ENR et les documents-cadres departementaux relatifs au photovoltaique au sol ne font pas l'objet d'une API nationale consolidee. Leur couverture dans l'application est departementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
+      "Les zones d'accélération des ENR et les documents-cadres departementaux relatifs au photovoltaïque au sol ne font pas l'objet d'une API nationale consolidée. Leur couverture dans l'application est départementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
     // `zaer` et `documentCadrePvSol` retires : le premier double le critere `urb_zaer`, le
     // second est un nom de champ du snapshot et non un identifiant d'affichage.
     cible: ['urb_zaer'],
@@ -114,9 +114,9 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'donnees_proprietaires',
     portee: 'contextuel',
     niveau: 'attention',
-    titre: 'Donnees de proprietaires : acces restreint',
+    titre: 'Données de propriétaires : accès restreint',
     texte:
-      "Les informations relatives aux proprietaires sont des donnees a caractere personnel. Leur consultation est journalisee et reservee aux utilisateurs habilites, dans le cadre de la finalite de prospection fonciere declaree. Toute diffusion en dehors de ce cadre est interdite.",
+      "Les informations relatives aux propriétaires sont des données à caractère personnel. Leur consultation est journalisée et réservée aux utilisateurs habilités, dans le cadre de la finalité de prospection fonciere déclarée. Toute diffusion en dehors de ce cadre est interdite.",
     cible: ['foncier', 'fonc_nb_proprietaires', 'fonc_maitrise'],
   },
 ];

@@ -35,7 +35,7 @@ export async function requete<T extends pg.QueryResultRow = pg.QueryResultRow>(
     }
     return res.rows;
   } catch (err) {
-    journal.error({ err, sql: sql.slice(0, 300) }, 'Echec de requete SQL');
+    journal.error({ err, sql: sql.slice(0, 300) }, 'Échec de requête SQL');
     throw err;
   }
 }

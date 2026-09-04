@@ -106,7 +106,7 @@ export function surfaceUtileEstimee(
       netteHa: surfaceHa,
       coefficient: 1,
       detail:
-        "Aucune deduction : la surface d'un parc eolien se raisonne en positions de machines, non en emprise continue.",
+        "Aucune déduction : la surface d'un parc éolien se raisonne en positions de machines, non en emprise continue.",
     };
   }
 
@@ -129,7 +129,7 @@ export function surfaceUtileEstimee(
     detail:
       `Estimation : ${Math.round(coefficient * 100)} % de la surface cadastrale, apres deduction ` +
       `d'une bande perimetrale de ${r} m (cloture, piste de circulation, acces des secours). ` +
-      `Ordre de grandeur de conception, a confirmer par un plan de masse et l'avis du SDIS.`,
+      `Ordre de grandeur de conception, à confirmer par un plan de masse et l'avis du SDIS.`,
   };
 }
 

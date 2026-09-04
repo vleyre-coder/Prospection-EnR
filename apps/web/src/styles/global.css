@@ -412,6 +412,36 @@ button:focus-visible,
 
 /* ------------------------------------------------------------------ bandeau avertissement */
 
+/*
+ * LA GRILLE DES AVERTISSEMENTS DU §12.
+ *
+ * Ces deux textes doivent rester affiches EN ENTIER : l'audit 8 les designe comme « la seule
+ * protection du lecteur » contre deux defauts connus du referentiel. Il n'est donc pas question
+ * de les replier — seulement de cesser de les empiler sur toute la largeur, ce qui leur faisait
+ * occuper 130 px sur 1 000 (13 % de l'ecran, 22 % en fenetre de 800 px de haut, mesure sur
+ * capture) avant la moindre donnee.
+ *
+ * `auto-fit` avec un minimum de 340 px : deux colonnes des 720 px de large, une seule en
+ * dessous — ou l'empilement redevient le bon choix. Le texte n'est ni tronque ni masque.
+ */
+.bandeaux-cadre {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 0;
+  border-bottom: 1px solid #f0d999;
+  flex-shrink: 0;
+}
+
+:root[data-theme='sombre'] .bandeaux-cadre {
+  border-bottom-color: #574616;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) .bandeaux-cadre {
+    border-bottom-color: #574616;
+  }
+}
+
 .bandeau {
   display: flex;
   align-items: flex-start;
@@ -422,6 +452,30 @@ button:focus-visible,
   border-bottom: 1px solid #f0d999;
   color: #6b4e07;
   flex-shrink: 0;
+}
+
+/*
+ * Dans la grille, la bordure basse de chaque avertissement est portee par le cadre : la garder
+ * sur chaque cellule dessinerait un trait au milieu de la rangee. Un filet vertical separe les
+ * colonnes a la place, et disparait sur la premiere.
+ */
+.bandeaux-cadre .bandeau-garde {
+  border-bottom: none;
+  border-left: 1px solid #f0d999;
+}
+
+.bandeaux-cadre .bandeau-garde:first-child {
+  border-left: none;
+}
+
+:root[data-theme='sombre'] .bandeaux-cadre .bandeau-garde {
+  border-left-color: #574616;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) .bandeaux-cadre .bandeau-garde {
+    border-left-color: #574616;
+  }
 }
 
 :root[data-theme='sombre'] .bandeau {
@@ -659,10 +713,42 @@ button:focus-visible,
   color: var(--texte-doux);
 }
 
+/*
+ * LES DEUX CHAMPS DE SURFACE DEBORDAIENT DU PANNEAU EN FENETRE ETROITE.
+ *
+ * Mesure sur capture en 900 px de large : le panneau passe a 290 px, chaque colonne de
+ * `1fr 1fr` tombe a ~130 px, et un `input[type=number]` refuse de descendre sous sa largeur
+ * de contenu minimale. La piste de grille ne pouvait donc pas se reduire : le libelle
+ * « Surface max. (ha) » etait coupe et le champ debordait hors du panneau, inatteignable.
+ *
+ * Trois lignes suffisent, et chacune est necessaire : `min-width: 0` autorise la piste a se
+ * reduire, `width: 100%` sur le champ le fait suivre, et `auto-fit` fait repasser la paire sur
+ * deux lignes plutot que de l'ecraser quand il n'y a vraiment plus la place.
+ */
 .champ-duo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 8px;
+}
+
+.champ-duo > .champ {
+  min-width: 0;
+}
+
+/*
+ * CIBLER LES CHAMPS DE SAISIE, ET NON « TOUT INPUT ».
+ *
+ * Premiere version : `.champ input { width: 100% }`. Elle a etire les CASES A COCHER de la
+ * section « Exclusions » sur toute la largeur du panneau, ce qui a fait disparaitre leurs
+ * libelles de l'ecran — regression visible sur la capture suivante. Une case a cocher a une
+ * taille propre ; seuls les champs de texte et de nombre doivent suivre leur colonne.
+ */
+.champ input[type='number'],
+.champ input[type='text'],
+.champ input[type='search'],
+.champ select {
+  width: 100%;
+  min-width: 0;
 }
 
 .case {
@@ -1938,4 +2024,73 @@ button:focus-visible,
   clip-path: none;
   outline: 3px solid var(--accent, #2563eb);
   outline-offset: 2px;
+}
+
+/* ------------------------------------------------------- le score, lisible d'un coup d'oeil */
+
+/*
+ * LE CHIFFRE CENTRAL DU PRODUIT ETAIT RENDU EN NOIR ORDINAIRE.
+ *
+ * La liste affichait « 74 » et « 67 » en texte courant, dans une colonne parmi neuf, alors que
+ * l'application porte une palette de feux complete et s'en sert partout ailleurs. Comparer deux
+ * lignes demandait de lire les nombres un a un — sur une campagne departementale, des centaines.
+ *
+ * Le chiffre RESTE ECRIT : c'est lui qui fait foi, c'est lui qui part dans les exports. La jauge
+ * ne le remplace pas, elle le double d'une lecture immediate. Et la couleur reste un FOND : les
+ * teintes de la palette sont calibrees comme telles, les passer en couleur de texte aurait
+ * degrade le contraste sur les tons clairs (orange, jaune).
+ */
+.cellule-score strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+}
+
+.score-jauge {
+  display: block;
+  width: 46px;
+  height: 3px;
+  margin: 3px 0 0 auto;
+  border-radius: 2px;
+  background: var(--bordure);
+  overflow: hidden;
+}
+
+.score-jauge > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+:root[data-theme='sombre'] .score-jauge {
+  background: #2a3240;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) .score-jauge {
+    background: #2a3240;
+  }
+}
+
+/* --------------------------------------------- separer la deconnexion de l'affichage */
+
+/*
+ * « Sombre » et « Quitter » etaient deux boutons identiques et adjacents. Viser le theme et
+ * fermer sa session se jouaient a quelques pixels, pour deux consequences sans rapport : l'une
+ * se rattrape d'un clic, l'autre ramene a l'ecran de connexion et perd la position de la carte.
+ */
+.separateur-barre {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 2px;
+  background: var(--bordure);
+  flex-shrink: 0;
+}
+
+.bouton-quitter {
+  color: var(--texte-doux);
+}
+
+.bouton-quitter:hover:not(:disabled) {
+  border-color: var(--rouge);
+  color: var(--rouge);
 }

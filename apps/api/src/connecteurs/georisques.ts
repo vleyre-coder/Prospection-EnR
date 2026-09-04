@@ -496,9 +496,9 @@ export async function risquesEtEau(
     // taire non plus. `PPR Bordeaux (revision)` est le cas reel qui impose cette branche.
     journal.warn(
       { codeInsee, libelles: indetermines.map((p) => p.libPpr) },
-      'PPR dont le libelle ne permet pas de determiner la famille de risque : compte comme present ' +
-        'sans famille, plutot que range par defaut. Les familles seisme et argiles sont reconnues mais ' +
-        "ne portent aucun critere du referentiel : elles n'apparaissent donc pas dans la fiche.",
+      'PPR dont le libelle ne permet pas de déterminer la famille de risque : compte comme présent ' +
+        'sans famille, plutôt que range par défaut. Les familles séisme et argiles sont reconnues mais ' +
+        "ne portent aucun critère du référentiel : elles n'apparaissent donc pas dans la fiche.",
     );
   }
 

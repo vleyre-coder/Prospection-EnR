@@ -203,7 +203,7 @@ test('B3 : la garde generique grise tout critere dont la source a echoue', () =>
     const avecEchec = critere(s, 'risq_inondation', 'solaire_sol', { connecteursEnEchec: echecs });
     assert.equal(avecEchec.note, null, `echec ${echecs[0]} : la note doit disparaitre`);
     assert.equal(avecEchec.feu, 'gris');
-    assert.match(avecEchec.valeurAffichee ?? '', /echec/i);
+    assert.match(avecEchec.valeurAffichee ?? '', /échec/i);
   }
 });
 

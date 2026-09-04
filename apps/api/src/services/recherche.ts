@@ -571,7 +571,7 @@ export function filtresValides(
     codeDepartement: l.texte('codeDepartement', {
       max: 3,
       motif: /^(\d{2}|\d{3}|2A|2B)$/,
-      description: 'code departement a 2 ou 3 caracteres (ex. 28, 971, 2A)',
+      description: 'code département a 2 ou 3 caractères (ex. 28, 971, 2A)',
     }),
     codeInsee: l.texte('codeInsee', {
       max: 5,

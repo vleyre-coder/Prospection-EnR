@@ -40,7 +40,7 @@ export const FAMILLES_LIBELLES: Record<FamilleCritere, string> = {
   risques: 'Risques',
   distances_reglementaires: 'Distances reglementaires',
   foncier: 'Foncier',
-  acces: 'Acces et desserte',
+  acces: 'Accès et desserte',
 };
 
 /** Definition statique d'un critere ponderé. */

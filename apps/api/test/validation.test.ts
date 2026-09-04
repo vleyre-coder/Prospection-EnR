@@ -146,8 +146,8 @@ test('un statut de score hors liste est refuse', () => {
 });
 
 test('un booleen doit etre un booleen', () => {
-  refuse({ ...base, exclureAop: 'oui' }, /exclureAop.*booleen/);
-  refuse({ ...base, exclureAop: 1 }, /exclureAop.*booleen/);
+  refuse({ ...base, exclureAop: 'oui' }, /exclureAop.*booléen/);
+  refuse({ ...base, exclureAop: 1 }, /exclureAop.*booléen/);
   assert.equal(filtresValides({ ...base, exclureAop: true }).exclureAop, true);
 });
 

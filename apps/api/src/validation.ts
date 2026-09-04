@@ -78,7 +78,7 @@ export class Lecteur {
   booleen(champ: string): boolean | undefined {
     const v = this.brut(champ);
     if (v === undefined || v === null) return undefined;
-    if (typeof v !== 'boolean') return refus(champ, 'booleen attendu (true ou false)', v);
+    if (typeof v !== 'boolean') return refus(champ, 'booléen attendu (true ou false)', v);
     return v;
   }
 
@@ -141,7 +141,7 @@ export class Lecteur {
     const v = this.texte(champ, {
       max: 20,
       motif: /^[0-9A-Za-z]{10,20}$/,
-      description: 'identifiant parcellaire de 10 a 20 caracteres alphanumeriques',
+      description: 'identifiant parcellaire de 10 a 20 caractères alphanumériques',
     });
     return v?.toUpperCase();
   }
@@ -158,7 +158,7 @@ export class Lecteur {
     const vus = new Set<string>();
     for (const e of v) {
       if (typeof e !== 'string' || !/^[0-9A-Za-z]{10,20}$/.test(e.trim())) {
-        return refus(champ, 'identifiants parcellaires de 10 a 20 caracteres alphanumeriques', e);
+        return refus(champ, 'identifiants parcellaires de 10 a 20 caractères alphanumériques', e);
       }
       vus.add(e.trim().toUpperCase());
     }
@@ -184,7 +184,7 @@ export class Lecteur {
     if (typeof g.type !== 'string' || !typesAdmis.includes(g.type)) {
       return refus(champ, `geometrie de type ${typesAdmis.join(' ou ')}`, g.type);
     }
-    if (!Array.isArray(g.coordinates)) return refus(champ, 'coordinates doit etre un tableau', g.coordinates);
+    if (!Array.isArray(g.coordinates)) return refus(champ, 'coordinates doit être un tableau', g.coordinates);
     return { type: g.type, coordinates: g.coordinates };
   }
 
@@ -248,7 +248,7 @@ export class Lecteur {
     if (!valider(b)) {
       return refus(
         champ,
-        'emprise invalide : coordonnees hors domaine, bornes inversees, ou etendue superieure au double de la France metropolitaine',
+        'emprise invalide : coordonnées hors domaine, bornes inversées, ou étendue supérieure au double de la France métropolitaine',
         b,
       );
     }
@@ -290,14 +290,14 @@ export class Lecteur {
       throw new ErreurValidation(
         inconnues[0]!,
         `Champ(s) inconnu(s) : ${inconnues.join(', ')}. Un filtre mal orthographie serait ignore ` +
-          'en silence et elargirait le resultat sans le dire.',
+          'en silence et elargirait le résultat sans le dire.',
       );
     }
   }
 }
 
 /** Prepare un lecteur, en refusant d'emblee un corps qui n'est pas un objet. */
-export function lecteur(corps: unknown, ou = 'corps de requete'): Lecteur {
+export function lecteur(corps: unknown, ou = 'corps de requête'): Lecteur {
   if (corps == null || typeof corps !== 'object' || Array.isArray(corps)) {
     throw new ErreurValidation(ou, `Le ${ou} doit etre un objet JSON.`);
   }
@@ -343,7 +343,7 @@ export function entierRequete(
     return refus(champ, 'entier attendu (chiffres uniquement)', brut);
   }
   const v = Number(texte);
-  if (!Number.isSafeInteger(v)) return refus(champ, 'entier hors des bornes representables', brut);
+  if (!Number.isSafeInteger(v)) return refus(champ, 'entier hors des bornes représentables', brut);
   const min = options.min ?? 0;
   if (v < min) return refus(champ, `valeur minimale ${min}`, brut);
   return Math.min(v, options.max);
@@ -414,7 +414,7 @@ export function ponderationValide(
   }
   const entrees = Object.entries(poidsBrut as Record<string, unknown>);
   if (entrees.length === 0) {
-    throw new ErreurValidation('poids', 'Champ `poids` requis : au moins un critere.');
+    throw new ErreurValidation('poids', 'Champ `poids` requis : au moins un critère.');
   }
   if (entrees.length > 200) {
     throw new ErreurValidation('poids', `Champ \`poids\` : ${entrees.length} criteres, maximum 200.`);
@@ -426,7 +426,7 @@ export function ponderationValide(
       throw new ErreurValidation(
         'poids',
         `Critere inconnu : « ${cle} ». Un critere mal orthographie serait stocke puis ignore par le ` +
-          'moteur, et vous croiriez avoir modifie une ponderation restee inchangee.',
+          'moteur, et vous croiriez avoir modifie une pondération restée inchangée.',
       );
     }
     if (typeof valeur !== 'number' || !Number.isFinite(valeur)) {
@@ -436,7 +436,7 @@ export function ponderationValide(
       throw new ErreurValidation(
         'poids',
         `Poids du critere « ${cle} » : un poids negatif inverserait sa contribution, faisant MONTER ` +
-          'le score quand le critere se degrade. Utilisez 0 pour neutraliser un critere.',
+          'le score quand le critère se dégradé. Utilisez 0 pour neutraliser un critère.',
       );
     }
     if (valeur > 1000) {
@@ -447,7 +447,7 @@ export function ponderationValide(
   if (Object.values(poids).every((p) => p === 0)) {
     throw new ErreurValidation(
       'poids',
-      'Tous les poids sont nuls : aucun critere ne serait evalue, et le score global serait vide.',
+      'Tous les poids sont nuls : aucun critère ne serait evalue, et le score global serait vide.',
     );
   }
 

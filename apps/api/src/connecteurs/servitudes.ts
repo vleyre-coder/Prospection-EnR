@@ -129,20 +129,20 @@ export async function servitudes(
 }
 
 const LIBELLES: Record<string, string> = {
-  as1: "Perimetre de protection de captage d'eau potable",
-  t4: 'Servitude aeronautique de balisage',
-  t5: 'Servitude aeronautique de degagement',
-  t7: "Servitude relative aux installations exterieures a un aerodrome",
-  pt1: 'Servitude de protection contre les perturbations electromagnetiques',
-  pt2: 'Servitude de protection contre les obstacles radioelectriques',
-  pt3: 'Servitude relative aux communications telephoniques et telegraphiques',
+  as1: "Périmètre de protection de captage d'eau potable",
+  t4: 'Servitude aéronautique de balisage',
+  t5: 'Servitude aéronautique de dégagement',
+  t7: "Servitude relative aux installations extérieures à un aérodrome",
+  pt1: 'Servitude de protection contre les perturbations électromagnétiques',
+  pt2: 'Servitude de protection contre les obstacles radioélectriques',
+  pt3: 'Servitude relative aux communications téléphoniques et télégraphiques',
   i1: "Servitude relative aux canalisations d'hydrocarbures",
   i3: 'Servitude relative aux canalisations de gaz',
-  i4: 'Servitude relative aux ouvrages electriques',
+  i4: 'Servitude relative aux ouvrages électriques',
   i6: "Servitude relative a l'exploitation miniere",
   ac1: 'Servitude de protection des monuments historiques',
   ac2: 'Servitude de protection des sites et monuments naturels',
-  pm1: 'Plan de prevention des risques naturels ou technologiques',
+  pm1: 'Plan de prévention des risques naturels ou technologiques',
 };
 
 export function libelleCategorie(categorie: string): string {

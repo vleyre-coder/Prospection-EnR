@@ -36,7 +36,7 @@ import { DEP_LOCAL } from './aides/communes-fictives.js';
 test('une pagination incomplete interdit toute suppression', () => {
   const d = suppressionAutorisee({ complete: false, nbEnBase: 1000, nbDisparus: 1 });
   assert.equal(d.autorisee, false);
-  assert.match(d.motif, /incomplete/);
+  assert.match(d.motif, /incomplète/);
 });
 
 test('aucun objet disparu : la suppression est autorisee et sans effet', () => {

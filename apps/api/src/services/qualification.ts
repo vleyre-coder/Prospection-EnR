@@ -46,13 +46,13 @@ export class ErreurEmprise extends Error {}
 export function normaliserEmprise(bbox: Bbox): Bbox {
   const [ouest, sud, est, nord] = bbox;
   if (![ouest, sud, est, nord].every(Number.isFinite) || ouest >= est || sud >= nord) {
-    throw new ErreurEmprise("L'emprise demandee est invalide.");
+    throw new ErreurEmprise("L'emprise demandée est invalide.");
   }
 
   const limitee = limiterAlaFrance(bbox);
   if (!limitee) {
     throw new ErreurEmprise(
-      "L'emprise affichee ne recoupe pas la France metropolitaine, seul territoire couvert.",
+      "L'emprise affichée ne recoupe pas la France métropolitaine, seul territoire couvert.",
     );
   }
 
@@ -67,8 +67,8 @@ export function normaliserEmprise(bbox: Bbox): Bbox {
   const etendue = Math.round((limitee[2] - limitee[0]) * (limitee[3] - limitee[1]) * 1e6) / 1e6;
   if (etendue > ETENDUE_MAX_DEG2) {
     throw new ErreurEmprise(
-      "L'emprise affichee est trop vaste pour une qualification : zoomez sur votre zone de travail. " +
-        "A cette echelle, le nombre de parcelles depasse ce qu'il est raisonnable d'interroger.",
+      "L'emprise affichée est trop vaste pour une qualification : zoomez sur votre zone de travail. " +
+        "À cette échelle, le nombre de parcelles depasse ce qu'il est raisonnable d'interroger.",
     );
   }
 
@@ -223,7 +223,7 @@ export async function qualifierIdus(
 
       nbEnrichies += 1;
     } catch (err) {
-      journal.warn({ err, idu }, 'Echec de qualification de parcelle');
+      journal.warn({ err, idu }, 'Échec de qualification de parcelle');
       nbEchecs += 1;
     }
     options.onProgres?.(nbEnrichies + nbEchecs, lot.length, nbEchecs);
@@ -393,8 +393,8 @@ export function avertissementCouverture(c: Omit<CouvertureCampagne, 'avertisseme
   if (morceaux.length === 0) return null;
   return (
     `Couverture incomplete : ${morceaux.join(' ; ')}. ` +
-    'Une parcelle precise peut toujours etre qualifiee en la cliquant sur le cadastre, ou par sa ' +
-    'reference dans la recherche.'
+    'Une parcelle precise peut toujours être qualifiée en la cliquant sur le cadastre, ou par sa ' +
+    'référence dans la recherche.'
   );
 }
 
@@ -536,7 +536,7 @@ export async function signalerCampagnesInterrompues(): Promise<number> {
   if (lignes.length > 0) {
     journal.warn(
       { campagnes: lignes.length },
-      'Campagnes de qualification interrompues par un arret precedent : les lots concernes sont incomplets',
+      'Campagnes de qualification interrompues par un arrêt précédent : les lots concernés sont incomplets',
     );
   }
   return lignes.length;
@@ -685,7 +685,7 @@ async function enregistrerDemande(bbox: Bbox, options: OptionsCampagne): Promise
   ).catch((err: unknown) => {
     journal.warn(
       { err },
-      'Demande de qualification non tracee en base : elle ne survivra pas a un redemarrage',
+      'Demande de qualification non tracée en base : elle ne survivra pas à un redémarrage',
     );
     return [] as Array<{ id: string }>;
   });
@@ -767,7 +767,7 @@ export async function restaurerFile(): Promise<number> {
   if (lignes.length > 0) {
     journal.info(
       { restaurees: lignes.length },
-      'Demandes de qualification restaurees depuis la base : la file reprend ou elle en etait',
+      'Demandes de qualification restaurées depuis la base : la file reprend ou elle en était',
     );
     demarrerSuivanteSiLibre();
   }
@@ -792,7 +792,7 @@ function executerCampagne(demande: Attente): void {
   etat.message =
     file.length > 0
       ? `Recuperation du parcellaire au cadastre… (${file.length} demande(s) ensuite)`
-      : 'Recuperation du parcellaire au cadastre…';
+      : 'Récupération du parcellaire au cadastre…';
 
   void (async () => {
     const debut = Date.now();
@@ -841,7 +841,7 @@ function executerCampagne(demande: Attente): void {
       if (etat.couverture.avertissement) {
         journal.warn(
           { bbox: emprise, ...sansPhrase },
-          'Campagne a couverture incomplete : les troncatures sont remontees a l’utilisateur',
+          'Campagne à couverture incomplète : les troncatures sont remontées à l’utilisateur',
         );
       }
 
@@ -880,7 +880,7 @@ function executerCampagne(demande: Attente): void {
         // La couverture est rappelee dans le message final : le bandeau de suivi disparait, le
         // message reste, et c'est lui que l'utilisateur lit avant de conclure sur son secteur.
         (etat.couverture?.avertissement ? `. ${etat.couverture.avertissement}` : '');
-      journal.info({ bbox: emprise, ...resultat }, 'Qualification de grande emprise terminee');
+      journal.info({ bbox: emprise, ...resultat }, 'Qualification de grande emprise terminée');
     } catch (err) {
       journal.error({ err, bbox: emprise }, 'Qualification de grande emprise interrompue');
       etat.message = `Interrompue : ${(err as Error).message}`;
@@ -897,7 +897,7 @@ function executerCampagne(demande: Attente): void {
       if (file.length > 0) {
         journal.info(
           { restantes: file.length },
-          'Campagne terminee, demarrage de la demande suivante',
+          'Campagne terminée, démarrage de la demande suivante',
         );
       }
       demarrerSuivanteSiLibre();
@@ -1028,7 +1028,7 @@ export async function rescorerSiVersionObsolete(): Promise<void> {
 
   journal.info(
     { obsoletes, version: VERSION_MOTEUR },
-    'Version du moteur modifiee : recalcul des scores a partir des snapshots stockes',
+    'Version du moteur modifiée : recalcul des scores à partir des snapshots stockes',
   );
 
   // Par lots, jusqu'a epuisement : la selection ne renvoie que ce qui reste a faire, donc

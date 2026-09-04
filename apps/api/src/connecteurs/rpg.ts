@@ -59,7 +59,7 @@ export const GROUPES_CULTURE: Record<string, string> = {
   '22': 'Fruits a coque',
   '23': 'Oliviers',
   '24': 'Autres cultures industrielles',
-  '25': 'Legumes ou fleurs',
+  '25': 'Légumes ou fleurs',
   '26': 'Canne a sucre',
   '27': 'Arboriculture',
   '28': 'Divers',

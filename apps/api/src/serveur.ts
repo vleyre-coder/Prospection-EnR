@@ -213,7 +213,7 @@ export async function construireServeur(options: OptionsServeur = {}) {
      * appele » de « le serveur est casse », et le journal se remplissait de fausses erreurs internes.
      */
     if (err instanceof ErreurValidation) {
-      req.log.info({ champ: err.champ, message: err.message }, 'Requete refusee a la validation');
+      req.log.info({ champ: err.champ, message: err.message }, 'Requête refusée à la validation');
       return rep.code(400).send({
         erreur: {
           code: 'requete_invalide',
@@ -275,7 +275,7 @@ async function demarrer(): Promise<void> {
   if (!bdd) {
     journal.error(
       { url: config.bdd.url.replace(/:[^:@]*@/, ':***@') },
-      "Base de donnees injoignable. Verifiez DATABASE_URL et que PostgreSQL est demarre.",
+      "Base de données injoignable. Verifiez DATABASE_URL et que PostgreSQL est demarre.",
     );
   }
 
@@ -287,7 +287,7 @@ async function demarrer(): Promise<void> {
     } catch (err) {
       journal.error(
         { err },
-        'Echec des migrations : le serveur demarre mais les donnees seront indisponibles.',
+        'Échec des migrations : le serveur demarre mais les données seront indisponibles.',
       );
     }
   }
@@ -295,7 +295,7 @@ async function demarrer(): Promise<void> {
     // Une campagne sans date de fin signale un arret du serveur en cours de traitement :
     // le lot est incomplet, et l'utilisateur doit pouvoir le constater.
     await signalerCampagnesInterrompues().catch((err: unknown) =>
-      journal.warn({ err }, 'Verification des campagnes interrompues impossible'),
+      journal.warn({ err }, 'Vérification des campagnes interrompues impossible'),
     );
 
     /**
@@ -323,7 +323,7 @@ async function demarrer(): Promise<void> {
      */
     const purger = async (): Promise<void> => {
       const nb = await purgerDonneesNominatives().catch((err: unknown) => {
-        journal.error({ err }, 'Purge des donnees nominatives impossible — a verifier');
+        journal.error({ err }, 'Purge des données nominatives impossible — à vérifier');
         return 0;
       });
       if (nb > 0) journal.info({ lignes: nb }, 'Donnees nominatives echues purgees');
@@ -333,17 +333,17 @@ async function demarrer(): Promise<void> {
   }
   if (bdd) {
     const n = await synchroniserReferentiel().catch((err: unknown) => {
-      journal.warn({ err }, 'Synchronisation du referentiel des sources impossible');
+      journal.warn({ err }, 'Synchronisation du référentiel des sources impossible');
       return 0;
     });
-    journal.info({ connecteurs: n }, 'Referentiel des sources synchronise');
+    journal.info({ connecteurs: n }, 'Référentiel des sources synchronise');
   }
 
   // 3. Secret de signature et acces : fournis par l'environnement, ou generes.
   const secretJwt = await resoudreSecretJwt(bdd);
   if (bdd) {
     await assurerAdministrateur().catch((err: unknown) =>
-      journal.error({ err }, 'Creation du compte administrateur impossible'),
+      journal.error({ err }, 'Création du compte administrateur impossible'),
     );
   }
 
@@ -351,14 +351,14 @@ async function demarrer(): Promise<void> {
 
   if (config.auth.desactivee && config.env !== 'development') {
     journal.warn(
-      "AUTH_DESACTIVEE est actif hors developpement : toutes les requetes sont traitees comme administrateur.",
+      "AUTH_DESACTIVEE est actif hors développement : toutes les requêtes sont traitées comme administrateur.",
     );
   }
 
   await app.listen({ port: config.port, host: config.hote });
   journal.info(
     { port: config.port, adresse: `http://localhost:${config.port}` },
-    'API de prospection ENR demarree',
+    'API de prospection ENR démarrée',
   );
 
   // 4. Donnees nationales : en arriere-plan, apres l'ouverture du port. L'ingestion des
@@ -366,7 +366,7 @@ async function demarrer(): Promise<void> {
   //    temps, et son avancement est publie par /api/sante.
   if (bdd && config.demarrage.amorcageAuto) {
     void amorcerSiNecessaire().catch((err: unknown) =>
-      journal.error({ err }, 'Amorcage des donnees nationales interrompu'),
+      journal.error({ err }, 'Amorçage des données nationales interrompu'),
     );
   }
 
@@ -405,7 +405,7 @@ const estPointEntree =
 
 if (estPointEntree) {
   demarrer().catch((err) => {
-    journal.error({ err }, 'Echec du demarrage');
+    journal.error({ err }, 'Échec du démarrage');
     process.exit(1);
   });
 }

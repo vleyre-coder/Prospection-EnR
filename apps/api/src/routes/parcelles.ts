@@ -93,7 +93,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { idu: string } }>('/api/parcelles/:idu', async (req, rep) => {
     const q = req.query as { filiere?: string; rafraichir?: string };
     if (!estFiliere(q.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Parametre `filiere` requis et valide');
+      return erreur(rep, 400, 'filiere_invalide', 'Paramètre `filière` requis et valide');
     }
     const filiere: Filiere = q.filiere;
     const idu = req.params.idu.toUpperCase();
@@ -139,7 +139,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
         rep,
         502,
         'enrichissement_impossible',
-        "La parcelle existe mais aucune source n'a pu etre interrogee. Reessayez plus tard.",
+        "La parcelle existe mais aucune source n'a pu être interrogee. Reessayez plus tard.",
       );
     }
 
@@ -183,7 +183,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     c.valideAilleurs('ponderation'); // cles connues, poids finis et bornes : voir `ponderationValide`
     c.valideAilleurs('options'); // objet imbrique, valide par `optionsSimulation`
     c.refuserInconnus();
-    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filière` requis et valide');
     const options = optionsSimulation((req.body as { options?: unknown }).options);
 
     // La ponderation partait au moteur sans aucun controle : un poids negatif inversait la contribution
@@ -216,7 +216,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
     c.valideAilleurs('options'); // objet imbrique, valide par `optionsSimulation`
     c.refuserInconnus();
     const options = optionsSimulation((req.body as { options?: unknown }).options);
-    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filière` requis et valide');
     if (!idus?.length) return erreur(rep, 400, 'idus_manquants', 'Champ `idus` requis');
 
     const brutPonderation = (req.body as { ponderation?: unknown }).ponderation;
@@ -246,7 +246,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
         rep,
         403,
         'non_habilite',
-        "Acces aux donnees de proprietaires reserve aux utilisateurs habilites. Contactez l'administrateur.",
+        "Accès aux données de propriétaires réserve aux utilisateurs habilités. Contactez l'administrateur.",
       );
     }
     const motif = req.headers['x-motif-acces'];
@@ -255,7 +255,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
         rep,
         400,
         'motif_requis',
-        "Un motif d'acces circonstancie est requis (en-tete X-Motif-Acces) et sera journalise.",
+        "Un motif d'accès circonstancie est requis (en-tête X-Motif-Accès) et sera journalise.",
       );
     }
 
@@ -311,10 +311,10 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       origineDonnee: ligne?.origine_donnee ?? null,
       avertissement:
         etatSource === 'non_alimentee'
-          ? "Aucune donnee de propriete n'a ete versee dans cette instance. La fonction est en place - habilitation, motif obligatoire et journalisation des acces - mais le registre est vide : aucune API publique n'expose legalement ces informations, elles s'obtiennent par demande documentee aupres de la DGFiP ou de la mairie, puis se versent dans la table `proprietaire_parcelle`. L'absence d'information ici ne dit RIEN du proprietaire de la parcelle."
+          ? "Aucune donnée de propriété n'a été versee dans cette instance. La fonction est en place - habilitation, motif obligatoire et journalisation des accès - mais le registre est vide : aucune API publique n'expose legalement ces informations, elles s'obtiennent par demande documentée auprès de la DGFiP ou de la mairie, puis se versent dans la table `proprietaire_parcelle`. L'absence d'information ici ne dit RIEN du propriétaire de la parcelle."
           : etatSource === 'sans_donnee_pour_cette_parcelle'
-            ? "Le registre est alimente mais ne contient rien pour cette parcelle. Cela ne signifie pas qu'elle est sans proprietaire : elle n'a simplement pas fait l'objet d'une demande. Cette consultation a ete journalisee."
-            : "Ces informations proviennent d'une demande documentee aupres de la DGFiP ou de la mairie. Leur diffusion hors du cadre de prospection declare est interdite. Cette consultation a ete journalisee.",
+            ? "Le registre est alimente mais ne contient rien pour cette parcelle. Cela ne signifie pas qu'elle est sans propriétaire : elle n'a simplement pas fait l'objet d'une demande. Cette consultation a été journalisée."
+            : "Ces informations proviennent d'une demande documentée auprès de la DGFiP ou de la mairie. Leur diffusion hors du cadre de prospection declare est interdite. Cette consultation a été journalisée.",
     };
   });
 
@@ -355,9 +355,9 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
           rep,
           429,
           'file_qualification_pleine',
-          "Cinq demandes de qualification sont deja en attente, soit plusieurs heures de travail. " +
-            "Les sources publiques etant limitees a une requete par seconde, en ajouter une ne la " +
-            "ferait pas traiter plus tot. Attendez que la file se vide.",
+          "Cinq demandes de qualification sont déjà en attente, soit plusieurs heures de travail. " +
+            "Les sources publiques etant limitées à une requête par seconde, en ajouter une ne la " +
+            "ferait pas traiter plus tôt. Attendez que la file se vide.",
         );
       }
       // Une demande mise en file EST acceptee : elle demarrera seule. Le 202 le dit, la
@@ -461,7 +461,7 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
 
     const idus = await depotParcelles.idusARafraichir(limite ?? 100);
     if (idus.length === 0) {
-      return { nbParcelles: 0, restant: 0, message: 'Aucune parcelle en retard sur la donnee' };
+      return { nbParcelles: 0, restant: 0, message: 'Aucune parcelle en retard sur la donnée' };
     }
     const resultat = await qualifierIdus(idus, {
       // `forcer` est inutile : ces parcelles sont deja selectionnees parce qu'elles doivent etre

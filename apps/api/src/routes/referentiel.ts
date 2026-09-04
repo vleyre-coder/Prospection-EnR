@@ -54,7 +54,7 @@ import {
  */
 export const COUCHES = [
   { id: 'postes_sources', libelle: 'Postes sources', groupe: 'reseaux', typeGeom: 'point', couleur: '#0f766e' },
-  { id: 'reseau_gaz', libelle: 'Reseau gaz et injection', groupe: 'reseaux', typeGeom: 'ligne', couleur: '#a16207' },
+  { id: 'reseau_gaz', libelle: 'Réseau gaz et injection', groupe: 'reseaux', typeGeom: 'ligne', couleur: '#a16207' },
   { id: 'monument_historique', libelle: 'Monuments historiques', groupe: 'patrimoine', typeGeom: 'point', couleur: '#7c3aed' },
 ] as const;
 

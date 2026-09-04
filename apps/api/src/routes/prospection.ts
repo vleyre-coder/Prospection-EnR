@@ -49,7 +49,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
 
   app.post('/api/leads', async (req, rep) => {
     if (req.utilisateur?.role === 'lecture') {
-      return erreur(rep, 403, 'lecture_seule', 'Votre role ne permet pas de modifier le pipeline');
+      return erreur(rep, 403, 'lecture_seule', 'Votre rôle ne permet pas de modifier le pipeline');
     }
     const c = lecteur(req.body);
     const filiere = c.parmi('filiere', FILIERES);
@@ -61,7 +61,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     // l'appelant croirait avoir renseigne une note ou un statut qui n'a jamais ete enregistre.
     c.refuserInconnus();
 
-    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filière` requis et valide');
     if (!idu && !siteId) return erreur(rep, 400, 'cible_manquante', 'Champ `idu` ou `siteId` requis');
     if (idu && siteId) {
       return erreur(rep, 400, 'cible_ambigue', 'Un lead porte une parcelle OU un site, pas les deux');
@@ -101,7 +101,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
 
   app.patch<{ Params: { id: string } }>('/api/leads/:id', async (req, rep) => {
     if (req.utilisateur?.role === 'lecture') {
-      return erreur(rep, 403, 'lecture_seule', 'Votre role ne permet pas de modifier le pipeline');
+      return erreur(rep, 403, 'lecture_seule', 'Votre rôle ne permet pas de modifier le pipeline');
     }
     const c = lecteur(req.body);
     // `texteOuVide` et non `texte` : ces deux champs doivent pouvoir etre EFFACES. `texte()` ramene la
@@ -141,7 +141,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
 
   app.delete<{ Params: { id: string } }>('/api/leads/:id', async (req, rep) => {
     if (req.utilisateur?.role === 'lecture') {
-      return erreur(rep, 403, 'lecture_seule', 'Votre role ne permet pas de modifier le pipeline');
+      return erreur(rep, 403, 'lecture_seule', 'Votre rôle ne permet pas de modifier le pipeline');
     }
     const ok = await depot.supprimerLead(req.params.id);
     if (!ok) return erreur(rep, 404, 'lead_introuvable', 'Lead introuvable');
@@ -175,9 +175,9 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     c.refuserInconnus();
 
     if (!nom) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
-    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filière` requis et valide');
     if (!idus?.length && !geometrie) {
-      return erreur(rep, 400, 'cible_manquante', 'Champ `idus` ou `geometrie` requis');
+      return erreur(rep, 400, 'cible_manquante', 'Champ `idus` ou `géométrie` requis');
     }
 
     const site = await depot.creerSite({
@@ -222,7 +222,7 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
   app.get('/api/tableau-de-bord', async (req, rep) => {
     const q = req.query as { filiere?: string };
     if (!estFiliere(q.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Parametre `filiere` requis et valide');
+      return erreur(rep, 400, 'filiere_invalide', 'Paramètre `filière` requis et valide');
     }
     const [prospection, scores] = await Promise.all([
       depot.tableauDeBord(q.filiere),

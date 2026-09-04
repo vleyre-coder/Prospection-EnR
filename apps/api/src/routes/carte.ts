@@ -70,7 +70,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
       const x = Number(req.params.x);
       const y = Number(req.params.y);
       if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
-        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnées de tuile invalides');
       }
       // Bornes de la pyramide : evite de relayer des requetes absurdes.
       const max = 2 ** z;
@@ -118,7 +118,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           .header('Cache-Control', 'public, max-age=604800, immutable')
           .send(tuile);
       } catch (err) {
-        req.log.warn({ err, fond: req.params.fond, z, x, y }, 'Relais de tuile IGN en echec');
+        req.log.warn({ err, fond: req.params.fond, z, x, y }, 'Relais de tuile IGN en échec');
         return erreur(
           rep,
           502,
@@ -166,7 +166,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
       const x = Number(req.params.x);
       const y = Number(req.params.y);
       if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
-        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnées de tuile invalides');
       }
       const max = 2 ** z;
       if (x < 0 || y < 0 || x >= max || y >= max) return rep.code(204).send();
@@ -208,7 +208,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           .header('Cache-Control', 'public, max-age=86400')
           .send(tuile);
       } catch (err) {
-        req.log.warn({ err, z, x, y }, 'Relais de tuile cadastrale en echec');
+        req.log.warn({ err, z, x, y }, 'Relais de tuile cadastrale en échec');
         return erreur(
           rep,
           502,
@@ -260,7 +260,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           .header('Cache-Control', 'public, max-age=2592000, immutable')
           .send(Buffer.from(await reponse.arrayBuffer()));
       } catch (err) {
-        req.log.warn({ err, police, plage: req.params.plage }, 'Relais de police en echec');
+        req.log.warn({ err, police, plage: req.params.plage }, 'Relais de police en échec');
         return erreur(rep, 502, 'polices_indisponibles', 'Le service de polices est injoignable depuis le serveur.');
       }
     },
@@ -271,7 +271,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     const z = Number(req.params.z);
     const x = Number(req.params.x);
     const y = Number(req.params.y);
-    if (![z, x, y].every(Number.isInteger)) return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+    if (![z, x, y].every(Number.isInteger)) return erreur(rep, 400, 'tuile_invalide', 'Coordonnées de tuile invalides');
 
     if (!tuiles.zoomValidePourParcelles(z)) {
       // En dessous du zoom minimal, le rendu parcellaire n'est ni lisible ni performant :
@@ -295,7 +295,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
     const z = Number(req.params.z);
     const x = Number(req.params.x);
     const y = Number(req.params.y);
-    if (![z, x, y].every(Number.isInteger)) return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+    if (![z, x, y].every(Number.isInteger)) return erreur(rep, 400, 'tuile_invalide', 'Coordonnées de tuile invalides');
     if (!tuiles.zoomValidePourCommunes(z)) return rep.code(204).send();
 
     const tuile = await tuiles.tuileCommunes({ z, x, y }, filiereDepuis(req.query));
@@ -472,7 +472,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
       features,
       rayons,
       avertissement:
-        "Capacites indicatives issues de Capareseau et des donnees ouvertes des gestionnaires. Non engageantes : seule une etude de raccordement puis une proposition technique et financiere engagent une capacite.",
+        "Capacités indicatives issues de Capareseau et des données ouvertes des gestionnaires. Non engageantes : seule une étude de raccordement puis une proposition technique et financiere engagent une capacité.",
     };
   });
 
@@ -629,7 +629,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
       const x = Number(req.params.x);
       const y = Number(req.params.y);
       if (![z, x, y].every(Number.isInteger) || z < 0 || z > 21) {
-        return erreur(rep, 400, 'tuile_invalide', 'Coordonnees de tuile invalides');
+        return erreur(rep, 400, 'tuile_invalide', 'Coordonnées de tuile invalides');
       }
       const max = 2 ** z;
       if (x < 0 || y < 0 || x >= max || y >= max) return rep.code(204).send();
@@ -666,7 +666,7 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
           .header('Cache-Control', 'public, max-age=604800')
           .send(Buffer.from(await reponse.arrayBuffer()));
       } catch (err) {
-        req.log.warn({ err, calque: calque.id, z, x, y }, 'Relais de calque en echec');
+        req.log.warn({ err, calque: calque.id, z, x, y }, 'Relais de calque en échec');
         return erreur(rep, 502, 'calque_indisponible', 'Le service du calque est injoignable.');
       }
     },

@@ -30,7 +30,7 @@ async function main(): Promise<void> {
       await lancerIngestion(c);
     } catch (err) {
       echecs += 1;
-      journal.error({ err, connecteur: c }, "Job d'ingestion en echec");
+      journal.error({ err, connecteur: c }, "Job d'ingestion en échec");
     }
   }
 

@@ -77,9 +77,9 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'indicative',
     },
     legende:
-      'Forets relevant du regime forestier : domaniales (Etat) et des collectivites. Un projet y est en pratique exclu.',
+      'Forets relevant du régime forestier : domaniales (État) et des collectivités. Un projet y est en pratique exclu.',
     avertissement:
-      "Le regime forestier interdit en pratique tout projet ENR au sol : le defrichement d'une foret publique suppose une distraction du regime forestier, procedure longue et rarement accordee.",
+      "Le régime forestier interdit en pratique tout projet ENR au sol : le défrichement d'une foret publique suppose une distraction du régime forestier, procédure longue et rarement accordée.",
   },
   {
     id: 'bd_foret',
@@ -95,9 +95,9 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'indicative',
     },
     legende:
-      'Formations vegetales boisees de plus de 0,5 ha, publiques comme privees, par type de peuplement.',
+      'Formations végétales boisées de plus de 0,5 ha, publiques comme privées, par type de peuplement.',
     avertissement:
-      "Millesime departemental etale sur 2006-2019 : une coupe rase ou un boisement recent n'y figure pas. Le defrichement d'un bois prive reste soumis a autorisation.",
+      "Millésime départemental etale sur 2006-2019 : une coupe rase ou un boisement récent n'y figure pas. Le défrichement d'un bois prive reste soumis à autorisation.",
   },
   {
     id: 'forets_anciennes',
@@ -113,13 +113,13 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'indicative',
     },
     legende:
-      'Boisements presents deja sur la carte d\'etat-major du XIXe siecle : sols forestiers a forte valeur ecologique.',
+      'Boisements présents déjà sur la carte d\'état-major du XIXe siècle : sols forestiers a forte valeur écologique.',
     avertissement:
-      "L'anciennete d'un boisement pese lourdement dans l'instruction d'une demande de defrichement.",
+      "L'ancienneté d'un boisement pese lourdement dans l'instruction d'une demande de défrichement.",
   },
   {
     id: 'debroussaillement',
-    libelle: 'Obligations legales de debroussaillement',
+    libelle: 'Obligations légales de débroussaillement',
     groupe: 'foret',
     couleur: '#ea580c',
     mode: 'raster',
@@ -130,8 +130,8 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://geoservices.ign.fr/',
       valeurJuridique: 'indicative',
     },
-    legende: 'Secteurs ou le debroussaillement est obligatoire aux abords des constructions.',
-    avertissement: 'Zonage informatif : seul l\'arrete prefectoral en vigueur fait foi.',
+    legende: 'Secteurs ou le débroussaillement est obligatoire aux abords des constructions.',
+    avertissement: 'Zonage informatif : seul l\'arrêté préfectoral en vigueur fait foi.',
   },
 
   // ----------------------------------------------------------- environnement
@@ -149,9 +149,9 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://inpn.mnhn.fr/',
       valeurJuridique: 'opposable',
     },
-    legende: 'Sites designes au titre de la directive Habitats-Faune-Flore.',
+    legende: 'Sites désignés au titre de la directive Habitats-Faune-Flore.',
     avertissement:
-      "Tout projet, meme hors site, declenche une evaluation des incidences Natura 2000 des lors qu'il est susceptible d'affecter le site.",
+      "Tout projet, même hors site, declenche une évaluation des incidences Natura 2000 des lors qu'il est susceptible d'affecter le site.",
   },
   {
     id: 'natura2000_oiseaux',
@@ -167,9 +167,9 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://inpn.mnhn.fr/',
       valeurJuridique: 'opposable',
     },
-    legende: 'Zones de protection speciale designees au titre de la directive Oiseaux.',
+    legende: 'Zones de protection spéciale désignées au titre de la directive Oiseaux.',
     avertissement:
-      "Enjeu majeur pour l'eolien : la sensibilite avifaune conditionne l'acceptabilite du projet.",
+      "Enjeu majeur pour l'éolien : la sensibilité avifaune conditionne l'acceptabilité du projet.",
   },
   {
     id: 'znieff1',
@@ -185,9 +185,9 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://inpn.mnhn.fr/',
       valeurJuridique: 'indicative',
     },
-    legende: 'Secteurs de superficie limitee abritant des especes ou des habitats remarquables.',
+    legende: 'Secteurs de superficie limitée abritant des espèces ou des habitats remarquables.',
     avertissement:
-      "Les ZNIEFF n'ont pas de portee reglementaire directe, mais pesent lourdement dans l'instruction et le contentieux.",
+      "Les ZNIEFF n'ont pas de portée réglementaire directe, mais pesent lourdement dans l'instruction et le contentieux.",
   },
   {
     id: 'znieff2',
@@ -207,7 +207,7 @@ export const CALQUES: DefinitionCalque[] = [
   },
   {
     id: 'reserve_naturelle',
-    libelle: 'Reserves naturelles (nationales et de Corse)',
+    libelle: 'Réserves naturelles (nationales et de Corse)',
     groupe: 'environnement',
     couleur: '#047857',
     mode: 'vecteur_api',
@@ -220,7 +220,7 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'opposable',
     },
     legende: 'Protection forte : tout projet y est exclu.',
-    avertissement: 'Protection reglementaire forte : critere redhibitoire dans le scoring.',
+    avertissement: 'Protection réglementaire forte : critère rédhibitoire dans le scoring.',
   },
   {
     id: 'parc_national',
@@ -236,7 +236,7 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://inpn.mnhn.fr/',
       valeurJuridique: 'opposable',
     },
-    legende: "Coeur de parc : protection forte. Aire d'adhesion : reglement propre au parc.",
+    legende: "Coeur de parc : protection forte. Aire d'adhésion : règlement propre au parc.",
   },
   {
     id: 'parc_naturel_regional',
@@ -252,9 +252,9 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://inpn.mnhn.fr/',
       valeurJuridique: 'indicative',
     },
-    legende: "Perimetre de charte : pas d'interdiction generale, mais des prescriptions locales.",
+    legende: "Périmètre de charte : pas d'interdiction générale, mais des prescriptions locales.",
     avertissement:
-      "La charte du parc peut encadrer strictement l'eolien et le photovoltaique au sol. La consulter avant tout demarchage.",
+      "La charte du parc peut encadrer strictement l'éolien et le photovoltaïque au sol. La consulter avant tout démarchage.",
   },
   {
     id: 'zones_humides_bcae',
@@ -269,9 +269,9 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://geoservices.ign.fr/',
       valeurJuridique: 'pre_reperage',
     },
-    legende: 'Zones humides et tourbieres protegees au titre de la conditionnalite PAC.',
+    legende: 'Zones humides et tourbieres protégées au titre de la conditionnalité PAC.',
     avertissement:
-      "Pre-reperage : le caractere humide se determine par sondages pedologiques et releves floristiques (arrete du 24 juin 2008 modifie). Ce calque ne remplace pas une etude de terrain.",
+      "Pre-repérage : le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Ce calque ne remplace pas une étude de terrain.",
   },
   {
     id: 'clc_zones_humides',
@@ -287,8 +287,8 @@ export const CALQUES: DefinitionCalque[] = [
       url: 'https://land.copernicus.eu/',
       valeurJuridique: 'pre_reperage',
     },
-    legende: 'Couche haute resolution (20 m) des zones humides et surfaces en eau permanentes.',
-    avertissement: 'Millesime 2015, resolution 20 m : reperage d\'ensemble, pas de delimitation.',
+    legende: 'Couche haute résolution (20 m) des zones humides et surfaces en eau permanentes.',
+    avertissement: 'Millésime 2015, résolution 20 m : repérage d\'ensemble, pas de délimitation.',
   },
   {
     id: 'znieff1_raster',
@@ -304,7 +304,7 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'indicative',
     },
     legende:
-      "Meme donnee que le calque vectoriel ZNIEFF, servie en image : utile pour balayer un departement entier sans attendre.",
+      "Même donnée que le calque vectoriel ZNIEFF, servie en image : utile pour balayer un département entier sans attendre.",
   },
 
   // -------------------------------------------------------------- patrimoine
@@ -316,19 +316,19 @@ export const CALQUES: DefinitionCalque[] = [
     mode: 'vecteur_base',
     typeBase: 'monument_historique',
     source: {
-      nom: 'Ministere de la Culture - base Merimee (via data.gouv.fr)',
+      nom: 'Ministère de la Culture - base Mérimée (via data.gouv.fr)',
       millesime: '2024',
       url: 'https://www.data.gouv.fr/',
       valeurJuridique: 'opposable',
     },
     legende:
-      'Edifices classes ou inscrits. Le perimetre de protection couvre par defaut 500 m autour du monument.',
+      'Édifices classes ou inscrits. Le périmètre de protection couvre par défaut 500 m autour du monument.',
     avertissement:
-      "Le perimetre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe : l'application applique le rayon par defaut et le signale.",
+      "Le périmètre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe : l'application applique le rayon par défaut et le signale.",
   },
   {
     id: 'sites_patrimoniaux',
-    libelle: 'Sites classes, inscrits et perimetres ABF',
+    libelle: 'Sites classes, inscrits et périmètres ABF',
     groupe: 'patrimoine',
     couleur: '#6d28d9',
     mode: 'vecteur_api',
@@ -345,7 +345,7 @@ export const CALQUES: DefinitionCalque[] = [
     legende:
       "Servitudes de protection du patrimoine : abords de monuments (AC1), sites classes et inscrits (AC2), sites patrimoniaux remarquables (AC4).",
     avertissement:
-      "La couverture du Geoportail de l'Urbanisme depend du versement par chaque service instructeur : une absence de servitude n'est pas une garantie d'absence de protection.",
+      "La couverture du Geoportail de l'Urbanisme dépend du versement par chaque service instructeur : une absence de servitude n'est pas une garantie d'absence de protection.",
   },
 ];
 

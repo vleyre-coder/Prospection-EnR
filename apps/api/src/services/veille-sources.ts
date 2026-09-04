@@ -51,20 +51,20 @@ export const CHAMPS_SURVEILLES: readonly ChampSurveille[] = [
     // Une commune au reglement national d'urbanisme n'a pas de document : le taux ne peut pas
     // etre de 1. Mais zero sur un lot entier signale un champ lu sous un mauvais nom.
     tauxMin: 0.3,
-    motif: "Lu sous `typedoc` jusqu'a l'audit 6, alors que le champ reel est `du_type` : la valeur etait TOUJOURS nulle et chaque fiche affichait « non renseigne ».",
+    motif: "Lu sous `typedoc` jusqu'a l'audit 6, alors que le champ réel est `du_type` : la valeur était TOUJOURS nulle et chaque fiche affichait « non renseigne ».",
   },
   {
     chemin: 'milieux.natura2000Habitats.nom',
     lire: (s) => s.milieux.natura2000Habitats.nom,
     // Le nom n'existe que si un site est trouve dans le rayon : le taux depend du territoire.
     tauxMin: 0.05,
-    motif: "Lu sous `nom_site` puis `nom` jusqu'a l'audit 6, alors que les couches Natura 2000 d'API Carto emploient `sitename` : le nom du site etait TOUJOURS nul.",
+    motif: "Lu sous `nom_site` puis `nom` jusqu'a l'audit 6, alors que les couches Natura 2000 d'API Carto emploient `sitename` : le nom du site était TOUJOURS nul.",
   },
   {
     chemin: 'bati.distanceHabitationM',
     lire: (s) => s.bati.distanceHabitationM,
     tauxMin: 0.5,
-    motif: "Fausse de deux ordres de grandeur en tissu dense jusqu'a l'audit 5 (troncature WFS non detectee), et sous-estimee d'un tiers du bati jusqu'a l'audit 6.",
+    motif: "Fausse de deux ordres de grandeur en tissu dense jusqu'a l'audit 5 (troncature WFS non détectée), et sous-estimée d'un tiers du bati jusqu'a l'audit 6.",
   },
   {
     chemin: 'topographie.pentePct',
@@ -76,7 +76,7 @@ export const CHAMPS_SURVEILLES: readonly ChampSurveille[] = [
     chemin: 'raccordement.posteLePlusProche',
     lire: (s) => s.raccordement.posteLePlusProche,
     tauxMin: 0.5,
-    motif: 'Depend d’une ingestion : un poste source jamais trouve signale une ingestion vide plutot qu’un territoire sans reseau.',
+    motif: 'Dépend d’une ingestion : un poste source jamais trouve signale une ingestion vide plutôt qu’un territoire sans réseau.',
   },
   {
     chemin: 'occupationSol.typeSol',
@@ -153,7 +153,7 @@ export function journaliserVeille(resultat: ReturnType<typeof veillerSurLot>): v
       journal.error(
         detail,
         'VEILLE SOURCES : champ jamais renseigne sur tout le lot. Signature d’un contrat rompu — ' +
-          'verifiez que le nom du champ lu existe toujours dans la reponse du service.',
+          'verifiez que le nom du champ lu existe toujours dans la réponse du service.',
       );
     } else {
       journal.warn(detail, 'VEILLE SOURCES : taux de renseignement anormalement bas.');

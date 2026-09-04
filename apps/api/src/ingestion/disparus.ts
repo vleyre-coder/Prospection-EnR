@@ -69,7 +69,7 @@ export function suppressionAutorisee({
     return {
       autorisee: false,
       motif:
-        'pagination incomplete : les objets manquants sont peut-etre dans la partie non lue, ' +
+        'pagination incomplète : les objets manquants sont peut-être dans la partie non lue, ' +
         'aucune suppression',
     };
   }
@@ -80,7 +80,7 @@ export function suppressionAutorisee({
   if (nbEnBase === 0) {
     return {
       autorisee: false,
-      motif: 'aucune ligne en base apres ingestion : etat anormal, aucune suppression',
+      motif: 'aucune ligne en base après ingestion : état anormal, aucune suppression',
     };
   }
   const part = nbDisparus / nbEnBase;
@@ -90,8 +90,8 @@ export function suppressionAutorisee({
       motif:
         `${nbDisparus} objets non revus sur ${nbEnBase} en base, soit ` +
         `${Math.round(part * 100)} % — au-dela du plafond de ${Math.round(partMax * 100)} %. ` +
-        'Une source tronquee est plus probable qu’une revision de cette ampleur : aucune suppression. ' +
-        'Verifier la source, puis relancer.',
+        'Une source tronquée est plus probable qu’une révision de cette ampleur : aucune suppression. ' +
+        'Vérifier la source, puis relancer.',
     };
   }
   return {
@@ -156,7 +156,7 @@ export async function effacerDisparus(
     if (nbDisparus > 0) {
       journal.warn(
         { table: cible.table, connecteur: cible.connecteur, nbEnBase, nbDisparus, motif: decision.motif },
-        'Suppression des objets disparus REFUSEE',
+        'Suppression des objets disparus REFUSÉE',
       );
     }
     return { supprimes: 0, motif: decision.motif };

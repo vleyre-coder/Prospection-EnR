@@ -236,7 +236,7 @@ test('LA PHRASE DIT QUOI FAIRE, et pas seulement ce qui manque', () => {
    */
   const p = avertissementCouverture({ ...COMPLETE, ecarteesSurface: 12 }) ?? '';
   assert.match(p, /cliquant sur le cadastre/);
-  assert.match(p, /reference/);
+  assert.match(p, /référence/);
 });
 
 test('les trois troncatures se cumulent dans une seule phrase', () => {

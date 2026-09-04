@@ -44,11 +44,11 @@ export async function attendreBdd(delaiMaxMs = 60_000): Promise<boolean> {
       return true;
     } catch (err) {
       if (Date.now() >= echeance) {
-        journal.error({ err }, 'Base de donnees toujours injoignable');
+        journal.error({ err }, 'Base de données toujours injoignable');
         return false;
       }
       if (!signale) {
-        journal.info("Attente de la base de donnees…");
+        journal.info("Attente de la base de données…");
         signale = true;
       }
       await new Promise((r) => setTimeout(r, 1000));
@@ -78,14 +78,14 @@ export async function resoudreSecretJwt(bddPrete: boolean): Promise<string> {
 
   if (fourni === SECRET_EXEMPLE && config.env === 'production') {
     journal.warn(
-      'SECRET_JWT vaut encore la valeur d\'exemple : un secret aleatoire est genere et conserve en base.',
+      'SECRET_JWT vaut encore la valeur d\'exemple : un secret aléatoire est genere et conserve en base.',
     );
   }
 
   if (!bddPrete) {
     // Sans base, aucune persistance possible : un secret volatil vaut mieux qu'un
     // secret connu publiquement. Les jetons deja emis deviennent invalides.
-    journal.warn('Base indisponible : secret de signature temporaire (les sessions ne survivront pas au redemarrage).');
+    journal.warn('Base indisponible : secret de signature temporaire (les sessions ne survivront pas au redémarrage).');
     return randomBytes(32).toString('hex');
   }
 
@@ -126,7 +126,7 @@ export async function assurerAdministrateur(): Promise<void> {
 
   if (email && motDePasse) {
     if (motDePasse.length < 12) {
-      journal.error('ADMIN_MOT_DE_PASSE doit comporter au moins 12 caracteres : compte non cree.');
+      journal.error('ADMIN_MOT_DE_PASSE doit comporter au moins 12 caractères : compte non cree.');
       return;
     }
     await requete(
@@ -136,7 +136,7 @@ export async function assurerAdministrateur(): Promise<void> {
          mot_de_passe_hash = EXCLUDED.mot_de_passe_hash, role = 'admin', actif = true`,
       [email, hacherMotDePasse(motDePasse)],
     );
-    journal.info({ email }, 'Compte administrateur cree ou mis a jour');
+    journal.info({ email }, 'Compte administrateur cree ou mis à jour');
     return;
   }
 
@@ -162,8 +162,8 @@ export async function assurerAdministrateur(): Promise<void> {
       `   Identifiant : ${emailInitial}\n` +
       `   Mot de passe : ${genere}\n` +
       '   Notez-le : il n\'est affiche qu\'une seule fois.\n' +
-      '   Pour choisir vous-meme ces identifiants, definissez ADMIN_EMAIL\n' +
-      '   et ADMIN_MOT_DE_PASSE avant le premier demarrage.\n' +
+      '   Pour choisir vous-même ces identifiants, definissez ADMIN_EMAIL\n' +
+      '   et ADMIN_MOT_DE_PASSE avant le premier démarrage.\n' +
       '  ============================================================',
   );
 }
@@ -207,7 +207,7 @@ const AMORCAGE: JobAmorcage[] = [
   },
   {
     nom: 'postes_sources',
-    libelle: 'Postes sources et capacites de raccordement',
+    libelle: 'Postes sources et capacités de raccordement',
     duree: '2 min',
     indispensable: false,
     dejaPresent: async () => (await compte('SELECT count(*)::int AS n FROM poste_source')) > 1_000,
@@ -294,7 +294,7 @@ export async function amorcerSiNecessaire(): Promise<EtatAmorcage> {
 
   const liberer = await tenterVerrou(864_202);
   if (!liberer) {
-    journal.info('Amorcage deja en cours dans une autre instance : rien a faire ici.');
+    journal.info('Amorçage déjà en cours dans une autre instance : rien à faire ici.');
     return etatAmorcage();
   }
 
@@ -303,7 +303,7 @@ export async function amorcerSiNecessaire(): Promise<EtatAmorcage> {
   etat.finLe = null;
   journal.info(
     { etapes: aFaire.map((j) => j.nom) },
-    'Premier demarrage : chargement des donnees nationales en arriere-plan',
+    'Premier démarrage : chargement des données nationales en arrière-plan',
   );
 
   try {
@@ -321,7 +321,7 @@ export async function amorcerSiNecessaire(): Promise<EtatAmorcage> {
         etape.statut = abouti ? 'ok' : 'echec';
         etape.message = abouti
           ? resume(r)
-          : "Le job s'est termine sans produire de donnee exploitable.";
+          : "Le job s'est termine sans produire de donnée exploitable.";
         journal.info(
           { job: job.nom, abouti, ...r },
           abouti ? `Amorcage termine : ${job.libelle}` : `Amorcage sans resultat : ${job.libelle}`,
@@ -348,7 +348,7 @@ export async function amorcerSiNecessaire(): Promise<EtatAmorcage> {
   const echecs = etat.etapes.filter((e) => e.statut === 'echec');
   journal.info(
     { echecs: echecs.map((e) => e.nom) },
-    echecs.length === 0 ? 'Amorcage complet' : 'Amorcage termine avec des etapes en echec',
+    echecs.length === 0 ? 'Amorcage complet' : 'Amorçage termine avec des étapes en échec',
   );
   return etatAmorcage();
 }

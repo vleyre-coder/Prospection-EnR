@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   if (adopter) {
     journal.warn(
       'Mode adoption : le SQL ne sera PAS execute, les migrations seront seulement ' +
-        'enregistrees comme appliquees. A reserver a une base deja a jour.',
+        'enregistrées comme appliquées. À réserver à une base déjà à jour.',
     );
   }
   const { appliquees, adoptees, total } = await appliquerMigrations({

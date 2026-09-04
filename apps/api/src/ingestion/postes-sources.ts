@@ -191,7 +191,7 @@ export async function ingererPostesSources(): Promise<{
 
       if (postes.length === 0) {
         nbRegionsEnEchec += 1;
-        journal.warn({ region, uuids: uuids.length }, 'Aucun jeu de postes geolocalises trouve');
+        journal.warn({ region, uuids: uuids.length }, 'Aucun jeu de postes géolocalisés trouve');
         continue;
       }
 
@@ -266,7 +266,7 @@ export async function ingererPostesSources(): Promise<{
       journal.info({ region, postes: postes.length }, 'Region Capareseau ingeree');
     } catch (err) {
       nbRegionsEnEchec += 1;
-      journal.warn({ err, region }, 'Echec de l\'ingestion d\'une region Capareseau');
+      journal.warn({ err, region }, 'Échec de l\'ingestion d\'une région Capareseau');
     }
   }
 
@@ -327,8 +327,8 @@ export async function ingererPostesSources(): Promise<{
     if (parDep.length === 0) {
       journal.warn(
         { nbPostes, regionsReussies: regionsReussies.length },
-        'Postes ingeres mais aucun departement resolu : table `commune` vide ou codes de region ' +
-          'absents. Aucune couverture posee, donc criteres de raccordement gris. Lancer ' +
+        'Postes ingérés mais aucun département resolu : table `commune` vide ou codes de région ' +
+          'absents. Aucune couverture posée, donc critères de raccordement gris. Lancer ' +
           '`npm run ingest -- communes` puis relancer cette ingestion.',
       );
     }

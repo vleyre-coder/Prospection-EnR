@@ -184,7 +184,7 @@ export async function journaliser(action: string, details: DetailsJournal = {}):
   try {
     await ecrireJournal(action, details);
   } catch (err) {
-    journal.error({ err, action, cible: details.cible }, "Echec d'ecriture au journal d'acces");
+    journal.error({ err, action, cible: details.cible }, "Échec d'écriture au journal d'accès");
   }
 }
 

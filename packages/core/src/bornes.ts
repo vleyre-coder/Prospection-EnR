@@ -50,9 +50,9 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 100,
     unite: '%',
     motif:
-      "100 % vaut 45 degres. Aucune parcelle cadastrale exploitable n'a une pente MOYENNE de " +
-      "45 degres : au-dela on decrit une falaise, pas un terrain. C'est la borne qui aurait " +
-      'arrete les 1 666 % constates.',
+      "100 % vaut 45 degrés. Aucune parcelle cadastrale exploitable n'à une pente MOYENNE de " +
+      "45 degrés : au-delà on decrit une falaise, pas un terrain. C'est la borne qui aurait " +
+      'arrêté les 1 666 % constates.',
   },
   {
     chemin: 'topographie.penteMaxPct',
@@ -61,8 +61,8 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: '%',
     motif:
       'Plus permissive que la pente moyenne, et a dessein : la pente MAXIMALE est une mesure ' +
-      'locale entre deux points, et un talus ou un front de taille a l’interieur d’une parcelle ' +
-      'peut depasser 45 degres sans que la parcelle soit une falaise.',
+      'locale entre deux points, et un talus ou un front de taille à l’intérieur d’une parcelle ' +
+      'peut dépasser 45 degrés sans que la parcelle soit une falaise.',
   },
   {
     chemin: 'topographie.orientationDeg',
@@ -70,9 +70,9 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 360,
     unite: '°',
     motif:
-      'Azimut en degres. 360 est accepte comme synonyme de 0 plutot que refuse sur une question ' +
+      'Azimut en degrés. 360 est accepte comme synonyme de 0 plutôt que refuse sur une question ' +
       'de convention : le calcul normalise dans [0, 360[ mais un arrondi peut produire 360, et ' +
-      "effacer une orientation juste pour un demi-degre serait un defaut, pas une protection.",
+      "effacer une orientation juste pour un demi-degré serait un défaut, pas une protection.",
   },
   {
     chemin: 'topographie.altitudeM',
@@ -80,10 +80,10 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 4810,
     unite: 'm',
     motif:
-      'Le point le plus bas de France metropolitaine est dans le delta du Rhone, a environ -2 m ; ' +
-      '-20 laisse la marge d’une donnee altimetrique bruitee en zone de polder. Le plafond est le ' +
+      'Le point le plus bas de France métropolitaine est dans le delta du Rhône, a environ -2 m ; ' +
+      '-20 laisse la marge d’une donnée altimétrique bruitée en zone de polder. Le plafond est le ' +
       'sommet du Mont-Blanc. Une altitude hors de cet intervalle designe une erreur de source ou ' +
-      "une confusion d'unite, pas un terrain francais.",
+      "une confusion d'unité, pas un terrain français.",
   },
   {
     chemin: 'topographie.deniveleM',
@@ -91,12 +91,12 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 1500,
     unite: 'm',
     motif:
-      'Denivele a l’interieur d’UNE parcelle cadastrale. 1 500 m est deja extraordinaire — cela ' +
-      'suppose une parcelle de montagne de plusieurs centaines d’hectares. Au-dela, la geometrie ' +
-      'ou le semis altimetrique est en cause.',
+      'Dénivelé à l’intérieur d’UNE parcelle cadastrale. 1 500 m est déjà extraordinaire — cela ' +
+      'suppose une parcelle de montagne de plusieurs centaines d’hectares. Au-delà, la géométrie ' +
+      'ou le semis altimétrique est en cause.',
   },
-  { chemin: 'topographie.cavitesProches', min: 0, max: 100_000, unite: 'cavites', motif: "Denombrement d'objets dans un rayon de proximite. Un compte de cet ordre ne designe pas un territoire dense mais une requete spatiale qui a perdu son filtre d'emprise et compte tout le departement." },
-  { chemin: 'topographie.mouvementsTerrain', min: 0, max: 100_000, unite: 'evenements', motif: "Denombrement d'objets dans un rayon de proximite. Un compte de cet ordre ne designe pas un territoire dense mais une requete spatiale qui a perdu son filtre d'emprise et compte tout le departement." },
+  { chemin: 'topographie.cavitesProches', min: 0, max: 100_000, unite: 'cavites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'topographie.mouvementsTerrain', min: 0, max: 100_000, unite: 'evenements', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
 
   // -- Eau -----------------------------------------------------------------
   {
@@ -105,7 +105,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 100_000,
     unite: 'm',
     motif:
-      'Aucun point de France n’est a plus de quelques dizaines de kilometres d’un cours d’eau ' +
+      'Aucun point de France n’est à plus de quelques dizaines de kilomètres d’un cours d’eau ' +
       'recense. 100 km est une borne large qui ne rejette que l’absurde.',
   },
   {
@@ -114,45 +114,45 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 200_000,
     unite: 'm',
     motif:
-      'Distance au perimetre de protection de captage le plus proche. La France en compte plus de ' +
+      'Distance au périmètre de protection de captage le plus proche. La France en compte plus de ' +
       '33 000 : aucun point du territoire n’en est eloigne de 200 km. La borne ne rattrape donc ' +
-      "qu'une confusion d'unite ou une distance calculee dans une autre projection.",
+      "qu'une confusion d'unité ou une distance calculée dans une autre projection.",
   },
 
   // -- Occupation du sol ---------------------------------------------------
-  { chemin: 'occupationSol.rpg.partRecouvrement', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornee entre 0 et 1 par definition. Une valeur superieure a 1 trahit un rapport calcule sur deux surfaces de reference differentes — c'est exactement le defaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » a l'ordre de reponse du service." },
+  { chemin: 'occupationSol.rpg.partRecouvrement', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure a 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
   {
     chemin: 'occupationSol.rpg.anneesDeclareesConsecutives',
     min: 0,
     max: 30,
     unite: 'annees',
     motif:
-      'Le RPG existe depuis 2007 et le connecteur interroge sept millesimes. 30 laisse la marge ' +
-      "d'un elargissement de la profondeur d'historique sans avoir a toucher cette borne.",
+      'Le RPG existe depuis 2007 et le connecteur interroge sept millésimes. 30 laisse la marge ' +
+      "d'un élargissement de la profondeur d'historique sans avoir à toucher cette borne.",
   },
-  { chemin: 'occupationSol.foret.partBoisee', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornee entre 0 et 1 par definition. Une valeur superieure a 1 trahit un rapport calcule sur deux surfaces de reference differentes — c'est exactement le defaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » a l'ordre de reponse du service." },
-  { chemin: 'occupationSol.potentielAgronomique', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'occupationSol.foret.partBoisee', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure a 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
+  { chemin: 'occupationSol.potentielAgronomique', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
 
   // -- Milieux et patrimoine : parts et distances --------------------------
   ...['natura2000Habitats', 'natura2000Oiseaux', 'znieff1', 'znieff2', 'appb', 'reserveNaturelle', 'coeurParcNational', 'parcNaturelRegional'].flatMap(
     (z): BorneGrandeur[] => [
-      { chemin: `milieux.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornee entre 0 et 1 par definition. Une valeur superieure a 1 trahit un rapport calcule sur deux surfaces de reference differentes — c'est exactement le defaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » a l'ordre de reponse du service." },
-      { chemin: `milieux.${z}.distanceM`, min: 0, max: 300_000, unite: 'm', motif: 'Distance au zonage le plus proche. Le point de France le plus eloigne d’un site Natura 2000 est a moins de 100 km ; 300 km ne rejette que l’absurde.' },
+      { chemin: `milieux.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure a 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
+      { chemin: `milieux.${z}.distanceM`, min: 0, max: 300_000, unite: 'm', motif: 'Distance au zonage le plus proche. Le point de France le plus eloigne d’un site Natura 2000 est à moins de 100 km ; 300 km ne rejette que l’absurde.' },
     ],
   ),
-  { chemin: 'milieux.preEnjeuEspeces', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
-  { chemin: 'milieux.sensibiliteAvifaune', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
-  { chemin: 'milieux.sensibiliteChiropteres', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.preEnjeuEspeces', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.sensibiliteAvifaune', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.sensibiliteChiropteres', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
   ...['siteClasse', 'siteInscrit', 'spr'].flatMap((z): BorneGrandeur[] => [
-    { chemin: `patrimoine.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornee entre 0 et 1 par definition. Une valeur superieure a 1 trahit un rapport calcule sur deux surfaces de reference differentes — c'est exactement le defaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » a l'ordre de reponse du service." },
+    { chemin: `patrimoine.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure a 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 a presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
     { chemin: `patrimoine.${z}.distanceM`, min: 0, max: 300_000, unite: 'm', motif: 'Distance au zonage patrimonial le plus proche.' },
   ]),
   { chemin: 'patrimoine.monumentHistorique.distanceM', min: 0, max: 300_000, unite: 'm', motif: 'Distance au monument le plus proche. La France en compte plus de 45 000 : aucun point n’en est eloigne de 300 km.' },
-  { chemin: 'patrimoine.covisibiliteIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'patrimoine.covisibiliteIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
 
   // -- Risques -------------------------------------------------------------
-  { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Denombrement d'objets dans un rayon de proximite. Un compte de cet ordre ne designe pas un territoire dense mais une requete spatiale qui a perdu son filtre d'emprise et compte tout le departement." },
-  { chemin: 'risques.icpeProches', min: 0, max: 100_000, unite: 'installations', motif: "Denombrement d'objets dans un rayon de proximite. Un compte de cet ordre ne designe pas un territoire dense mais une requete spatiale qui a perdu son filtre d'emprise et compte tout le departement." },
+  { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'risques.icpeProches', min: 0, max: 100_000, unite: 'installations', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
 
   // -- Raccordement --------------------------------------------------------
   {
@@ -161,18 +161,18 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 500,
     unite: 'km',
     motif:
-      'Le reseau public de distribution maille tout le territoire : la distance au poste source ' +
-      'le plus proche depasse rarement 30 km. 500 km rejette une confusion metre / kilometre.',
+      'Le réseau public de distribution maille tout le territoire : la distance au poste source ' +
+      'le plus proche depasse rarement 30 km. 500 km rejette une confusion mètre / kilomètre.',
   },
-  { chemin: 'raccordement.posteLePlusProche.capaciteResiduelleMw', min: 0, max: 10_000, unite: 'MW', motif: 'Capacite d’accueil d’un poste source. Le plus gros poste francais reste tres en dessous de 10 GW.' },
+  { chemin: 'raccordement.posteLePlusProche.capaciteResiduelleMw', min: 0, max: 10_000, unite: 'MW', motif: 'Capacité d’accueil d’un poste source. Le plus gros poste français reste très en dessous de 10 GW.' },
   { chemin: 'raccordement.posteLePlusProche.fileAttenteMw', min: 0, max: 100_000, unite: 'MW', motif: 'Puissance des projets en file d’attente, cumulable : borne large.' },
-  { chemin: 'raccordement.posteLePlusProche.quotePartEurParKw', min: 0, max: 1_000, unite: 'EUR/kW', motif: 'Quote-part S3REnR. Les schemas publies se situent entre 10 et 150 EUR/kW.' },
+  { chemin: 'raccordement.posteLePlusProche.quotePartEurParKw', min: 0, max: 1_000, unite: 'EUR/kW', motif: 'Quote-part S3REnR. Les schémas publies se situent entre 10 et 150 EUR/kW.' },
   // Les deux distances gaz sont bornees separement depuis l'audit 8 : la canalisation gouverne le
   // raccordement, le site d'injection existant n'est qu'un indicateur de territoire. C'est le controle
   // des bornes qui a rattrape l'oubli de cette ligne lors du renommage — la preuve qu'il sert.
-  { chemin: 'raccordement.reseauGaz.distanceCanalisationKm', min: 0, max: 500, unite: 'km', motif: 'Distance a la canalisation de gaz. Meme raisonnement que pour le poste source.' },
-  { chemin: 'raccordement.reseauGaz.distanceSiteInjectionKm', min: 0, max: 1000, unite: 'km', motif: 'Distance au site d’injection de biomethane existant le plus proche. Borne plus large que celle des canalisations : les sites d’injection sont rares, donc parfois tres eloignes.' },
-  { chemin: 'raccordement.reseauGaz.capaciteInjectionNm3h', min: 0, max: 100_000, unite: 'Nm3/h', motif: 'Capacite d’injection d’un point du reseau.' },
+  { chemin: 'raccordement.reseauGaz.distanceCanalisationKm', min: 0, max: 500, unite: 'km', motif: 'Distance à la canalisation de gaz. Même raisonnement que pour le poste source.' },
+  { chemin: 'raccordement.reseauGaz.distanceSiteInjectionKm', min: 0, max: 1000, unite: 'km', motif: 'Distance au site d’injection de biomethane existant le plus proche. Borne plus large que celle des canalisations : les sites d’injection sont rares, donc parfois très éloignés.' },
+  { chemin: 'raccordement.reseauGaz.capaciteInjectionNm3h', min: 0, max: 100_000, unite: 'Nm3/h', motif: 'Capacité d’injection d’un point du réseau.' },
 
   // -- Gisement ------------------------------------------------------------
   {
@@ -182,31 +182,31 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: 'kWh/m2/an',
     motif:
       "L'irradiation globale horizontale va d'environ 1 000 kWh/m2/an dans le nord de la France a " +
-      '1 800 en Corse, et jusqu’a environ 2 100 dans les departements d’outre-mer. Une valeur sous ' +
-      '700 ou au-dela de 2 400 signale une confusion d’unite (Wh, MJ) ou une source hors sujet — et ' +
-      'ce critere est structurant en solaire.',
+      '1 800 en Corse, et jusqu’a environ 2 100 dans les départements d’outre-mer. Une valeur sous ' +
+      '700 ou au-delà de 2 400 signale une confusion d’unité (Wh, MJ) ou une source hors sujet — et ' +
+      'ce critère est structurant en solaire.',
   },
-  { chemin: 'gisement.productibleKwhKwcAn', min: 600, max: 2_000, unite: 'kWh/kWc/an', motif: 'Productible specifique. 900 a 1 400 en metropole, jusqu’a 1 700 outre-mer.' },
+  { chemin: 'gisement.productibleKwhKwcAn', min: 600, max: 2_000, unite: 'kWh/kWc/an', motif: 'Productible spécifique. 900 a 1 400 en métropole, jusqu’a 1 700 outre-mer.' },
   {
     chemin: 'gisement.ventVitesse100mMs',
     min: 0,
     max: 20,
     unite: 'm/s',
     motif:
-      'Vitesse MOYENNE annuelle a 100 m. Elle va d’environ 3 m/s en fond de vallee abritee a 9 ou ' +
-      '10 m/s sur les cotes les plus exposees. 20 m/s serait une moyenne de tempete permanente : ' +
+      'Vitesse MOYENNE annuelle a 100 m. Elle va d’environ 3 m/s en fond de vallée abritée a 9 ou ' +
+      '10 m/s sur les cotes les plus exposées. 20 m/s serait une moyenne de tempête permanente : ' +
       'la valeur decrit alors une rafale ou une autre grandeur.',
   },
-  { chemin: 'gisement.intrantsMethaTonnesMsAn', min: 0, max: 1_000_000, unite: 't MS/an', motif: 'Tonnage mobilisable dans un rayon de 10 km. Borne large : un bassin tres agricole reste tres en dessous.' },
+  { chemin: 'gisement.intrantsMethaTonnesMsAn', min: 0, max: 1_000_000, unite: 't MS/an', motif: 'Tonnage mobilisable dans un rayon de 10 km. Borne large : un bassin très agricole reste très en dessous.' },
   {
     chemin: 'gisement.elevagesRayon10km',
     min: 0,
     max: 100_000,
     unite: 'elevages',
     motif:
-      "Denombrement des elevages dans un rayon de 10 km. Le departement le plus dense de France en " +
-      "compte quelques milliers au total : un compte de cet ordre designe une requete spatiale qui " +
-      "a perdu son filtre d'emprise, pas un bassin d'elevage.",
+      "Dénombrement des élevages dans un rayon de 10 km. Le département le plus dense de France en " +
+      "compte quelques milliers au total : un compte de cet ordre designe une requête spatiale qui " +
+      "a perdu son filtre d'emprise, pas un bassin d'élevage.",
   },
   {
     chemin: 'gisement.iaaRayon20km',
@@ -214,8 +214,8 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 100_000,
     unite: 'etablissements',
     motif:
-      "Denombrement des industries agroalimentaires dans un rayon de 20 km. Meme raisonnement que " +
-      "pour les elevages : la France en compte environ 18 000 au total, tous departements " +
+      "Dénombrement des industries agroalimentaires dans un rayon de 20 km. Même raisonnement que " +
+      "pour les élevages : la France en compte environ 18 000 au total, tous départements " +
       'confondus.',
   },
   { chemin: 'gisement.surfacesEpandageHa', min: 0, max: 1_000_000, unite: 'ha', motif: 'Surfaces d’epandage mobilisables. Borne large.' },
@@ -227,19 +227,19 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 50_000,
     unite: 'm',
     motif:
-      'Le point de France metropolitaine le plus eloigne d’une habitation est a une quinzaine de ' +
-      'kilometres. 50 km rejette une confusion d’unite sans ecarter aucun cas reel — et ce critere ' +
-      'fonde le knock-out du recul de 500 m en eolien.',
+      'Le point de France métropolitaine le plus eloigne d’une habitation est à une quinzaine de ' +
+      'kilomètres. 50 km rejette une confusion d’unité sans écarter aucun cas réel — et ce critère ' +
+      'fonde le knock-out du recul de 500 m en éolien.',
   },
-  { chemin: 'bati.nbHabitationsRayon500m', min: 0, max: 100_000, unite: 'batiments', motif: 'Denombrement dans un rayon de 500 m. Meme en coeur urbain dense, on reste tres en dessous.' },
+  { chemin: 'bati.nbHabitationsRayon500m', min: 0, max: 100_000, unite: 'batiments', motif: 'Dénombrement dans un rayon de 500 m. Même en coeur urbain dense, on reste très en dessous.' },
   { chemin: 'bati.distanceZoneHabitatM', min: 0, max: 100_000, unite: 'm', motif: 'Distance au zonage U ou AU le plus proche.' },
-  { chemin: 'bati.densiteBati1km', min: 0, max: 100_000, unite: 'batiments/km2', motif: 'Proxy d’urbanisation, exprime en denombrement sur 1 km2.' },
-  { chemin: 'acces.distanceVoirieM', min: 0, max: 50_000, unite: 'm', motif: 'Distance a la voirie carrossable la plus proche.' },
+  { chemin: 'bati.densiteBati1km', min: 0, max: 100_000, unite: 'batiments/km2', motif: 'Proxy d’urbanisation, exprime en dénombrement sur 1 km2.' },
+  { chemin: 'acces.distanceVoirieM', min: 0, max: 50_000, unite: 'm', motif: 'Distance à la voirie carrossable la plus proche.' },
 
   // -- Foncier -------------------------------------------------------------
-  { chemin: 'foncier.nbProprietairesEstime', min: 0, max: 10_000, unite: 'comptes', motif: 'Nombre de comptes cadastraux. Une indivision tres large reste tres en dessous.' },
-  { chemin: 'foncier.surfaceDunSeulTenantHa', min: 0, max: 100_000, unite: 'ha', motif: 'La plus grande commune de France metropolitaine couvre environ 75 000 ha : une emprise d’un seul tenant ne peut pas la depasser.' },
-  { chemin: 'foncier.morcellementIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le bareme de derivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'foncier.nbProprietairesEstime', min: 0, max: 10_000, unite: 'comptes', motif: 'Nombre de comptes cadastraux. Une indivision très large reste très en dessous.' },
+  { chemin: 'foncier.surfaceDunSeulTenantHa', min: 0, max: 100_000, unite: 'ha', motif: 'La plus grande commune de France métropolitaine couvre environ 75 000 ha : une emprise d’un seul tenant ne peut pas la dépasser.' },
+  { chemin: 'foncier.morcellementIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalise 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
 ];
 
 /** Grandeur trouvee hors de ses bornes. */

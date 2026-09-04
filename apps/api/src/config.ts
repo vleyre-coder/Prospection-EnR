@@ -277,15 +277,15 @@ export function configurationsFatales(
 
   if (c.env === 'production' && !bureauRecevable) {
     fatales.push(
-      'AUTH_DESACTIVEE est actif en production : toutes les routes protegees repondent en erreur. ' +
+      'AUTH_DESACTIVEE est actif en production : toutes les routes protégées répondent en erreur. ' +
         'Retirez cette variable.',
     );
   }
   if (c.auth.modeBureau && !estBoucleLocale(c.hote)) {
     fatales.push(
       `MODE_BUREAU n'est recevable que sur la boucle locale, or HOTE vaut « ${c.hote} » : ` +
-        "cette instance est joignable par le reseau et n'aurait aucune authentification. " +
-        'Retirez AUTH_DESACTIVEE et MODE_BUREAU, ou faites ecouter le serveur sur 127.0.0.1.',
+        "cette instance est joignable par le réseau et n'aurait aucune authentification. " +
+        'Retirez AUTH_DESACTIVEE et MODE_BUREAU, ou faites écouter le serveur sur 127.0.0.1.',
     );
   }
   return fatales;

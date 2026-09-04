@@ -80,7 +80,7 @@ export function georeferencementPlausible(
   const [ox, oy] = origine;
   const [rx, ry] = resolution;
   if (!Number.isFinite(ox) || !Number.isFinite(oy) || !Number.isFinite(rx) || !Number.isFinite(ry)) {
-    return { ok: false, motif: 'origine ou resolution non finie' };
+    return { ok: false, motif: 'origine ou résolution non finie' };
   }
   // La France metropolitaine et l'outre-mer restent dans les bornes du systeme geographique.
   if (Math.abs(ox) > 180 || Math.abs(oy) > 90) {
@@ -124,8 +124,8 @@ async function ouvrirRaster(): Promise<Raster | null> {
       // parcelles. Mieux vaut un critere gris qu'une valeur fausse : on refuse le fichier.
       journal.error(
         { chemin: CHEMIN_RASTER, origine, resolution, motif: verdict.motif },
-        'Raster de vent refuse : geoereferencement incompatible avec un echantillonnage en degres. ' +
-          'Le critere de gisement eolien restera non evalue.',
+        'Raster de vent refuse : geoereferencement incompatible avec un échantillonnage en degrés. ' +
+          'Le critère de gisement éolien restera non evalue.',
       );
       return null;
     }

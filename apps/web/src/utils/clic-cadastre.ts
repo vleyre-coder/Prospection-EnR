@@ -48,8 +48,8 @@ export function decisionClicCadastre(arg: {
       action: 'refuser',
       libelle,
       message:
-        'Cette parcelle du cadastre ne porte pas d’identifiant exploitable : elle ne peut pas etre ' +
-        'qualifiee depuis la carte. Recherchez-la par sa reference cadastrale.',
+        'Cette parcelle du cadastre ne porte pas d’identifiant exploitable : elle ne peut pas être ' +
+        'qualifiée depuis la carte. Recherchez-la par sa référence cadastrale.',
     };
   }
   return { action: 'qualifier', idu, libelle };

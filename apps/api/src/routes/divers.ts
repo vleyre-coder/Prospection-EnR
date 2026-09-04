@@ -77,7 +77,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { idu: string } }>('/api/exports/parcelle/:idu.pdf', async (req, rep) => {
     const q = req.query as { filiere?: string };
     if (!estFiliere(q.filiere)) {
-      return erreur(rep, 400, 'filiere_invalide', 'Parametre `filiere` requis et valide');
+      return erreur(rep, 400, 'filiere_invalide', 'Paramètre `filière` requis et valide');
     }
     const idu = req.params.idu.toUpperCase();
     const [parcelle, snapshot, score] = await Promise.all([
@@ -118,7 +118,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     // Meme comportement que le Shapefile : un fichier qui s'ouvre sur rien, sans message, laisse
     // croire a un export reussi (audit 8, D7).
     if (donnees.length === 0) {
-      return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiee dans la selection');
+      return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiée dans la sélection');
     }
     await journaliser('export_geojson', {
       utilisateurId: req.utilisateur?.id,
@@ -141,7 +141,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       filiere,
     );
     if (donnees.length === 0) {
-      return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiee dans la selection');
+      return erreur(rep, 404, 'aucune_parcelle', 'Aucune parcelle qualifiée dans la sélection');
     }
 
     const archive = archiveShapefile(
@@ -287,7 +287,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     const filiere = c.parmi('filiere', FILIERES);
     const partage = c.booleen('partage');
     if (!nom) return erreur(rep, 400, 'nom_manquant', 'Champ `nom` requis');
-    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filiere` requis et valide');
+    if (!filiere) return erreur(rep, 400, 'filiere_invalide', 'Champ `filière` requis et valide');
     /**
      * Les poids sont VALIDES avant d'etre persistes.
      *
@@ -336,7 +336,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     if (supprimees.length === 0) {
       // Meme reponse que le profil soit inexistant ou appartienne a un tiers : distinguer
       // les deux revelerait l'existence des profils d'autrui.
-      return erreur(rep, 404, 'profil_introuvable', 'Aucun profil de ponderation supprimable a cet identifiant');
+      return erreur(rep, 404, 'profil_introuvable', 'Aucun profil de pondération supprimable à cet identifiant');
     }
     return rep.code(204).send();
   });
@@ -517,7 +517,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
         rep,
         422,
         'mot_de_passe_faible',
-        'Le mot de passe doit comporter au moins 12 caracteres',
+        'Le mot de passe doit comporter au moins 12 caractères',
       );
     }
     const u = await requeteUne<{ id: string }>(
@@ -584,7 +584,7 @@ function idusValides(brut: unknown, maximum: number): string[] {
     throw new ErreurValidation(
       'idus',
       `Champ \`idus\` : ${brut.length} identifiants demandes, maximum ${maximum}. ` +
-        'Restreignez la selection, ou exportez en plusieurs lots.',
+        'Restreignez la sélection, ou exportez en plusieurs lots.',
     );
   }
   const vus = new Set<string>();

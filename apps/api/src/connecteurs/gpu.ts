@@ -158,7 +158,7 @@ export async function urbanismeParcelle(
     if (brut && !TYPES_DOCUMENT[brut]) {
       journal.warn(
         { du_type: doc?.du_type },
-        'Type de document d\'urbanisme inconnu : laisse non renseigne plutot que requalifie.',
+        'Type de document d\'urbanisme inconnu : laisse non renseigne plutôt que requalifie.',
       );
     }
   } else {

@@ -196,7 +196,7 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
       paginationComplete = true;
       if (nbPoints > 0) break;
     } catch (err) {
-      journal.debug({ err, jeu }, "Jeu de donnees GRDF indisponible, essai suivant");
+      journal.debug({ err, jeu }, "Jeu de données GRDF indisponible, essai suivant");
     }
   }
 
@@ -231,7 +231,7 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
       ? `${nbPoints} sites d'injection en service, ${nbFermes} sites fermes ecartes, ` +
         `${nbDepartements} departement(s) couvert(s)` +
         (paginationComplete ? '' : ' — PAGINATION INTERROMPUE, couverture non enregistree')
-      : "Aucun jeu GRDF exploitable : verifier les identifiants de jeux sur opendata.grdf.fr",
+      : "Aucun jeu GRDF exploitable : vérifier les identifiants de jeux sur opendata.grdf.fr",
     nbPoints,
   );
   return { connecteur: 'reseau_gaz', nbPoints };
@@ -321,7 +321,7 @@ export async function ingererPatrimoine(): Promise<{
   try {
     const ressource = await urlRessourceDataGouv(JEU_MONUMENTS, 'geojson');
     millesime = ressource.derniereMaj;
-    journal.info({ url: ressource.url, millesime }, 'Telechargement du jeu monuments historiques');
+    journal.info({ url: ressource.url, millesime }, 'Téléchargement du jeu monuments historiques');
 
     // Insertion par lots : une transaction par entite couterait des heures sur 46 000 objets.
     const lot: Array<[string, string, string, number, number, string, string | null]> = [];
@@ -416,7 +416,7 @@ export async function ingererPatrimoine(): Promise<{
     }
     await viderLot();
   } catch (err) {
-    journal.error({ err }, "Echec de l'ingestion du patrimoine");
+    journal.error({ err }, "Échec de l'ingestion du patrimoine");
     await enregistrerIngestion('patrimoine_culture', 'echec', (err as Error).message, nbObjets);
     return { connecteur: 'patrimoine_culture', nbObjets, nbSansGeometrie, millesime };
   }
@@ -544,7 +544,7 @@ export async function avecVerrouIngestion<T>(
 ): Promise<T> {
   const liberer = await tenterVerrou(cleVerrouIngestion(connecteur));
   if (!liberer) {
-    journal.warn({ connecteur }, 'Ingestion refusee : une autre est en cours pour ce connecteur');
+    journal.warn({ connecteur }, 'Ingestion refusée : une autre est en cours pour ce connecteur');
     throw new ErreurIngestionEnCours(connecteur);
   }
   try {

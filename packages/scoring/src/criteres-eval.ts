@@ -73,7 +73,7 @@ function indispo(sourceKey?: string, commentaire?: string): EvalBrute {
     note: null,
     valeurBrute: null,
     valeurAffichee: INDISPO,
-    commentaire: commentaire ?? "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+    commentaire: commentaire ?? "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
     sourceKey: sourceKey ?? null,
   };
 }
@@ -157,8 +157,8 @@ const racc_distance_poste: Evaluateur = (s, ctx) => {
       `Le lineaire est estime en majorant la distance a vol d'oiseau de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % : ` +
       `une liaison suit les emprises publiques et contourne le bati. ` +
       (lineaire > 10
-        ? "A ce lineaire, le cout de la liaison risque de dominer le budget du projet."
-        : "Lineaire compatible avec un raccordement economiquement raisonnable, sous reserve de l'etude du gestionnaire."),
+        ? "À ce linéaire, le cout de la liaison risque de dominer le budget du projet."
+        : "Linéaire compatible avec un raccordement économiquement raisonnable, sous réserve de l'étude du gestionnaire."),
     sourceKey: SRC.postes,
   };
 };
@@ -199,8 +199,8 @@ const racc_capacite_residuelle: Evaluateur = (s, ctx) => {
     valeurBrute: poste.capaciteResiduelleMw,
     valeurAffichee: morceaux.join(' - ') || INDISPO,
     commentaire: renfort
-      ? "Un renforcement est inscrit au S3REnR : le poste peut redevenir interessant a l'horizon de developpement du projet."
-      : "Capacite issue de Capareseau : indicative, non engageante et evolutive au fil des demandes de raccordement.",
+      ? "Un renforcement est inscrit au S3REnR : le poste peut redevenir intéressant a l'horizon de développement du projet."
+      : "Capacité issue de Capareseau : indicative, non engageante et evolutive au fil des demandes de raccordement.",
     sourceKey: SRC.postes,
   };
 };
@@ -219,7 +219,7 @@ const racc_quote_part: Evaluateur = (s) => {
     ]),
     valeurBrute: q,
     valeurAffichee: `${formatNombre(q, 'EUR/kW', 0)}`,
-    commentaire: "Quote-part du schema regional de raccordement, a integrer au budget de raccordement.",
+    commentaire: "Quote-part du schéma régional de raccordement, à intégrer au budget de raccordement.",
     sourceKey: SRC.postes,
   };
 };
@@ -241,8 +241,8 @@ const racc_distance_reseau_gaz: Evaluateur = (s) => {
     const injection = s.raccordement.reseauGaz.distanceSiteInjectionKm;
     return sansSource(
       SRC.gaz,
-      "La distance au reseau de gaz",
-      'A obtenir aupres de GRDF ou GRTgaz : le zonage de raccordement et la capacite d’injection ' +
+      "La distance au réseau de gaz",
+      'À obtenir auprès de GRDF ou GRTgaz : le zonage de raccordement et la capacité d’injection ' +
         'conditionnent le projet, et le trace des canalisations n’est pas ingere dans cette instance.' +
         (injection != null
           ? ` A titre indicatif, le site d’injection de biomethane existant le plus proche est a ${formatNombre(injection, 'km')} — ce n’est PAS une distance de raccordement.`
@@ -266,8 +266,8 @@ const racc_distance_reseau_gaz: Evaluateur = (s) => {
     valeurAffichee: `${formatNombre(d, 'km')}${s.raccordement.reseauGaz.gestionnaire ? ` - ${s.raccordement.reseauGaz.gestionnaire}` : ''}${s.raccordement.reseauGaz.reboursNecessaire === true ? ' (rebours necessaire)' : ''}`,
     commentaire:
       d > 8
-        ? "Au-dela de 8 km, l'injection devient difficile a financer meme avec le droit a l'injection : etudier la cogeneration."
-        : "Distance compatible avec une injection, sous reserve de la capacite du reseau et du zonage de raccordement.",
+        ? "Au-delà de 8 km, l'injection devient difficile à financer même avec le droit à l'injection : étudier la cogénération."
+        : "Distance compatible avec une injection, sous réserve de la capacité du réseau et du zonage de raccordement.",
     sourceKey: SRC.gaz,
     reglesLiees: ['metha_injection'],
   };
@@ -292,7 +292,7 @@ const gis_irradiation: Evaluateur = (s) => {
     valeurBrute: v,
     valeurAffichee: formatNombre(v, 'kWh/m2/an', 0),
     commentaire:
-      "Irradiation globale horizontale. L'ecart nord-sud en France metropolitaine represente environ 40 % de productible.",
+      "Irradiation globale horizontale. L'écart nord-sud en France métropolitaine represente environ 40 % de productible.",
     sourceKey: SRC.gisement,
   };
 };
@@ -313,7 +313,7 @@ const gis_vent: Evaluateur = (s) => {
     valeurBrute: v,
     valeurAffichee: formatNombre(v, 'm/s a 100 m'),
     commentaire:
-      "En dessous de 5,5 m/s, la rentabilite d'un parc devient difficile a etablir hors contexte tarifaire favorable. A confirmer par une campagne de mesure.",
+      "En dessous de 5,5 m/s, la rentabilité d'un parc devient difficile à établir hors contexte tarifaire favorable. À confirmer par une campagne de mesure.",
     sourceKey: SRC.gisement,
   };
 };
@@ -338,7 +338,7 @@ const gis_intrants: Evaluateur = (s) => {
     return sansSource(
       SRC.gisement,
       "Le gisement d'intrants methanisables",
-      'A etablir par un recensement des elevages, des industries agroalimentaires et des surfaces de CIVE dans un rayon de 15 km, puis par des lettres d’intention d’apporteurs.',
+      'À établir par un recensement des élevages, des industries agroalimentaires et des surfaces de CIVE dans un rayon de 15 km, puis par des lettres d’intention d’apporteurs.',
     );
   }
   const v = s.gisement.intrantsMethaTonnesMsAn;
@@ -358,7 +358,7 @@ const gis_intrants: Evaluateur = (s) => {
     valeurBrute: v,
     valeurAffichee: details.join(' - '),
     commentaire:
-      "Estimation du gisement mobilisable dans un rayon de 15 km, a partir du RPG, du cheptel et des industries agroalimentaires. A confirmer par des lettres d'intention d'apporteurs.",
+      "Estimation du gisement mobilisable dans un rayon de 15 km, à partir du RPG, du cheptel et des industries agroalimentaires. À confirmer par des lettres d'intention d'apporteurs.",
     sourceKey: SRC.gisement,
   };
 };
@@ -378,7 +378,7 @@ const gis_debouche_epandage: Evaluateur = (s) => {
     return sansSource(
       SRC.gisement,
       'Le debouche du digestat',
-      'A etablir par un plan d’epandage signe avec les exploitants voisins, ou par une filiere de sortie du statut de dechet (digestat norme). Les surfaces agricoles communales ne sont pas ingerees sur ce territoire.',
+      'À établir par un plan d’épandage signe avec les exploitants voisins, ou par une filière de sortie du statut de déchet (digestat norme). Les surfaces agricoles communales ne sont pas ingérées sur ce territoire.',
     );
   }
   return {
@@ -393,7 +393,7 @@ const gis_debouche_epandage: Evaluateur = (s) => {
     valeurBrute: v,
     valeurAffichee: formatNombre(v, 'ha', 0),
     commentaire:
-      "Surfaces agricoles mobilisables pour l'epandage du digestat dans un rayon de 10 km. Alternative : sortie du statut de dechet (digestat normé).",
+      "Surfaces agricoles mobilisables pour l'épandage du digestat dans un rayon de 10 km. Alternative : sortie du statut de déchet (digestat normé).",
     sourceKey: SRC.gisement,
     reglesLiees: ['metha_plan_epandage'],
   };
@@ -450,7 +450,7 @@ const urb_zonage: Evaluateur = (s, ctx) => {
       valeurBrute: 'RNU',
       valeurAffichee: "Aucun document d'urbanisme publie (RNU probable)",
       commentaire:
-        "En l'absence de PLU, le reglement national d'urbanisme s'applique : le principe de constructibilite limitee rend l'instruction plus incertaine. A verifier en mairie et en DDT.",
+        "En l'absence de PLU, le règlement national d'urbanisme s'applique : le principe de constructibilité limitée rend l'instruction plus incertaine. À vérifier en mairie et en DDT.",
       sourceKey: SRC.gpu,
     };
   }
@@ -482,11 +482,11 @@ const urb_zonage: Evaluateur = (s, ctx) => {
       `Zone ${libelles}${s.urbanisme.typeDocument ? ` (${s.urbanisme.typeDocument})` : ''}` +
       (partInconnue ? ' - zonage dominant indetermine' : ''),
     commentaire:
-      "La compatibilite reelle depend du reglement ecrit de la zone, que l'application ne lit pas automatiquement. Consultez le reglement lie avant tout demarchage." +
+      "La compatibilité reelle dépend du règlement écrit de la zone, que l'application ne lit pas automatiquement. Consultez le règlement lie avant tout démarchage." +
       (partInconnue
         ? ` La part de la parcelle couverte par chacun des ${zonages.length} zonages n'a pas pu etre` +
-          " calculee : celui retenu comme dominant l'est par l'ordre de reponse du service, pas par" +
-          ' sa surface. A verifier au reglement graphique avant toute conclusion.'
+          " calculée : celui retenu comme dominant l'est par l'ordre de réponse du service, pas par" +
+          ' sa surface. À vérifier au règlement graphique avant toute conclusion.'
         : ''),
     sourceKey: SRC.gpu,
   };
@@ -534,10 +534,10 @@ const urb_zaer: Evaluateur = (s, ctx) => {
   if (z.present == null) {
     return sansSource(
       SRC.zaer,
-      "L'appartenance a une zone d'acceleration des ENR",
-      'La couche nationale des ZAER n’est pas encore ingeree pour ce departement : lancer ' +
-        '`npm run ingest -- zaer_local`. En attendant, la deliberation de la commune ou la ' +
-        'cartographie departementale font foi. Une ZAER ne cree aucun droit a construire, mais elle ' +
+      "L'appartenance à une zone d'accélération des ENR",
+      'La couche nationale des ZAER n’est pas encore ingérée pour ce département : lancer ' +
+        '`npm run ingest -- zaer_local`. En attendant, la délibération de la commune ou la ' +
+        'cartographie départementale font foi. Une ZAER ne cree aucun droit à construire, mais elle ' +
         'allege l’instruction et signale un portage politique local.',
     );
   }
@@ -547,7 +547,7 @@ const urb_zaer: Evaluateur = (s, ctx) => {
       valeurBrute: false,
       valeurAffichee: "Hors zone d'acceleration",
       commentaire:
-        "L'absence de ZAER n'est pas bloquante mais prive le projet du portage politique local et de l'instruction allegee.",
+        "L'absence de ZAER n'est pas bloquante mais prive le projet du portage politique local et de l'instruction allégée.",
       sourceKey: SRC.zaer,
     };
   }
@@ -559,8 +559,8 @@ const urb_zaer: Evaluateur = (s, ctx) => {
       ? `En ZAER pour ${FILIERES_META[ctx.filiere].libelleCourt}`
       : `En ZAER, mais pour d'autres filieres (${z.filieres.join(', ') || 'non precisees'})`,
     commentaire: pourFiliere
-      ? "Inscription en zone d'acceleration pour la filiere : signal politique favorable."
-      : "La parcelle est en ZAER mais pas pour cette filiere : verifier la deliberation.",
+      ? "Inscription en zone d'accélération pour la filière : signal politique favorable."
+      : "La parcelle est en ZAER mais pas pour cette filière : vérifier la délibération.",
     sourceKey: SRC.zaer,
   };
 };
@@ -615,7 +615,7 @@ const NOTES_TYPE_SOL: Record<Filiere, Record<TypeSol, number>> = {
 export const LIBELLES_TYPE_SOL: Record<TypeSol, string> = {
   artificialise: 'Terrain artificialise',
   degrade: 'Terrain degrade (ancienne carriere, friche, decharge...)',
-  inculte: 'Terrain inculte ou non exploite',
+  inculte: 'Terrain inculte ou non exploité',
   agricole_exploite: 'Terrain agricole exploite',
   naturel_forestier: 'Espace naturel ou forestier',
 };
@@ -635,12 +635,12 @@ const sol_type: Evaluateur = (s, ctx) => {
     valeurAffichee: LIBELLES_TYPE_SOL[t],
     commentaire:
       t === 'inculte'
-        ? "Le caractere inculte ou non exploite depuis le 10 mars 2013 doit etre demontre (historique RPG, photo-interpretation) et la parcelle doit figurer au document-cadre departemental."
+        ? "Le caractère inculte ou non exploité depuis le 10 mars 2013 doit être demontre (historique RPG, photo-interprétation) et la parcelle doit figurer au document-cadre départemental."
         : t === 'agricole_exploite'
-          ? "Terrain agricole exploite : le projet doit etre concu en agrivoltaisme, avec maintien d'une production agricole significative."
+          ? "Terrain agricole exploité : le projet doit être concu en agrivoltaisme, avec maintien d'une production agricole significative."
           : t === 'naturel_forestier'
-            ? "Espace naturel ou forestier : defrichement, compensation et forte opposition previsibles."
-            : "Terrain deja anthropise : configuration la plus favorable, sans conflit d'usage agricole.",
+            ? "Espace naturel ou forestier : défrichement, compensation et forte opposition prévisibles."
+            : "Terrain déjà anthropisé : configuration la plus favorable, sans conflit d'usage agricole.",
     sourceKey: SRC.rpg,
     reglesLiees: regles,
   };
@@ -682,8 +682,8 @@ const sol_culture_compatible: Evaluateur = (s, ctx) => {
     return {
       note: 100,
       valeurBrute: 'non_agricole',
-      valeurAffichee: 'Sans objet (terrain non exploite en agriculture)',
-      commentaire: "Le critere ne s'applique qu'aux projets agrivoltaiques sur parcelle exploitee.",
+      valeurAffichee: 'Sans objet (terrain non exploité en agriculture)',
+      commentaire: "Le critère ne s'applique qu'aux projets agrivoltaiques sur parcelle exploitée.",
       sourceKey: SRC.rpg,
     };
   }
@@ -698,10 +698,10 @@ const sol_culture_compatible: Evaluateur = (s, ctx) => {
     valeurAffichee: `${s.occupationSol.rpg.libelleCulture || s.occupationSol.rpg.libelleGroupeCulture || `groupe de culture ${groupe}`}${s.occupationSol.rpg.millesime ? ` (RPG ${s.occupationSol.rpg.millesime})` : ''}`,
     commentaire:
       groupe === '21'
-        ? "Vigne : implantation photovoltaique en principe exclue, a fortiori en aire parcellaire AOP."
+        ? "Vigne : implantation photovoltaïque en principe exclue, a fortiori en aire parcellaire AOP."
         : note >= 80
           ? "Culture bien adaptee a l'agrivoltaisme : synergie elevage/ombrage documentee."
-          : "Culture mecanisee : l'agrivoltaisme impose des inter-rangs larges et une hauteur importante, ce qui degrade l'economie du projet.",
+          : "Culture mécanisée : l'agrivoltaisme impose des inter-rangs larges et une hauteur importante, ce qui dégradé l'économie du projet.",
     sourceKey: SRC.rpg,
     reglesLiees: ['agri_taux_couverture', 'agri_zone_temoin'],
   };
@@ -723,11 +723,11 @@ const sol_potentiel_agronomique: Evaluateur = (s) => {
     valeurBrute: p,
     valeurAffichee: `Indice estime ${formatNombre(p, '', 0)}/100 (proxy RPG)`,
     commentaire:
-      "Critere inverse : plus le potentiel agronomique est eleve, plus le conflit d'usage et " +
+      "Critère inverse : plus le potentiel agronomique est élevé, plus le conflit d'usage et " +
       "l'opposition de la profession agricole sont probables. ATTENTION : cet indice n'est pas " +
-      "une mesure de la qualite du sol. Il est DEDUIT du groupe de culture declare au RPG, qui " +
-      "reflete autant le choix de l'exploitant que l'aptitude du terrain. La qualite reelle " +
-      "releve des bases regionales IGCS, sans API nationale.",
+      "une mesure de la qualité du sol. Il est DEDUIT du groupe de culture declare au RPG, qui " +
+      "reflete autant le choix de l'exploitant que l'aptitude du terrain. La qualité reelle " +
+      "relevé des bases régionales IGCS, sans API nationale.",
     sourceKey: SRC.rpg,
   };
 };
@@ -750,8 +750,8 @@ const sol_foret: Evaluateur = (s) => {
       part === 0 ? 'Aucun boisement' : `${Math.round(part * 100)} % boise${f.type ? ` (${f.type})` : ''}`,
     commentaire:
       part > 0
-        ? "Un defrichement declenche une autorisation, une compensation (souvent 1 a 5 fois la surface) et une forte sensibilite locale."
-        : "Aucun enjeu de defrichement identifie.",
+        ? "Un défrichement declenche une autorisation, une compensation (souvent 1 a 5 fois la surface) et une forte sensibilité locale."
+        : "Aucun enjeu de défrichement identifie.",
     sourceKey: SRC.bdforet,
   };
 };
@@ -825,11 +825,11 @@ const topo_pente: Evaluateur = (s, ctx) => {
       (parPaires ? ' (estimation majorante)' : ''),
     commentaire:
       (p > 12
-        ? "Pente forte : surcouts de terrassement, contraintes d'acces engins et, pour le solaire, auto-ombrage."
+        ? "Pente forte : surcouts de terrassement, contraintes d'accès engins et, pour le solaire, auto-ombrage."
         : 'Pente compatible avec une implantation standard.') +
       (parPaires
-        ? " La regression du plan des altitudes n'etait pas exploitable sur cette parcelle (semis" +
-          ' de points trop aligne) : la valeur retenue est la plus forte pente locale mesuree' +
+        ? " La régression du plan des altitudes n'était pas exploitable sur cette parcelle (semis" +
+          ' de points trop aligne) : la valeur retenue est la plus forte pente locale mesurée' +
           ' entre points distants, qui majore la pente moyenne reelle.'
         : ''),
     sourceKey: SRC.alti,
@@ -850,7 +850,7 @@ const topo_orientation: Evaluateur = (s, ctx) => {
       note: 95,
       valeurBrute: o,
       valeurAffichee: 'Terrain quasi plat : orientation sans incidence',
-      commentaire: "Sur une pente inferieure a 3 %, les structures fixent librement l'azimut des modules.",
+      commentaire: "Sur une pente inférieure a 3 %, les structures fixent librement l'azimut des modules.",
       sourceKey: SRC.alti,
     };
   }
@@ -894,7 +894,7 @@ const topo_planeite: Evaluateur = (s) => {
     ]),
     valeurBrute: d,
     valeurAffichee: `${formatNombre(d, 'm de denivele', 0)}`,
-    commentaire: "Le denivele total conditionne le volume de terrassement necessaire pour obtenir une plateforme.",
+    commentaire: "Le dénivelé total conditionne le volume de terrassement nécessaire pour obtenir une plateforme.",
     sourceKey: SRC.alti,
   };
 };
@@ -916,7 +916,7 @@ const topo_altitude: Evaluateur = (s) => {
     valeurAffichee: formatNombre(a, 'm', 0),
     commentaire:
       a > 900
-        ? "Altitude elevee : givre, turbulence, acces hivernal et couts de chantier majores."
+        ? "Altitude élevée : givre, turbulence, accès hivernal et couts de chantier majores."
         : "Altitude sans contrainte particuliere.",
     sourceKey: SRC.alti,
   };
@@ -971,7 +971,7 @@ const surf_utile: Evaluateur = (s, ctx) => {
     commentaire:
       `${utile?.detail ?? ''} Seuil economique indicatif pour la filiere : ` +
       `${formatNombre(min, 'ha', 1)} minimum, ${formatNombre(opt, 'ha', 0)} pour une pleine ` +
-      `competitivite. Ces seuils sont economiques, non reglementaires.`,
+      `compétitivité. Ces seuils sont économiques, non réglementaires.`,
     sourceKey: SRC.cadastre,
   };
 };
@@ -991,7 +991,7 @@ const surf_un_seul_tenant: Evaluateur = (s, ctx) => {
     valeurBrute: bloc,
     valeurAffichee: `${formatNombre(bloc, 'ha', 2)} d'un seul tenant`,
     commentaire:
-      "Un bloc continu evite les servitudes de passage et simplifie fortement la maitrise fonciere et le cablage interne.",
+      "Un bloc continu evite les servitudes de passage et simplifie fortement la maitrise fonciere et le câblage interne.",
     sourceKey: SRC.foncier,
   };
 };
@@ -1010,7 +1010,7 @@ const surf_compacite: Evaluateur = (s) => {
     valeurBrute: i,
     valeurAffichee: `Indice de morcellement ${formatNombre(i, '', 0)}/100`,
     commentaire:
-      "Les parcelles en lanieres ou tres decoupees augmentent les lineaires de clotures et de cablage, et compliquent l'implantation.",
+      "Les parcelles en lanières ou très découpées augmentent les linéaires de clôtures et de câblage, et compliquent l'implantation.",
     sourceKey: SRC.cadastre,
   };
 };
@@ -1069,7 +1069,7 @@ const env_proximite_natura2000: Evaluateur = (s) => {
           ? `${formatDistance(plusProche.distanceM)}${plusProche.nom ? ` - ${plusProche.nom}` : ''}`
           : `Aucun site trouve dans un rayon de ${RAYON_ANALYSE_ZONAGES_M / 1000} km`,
     commentaire:
-      "Toute proximite declenche une evaluation des incidences Natura 2000, meme sans recouvrement. Un recouvrement rend le projet tres difficile a autoriser.",
+      "Toute proximité declenche une évaluation des incidences Natura 2000, même sans recouvrement. Un recouvrement rend le projet très difficile à autoriser.",
     sourceKey: SRC.nature,
   };
 };
@@ -1097,7 +1097,7 @@ const env_znieff: Evaluateur = (s) => {
         ? 'Recouvrement ZNIEFF II'
         : formatDistance(s.milieux.znieff1.distanceM),
     commentaire:
-      "Les ZNIEFF n'ont pas de portee reglementaire directe mais pesent lourdement dans l'instruction et le contentieux.",
+      "Les ZNIEFF n'ont pas de portée réglementaire directe mais pesent lourdement dans l'instruction et le contentieux.",
     sourceKey: SRC.nature,
   };
 };
@@ -1112,7 +1112,7 @@ const env_zone_humide: Evaluateur = (s) => {
     valeurAffichee:
       zh === 'oui' ? 'Zone humide cartographiee' : zh === 'a_confirmer' ? 'A confirmer (pre-reperage)' : 'Hors zone humide cartographiee',
     commentaire:
-      "Pre-reperage cartographique uniquement. Le caractere humide se determine par sondages pedologiques et releves floristiques (arrete du 24 juin 2008 modifie).",
+      "Pre-repérage cartographique uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie).",
     sourceKey: SRC.zonesHumides,
   };
 };
@@ -1136,7 +1136,7 @@ const env_tvb: Evaluateur = (s) => {
     return sansSource(
       SRC.nature,
       'La trame verte et bleue',
-      "Consultez le SRADDET de la region (volet continuites ecologiques) et le plan de zonage du PLU, qui la transcrit.",
+      "Consultez le SRADDET de la région (volet continuités écologiques) et le plan de zonage du PLU, qui la transcrit.",
     );
   }
   const note = t.reservoir ? 25 : t.corridor ? 55 : 95;
@@ -1144,12 +1144,12 @@ const env_tvb: Evaluateur = (s) => {
     note,
     valeurBrute: t.reservoir ? 'reservoir' : t.corridor ? 'corridor' : 'hors_tvb',
     valeurAffichee: t.reservoir
-      ? 'Reservoir de biodiversite'
+      ? 'Réservoir de biodiversité'
       : t.corridor
         ? 'Corridor ecologique'
         : 'Hors trame verte et bleue',
     commentaire:
-      "La trame verte et bleue du SRADDET est prise en compte par les PLU : une implantation en reservoir sera contestee.",
+      "La trame verte et bleue du SRADDET est prise en compte par les PLU : une implantation en réservoir sera contestée.",
     sourceKey: SRC.nature,
   };
 };
@@ -1168,10 +1168,10 @@ const env_especes_protegees: Evaluateur = (s) => {
     valeurBrute: p,
     valeurAffichee: `Pre-enjeu ${formatNombre(p, '', 0)}/100 (derive des zonages)`,
     commentaire:
-      "Indicateur DERIVE de la proximite et du recouvrement des zonages d'inventaire et de " +
-      "protection - ce n'est pas une donnee d'inventaire. Il ne dit rien des especes " +
-      "reellement presentes et ne remplace pas des inventaires sur un cycle biologique " +
-      "complet. Pour l'eolien, la sensibilite avifaune et chiropteres doit etre etablie " +
+      "Indicateur DERIVE de la proximité et du recouvrement des zonages d'inventaire et de " +
+      "protection - ce n'est pas une donnée d'inventaire. Il ne dit rien des espèces " +
+      "réellement presentes et ne remplace pas des inventaires sur un cycle biologique " +
+      "complet. Pour l'éolien, la sensibilité avifaune et chiroptères doit être établie " +
       "par les atlas regionaux DREAL ou LPO, qu'aucune API nationale n'expose.",
     sourceKey: SRC.nature,
   };
@@ -1212,8 +1212,8 @@ const pat_monuments: Evaluateur = (s, ctx) => {
     valeurAffichee: `${formatDistance(mh.distanceM)}${mh.nom ? ` - ${mh.nom}` : ''}${mh.dansPerimetreProtection ? ' (dans le perimetre de protection)' : ''}`,
     commentaire:
       mh.dansPerimetreProtection === true
-        ? "Dans un perimetre de protection : avis de l'architecte des batiments de France requis, susceptible d'etre defavorable."
-        : "Hors perimetre de protection, mais la covisibilite peut porter bien au-dela de 500 m.",
+        ? "Dans un périmètre de protection : avis de l'architecte des bâtiments de France requis, susceptible d'être défavorable."
+        : "Hors périmètre de protection, mais la covisibilité peut porter bien au-delà de 500 m.",
     sourceKey: SRC.patrimoine,
     reglesLiees: ctx.filiere === 'eolien_terrestre' ? ['eol_monument_historique'] : [],
   };
@@ -1252,7 +1252,7 @@ const pat_sites: Evaluateur = (s) => {
       ? sansSource(
           SRC.patrimoine,
           'Les sites classes et inscrits',
-          "A verifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou aupres de l'UDAP du departement. Un site classe impose une autorisation ministerielle speciale : son absence ici ne vaut PAS absence de site.",
+          "À vérifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou auprès de l'UDAP du département. Un site classe impose une autorisation ministerielle spéciale : son absence ici ne vaut PAS absence de site.",
         )
       : indispo(SRC.patrimoine);
   }
@@ -1274,7 +1274,7 @@ const pat_sites: Evaluateur = (s) => {
     valeurBrute: distance,
     valeurAffichee: libelle,
     commentaire:
-      "Un site classe impose une autorisation ministerielle speciale ; un site inscrit, un avis de l'ABF.",
+      "Un site classe impose une autorisation ministerielle spéciale ; un site inscrit, un avis de l'ABF.",
     sourceKey: SRC.patrimoine,
   };
 };
@@ -1289,8 +1289,8 @@ const pat_archeologie: Evaluateur = (s) => {
   if (a == null) {
     return sansSource(
       SRC.patrimoine,
-      'La sensibilite archeologique',
-      "A verifier aupres du service regional de l'archeologie (DRAC) : les zones de presomption de prescription sont arretees par arrete prefectoral et non publiees nationalement. Hors zone, une decouverte fortuite reste possible et peut suspendre le chantier.",
+      'La sensibilité archéologique',
+      "À vérifier auprès du service régional de l'archéologie (DRAC) : les zones de présomption de prescription sont arrêtées par arrêté préfectoral et non publiées nationalement. Hors zone, une découverte fortuité reste possible et peut suspendre le chantier.",
     );
   }
   const note = correspondance(a, { faible: 95, moyenne: 65, forte: 30 });
@@ -1299,7 +1299,7 @@ const pat_archeologie: Evaluateur = (s) => {
     valeurBrute: a,
     valeurAffichee: `Sensibilite ${a}`,
     commentaire:
-      "Une zone de presomption de prescription archeologique implique un diagnostic, voire une fouille preventive : plusieurs mois de calendrier.",
+      "Une zone de présomption de prescription archéologique implique un diagnostic, voire une fouille preventive : plusieurs mois de calendrier.",
     sourceKey: SRC.patrimoine,
   };
 };
@@ -1360,7 +1360,7 @@ function libellePlanPpr(
     interdiction_stricte: "le plan comporte une zone d'interdiction stricte",
     interdiction: "le plan comporte une zone d'interdiction",
     prescriptions: 'le plan comporte des zones de prescriptions',
-    precaution: 'le plan comporte une zone de precaution',
+    precaution: 'le plan comporte une zone de précaution',
   };
   // La portee doit etre dite : ce n'est pas la zone de la parcelle.
   return p.severitePlan
@@ -1383,7 +1383,7 @@ const risq_inondation: Evaluateur = (s) => {
     valeurBrute: s.risques.ppri.zonage,
     valeurAffichee: morceaux.join(' - ') || 'Aucun risque inondation identifie',
     commentaire:
-      "Un zonage rouge de PPRI interdit en principe les constructions nouvelles ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher). L'API ne donne pas la zone applicable a la parcelle, seulement les zones que le plan contient : le reglement graphique reste a consulter.",
+      "Un zonage rouge de PPRI interdit en principe les constructions nouvelles ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher). L'API ne donne pas la zone applicable à la parcelle, seulement les zones que le plan contient : le règlement graphique reste à consulter.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1399,10 +1399,10 @@ const risq_incendie: Evaluateur = (s) => {
     valeurAffichee: s.risques.pprif.present
       ? libellePlanPpr('PPRif', s.risques.pprif)
       : s.risques.obligationDebroussaillement
-        ? 'Obligation legale de debroussaillement'
+        ? 'Obligation légale de débroussaillement'
         : 'Aucun risque incendie identifie',
     commentaire:
-      "Le risque feux de foret impose des obligations de debroussaillement, des acces engins et un avis du SDIS, particulierement structurant pour un BESS.",
+      "Le risque feux de foret impose des obligations de débroussaillement, des accès engins et un avis du SDIS, particulièrement structurant pour un BESS.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1455,7 +1455,7 @@ const risq_argiles_cavites: Evaluateur = (s) => {
     valeurBrute: s.topographie.aleaArgiles,
     valeurAffichee: morceaux.join(' - ') || 'Aucun alea geotechnique identifie',
     commentaire:
-      "Alea fort de retrait-gonflement ou cavites : surcout de fondations, campagne geotechnique renforcee (G2 AVP a minima).",
+      "Aléa fort de retrait-gonflement ou cavités : surcout de fondations, campagne géotechnique renforcée (G2 AVP a minima).",
     sourceKey: SRC.georisques,
   };
 };
@@ -1485,8 +1485,8 @@ const risq_sites_pollues: Evaluateur = (s, ctx) => {
     valeurBrute: n,
     valeurAffichee: n === 0 ? 'Aucun site recense < 500 m' : `${n} site(s) recense(s) < 500 m`,
     commentaire: opportuniste
-      ? "Un ancien site industriel peut constituer un terrain degrade eligible, mais impose une etude de sols et un plan de gestion."
-      : "La proximite de sols pollues complique l'instruction et peut interdire certains usages.",
+      ? "Un ancien site industriel peut constituer un terrain dégradé éligible, mais impose une étude de sols et un plan de gestion."
+      : "La proximité de sols pollues complique l'instruction et peut interdire certains usages.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1501,8 +1501,8 @@ const risq_aero_radar: Evaluateur = (s, ctx) => {
   if (s.risques.radars.length === 0 && s.risques.servitudesAeronautiques == null) {
     return sansSource(
       SRC.georisques,
-      'Les radars et servitudes aeronautiques',
-      "A verifier par consultation prealable de Meteo-France, de la DGAC et de la zone aerienne de defense : les distances minimales aux radars (5 a 30 km selon la bande) et les servitudes de degagement sont opposables et constituent le premier motif de refus des projets eoliens.",
+      'Les radars et servitudes aéronautiques',
+      "À vérifier par consultation préalable de Météo-France, de la DGAC et de la zone aerienne de défense : les distances minimales aux radars (5 a 30 km selon la bande) et les servitudes de dégagement sont opposables et constituent le premier motif de refus des projets éoliens.",
     );
   }
   let note = 100;
@@ -1538,7 +1538,7 @@ const risq_aero_radar: Evaluateur = (s, ctx) => {
     valeurBrute: s.risques.radars[0]?.distanceKm ?? null,
     valeurAffichee: details.join(' - ') || 'Aucune contrainte aeronautique identifiee',
     commentaire:
-      "Les distances aux radars sont des seuils de consultation : un avis defavorable de Meteo-France, de la DGAC ou de l'armee est bloquant en pratique.",
+      "Les distances aux radars sont des seuils de consultation : un avis défavorable de Météo-France, de la DGAC ou de l'armée est bloquant en pratique.",
     sourceKey: SRC.georisques,
     reglesLiees: ['eol_radar'],
   };
@@ -1553,7 +1553,7 @@ const risq_karst: Evaluateur = (s, ctx) => {
     return sansSource(
       SRC.georisques,
       'Le contexte karstique',
-      "A verifier sur la carte geologique du BRGM (InfoTerre) et aupres de l'hydrogeologue agree : une fuite de digestat en contexte karstique atteint la nappe sans filtration.",
+      "À vérifier sur la carte géologique du BRGM (InfoTerre) et auprès de l'hydrogéologue agree : une fuite de digestat en contexte karstique atteint la nappe sans filtration.",
     );
   }
   return {
@@ -1561,7 +1561,7 @@ const risq_karst: Evaluateur = (s, ctx) => {
     valeurBrute: s.eau.karst,
     valeurAffichee: formatBooleen(s.eau.karst, 'Contexte karstique', 'Hors contexte karstique'),
     commentaire:
-      "En contexte karstique, le risque de transfert direct de pollution vers la nappe rend l'instruction tres difficile et impose des mesures d'etancheite renforcees.",
+      "En contexte karstique, le risque de transfert direct de pollution vers la nappe rend l'instruction très difficile et impose des mesures d'étanchéité renforcées.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1626,10 +1626,10 @@ const dist_habitation: Evaluateur = (s, ctx) => {
         : ''),
     commentaire:
       ctx.filiere === 'eolien_terrestre'
-        ? "500 m est un plancher legal, pas une cible : la plupart des projets autorises se situent au-dela de 700 m. Distance mesuree sur le bati IGN, a verifier sur le terrain (batiments recents, permis en cours)."
+        ? "500 m est un plancher légal, pas une cible : la plupart des projets autorises se situent au-delà de 700 m. Distance mesurée sur le bati IGN, à vérifier sur le terrain (bâtiments récents, permis en cours)."
         : ctx.filiere === 'methanisation'
-          ? "200 m des habitations et locaux occupes par des tiers. L'acceptabilite locale (odeurs, trafic) reste le facteur limitant au-dela du seuil."
-          : "L'eloignement de l'habitat dense facilite l'instruction ICPE et l'avis du SDIS.",
+          ? "200 m des habitations et locaux occupes par des tiers. L'acceptabilité locale (odeurs, trafic) reste le facteur limitant au-delà du seuil."
+          : "L'éloignement de l'habitat dense facilité l'instruction ICPE et l'avis du SDIS.",
     sourceKey: SRC.bdtopo,
     reglesLiees: regles,
   };
@@ -1650,7 +1650,7 @@ const dist_eau: Evaluateur = (s, ctx) => {
     valeurBrute: d,
     valeurAffichee: formatDistance(d),
     commentaire:
-      "35 m minimum des puits, forages, sources et berges des cours d'eau, pour les ouvrages comme pour les epandages.",
+      "35 m minimum des puits, forages, sources et berges des cours d'eau, pour les ouvrages comme pour les épandages.",
     sourceKey: SRC.bdtopo,
     reglesLiees: ['metha_distance_eau'],
   };
@@ -1666,7 +1666,7 @@ const dist_captage: Evaluateur = (s) => {
       valeurBrute: c.type,
       valeurAffichee: `Perimetre de protection ${c.type ?? 'non precise'}`,
       commentaire:
-        "Interdiction en perimetre immediat et rapproche ; prescriptions renforcees en perimetre eloigne. Se reporter a l'arrete prefectoral de DUP du captage.",
+        "Interdiction en périmètre immédiat et rapproche ; prescriptions renforcées en périmètre eloigne. Se reporter a l'arrêté préfectoral de DUP du captage.",
       sourceKey: SRC.georisques,
       reglesLiees: ['metha_distance_eau'],
     };
@@ -1681,7 +1681,7 @@ const dist_captage: Evaluateur = (s) => {
     ]),
     valeurBrute: c.distanceM,
     valeurAffichee: `Hors perimetre${c.distanceM != null ? ` - ${formatDistance(c.distanceM)} du plus proche` : ''}`,
-    commentaire: "Hors perimetre de protection de captage identifie.",
+    commentaire: "Hors périmètre de protection de captage identifie.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1699,8 +1699,8 @@ const fonc_nb_proprietaires: Evaluateur = (s) => {
   if (n == null) {
     return sansSource(
       SRC.foncier,
-      'Le nombre de proprietaires',
-      "A obtenir par demande de releve de propriete aupres du service de la publicite fonciere (DGFiP) ou de la mairie, puis a verser dans le registre de l'application. La maitrise fonciere est le premier facteur d'echec d'un projet : une parcelle en indivision peut compter dix ayants droit.",
+      'Le nombre de propriétaires',
+      "À obtenir par demande de relevé de propriété auprès du service de la publicité fonciere (DGFiP) ou de la mairie, puis à verser dans le registre de l'application. La maitrise fonciere est le premier facteur d'échec d'un projet : une parcelle en indivision peut compter dix ayants droit.",
     );
   }
   const base = paliers(n, [
@@ -1758,7 +1758,7 @@ const fonc_maitrise: Evaluateur = (s) => {
     valeurAffichee:
       (morceaux.length ? morceaux.join(' - ') : 'Configuration fonciere simple') + suffixe,
     commentaire:
-      "Un proprietaire public impose une mise en concurrence (convention d'occupation, AOT) mais offre une meilleure securite juridique." +
+      "Un propriétaire public impose une mise en concurrence (convention d'occupation, AOT) mais offre une meilleure sécurité juridique." +
       (suffixe
         ? ` Note etablie sur ${disponibles} indicateur(s) sur ${total} : elle est moins assuree que la couverture globale ne le laisse paraitre.`
         : ''),
@@ -1781,7 +1781,7 @@ const acc_voirie: Evaluateur = (s) => {
     valeurBrute: d,
     valeurAffichee: formatDistance(d),
     commentaire:
-      "Distance a la voirie carrossable : conditionne le cout de creation de piste et l'acheminement des composants.",
+      "Distance à la voirie carrossable : conditionne le cout de création de piste et l'acheminement des composants.",
     sourceKey: SRC.bdtopo,
   };
 };
@@ -1794,7 +1794,7 @@ const acc_poids_lourds: Evaluateur = (s) => {
     valeurBrute: a,
     valeurAffichee: formatBooleen(a, 'Acces poids lourds plausible', 'Acces poids lourds a creer'),
     commentaire:
-      "Une unite de methanisation genere plusieurs rotations de poids lourds par jour : la traversee de bourg est un facteur de rejet majeur.",
+      "Une unité de méthanisation genere plusieurs rotations de poids lourds par jour : la traversée de bourg est un facteur de rejet majeur.",
     sourceKey: SRC.bdtopo,
   };
 };

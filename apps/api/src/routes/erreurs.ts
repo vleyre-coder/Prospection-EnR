@@ -37,7 +37,7 @@ export function refuserLectureSeule(
       rep,
       403,
       'lecture_seule',
-      'Votre compte est en lecture seule : cette operation consomme le quota des sources publiques.',
+      'Votre compte est en lecture seule : cette opération consomme le quota des sources publiques.',
     );
   }
   return null;

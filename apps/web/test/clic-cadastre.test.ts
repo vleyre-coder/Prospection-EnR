@@ -87,7 +87,7 @@ test('UNE TUILE QUI N’IDENTIFIE PAS LA PARCELLE EST REFUSEE, avec un motif', (
   });
   assert.equal(d.action, 'refuser');
   // Le message doit dire quoi faire, pas seulement que ca n'a pas marche.
-  assert.match(d.action === 'refuser' ? d.message : '', /reference cadastrale/);
+  assert.match(d.action === 'refuser' ? d.message : '', /référence cadastrale/);
   assert.equal(d.action === 'refuser' && d.libelle, 'ZH 0012');
 });
 
