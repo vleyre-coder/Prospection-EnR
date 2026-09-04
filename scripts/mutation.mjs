@@ -347,8 +347,8 @@ const MUTATIONS = [
     audit: 'bout en bout',
     quoi: 'l’ecran d’ouverture change de parent et son minuteur repart, perdant la touche pressee',
     fichier: 'apps/web/src/App.tsx',
-    de: "      <div className=\"application\">\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"chargement\" style={{ margin: 'auto' }}>\n          <span className=\"tourniquet\" />\n          Chargement du referentiel\u2026\n        </div>\n      </div>",
-    vers: "      <>\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"application\">\n          <div className=\"chargement\" style={{ margin: 'auto' }}>\n            <span className=\"tourniquet\" />\n            Chargement du referentiel\u2026\n          </div>\n        </div>\n      </>",
+    de: "      <div className=\"application\">\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"chargement\" style={{ margin: 'auto' }}>\n          <span className=\"tourniquet\" />\n          Chargement du référentiel\u2026\n        </div>\n      </div>",
+    vers: "      <>\n        {accueil && <Demarrage onTermine={() => setAccueil(false)} />}\n        <div className=\"application\">\n          <div className=\"chargement\" style={{ margin: 'auto' }}>\n            <span className=\"tourniquet\" />\n            Chargement du référentiel\u2026\n          </div>\n        </div>\n      </>",
     cwd: 'apps/web',
     e2e: true,
     // Les DEUX versions compilent : la mutation doit faire echouer un test sur le COMPORTEMENT,
@@ -1202,6 +1202,46 @@ if (ecartees > 0) {
       'Lancez `node scripts/mutation.mjs --avec-e2e` pour les inclure.\n',
   );
 }
+
+/**
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ * LE MOTIF DES MUTATIONS ECARTEES EST VERIFIE QUAND MEME
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * TROIS FOIS DE SUITE j'ai livre une mutation dont le motif ne se trouvait plus, et les trois
+ * fois c'est l'integration continue qui l'a dit — jamais la machine de developpement. La cause
+ * est toujours la meme : les mutations de bout en bout exigent un navigateur, donc un
+ * `node scripts/mutation.mjs` ordinaire les ECARTE, donc leurs motifs ne sont JAMAIS confrontes
+ * au code avant le `git push`. La CI, elle, les joue.
+ *
+ * Or verifier qu'un motif existe encore ne demande AUCUN navigateur : c'est une recherche de
+ * chaine dans un fichier. Seule l'execution du test en a besoin. Le controle est donc fait ici,
+ * pour toutes les mutations ecartees, et il echoue comme les autres.
+ *
+ * Ce que cela coute : une lecture de fichier par mutation. Ce que cela evite : une livraison
+ * rouge dont la cause n'a rien a voir avec le code livre.
+ */
+const ECARTEES = candidates === MUTATIONS ? [] : MUTATIONS.filter((m) => m.e2e);
+let motifsPerdus = 0;
+for (const m of ECARTEES) {
+  if (readFileSync(m.fichier, 'utf8').includes(m.de)) continue;
+  console.error(`ECHEC (${m.audit}) : motif introuvable dans ${m.fichier}, pour une mutation ECARTEE.`);
+  console.error(`  « ${m.quoi} »`);
+  console.error('  Son test exige un navigateur, mais son motif se verifie sans : il a change.');
+  console.error(`  Motif attendu :\n${m.de}\n`);
+  motifsPerdus += 1;
+}
+if (motifsPerdus > 0) {
+  console.error(
+    `${motifsPerdus} mutation(s) ecartee(s) ne s'appliquent plus au code. Corrigez-les avant de ` +
+      'livrer : la CI les joue, elle.',
+  );
+  // ARRET IMMEDIAT, et non a la fin. La campagne dure vingt minutes ; ces motifs doivent etre
+  // corriges puis la campagne relancee de toute facon, donc jouer les cent autres mutations
+  // avant d'annoncer l'echec ne renseigne sur rien et coute le temps qui fait qu'on ne la
+  // relance pas. Le message ci-dessus dit deja tout ce qu'il y a a savoir.
+  process.exit(1);
+}
 if (filtre) {
   console.log(`Filtre « ${filtre} » : ${A_JOUER.length} mutation(s) sur ${MUTATIONS.length}.\n`);
   if (A_JOUER.length === 0) process.exit(1);
@@ -1252,4 +1292,22 @@ for (const m of A_JOUER) {
 }
 
 console.log(`\n${A_JOUER.length - echecs}/${A_JOUER.length} mutations attrapees.`);
-process.exit(echecs > 0 ? 1 : 0);
+
+/**
+ * LA MENTION DES ECARTEES EST REPETEE ICI, et ce n'est pas de la redondance.
+ *
+ * Elle est deja affichee au debut. Mais une campagne dure vingt minutes : le debut a defile
+ * depuis longtemps quand le resultat s'affiche, et c'est cette DERNIERE ligne qu'on lit, qu'on
+ * copie dans un message de livraison et qu'on presente comme la preuve. « 105/105 » sans
+ * qualificatif se lit « tout est verifie » — alors que trois mutations n'ont pas ete jouees.
+ * Le chiffre doit donc porter sa propre limite.
+ */
+if (ECARTEES.length > 0) {
+  console.log(
+    `Ce chiffre ne couvre PAS ${ECARTEES.length} mutation(s) de bout en bout sur ` +
+      `${MUTATIONS.length} : elles exigent un navigateur et n'ont pas ete jouees. ` +
+      'Leur motif, lui, vient d\'etre confronte au code.\n' +
+      'Pour les jouer : `node scripts/mutation.mjs --avec-e2e` (base semee + navigateur requis).',
+  );
+}
+process.exit(echecs > 0 || motifsPerdus > 0 ? 1 : 0);

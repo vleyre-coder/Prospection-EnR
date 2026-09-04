@@ -310,3 +310,28 @@ résultat : lancée **sans** `DATABASE_URL`, elle rend `85 / 105`. Les vingt « 
 mutations dont les tests s'ignorent faute de base — ils ne prouvent rien du code. Avec la base,
 c'est 105 / 105. C'est la même leçon que l'audit 11 : un banc d'essai incomplet ne donne pas un
 résultat partiel, il donne un résultat faux.
+
+## 8. La CI a encore eu raison contre moi, et j'ai réparé l'outil plutôt que le symptôme
+
+L'exécution 43 — le correctif du §0 — est revenue **rouge**. Pas un test : une **mutation dont le
+motif ne se trouvait plus**. Elle vise `App.tsx` et contient le texte `Chargement du referentiel…`,
+que j'avais accentué.
+
+**C'est la troisième fois de la session**, et les trois fois c'est la CI qui l'a dit. La cause est
+structurelle, pas de l'inattention : les trois mutations de bout en bout exigent un navigateur,
+donc `node scripts/mutation.mjs` les **écarte**, donc leurs motifs ne sont jamais confrontés au
+code avant le `git push`. La CI, elle, les joue.
+
+Or **vérifier qu'un motif existe encore ne demande aucun navigateur** — c'est une recherche de
+chaîne dans un fichier. Seule l'exécution du test en a besoin. Deux corrections à l'outil :
+
+1. les motifs des mutations écartées sont désormais confrontés au code à chaque campagne, et une
+   perte de motif **arrête la campagne immédiatement** avec le nom du fichier et le motif attendu
+   (vérifié : en cassant volontairement un motif, code de sortie 1 dès la première seconde) ;
+2. la ligne finale `105 / 105` **porte sa propre limite** : elle dit maintenant que trois
+   mutations sur 108 n'ont pas été jouées. L'information existait déjà — au début d'une sortie de
+   vingt minutes, c'est-à-dire là où personne ne la relit. C'est cette dernière ligne qu'on copie
+   dans un message de livraison, donc c'est elle qui doit être honnête.
+
+Les mutations de bout en bout ont ensuite été jouées pour de vrai, avec navigateur et base semée :
+**2 / 2**.
