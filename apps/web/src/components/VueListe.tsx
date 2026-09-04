@@ -71,7 +71,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                 ` (${requete.data.resultats.length} affiches)`}
               {borne
                 ? ' — dans la zone affichée'
-                : ' — sur tout le territoire qualifie'}
+                : ' — sur tout le territoire qualifié'}
             </span>
           )}
         </h2>

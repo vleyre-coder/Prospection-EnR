@@ -43,7 +43,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: "Aide à la décision, pas une garantie de faisabilité",
     texte:
-      "Les scores et indicateurs presentes sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et a l'échelon départemental, auprès des services instructeurs compétents.",
+      "Les scores et indicateurs présentés sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et à l'échelon départemental, auprès des services instructeurs compétents.",
   },
   {
     id: 'cadastre_indicatif',
@@ -59,9 +59,9 @@ export const AVERTISSEMENTS: Avertissement[] = [
     id: 'seuils_evolutifs',
     portee: 'global',
     niveau: 'attention',
-    titre: 'Les seuils réglementaires evoluent',
+    titre: 'Les seuils réglementaires évoluent',
     texte:
-      "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifies deux fois en deux ans. Chaque seuil affiche par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de derniere vérification du référentiel. Verifiez la version en vigueur à la date de votre dépôt.",
+      "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifiés deux fois en deux ans. Chaque seuil affiché par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de dernière vérification du référentiel. Vérifiez la version en vigueur à la date de votre dépôt.",
   },
   {
     id: 'capareseau_indicatif',
@@ -69,7 +69,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: 'Capacités de raccordement indicatives',
     texte:
-      "Les capacités d'accueil et états de saturation proviennent de Capareseau et des données ouvertes des gestionnaires de réseau. Ils sont indicatifs, evoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une étude de raccordement, puis une proposition technique et financiere du gestionnaire, engagent une capacité.",
+      "Les capacités d'accueil et états de saturation proviennent de Capareseau et des données ouvertes des gestionnaires de réseau. Ils sont indicatifs, évoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une étude de raccordement, puis une proposition technique et financière du gestionnaire, engagent une capacité.",
     // `postes_sources` retire : la rubrique Raccordement cible `racc_capacite_residuelle`.
     cible: ['racc_distance_poste', 'racc_capacite_residuelle', 'racc_quote_part'],
   },
