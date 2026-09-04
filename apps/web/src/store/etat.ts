@@ -63,8 +63,26 @@ export interface EtatApp {
   limiterALEmprise: boolean;
 
   outil: OutilDessin;
-  /** Avertissements globaux masques pour la session en cours uniquement. */
+  /**
+   * Avertissements globaux masques, DEFINITIVEMENT.
+   *
+   * CE CHOIX A ETE DEMANDE, et il merite d'etre trace parce qu'il revient sur une decision des
+   * audits precedents. Ces textes etaient masquables pour la seule session : ils revenaient a
+   * chaque chargement, au motif que l'audit 8 les designe comme « la seule protection du
+   * lecteur ». Le proprietaire du projet a demande qu'ils puissent etre retires pour de bon.
+   *
+   * CE QUI REND LA DEMANDE TENABLE, et c'est verifie et non suppose : le rapport PDF — le
+   * document remis a un tiers, celui qui engage — porte une section entiere « Avertissements, a
+   * lire avant tout usage » avec ces memes textes, plus un pied de page sur chaque page. La
+   * protection reste donc la ou elle a une portee. Ce qui disparait, c'est la repetition a
+   * l'ecran pour quelqu'un qui les a deja lus.
+   *
+   * ET ELLE RESTE REVERSIBLE : la barre superieure affiche un bouton de rappel des qu'au moins un
+   * avertissement est masque. Masquer n'est pas effacer.
+   */
   avertissementsMasques: string[];
+  /** Rend visibles tous les avertissements masques. */
+  rappelerAvertissements: () => void;
   panneauGaucheOuvert: boolean;
 
   definirFiliere: (f: Filiere) => void;
@@ -106,6 +124,7 @@ interface Preferences {
   rayonPersonnalise?: boolean;
   ponderations?: Partial<Record<Filiere, Record<string, number>>>;
   limiterALEmprise?: boolean;
+  avertissementsMasques?: string[];
 }
 
 function chargerPreferences(): Preferences {
@@ -127,6 +146,7 @@ function enregistrerPreferences(e: EtatApp): void {
     rayonPersonnalise: e.rayonPersonnalise,
     ponderations: e.ponderations,
     limiterALEmprise: e.limiterALEmprise,
+    avertissementsMasques: e.avertissementsMasques,
   };
   try {
     localStorage.setItem(CLE_PREFERENCES, JSON.stringify(p));
@@ -163,7 +183,7 @@ export const useEtat = create<EtatApp>((set, get) => ({
   seuils: {},
   filtres: {},
   outil: 'aucun',
-  avertissementsMasques: [],
+  avertissementsMasques: prefs.avertissementsMasques ?? [],
   panneauGaucheOuvert: true,
 
   definirFiliere: (filiere) => {
@@ -254,7 +274,18 @@ export const useEtat = create<EtatApp>((set, get) => ({
     }),
   definirOutil: (outil) => set({ outil }),
   masquerAvertissement: (id) =>
-    set((e) => ({ avertissementsMasques: [...e.avertissementsMasques, id] })),
+    set((e) => {
+      if (e.avertissementsMasques.includes(id)) return {};
+      const suivant = { ...e, avertissementsMasques: [...e.avertissementsMasques, id] };
+      enregistrerPreferences(suivant);
+      return { avertissementsMasques: suivant.avertissementsMasques };
+    }),
+  rappelerAvertissements: () =>
+    set((e) => {
+      const suivant = { ...e, avertissementsMasques: [] };
+      enregistrerPreferences(suivant);
+      return { avertissementsMasques: suivant.avertissementsMasques };
+    }),
   basculerPanneauGauche: () => set((e) => ({ panneauGaucheOuvert: !e.panneauGaucheOuvert })),
 }));
 

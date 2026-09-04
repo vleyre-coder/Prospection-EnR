@@ -151,6 +151,26 @@ export function BarreSuperieure({
       </button>
 
       {/*
+        LE RAPPEL DES AVERTISSEMENTS RETIRES.
+        Les avertissements du §12 se retirent DEFINITIVEMENT depuis l'audit 13, a la demande du
+        proprietaire. « Definitivement » ne doit pas vouloir dire « sans retour » : sans ce bouton,
+        un retrait fait par curiosite serait irreversible sans vider le stockage du navigateur. Il
+        n'apparait que s'il y a quelque chose a rappeler, donc il ne coute rien au reste du temps.
+      */}
+      {etat.avertissementsMasques.length > 0 && (
+        <button
+          type="button"
+          className="bouton bouton-rappel"
+          title="Réafficher les avertissements retirés"
+          onClick={() => etat.rappelerAvertissements()}
+        >
+          <Icone nom="alerte" />
+          {etat.avertissementsMasques.length} avertissement
+          {etat.avertissementsMasques.length > 1 ? 's' : ''}
+        </button>
+      )}
+
+      {/*
         LA DECONNEXION EST SEPAREE DES COMMANDES D'AFFICHAGE.
         « Sombre » et « Quitter » etaient deux boutons identiques et colles : viser le theme et
         fermer sa session se jouaient a quelques pixels, pour deux consequences sans commune

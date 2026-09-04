@@ -2128,3 +2128,47 @@ button:focus-visible,
   border-color: var(--rouge);
   color: var(--rouge);
 }
+
+/*
+ * LE RAPPEL DES AVERTISSEMENTS RETIRES.
+ *
+ * Il n'apparait que si l'utilisateur a retire au moins un avertissement du §12. Il porte la
+ * couleur d'alerte du reste de l'interface, sans crier : c'est un retour possible, pas une
+ * remontrance. L'icone et le nombre suffisent a dire de quoi il s'agit.
+ */
+.bouton-rappel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff8e6;
+  border-color: #f0d999;
+  color: #6b4e07;
+}
+
+.bouton-rappel:hover:not(:disabled) {
+  background: #fdeec4;
+  border-color: #e0c476;
+}
+
+/* Les memes teintes que le bandeau lui-meme, en sombre : un rappel n'est pas une alerte neuve. */
+:root[data-theme='sombre'] .bouton-rappel {
+  background: #2a2109;
+  border-color: #574616;
+  color: #f5d98a;
+}
+
+:root[data-theme='sombre'] .bouton-rappel:hover:not(:disabled) {
+  background: #3a2e0d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='clair']) .bouton-rappel {
+    background: #2a2109;
+    border-color: #574616;
+    color: #f5d98a;
+  }
+
+  :root:not([data-theme='clair']) .bouton-rappel:hover:not(:disabled) {
+    background: #3a2e0d;
+  }
+}

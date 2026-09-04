@@ -64,9 +64,10 @@ test('LA CLAUSE NON NEGOCIABLE : les avertissements de la section 12 sont affich
   }
 });
 
-test('un avertissement masque pour la session disparait, les autres restent', () => {
-  // Le masquage est volontairement limite a la session : l'avertissement reapparait au prochain
-  // chargement. Le test verifie qu'il masque BIEN celui demande, et LUI SEUL.
+test('un avertissement retire disparait, les autres restent', () => {
+  // Le retrait est DEFINITIF depuis l'audit 13 (voir le magasin d'etat). Ce test ne porte que sur
+  // le rendu : il verifie qu'il retire BIEN celui demande, et LUI SEUL. La persistance elle-meme
+  // est verifiee dans `etat.test.ts`, ou elle se mesure sur le stockage.
   const cible = GLOBAUX[0]!;
   const t = bandeau({ avertissementsMasques: [cible.id] });
   assert.ok(!t.includes(cible.texte.slice(0, 60)), `« ${cible.id} » masque devrait disparaitre`);
@@ -76,6 +77,21 @@ test('un avertissement masque pour la session disparait, les autres restent', ()
       `masquer « ${cible.id} » a aussi fait disparaitre « ${autre.id} »`,
     );
   }
+});
+
+test('le bouton ne promet plus un masquage de session', () => {
+  /*
+   * LE LIBELLE EST UNE PROMESSE. « Masquer » accompagne d'une infobulle « pour cette session »
+   * decrivait le comportement d'avant : l'avertissement revenait au chargement suivant. Il ne
+   * revient plus. Un libelle qui decrit l'ancien comportement est un mensonge d'interface, et
+   * celui-la porterait sur les seuls textes que l'audit 8 appelle « la protection du lecteur ».
+   */
+  const t = bandeau({});
+  assert.ok(t.includes('Retirer'), 'le bouton doit s’appeler « Retirer »');
+  assert.ok(
+    !/pour cette session|réapparaîtra/i.test(t),
+    'l’infobulle ne doit plus promettre un retour au prochain chargement',
+  );
 });
 
 test('LE BANDEAU DE L’AUDIT 9 : le retard sur la donnee est annonce, avec son compte', () => {

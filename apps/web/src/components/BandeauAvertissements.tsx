@@ -50,10 +50,14 @@ export function BandeauAvertissements({
     <>
       {/*
         LES AVERTISSEMENTS DU §12 SONT COTE A COTE, ET NON EMPILES.
-        Ils ne sont ni replies ni abreges : l'audit 8 etablit qu'ils sont « la seule protection
-        du lecteur » contre deux defauts connus du referentiel, et l'audit precedent avait deja
-        tranche qu'ils resteraient « ouverts et entiers ». Cette contrainte n'est pas rediscutee.
-        Ce qui l'est, c'est leur ENCOMBREMENT : empiles sur toute la largeur, les deux textes
+        Ils ne sont ni replies ni abreges TANT QU'ILS SONT AFFICHES : l'audit 8 etablit qu'ils sont
+        « la seule protection du lecteur » contre deux defauts connus du referentiel. Ce qui a
+        change a l'audit 13, sur demande du proprietaire : « Retirer » les enleve DEFINITIVEMENT et
+        non plus pour la seule session. Ce n'est tenable que parce que la protection subsiste la ou
+        elle engage — le rapport PDF porte une section entiere de ces memes textes, plus un pied de
+        page sur chaque page — et parce que le retrait est reversible depuis la barre superieure.
+
+        LEUR ENCOMBREMENT, tant qu'ils sont la : empiles sur toute la largeur, les deux textes
         mesuraient 130 px sur 1 000 — 13 % de l'ecran, 22 % en fenetre de 800 px de haut, mesure
         sur capture. Une grille les met en colonnes des que la fenetre le permet : meme texte,
         entier, sur une seule rangee. Sous 760 px de large, elle repasse a une colonne, ou
@@ -70,10 +74,10 @@ export function BandeauAvertissements({
               <button
                 type="button"
                 className="bouton-discret fermer"
-                title="Masquer pour cette session — l’avertissement réapparaîtra au prochain chargement"
+                title="Retirer cet avertissement — définitivement. Le bouton « Avertissements » de la barre supérieure le rappelle, et le rapport PDF le porte toujours."
                 onClick={() => etat.masquerAvertissement(a.id)}
               >
-                Masquer
+                Retirer
               </button>
             </div>
           ))}
@@ -86,8 +90,10 @@ export function BandeauAvertissements({
         la moindre donnee, mesure sur capture. Or ce sont des ETATS D'EXPLOITATION, pas des mises en
         garde de methode : leur chiffre suffit a l'ecran, le detail se deplie.
 
-        La distinction avec la section 12 est deliberee : celle-la reste ouverte, entiere et permanente,
-        parce qu'elle ne parle pas de l'etat des donnees mais de ce que l'outil ne garantit pas.
+        La distinction avec la section 12 est deliberee : celle-la s'affiche ENTIERE tant qu'on ne l'a
+        pas retiree, parce qu'elle ne parle pas de l'etat des donnees mais de ce que l'outil ne
+        garantit pas. Celle-ci se replie d'emblee, parce qu'un chiffre suffit a decider s'il faut
+        aller voir.
       */}
       {(sourcesPerimees.length > 0 || enRetard) && (
         <details className="bandeau bandeau-etat">

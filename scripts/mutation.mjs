@@ -1117,6 +1117,60 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
   },
+
+  // ─── audit 13 : le retrait des avertissements du §12 est definitif et reversible ────────────
+  {
+    audit: 'audit 13',
+    quoi: 'le retrait d’un avertissement redevient valable pour la seule session',
+    fichier: 'apps/web/src/store/etat.ts',
+    de: '  avertissementsMasques: prefs.avertissementsMasques ?? [],',
+    vers: '  avertissementsMasques: [],',
+    tests: ['apps/web/test/avertissements-persistance.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/avertissements-persistance.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'le retrait n’est plus ecrit dans le stockage : il meurt avec l’onglet',
+    fichier: 'apps/web/src/store/etat.ts',
+    de: `      const suivant = { ...e, avertissementsMasques: [...e.avertissementsMasques, id] };
+      enregistrerPreferences(suivant);`,
+    vers: '      const suivant = { ...e, avertissementsMasques: [...e.avertissementsMasques, id] };',
+    tests: ['apps/web/test/avertissements-persistance.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/avertissements-persistance.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'le rappel vide l’ecran mais pas le stockage : les avertissements reviennent au chargement',
+    fichier: 'apps/web/src/store/etat.ts',
+    de: `      const suivant = { ...e, avertissementsMasques: [] };
+      enregistrerPreferences(suivant);`,
+    vers: '      const suivant = { ...e, avertissementsMasques: [] };',
+    tests: ['apps/web/test/avertissements-persistance.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/avertissements-persistance.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'retirer deux fois le meme avertissement le compte deux fois, et le compteur ment',
+    fichier: 'apps/web/src/store/etat.ts',
+    de: '      if (e.avertissementsMasques.includes(id)) return {};',
+    vers: '      // mutation',
+    tests: ['apps/web/test/avertissements-persistance.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/avertissements-persistance.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'le bouton promet de nouveau un masquage limite a la session',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: '                Retirer\n              </button>',
+    vers: '                Masquer\n              </button>',
+    tests: ['apps/web/test/rendu-bandeau.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-bandeau.test.ts'],
+  },
 ];
 
 /**
