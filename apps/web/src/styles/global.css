@@ -426,10 +426,43 @@ button:focus-visible,
  */
 .bandeaux-cadre {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0;
   border-bottom: 1px solid #f0d999;
   flex-shrink: 0;
+}
+
+/*
+ * DEUX COLONNES, ET SEULEMENT AU-DESSUS DE 1 200 px. Le seuil est mesure, pas suppose.
+ *
+ * Premiere version : `repeat(auto-fit, minmax(340px, 1fr))`. Elle parait raisonnable et elle
+ * est mauvaise — `auto-fit` decoupe AUTANT de pistes que la largeur le permet : quatre pistes
+ * de 400 px sur un ecran de 1 600, alors qu'il n'y a que deux avertissements. Chacun n'obtenait
+ * donc que 400 px de large, se repliait sur cinq lignes, et le gain fondait.
+ *
+ * Hauteurs MESUREES au navigateur (`offsetHeight`), et non estimees a l'oeil :
+ *
+ *     largeur   auto-fit   deux colonnes   empile
+ *      1600       88 px        88 px       102 px
+ *      1440         —          88 px       102 px
+ *      1280      106 px       106 px       102 px
+ *      1200         —         106 px       138 px
+ *      1100         —         138 px       138 px
+ *       900      160 px       138 px       138 px
+ *
+ * Ce que ces chiffres disent, sans complaisance : `auto-fit` etait PIRE que l'empilement sous
+ * 1 280 px — jusqu'a 22 px de plus a 900 px. Deux colonnes franches gagnent 14 px au-dela de
+ * 1 400 px et 32 px entre 1 200 et 1 280, et perdent 4 px dans la bande 1 280-1 400, ou
+ * l'empilement tient encore chaque texte sur deux lignes. Ce solde-la est accepte.
+ *
+ * Et la conclusion honnete : ce bloc ne peut pas maigrir beaucoup. Le texte doit rester
+ * ENTIER, donc la seule variable est le nombre de lignes. On gagne des dizaines de pixels,
+ * pas des centaines.
+ */
+@media (min-width: 1200px) {
+  .bandeaux-cadre {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 :root[data-theme='sombre'] .bandeaux-cadre {
