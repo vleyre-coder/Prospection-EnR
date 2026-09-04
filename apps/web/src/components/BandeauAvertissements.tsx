@@ -48,22 +48,37 @@ export function BandeauAvertissements({
 
   return (
     <>
-      {globaux.map((a) => (
-        <div key={a.id} className="bandeau">
-          <Icone nom="alerte" />
-          <p>
-            <strong>{a.titre}.</strong> {a.texte}
-          </p>
-          <button
-            type="button"
-            className="bouton-discret fermer"
-            title="Masquer pour cette session — l’avertissement reapparaitra au prochain chargement"
-            onClick={() => etat.masquerAvertissement(a.id)}
-          >
-            Masquer
-          </button>
+      {/*
+        LES AVERTISSEMENTS DU §12 SONT COTE A COTE, ET NON EMPILES.
+        Ils ne sont ni replies ni abreges : l'audit 8 etablit qu'ils sont « la seule protection
+        du lecteur » contre deux defauts connus du referentiel, et l'audit precedent avait deja
+        tranche qu'ils resteraient « ouverts et entiers ». Cette contrainte n'est pas rediscutee.
+        Ce qui l'est, c'est leur ENCOMBREMENT : empiles sur toute la largeur, les deux textes
+        mesuraient 130 px sur 1 000 — 13 % de l'ecran, 22 % en fenetre de 800 px de haut, mesure
+        sur capture. Une grille les met en colonnes des que la fenetre le permet : meme texte,
+        entier, sur une seule rangee. Sous 760 px de large, elle repasse a une colonne, ou
+        l'empilement redevient le bon choix.
+      */}
+      {globaux.length > 0 && (
+        <div className="bandeaux-cadre">
+          {globaux.map((a) => (
+            <div key={a.id} className="bandeau bandeau-garde">
+              <Icone nom="alerte" />
+              <p>
+                <strong>{a.titre}.</strong> {a.texte}
+              </p>
+              <button
+                type="button"
+                className="bouton-discret fermer"
+                title="Masquer pour cette session — l’avertissement réapparaîtra au prochain chargement"
+                onClick={() => etat.masquerAvertissement(a.id)}
+              >
+                Masquer
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
       {/*
         LES DEUX ALERTES DE FRAICHEUR SONT REUNIES EN UNE SEULE LIGNE, repliee.
         Elles occupaient deux bandeaux pleins. Additionnes aux deux avertissements de la section 12,
@@ -78,27 +93,27 @@ export function BandeauAvertissements({
         <details className="bandeau bandeau-etat">
           <summary>
             <Icone nom="alerte" />
-            <strong>Etat des donnees :</strong>
+            <strong>État des données :</strong>
             {sourcesPerimees.length > 0 && (
-              <span> {sourcesPerimees.length} source(s) a rafraichir</span>
+              <span> {sourcesPerimees.length} source(s) à rafraîchir</span>
             )}
             {sourcesPerimees.length > 0 && enRetard && <span> ·</span>}
-            {enRetard && <span> {parcellesARafraichir} parcelle(s) en retard sur la donnee</span>}
+            {enRetard && <span> {parcellesARafraichir} parcelle(s) en retard sur la donnée</span>}
           </summary>
           <div className="bandeau-detail">
             {sourcesPerimees.length > 0 && (
               <p>
-                <strong>Sources a rafraichir.</strong> {sourcesPerimees.length} source(s) depassent
-                leur periodicite de mise a jour ({sourcesPerimees.join(', ')}). Les criteres
-                concernes peuvent etre obsoletes ou indisponibles.
+                <strong>Sources à rafraîchir.</strong> {sourcesPerimees.length} source(s) depassent
+                leur periodicite de mise à jour ({sourcesPerimees.join(', ')}). Les critères
+                concernés peuvent être obsoletes ou indisponibles.
               </p>
             )}
             {enRetard && (
               <p>
-                <strong>Parcelles en retard sur la donnee.</strong> {parcellesARafraichir}{' '}
-                parcelle(s) ont ete qualifiees avant la derniere ingestion de leur departement : la
-                carte et les listes affichent pour elles l&apos;etat d&apos;avant. Ouvrir une fiche
-                met la parcelle a jour{peutRafraichir ? ' ; le bouton reprend un lot' : ''}.
+                <strong>Parcelles en retard sur la donnée.</strong> {parcellesARafraichir}{' '}
+                parcelle(s) ont été qualifiées avant la derniere ingestion de leur département : la
+                carte et les listes affichent pour elles l&apos;état d&apos;avant. Ouvrir une fiche
+                met la parcelle à jour{peutRafraichir ? ' ; le bouton reprend un lot' : ''}.
               </p>
             )}
             {enRetard && peutRafraichir && (
@@ -118,7 +133,7 @@ export function BandeauAvertissements({
                     });
                 }}
               >
-                {rafraichissementEnCours ? 'Rafraichissement…' : 'Rafraichir un lot'}
+                {rafraichissementEnCours ? 'Rafraichissement…' : 'Rafraîchir un lot'}
               </button>
             )}
           </div>

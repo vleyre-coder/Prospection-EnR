@@ -30,7 +30,7 @@ function suivreCadastre(page: import('@playwright/test').Page): { zooms: number[
   return { zooms };
 }
 
-test('EN VUE NATIONALE, aucune tuile cadastrale n’est demandee', async ({ page }) => {
+test('EN VUE NATIONALE, aucune tuile cadastrale n’est demandée', async ({ page }) => {
   /**
    * Le garde-fou compte autant que la couche. Une tuile de cadastre en vue nationale pese des
    * megaoctets pour un rendu illisible, et le service amont est un bien commun : le relais refuse en
@@ -43,7 +43,7 @@ test('EN VUE NATIONALE, aucune tuile cadastrale n’est demandee', async ({ page
   // L'application s'ouvre cadree sur la France entiere : le zoom y est tres inferieur au plancher.
   expect(
     suivi.zooms,
-    'des tuiles cadastrales ont ete demandees en vue nationale : le plancher de zoom ne tient pas',
+    'des tuiles cadastrales ont été demandees en vue nationale : le plancher de zoom ne tient pas',
   ).toEqual([]);
 });
 
@@ -66,8 +66,8 @@ test('AU ZOOM PARCELLAIRE, le navigateur demande les tuiles du cadastre COMPLET'
   await expect
     .poll(() => suivi.zooms.length, {
       message:
-        'aucune tuile cadastrale demandee apres cadrage sur une parcelle : la couche du cadastre ' +
-        'complet n’est pas active, et les parcelles non qualifiees restent invisibles',
+        'aucune tuile cadastrale demandée après cadrage sur une parcelle : la couche du cadastre ' +
+        'complet n’est pas active, et les parcelles non qualifiées restent invisibles',
       timeout: 20_000,
     })
     .toBeGreaterThan(0);

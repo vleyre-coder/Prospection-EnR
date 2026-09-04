@@ -52,7 +52,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
     ['Surface', 'surface_desc', true],
     ['Statut', null, false],
     ['Score', 'score_desc', true],
-    ['Trace estime', 'distance_poste_asc', true],
+    ['Tracé estimé', 'distance_poste_asc', true],
     ['Pente', null, true],
     ['Nature du sol', null, false],
     ['Prospection', null, false],
@@ -62,15 +62,15 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
     <div className="vue-plein">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 16 }}>
-          Parcelles qualifiees
+          Parcelles qualifiées
           {requete.data && (
             <span style={{ fontWeight: 400, color: 'var(--texte-faible)', fontSize: 13 }}>
               {' '}
-              — {requete.data.total} resultat{requete.data.total > 1 ? 's' : ''}
+              — {requete.data.total} résultat{requete.data.total > 1 ? 's' : ''}
               {requete.data.total > requete.data.resultats.length &&
                 ` (${requete.data.resultats.length} affiches)`}
               {borne
-                ? ' — dans la zone affichee'
+                ? ' — dans la zone affichée'
                 : ' — sur tout le territoire qualifie'}
             </span>
           )}
@@ -85,7 +85,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
               checked={etat.limiterALEmprise}
               onChange={() => etat.basculerLimiteEmprise()}
             />
-            Limiter a la zone affichee
+            Limiter à la zone affichée
           </label>
           <button
             type="button"
@@ -116,7 +116,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
             Shapefile
           </button>
           <button type="button" className="bouton" onClick={() => etat.definirVue('carte')}>
-            Retour a la carte
+            Retour à la carte
           </button>
         </div>
       </div>
@@ -144,7 +144,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
         <div className="vide">
           Aucune parcelle ne correspond aux filtres.
           <br />
-          Les parcelles doivent d&apos;abord etre qualifiees : deplacez-vous sur la carte au-dela du
+          Les parcelles doivent d&apos;abord être qualifiées : deplacez-vous sur la carte au-delà du
           zoom 14 et lancez la qualification de l&apos;emprise.
         </div>
       )}
@@ -175,6 +175,18 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
               const statutProspection = referentiel.statutsProspection.find(
                 (s) => s.id === l.statutProspection,
               );
+              /*
+               * L'ETIQUETTE EST CALCULEE UNE FOIS PAR LIGNE, et non plus dans la cellule.
+               * Sa couleur sert desormais a DEUX endroits : la pastille de statut et la jauge
+               * du score. Le score etait rendu en noir ordinaire alors que l'application porte
+               * une palette de feux complete et s'en sert partout ailleurs : le chiffre central
+               * du produit ne se lisait pas d'un coup d'oeil, il fallait comparer ligne a ligne.
+               */
+              const etiquette = etiquetteStatut(
+                l.statutScore,
+                l.nbKnockOutsBloquants,
+                referentiel.palette,
+              );
               return (
                 <tr key={l.idu} onClick={() => onOuvrir(l)}>
                   <td>{l.nomCommune ?? '—'}</td>
@@ -186,24 +198,41 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                     {/* La decision « redhibitoire ou score faible » vit dans
                         utils/affichage, pour etre testable : c'est la confusion des deux qui
                         a produit le defaut le plus couteux du troisieme audit. */}
-                    {(() => {
-                      const e = etiquetteStatut(
-                        l.statutScore,
-                        l.nbKnockOutsBloquants,
-                        referentiel.palette,
-                      );
-                      return e == null ? null : (
-                        <span
-                          className="etiquette-statut"
-                          style={{ background: e.couleur }}
-                          title={e.titre}
-                        >
-                          {e.libelle}
-                        </span>
-                      );
-                    })()}
+                    {etiquette == null ? null : (
+                      <span
+                        className="etiquette-statut"
+                        style={{ background: etiquette.couleur }}
+                        title={etiquette.titre}
+                      >
+                        {etiquette.libelle}
+                      </span>
+                    )}
                   </td>
-                  <td className="num">{l.scoreGlobal == null ? '—' : Math.round(l.scoreGlobal)}</td>
+                  {/*
+                    LE SCORE PORTE SA JAUGE. Le chiffre reste ecrit — c'est lui qui fait foi et
+                    c'est lui qui part dans les exports — mais une barre de largeur
+                    proportionnelle, dans la couleur du statut, rend la comparaison entre lignes
+                    immediate. La couleur n'est PAS appliquee au texte : les teintes de la palette
+                    sont concues comme des fonds, les passer en couleur de texte aurait degrade le
+                    contraste sur les tons clairs.
+                  */}
+                  <td className="num cellule-score">
+                    {l.scoreGlobal == null ? (
+                      '—'
+                    ) : (
+                      <>
+                        <strong>{Math.round(l.scoreGlobal)}</strong>
+                        <span className="score-jauge" aria-hidden="true">
+                          <span
+                            style={{
+                              width: `${Math.max(3, Math.min(100, l.scoreGlobal))}%`,
+                              background: etiquette?.couleur ?? 'var(--bordure)',
+                            }}
+                          />
+                        </span>
+                      </>
+                    )}
+                  </td>
                   {/* La colonne donne le trace estime — la grandeur notee et facturee — et
                       rappelle le vol d'oiseau en infobulle plutot que d'afficher deux
                       nombres dans une cellule etroite. */}
@@ -239,7 +268,7 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
       )}
 
       <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', marginTop: 11 }}>
-        Les scores sont une aide a la priorisation et non une garantie de faisabilite. Le contour
+        Les scores sont une aide à la priorisation et non une garantie de faisabilité. Le contour
         cadastral est indicatif et sans valeur juridique.
       </p>
     </div>

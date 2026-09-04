@@ -586,7 +586,7 @@ export function ficheParcellePdf(
           // tableau qui n'affichait que le vol d'oiseau faisait se contredire le rapport
           // avec lui-meme (5,7 km en synthese, 4,2 km ici, sans mention du coefficient).
           { titre: 'Vol d\'oiseau', part: 0.11, align: 'right' },
-          { titre: 'Trace estime', part: 0.11, align: 'right' },
+          { titre: 'Tracé estimé', part: 0.11, align: 'right' },
           { titre: 'Capacite', part: 0.11, align: 'right' },
           { titre: 'Saturation', part: 0.13 },
           { titre: 'Renforcement', part: 0.18 },
@@ -889,7 +889,7 @@ export function csvResultats(lignes: LigneResultatFiltre[]): string {
     'Score global',
     'Statut prospection',
     'Vol d\'oiseau poste source (km)',
-    'Trace estime poste source (km)',
+    'Tracé estimé poste source (km)',
     'Pente (%)',
     'Type de sol',
     'Longitude',

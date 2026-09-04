@@ -496,11 +496,11 @@ export interface StatutProspectionMeta {
 }
 
 export const STATUTS_PROSPECTION_META: Record<StatutProspection, StatutProspectionMeta> = {
-  a_prospecter: { id: 'a_prospecter', libelle: 'A prospecter', couleur: '#94a3b8', motif: 'aucun', ordre: 0 },
+  a_prospecter: { id: 'a_prospecter', libelle: 'À prospecter', couleur: '#94a3b8', motif: 'aucun', ordre: 0 },
   contact_pris: { id: 'contact_pris', libelle: 'Contact pris', couleur: '#6366f1', motif: 'pointille', ordre: 1 },
-  en_negociation: { id: 'en_negociation', libelle: 'En negociation', couleur: '#8b5cf6', motif: 'tiret', ordre: 2 },
-  securise: { id: 'securise', libelle: 'Securise', couleur: '#0ea5e9', motif: 'plein', ordre: 3 },
-  ecarte: { id: 'ecarte', libelle: 'Ecarte', couleur: '#78716c', motif: 'hachure', ordre: 4 },
+  en_negociation: { id: 'en_negociation', libelle: 'En négociation', couleur: '#8b5cf6', motif: 'tiret', ordre: 2 },
+  securise: { id: 'securise', libelle: 'Sécurisé', couleur: '#0ea5e9', motif: 'plein', ordre: 3 },
+  ecarte: { id: 'ecarte', libelle: 'Écarté', couleur: '#78716c', motif: 'hachure', ordre: 4 },
 };
 
 export interface Lead {

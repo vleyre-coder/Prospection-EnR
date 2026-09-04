@@ -79,10 +79,10 @@ export function BarreSuperieure({
     <header className="barre">
       <div className="marque">
         <strong>Prospection EnR</strong>
-        <span>aide a la decision fonciere</span>
+        <span>aide à la décision fonciere</span>
       </div>
 
-      <nav className="filieres" aria-label="Selection de la filiere">
+      <nav className="filieres" aria-label="Sélection de la filière">
         {referentiel.filieres.map((f) => (
           <button
             key={f.id}
@@ -144,21 +144,32 @@ export function BarreSuperieure({
       <button
         type="button"
         className="bouton"
-        title="Basculer le theme clair / sombre"
+        title="Basculer le thème clair / sombre"
         onClick={() => etat.definirTheme(etat.theme === 'sombre' ? 'clair' : 'sombre')}
       >
         {etat.theme === 'sombre' ? 'Clair' : 'Sombre'}
       </button>
 
+      {/*
+        LA DECONNEXION EST SEPAREE DES COMMANDES D'AFFICHAGE.
+        « Sombre » et « Quitter » etaient deux boutons identiques et colles : viser le theme et
+        fermer sa session se jouaient a quelques pixels, pour deux consequences sans commune
+        mesure — l'une se rattrape d'un clic, l'autre ramene a l'ecran de connexion et perd la
+        position de la carte. Un filet les separe, et le libelle dit ce qui va se passer plutot
+        que « Quitter », qui peut aussi se lire « quitter la vue ».
+      */}
       {utilisateur && onDeconnexion && (
-        <button
-          type="button"
-          className="bouton"
-          title={`${utilisateur.email} — role ${utilisateur.role}`}
-          onClick={onDeconnexion}
-        >
-          Quitter
-        </button>
+        <>
+          <span className="separateur-barre" aria-hidden="true" />
+          <button
+            type="button"
+            className="bouton bouton-quitter"
+            title={`Se déconnecter — ${utilisateur.email}, rôle ${utilisateur.role}`}
+            onClick={onDeconnexion}
+          >
+            Se déconnecter
+          </button>
+        </>
       )}
     </header>
   );
@@ -255,7 +266,7 @@ function Recherche({ onAllerVers }: { onAllerVers: (r: ResultatRecherche) => voi
           {chargement && <div className="chargement"><span className="tourniquet" />Recherche…</div>}
           {!chargement && resultats.length === 0 && (
             <div style={{ padding: '9px 10px', fontSize: 12, color: 'var(--texte-faible)' }}>
-              Aucun resultat.
+              Aucun résultat.
             </div>
           )}
           {resultats.map((r, i) => (

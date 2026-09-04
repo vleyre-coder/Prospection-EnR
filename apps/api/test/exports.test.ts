@@ -174,17 +174,17 @@ test('LE CHANGEMENT DE FORMAT : le CSV n’ecrit plus aucune cle d’enumeration
   // Et les libelles attendus sont bien la : l'absence de cles ne prouverait rien si les cases etaient
   // simplement vides.
   for (const attendu of [
-    'Donnees manquantes',
-    'A prospecter',
+    'Données manquantes',
+    'À prospecter',
     'Terrain agricole exploite',
-    'En negociation',
+    'En négociation',
     'Espace naturel ou forestier',
   ]) {
     assert.ok(csv.includes(attendu), `libelle « ${attendu} » absent du CSV`);
   }
 });
 
-test('le CSV distingue « Redhibitoire » d’un simple score faible, comme la liste a l’ecran', () => {
+test('le CSV distingue « Rédhibitoire » d’un simple score faible, comme la liste a l’ecran', () => {
   // La palette separe deliberement deux rouges. Ecrire « Score faible » dans les deux cas perdrait la
   // distinction la plus lourde du fichier : « peu interessante » contre « juridiquement fermee ».
   const csv = csvResultats([
@@ -194,7 +194,7 @@ test('le CSV distingue « Redhibitoire » d’un simple score faible, comme la l
   const lignes = csv.trimEnd().split('\n');
   const i = lignes[0]!.split(';').indexOf('Statut score');
   assert.equal(lignes[1]!.split(';')[i], 'Score faible');
-  assert.equal(lignes[2]!.split(';')[i], 'Redhibitoire');
+  assert.equal(lignes[2]!.split(';')[i], 'Rédhibitoire');
 });
 
 test('une absence reste une case vide, jamais un libelle fabrique', () => {
@@ -260,7 +260,7 @@ test('le GeoJSON garde ses cles ET ajoute les libelles : rien ne casse, tout se 
   assert.equal(props['statut_score'], 'gris');
   assert.equal(props['regime_implantation'], 'agrivoltaisme');
   // Le libelle, en plus.
-  assert.equal(props['statut_score_libelle'], 'Donnees manquantes');
+  assert.equal(props['statut_score_libelle'], 'Données manquantes');
   assert.ok(
     String(props['regime_implantation_libelle']).startsWith('Agrivoltaisme'),
     `libelle de regime inattendu : ${String(props['regime_implantation_libelle'])}`,

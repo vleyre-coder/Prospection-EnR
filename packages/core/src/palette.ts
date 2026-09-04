@@ -42,12 +42,12 @@ export const COULEUR_REDHIBITOIRE_REMPLISSAGE = '#991b1b';
 
 export const LIBELLES_SCORE: Record<Feu, string> = {
   vert: 'Propice',
-  orange: 'Sous conditions / a etudier',
+  orange: 'Sous conditions / à étudier',
   rouge: 'Score faible',
-  gris: 'Donnees manquantes',
+  gris: 'Données manquantes',
 };
 
-export const LIBELLE_REDHIBITOIRE = 'Redhibitoire';
+export const LIBELLE_REDHIBITOIRE = 'Rédhibitoire';
 
 export const DESCRIPTIONS_SCORE: Record<Feu, string> = {
   vert: "Aucun critère rédhibitoire et score global au-dessus du seuil : parcelle à démarcher en priorité.",

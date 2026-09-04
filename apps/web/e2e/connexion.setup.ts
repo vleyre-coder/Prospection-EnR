@@ -22,7 +22,7 @@
 import { expect, test as setup } from '@playwright/test';
 import { E2E, FICHIER_ETAT_SESSION } from '../playwright.config.js';
 
-setup('connexion unique, session conservee', async ({ page }) => {
+setup('connexion unique, session conservée', async ({ page }) => {
   await page.goto('/');
 
   const champEmail = page.getByLabel('Adresse electronique');

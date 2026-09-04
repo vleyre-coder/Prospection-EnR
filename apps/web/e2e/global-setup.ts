@@ -34,7 +34,7 @@ async function principal(): Promise<void> {
     throw new Error(
       `Base de donnees injoignable pour les tests de bout en bout (${url}).\n` +
         `  Cause : ${(err as Error).message}\n` +
-        '  Ces tests exigent une base peuplee : ils ne peuvent pas etre ignores sans mentir sur la couverture.',
+        '  Ces tests exigent une base peuplée : ils ne peuvent pas être ignores sans mentir sur la couverture.',
     );
   }
 
@@ -48,7 +48,7 @@ async function principal(): Promise<void> {
     if (parcelles === 0 || scores === 0) {
       throw new Error(
         `Base joignable mais vide : ${parcelles} instantane(s), ${scores} score(s).\n` +
-          '  Les tests de bout en bout ouvrent une fiche reelle et comparent l’ecran a l’API.\n' +
+          '  Les tests de bout en bout ouvrent une fiche reelle et comparent l’écran a l’API.\n' +
           '  Peuplez la base avant de les lancer :\n' +
           '    npm run db:migrate && npm run db:seed\n' +
           '    npm run ingest --workspace @enr/api -- communes\n' +

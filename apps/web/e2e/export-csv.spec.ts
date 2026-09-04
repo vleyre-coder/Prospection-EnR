@@ -14,7 +14,7 @@
 import { expect, test } from '@playwright/test';
 import { ouvrirListe, seConnecter } from './aides.js';
 
-test('LE CHANGEMENT DE FORMAT, PROUVE SUR LE FICHIER LIVRE : le CSV telecharge est lisible en francais', async ({
+test('LE CHANGEMENT DE FORMAT, PROUVE SUR LE FICHIER LIVRE : le CSV telecharge est lisible en français', async ({
   page,
 }) => {
   await seConnecter(page);
@@ -33,7 +33,7 @@ test('LE CHANGEMENT DE FORMAT, PROUVE SUR LE FICHIER LIVRE : le CSV telecharge e
   // --- Le fichier est bien un CSV francais exploitable
   expect(csv.charCodeAt(0), 'la BOM UTF-8 est indispensable a Excel FR').toBe(0xfeff);
   const lignes = csv.trimEnd().split('\n');
-  expect(lignes.length, 'le fichier doit contenir au moins une ligne de donnees').toBeGreaterThan(1);
+  expect(lignes.length, 'le fichier doit contenir au moins une ligne de données').toBeGreaterThan(1);
   const entetes = lignes[0]!.replace('﻿', '').split(';');
   for (const attendu of ['IDU', 'Commune', 'Statut score', 'Longitude', 'Latitude']) {
     expect(entetes, `colonne « ${attendu} » manquante`).toContain(attendu);
@@ -63,10 +63,10 @@ test('LE CHANGEMENT DE FORMAT, PROUVE SUR LE FICHIER LIVRE : le CSV telecharge e
   const statuts = new Set(lignes.slice(1).map((l) => l.split(';')[iStatut]));
   const connus = new Set([
     'Propice',
-    'Sous conditions / a etudier',
+    'Sous conditions / à étudier',
     'Score faible',
-    'Donnees manquantes',
-    'Redhibitoire',
+    'Données manquantes',
+    'Rédhibitoire',
     '',
   ]);
   for (const s of statuts) {

@@ -46,17 +46,17 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
           style={{ marginLeft: 'auto' }}
           onClick={() => etat.definirVue('carte')}
         >
-          Retour a la carte
+          Retour à la carte
         </button>
       </div>
 
       {!d ? (
-        <div className="vide">Donnees indisponibles.</div>
+        <div className="vide">Données indisponibles.</div>
       ) : (
         <>
           <div className="cartes-indicateurs">
             <div className="indicateur">
-              <div className="lib">Parcelles qualifiees</div>
+              <div className="lib">Parcelles qualifiées</div>
               <div className="val">{d.repartitionScores['total'] ?? 0}</div>
               <div className="sous">
                 {d.repartitionScores['vert'] ?? 0} propices ·{' '}
@@ -70,7 +70,7 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
                   .filter(([s]) => s !== 'ecarte')
                   .reduce((a, [, n]) => a + n, 0)}
               </div>
-              <div className="sous">{d.parStatut['ecarte'] ?? 0} ecartee(s)</div>
+              <div className="sous">{d.parStatut['ecarte'] ?? 0} écartée(s)</div>
             </div>
             <div className="indicateur">
               <div className="lib">Surface securisee</div>
@@ -107,10 +107,10 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
           </div>
 
           <div className="bloc-graphique">
-            <h3>Activite sur 12 mois</h3>
+            <h3>Activité sur 12 mois</h3>
             {d.evolution.length === 0 ? (
               <p style={{ fontSize: 12, color: 'var(--texte-faible)', margin: 0 }}>
-                Aucun evenement enregistre sur la periode.
+                Aucun événement enregistre sur la période.
               </p>
             ) : (
               <Courbes donnees={d.evolution} />
@@ -131,7 +131,7 @@ function BarresEmpilees({
   if (total === 0) {
     return (
       <p style={{ fontSize: 12, color: 'var(--texte-faible)', margin: 0 }}>
-        Aucune donnee : qualifiez des parcelles depuis la carte.
+        Aucune donnée : qualifiez des parcelles depuis la carte.
       </p>
     );
   }
@@ -187,7 +187,7 @@ function Courbes({
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: '100%', minWidth: 420, height: 'auto' }} role="img" aria-label="Activite sur 12 mois">
+      <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: '100%', minWidth: 420, height: 'auto' }} role="img" aria-label="Activité sur 12 mois">
         {[0, 0.5, 1].map((r) => (
           <g key={r}>
             <line

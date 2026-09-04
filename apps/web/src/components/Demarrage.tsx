@@ -126,7 +126,7 @@ export function Demarrage({ onTermine }: { onTermine: () => void }): JSX.Element
         <h1 className="accueil-titre">
           Prospection<span className="accueil-titre-accent"> EnR</span>
         </h1>
-        <p className="accueil-sous-titre">Aide a la decision fonciere &mdash; France</p>
+        <p className="accueil-sous-titre">Aide à la décision fonciere &mdash; France</p>
 
         <div className="accueil-symboles">
           {SYMBOLES.map((s, i) => (

@@ -79,7 +79,7 @@ export async function seConnecter(
   await expect(champEmail.or(barreVues).first()).toBeVisible({ timeout: 30_000 });
   await expect(
     champEmail,
-    'le formulaire de connexion est apparu : l’etat de session n’a pas ete pris',
+    'le formulaire de connexion est apparu : l’état de session n’a pas été pris',
   ).toBeHidden();
   await expect(barreVues).toBeVisible({ timeout: 30_000 });
 }
@@ -94,7 +94,7 @@ export async function ouvrirListe(page: Page): Promise<void> {
    * carte centree ailleurs verrait donc une liste vide, pour une raison parfaitement legitime. On leve
    * la borne explicitement plutot que de deplacer la carte, ce qui serait plus fragile.
    */
-  const borne = page.getByLabel('Limiter a la zone affichee');
+  const borne = page.getByLabel('Limiter à la zone affichée');
   if (await borne.isChecked()) await borne.uncheck();
 
   await expect(page.getByRole('table')).toBeVisible();

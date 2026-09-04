@@ -40,7 +40,7 @@ test('l’application demarre, se connecte, et affiche la carte', async ({ page 
   expect(reelles, `erreurs de console : ${reelles.join(' | ')}`).toEqual([]);
 });
 
-test('LA VERIFICATION DE L’AUDIT 10, RENDUE PERMANENTE : l’ecran affiche exactement ce que l’API renvoie', async ({
+test('LA VÉRIFICATION DE L’AUDIT 10, RENDUE PERMANENTE : l’écran affiche exactement ce que l’API renvoie', async ({
   page,
 }) => {
   /**
@@ -57,7 +57,7 @@ test('LA VERIFICATION DE L’AUDIT 10, RENDUE PERMANENTE : l’ecran affiche exa
   const { fiche } = await ouvrirPremiereFiche(page);
 
   const criteres = fiche.score.criteres;
-  expect(criteres.length, 'la fiche capturee doit porter des criteres').toBeGreaterThan(10);
+  expect(criteres.length, 'la fiche capturee doit porter des critères').toBeGreaterThan(10);
 
   const texte = ((await page.locator('aside, .fiche, main').last().textContent()) ?? '').replace(
     /\s+/g,
@@ -79,7 +79,7 @@ test('LA VERIFICATION DE L’AUDIT 10, RENDUE PERMANENTE : l’ecran affiche exa
   ).toEqual([]);
 });
 
-test('les motifs eliminatoires et les limites de viabilite atteignent l’ecran', async ({ page }) => {
+test('les motifs éliminatoires et les limites de viabilité atteignent l’écran', async ({ page }) => {
   // Une parcelle peut etre ecartee sans qu'aucun chiffre ne le dise : ce sont les motifs qui portent
   // l'information, et ils ne doivent pas pouvoir disparaitre d'un rendu.
   await seConnecter(page);
@@ -95,7 +95,7 @@ test('les motifs eliminatoires et les limites de viabilite atteignent l’ecran'
   }
 });
 
-test('la fiche n’ecrit aucun nombre a point decimal ni aucune date ISO', async ({ page }) => {
+test('la fiche n’écrit aucun nombre a point decimal ni aucune date ISO', async ({ page }) => {
   /**
    * Le meme garde que les tests de rendu, mais applique cette fois a la page REELLEMENT rendue par un
    * navigateur, apres exécution des effets. Il attrape ce qu'un rendu serveur ne peut pas voir : une
@@ -173,12 +173,12 @@ test('la feuille d’impression deplie les sections et masque les commandes', as
     const ouvertEnImpression = await details.evaluate(
       (d) => getComputedStyle(d.querySelector('details > *:not(summary)') ?? d).display !== 'none',
     );
-    expect(ouvertEnImpression, 'les sections doivent etre depliees a l’impression').toBe(true);
+    expect(ouvertEnImpression, 'les sections doivent être depliees a l’impression').toBe(true);
   }
   await page.emulateMedia({ media: 'screen' });
 });
 
-test('aucune requete inattendue ne part du navigateur pendant le parcours', async ({ page }) => {
+test('aucune requête inattendue ne part du navigateur pendant le parcours', async ({ page }) => {
   /**
    * Le defaut B4 de l'audit 10 etait un test qui declenchait une campagne d'enrichissement reelle —
    * 438 parcelles, 138 instantanes reecrits, a chaque `npm test`. Un test de bout en bout peut faire

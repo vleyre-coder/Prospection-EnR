@@ -27,7 +27,7 @@ async function connexionBrute(page: Page): Promise<void> {
   await seConnecter(page, { neutraliserAccueil: false, attendreApplication: false });
 }
 
-test('l’ecran d’ouverture apparait, puis s’efface de lui-meme', async ({ page }) => {
+test('l’écran d’ouverture apparaît, puis s’efface de lui-même', async ({ page }) => {
   await connexionBrute(page);
   const accueil = page.getByRole('status', { name: /ouverture de prospection/i });
   await expect(accueil).toBeVisible();
@@ -37,7 +37,7 @@ test('l’ecran d’ouverture apparait, puis s’efface de lui-meme', async ({ p
   await expect(page.getByRole('group', { name: 'Vue' })).toBeVisible();
 });
 
-test('LE TEMOIN : sans aucune touche, l’animation est encore la peu apres l’ouverture', async ({
+test('LE TÉMOIN : sans aucune touche, l’animation est encore la peu après l’ouverture', async ({
   page,
 }) => {
   /**
@@ -80,7 +80,7 @@ test('LA PROMESSE DU COMPOSANT : une touche abrege l’animation', async ({ page
   await expect(accueil).toBeHidden({ timeout: 10_000 });
 });
 
-test('l’ecran d’ouverture ne revient pas dans la meme session', async ({ page }) => {
+test('l’écran d’ouverture ne revient pas dans la même session', async ({ page }) => {
   // Le reproche serait immediat s'il reapparaissait a chaque navigation : c'est la raison d'etre de la
   // cle de session.
   await connexionBrute(page);
@@ -91,7 +91,7 @@ test('l’ecran d’ouverture ne revient pas dans la meme session', async ({ pag
   await expect(page.getByRole('status', { name: /ouverture de prospection/i })).toBeHidden();
 });
 
-test('L’ECRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l’application', async ({
+test('L’ÉCRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l’application', async ({
   page,
 }) => {
   /**
@@ -131,7 +131,7 @@ test('L’ECRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l�
   const referentielRetenu = new Promise<void>((resoudre) => {
     libererReferentiel = resoudre;
   });
-  await page.route('**/api/referentiel*', async (route) => {
+  await page.route('**/api/référentiel*', async (route) => {
     await referentielRetenu;
     await route.continue();
   });
@@ -168,8 +168,8 @@ test('L’ECRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l�
   );
   expect(
     apparitions,
-    "l'ecran d'ouverture a ete remonte au passage du chargement a l'application : ses minuteurs " +
-      'repartent de zero, l’animation recommence, et une touche pressee avant la transition est ' +
+    "l'écran d'ouverture a été remonte au passage du chargement a l'application : ses minuteurs " +
+      'repartent de zéro, l’animation recommence, et une touche pressee avant la transition est ' +
       'perdue. Alignez la structure des deux branches de App.tsx.',
   ).toBe(0);
 });

@@ -864,7 +864,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
             idu,
             libelle,
             etat: 'echec',
-            message: err.message ?? 'Echec de la qualification.',
+            message: err.message ?? 'Échec de la qualification.',
           });
         });
     };
@@ -1279,13 +1279,13 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
           etatRef.current.definirVue('liste');
         }}
       >
-        Passer a la vue liste (alternative accessible au clavier)
+        Passer à la vue liste (alternative accessible au clavier)
       </a>
       <div
         ref={conteneur}
         className="carte"
         role="application"
-        aria-label="Carte de prospection. La selection des parcelles se fait au pointeur ; utilisez la vue liste pour un acces au clavier."
+        aria-label="Carte de prospection. La sélection des parcelles se fait au pointeur ; utilisez la vue liste pour un accès au clavier."
       />
 
       {/* Echec d'installation des couches metier.
@@ -1298,7 +1298,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
           <strong>Couches cartographiques non installees</strong>
           <p style={{ margin: '4px 0 0' }}>
             Les parcelles, les scores et les contraintes ne peuvent pas s&apos;afficher :{' '}
-            {couchesEnEchec}. Rechargez la page ; si le probleme persiste, signalez ce message.
+            {couchesEnEchec}. Rechargez la page ; si le problème persiste, signalez ce message.
           </p>
         </div>
       )}
@@ -1342,13 +1342,13 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         {fondInjoignable && (
           <div className="indice-zoom" role="status" aria-live="polite">
             Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
-            l&apos;acces a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
+            l&apos;accès a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
           </div>
         )}
 
         {fondViaRelais && !fondInjoignable && (
           <div className="indice-zoom" role="status" aria-live="polite">
-            Fond cartographique servi via le relais de l&apos;application : l&apos;acces direct a
+            Fond cartographique servi via le relais de l&apos;application : l&apos;accès direct a
             data.geopf.fr est bloque depuis ce poste.
           </div>
         )}
@@ -1369,7 +1369,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
                 <strong>Surface</strong> {formatSurface(mesure.surfaceHa)}
               </span>
               <span>
-                <strong>Perimetre</strong> {formatLongueur(mesure.longueurM)}
+                <strong>Périmètre</strong> {formatLongueur(mesure.longueurM)}
               </span>
             </>
           ) : (
@@ -1386,7 +1386,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
               type="button"
               className="bouton bouton-principal"
               onClick={() => {
-                const nom = window.prompt('Nom du site a creer :', 'Nouveau site');
+                const nom = window.prompt('Nom du site a créer :', 'Nouveau site');
                 if (!nom) return;
                 void api
                   .creerSite({
@@ -1406,7 +1406,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
                   .catch((err: Error) => window.alert(`Creation impossible : ${err.message}`));
               }}
             >
-              Creer un site
+              Créer un site
             </button>
           )}
         </div>

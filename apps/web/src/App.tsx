@@ -142,7 +142,7 @@ export function App(): JSX.Element {
         {accueil && <Demarrage onTermine={() => setAccueil(false)} />}
         <div className="chargement" style={{ margin: 'auto' }}>
           <span className="tourniquet" />
-          Chargement du referentiel…
+          Chargement du référentiel…
         </div>
       </div>
     );
@@ -156,7 +156,7 @@ export function App(): JSX.Element {
           <h2 style={{ fontSize: 16 }}>Application indisponible</h2>
           <p>
             {err?.estReseau
-              ? "L'API est injoignable. Demarrez le serveur (npm run dev:api) et verifiez la base de donnees."
+              ? "L'API est injoignable. Demarrez le serveur (npm run dev:api) et verifiez la base de données."
               : (err?.message ?? 'Erreur inconnue.')}
           </p>
           <button type="button" className="bouton" onClick={() => void referentiel.refetch()}>
@@ -227,17 +227,29 @@ export function App(): JSX.Element {
         <div className="bandeau erreur">
           <Icone nom="alerte" />
           <p>
-            L&apos;API ne repond plus. Les donnees affichees peuvent etre obsoletes et les
+            L&apos;API ne repond plus. Les données affichees peuvent être obsoletes et les
             enregistrements ne seront pas conserves.
           </p>
         </div>
       )}
 
       <div className="corps">
-        {etat.panneauGaucheOuvert && <PanneauGauche referentiel={ref} />}
+        {/*
+         * LE PANNEAU DE FILTRES NE S'AFFICHE PAS SUR LE TABLEAU DE BORD.
+         *
+         * Il y occupait 336 px de large — un cinquieme d'un ecran de 1 600, un tiers d'un ecran
+         * de 900 — pour ne rien filtrer : `TableauDeBord` ne recoit que la filiere et le
+         * referentiel, aucun critere du panneau ne l'atteint. Un controle qui occupe la place
+         * sans rien commander n'est pas neutre, il fait chercher un effet qui n'existe pas.
+         *
+         * La preference d'ouverture est CONSERVEE et non forcee a « ferme » : revenir a la carte
+         * doit retrouver le panneau tel qu'on l'avait laisse. D'ou un test sur la vue, et non un
+         * changement d'etat.
+         */}
+        {etat.vue !== 'tableau' && etat.panneauGaucheOuvert && <PanneauGauche referentiel={ref} />}
 
         <div className="zone-centrale">
-          {!etat.panneauGaucheOuvert && (
+          {etat.vue !== 'tableau' && !etat.panneauGaucheOuvert && (
             <button
               type="button"
               className="bouton poignee-gauche"
@@ -362,10 +374,10 @@ function OutilsCarte({
         const d = e.derniereCampagne;
         if (d?.interrompue) {
           setQualification(
-            `Attention : la derniere campagne de qualification a ete interrompue a ` +
+            `Attention : la derniere campagne de qualification a été interrompue a ` +
               `${d.traitees} parcelle(s) sur ${d.total}. Le lot est INCOMPLET — les parcelles ` +
-              `manquantes n'ont pas ete interrogees, leur absence de la carte ne veut donc rien ` +
-              `dire. Relancez la qualification sur le meme secteur pour le completer.`,
+              `manquantes n'ont pas été interrogees, leur absence de la carte ne veut donc rien ` +
+              `dire. Relancez la qualification sur le même secteur pour le compléter.`,
           );
         }
       })
@@ -416,7 +428,7 @@ function OutilsCarte({
           if (!e.enCours && d?.interrompue) {
             setQualification(
               `Campagne INTERROMPUE a ${d.traitees} parcelle(s) sur ${d.total}. Le lot est ` +
-                `incomplet : relancez la qualification sur le meme secteur.`,
+                `incomplet : relancez la qualification sur le même secteur.`,
             );
           }
           // Le suivi continue tant que la file n'est pas vide : la campagne suivante demarre
@@ -441,7 +453,7 @@ function OutilsCarte({
     // l'emprise couvre un departement entier et represente des semaines de traitement.
     if (m.getZoom() < 10) {
       setQualification(
-        'Zoomez un peu : au-dela de l’echelle du departement, la qualification demanderait des semaines. Le niveau d’une a quelques communes est le bon.',
+        'Zoomez un peu : au-delà de l’échelle du département, la qualification demanderait des semaines. Le niveau d’une a quelques communes est le bon.',
       );
       return;
     }
@@ -481,8 +493,8 @@ function OutilsCarte({
         }
         if (reserves.length > 0) {
           reserves.push(
-            'Une parcelle precise peut toujours etre qualifiee en la cliquant sur le cadastre, ' +
-              'ou par sa reference dans la recherche.',
+            'Une parcelle precise peut toujours être qualifiee en la cliquant sur le cadastre, ' +
+              'ou par sa référence dans la recherche.',
           );
         }
         // Le seuil de 40 vaut pour la duree. Les reserves, elles, doivent etre approuvees quel que
@@ -492,7 +504,7 @@ function OutilsCarte({
             `Environ ${est.nbEstime} parcelles a qualifier sur ce secteur, soit de l'ordre de ` +
               `${est.dureeEstimeeMin} minutes.\n\n` +
               (reserves.length > 0 ? `${reserves.join('\n\n')}\n\n` : '') +
-              "Le traitement se fait en arriere-plan : vous pouvez continuer a travailler, " +
+              "Le traitement se fait en arrière-plan : vous pouvez continuer à travailler, " +
               "l'avancement s'affiche en bas de la carte.\n\nLancer la campagne ?",
           );
           if (!ok) {
@@ -500,15 +512,15 @@ function OutilsCarte({
             return;
           }
         }
-        setQualification('Qualification lancee — interrogation des sources officielles…');
+        setQualification('Qualification lancée — interrogation des sources officielles…');
         return api.qualifierEmprise(bbox, etat.filiere).then((r) => {
           if (r.mode === 'arriere_plan') {
             setSuiviActif(true);
             setQualification(
               r.position != null && r.position > 0
                 ? `Demande enregistree en position ${r.position} : une campagne occupe deja les ` +
-                    `sources, limitees a une requete par seconde. La votre demarrera seule.`
-                : (r.etat?.message ?? 'Campagne lancee en arriere-plan…'),
+                    `sources, limitées à une requête par seconde. La votre demarrera seule.`
+                : (r.etat?.message ?? 'Campagne lancée en arrière-plan…'),
             );
           } else {
             setQualification(
@@ -539,7 +551,7 @@ function OutilsCarte({
           type="button"
           className="bouton"
           onClick={qualifierEmprise}
-          title="Recuperer et qualifier les parcelles de l'emprise visible"
+          title="Récupérer et qualifier les parcelles de l'emprise visible"
         >
           Qualifier l&apos;emprise
         </button>
@@ -548,7 +560,7 @@ function OutilsCarte({
           className="bouton"
           aria-pressed={etat.outil === 'polygone'}
           onClick={() => etat.definirOutil(etat.outil === 'polygone' ? 'aucun' : 'polygone')}
-          title="Tracer un perimetre et mesurer sa surface"
+          title="Tracer un périmètre et mesurer sa surface"
         >
           Dessiner
         </button>
@@ -566,9 +578,9 @@ function OutilsCarte({
           className="bouton"
           aria-pressed={etat.outil === 'selection'}
           onClick={() => etat.definirOutil(etat.outil === 'selection' ? 'aucun' : 'selection')}
-          title="Selectionner plusieurs parcelles (ou maintenir Maj)"
+          title="Sélectionner plusieurs parcelles (ou maintenir Maj)"
         >
-          Selectionner
+          Sélectionner
         </button>
       </div>
 
@@ -594,7 +606,7 @@ function OutilsCarte({
           style={{ position: 'absolute', top: 96, left: 12, right: 12, zIndex: 6 }}
           role="alert"
         >
-          <strong>Couverture incomplete</strong>
+          <strong>Couverture incomplète</strong>
           <p style={{ margin: '4px 0 0' }}>{couverture}</p>
           <button type="button" className="bouton-discret" onClick={() => setCouverture(null)}>
             J&apos;ai compris
@@ -668,12 +680,12 @@ function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | nu
       <div className="bandeau">
         <span className="tourniquet" />
         <p>
-          <strong>Premier demarrage : chargement des donnees nationales.</strong>{' '}
+          <strong>Premier démarrage : chargement des données nationales.</strong>{' '}
           {enCours
             ? `Etape en cours : ${enCours.libelle} (environ ${enCours.duree}).`
             : 'Preparation…'}{' '}
           {faites.length}/{amorcage.etapes.length} terminees. L&apos;application est utilisable
-          pendant ce temps ; les couches concernees apparaitront au fur et a mesure.
+          pendant ce temps ; les couches concernees apparaitront au fur et à mesure.
         </p>
       </div>
     );
@@ -685,7 +697,7 @@ function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | nu
         <Icone nom="alerte" />
         <p>
           <strong>Chargement initial incomplet.</strong> {echecs.map((e) => e.libelle).join(', ')} —
-          les criteres correspondants resteront gris. Relancez le chargement avec{' '}
+          les critères correspondants resteront gris. Relancez le chargement avec{' '}
           <code>npm run ingest -w @enr/api -- {echecs.map((e) => e.nom).join(' ')}</code>.
         </p>
       </div>

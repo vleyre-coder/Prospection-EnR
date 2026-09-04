@@ -27,10 +27,10 @@ const FILTRES_PAR_FILIERE: Record<Filiere, Array<'pente' | 'distanceHabitation' 
 };
 
 const TYPES_SOL: Array<[string, string]> = [
-  ['artificialise', 'Artificialise'],
-  ['degrade', 'Degrade / friche'],
+  ['artificialise', 'Artificialisé'],
+  ['degrade', 'Dégradé / friche'],
   ['inculte', 'Inculte'],
-  ['agricole_exploite', 'Agricole exploite'],
+  ['agricole_exploite', 'Agricole exploité'],
   ['naturel_forestier', 'Naturel / forestier'],
 ];
 
@@ -65,15 +65,15 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
         {meta && (
           <div className="filiere-resume">
             <p className="filiere-critere">
-              <strong>Critere determinant :</strong> {meta.critereRoi}
+              <strong>Critère déterminant :</strong> {meta.critereRoi}
             </p>
             <details className="filiere-detail">
-              <summary>Ce que couvre cette filiere</summary>
+              <summary>Ce que couvre cette filière</summary>
               <p>{meta.description}</p>
               <p className="note">
                 Surface indicative : {meta.surfaceUtileMinHa} ha minimum,{' '}
-                {meta.surfaceUtileOptimaleHa} ha pour une pleine competitivite (seuils economiques,
-                non reglementaires).
+                {meta.surfaceUtileOptimaleHa} ha pour une pleine compétitivité (seuils économiques,
+                non réglementaires).
               </p>
             </details>
           </div>
@@ -127,7 +127,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               <strong>Non analysee</strong>
               <span className="desc">
                 Aucun score calcule : la parcelle n&apos;est pas coloree, seul son contour
-                apparait. Lancez « Qualifier l&apos;emprise » sur votre secteur.
+                apparaît. Lancez « Qualifier l&apos;emprise » sur votre secteur.
               </span>
             </span>
           </div>
@@ -159,11 +159,11 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         </div>
 
         <div className="legende-bloc">
-          <div className="legende-titre">Ou en est votre demarchage</div>
+          <div className="legende-titre">Ou en est votre démarchage</div>
           <p className="legende-note">
             Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien a voir
-            avec le score : une parcelle peut etre excellente et jamais contactee, ou mediocre et
-            deja sous promesse. Le statut se change dans la fiche de la parcelle, onglet
+            avec le score : une parcelle peut être excellente et jamais contactee, ou mediocre et
+            déjà sous promesse. Le statut se change dans la fiche de la parcelle, onglet
             prospection.
           </p>
           {referentiel.statutsProspection.map((s) => (
@@ -204,7 +204,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
             <span>
               Poste en projet ou en renforcement
               <span className="desc">
-                Un poste sature peut redevenir interessant a l&apos;horizon du projet.
+                Un poste sature peut redevenir intéressant à l&apos;horizon du projet.
               </span>
             </span>
           </div>
@@ -218,7 +218,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
                 borderColor: 'var(--texte-faible)',
               }}
             />
-            <span>Rayon de raccordement economique indicatif</span>
+            <span>Rayon de raccordement économique indicatif</span>
           </div>
           <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', margin: '5px 0 0' }}>
             Carre : RTE. Cercle : Enedis ou autre gestionnaire de distribution.
@@ -277,10 +277,10 @@ function Filtres({
         </div>
 
         <div className="champ">
-          <label htmlFor="dist-poste">Lineaire de raccordement max. (km de trace)</label>
+          <label htmlFor="dist-poste">Linéaire de raccordement max. (km de trace)</label>
           <p className="legende-note">
-            Filtre le trace estime, pas le vol d&apos;oiseau : c&apos;est la meme grandeur que
-            le rayon dessine sur la carte et que la note du critere de raccordement.
+            Filtre le trace estime, pas le vol d&apos;oiseau : c&apos;est la même grandeur que
+            le rayon dessine sur la carte et que la note du critère de raccordement.
           </p>
           <input
             id="dist-poste"
@@ -296,7 +296,7 @@ function Filtres({
 
         {pertinents.includes('capacitePoste') && (
           <div className="champ">
-            <label htmlFor="cap-poste">Capacite residuelle min. du poste (MW)</label>
+            <label htmlFor="cap-poste">Capacité residuelle min. du poste (MW)</label>
             <input
               id="cap-poste"
               type="number"
@@ -343,7 +343,7 @@ function Filtres({
             Un filtre qu'on ne regle jamais est un filtre a supprimer. */}
 
         <div className="champ">
-          <label>Etat de prospection</label>
+          <label>État de prospection</label>
           <div className="pastilles">
             {STATUTS.map((s) => {
               const actif = f.statutsProspection?.includes(s) ?? false;
@@ -402,9 +402,9 @@ function Filtres({
           <label>Exclusions</label>
           {(
             [
-              ['exclureKnockOuts', 'Exclure les parcelles redhibitoires'],
+              ['exclureKnockOuts', 'Exclure les parcelles rédhibitoires'],
               ['exclureNatura2000', 'Exclure les recouvrements Natura 2000'],
-              ['exclureZoneHumide', 'Exclure les zones humides cartographiees'],
+              ['exclureZoneHumide', 'Exclure les zones humides cartographiées'],
               ['exclureAop', 'Exclure les aires AOP'],
             ] as const
           ).map(([cle, libelle]) => (
@@ -459,12 +459,12 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
   return (
     <details className="section">
       <summary>
-        Ponderations
-        {modifie && <span className="compteur-section">{Object.keys(surcharges).length} modifiee(s)</span>}
+        Pondérations
+        {modifie && <span className="compteur-section">{Object.keys(surcharges).length} modifiée(s)</span>}
       </summary>
       <div className="section-corps">
         <p style={{ fontSize: 11.5, color: 'var(--texte-faible)', margin: '0 0 8px' }}>
-          Les poids sont normalises a 100 % sur les criteres reellement evaluables. Deplacer un
+          Les poids sont normalises a 100 % sur les critères réellement evaluables. Deplacer un
           curseur recolore immediatement la carte.
         </p>
 
@@ -567,7 +567,7 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
           disabled={!modifie}
           onClick={etat.reinitialiserPoids}
         >
-          Revenir aux poids par defaut
+          Revenir aux poids par défaut
         </button>
         {message && <p style={{ fontSize: 11.5, color: 'var(--accent)' }}>{message}</p>}
       </div>
@@ -610,7 +610,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         <div className="legende-titre">Reseaux</div>
         <label className="case">
           <input type="checkbox" checked={etat.afficherPostes} onChange={etat.basculerPostes} />
-          Postes sources et capacites
+          Postes sources et capacités
         </label>
         <label className="case">
           <input
@@ -618,7 +618,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
             checked={etat.afficherReseauGaz}
             onChange={etat.basculerReseauGaz}
           />
-          Reseau gaz et points d&apos;injection
+          Réseau gaz et points d&apos;injection
         </label>
 
         <div className="champ" style={{ marginTop: 7 }}>
@@ -637,8 +637,8 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               {volOiseauPourLineaireKm(etat.rayonRaccordementKm).toLocaleString('fr-FR', {
                 maximumFractionDigits: 1,
               })}{' '}
-              km a vol d&apos;oiseau. C&apos;est le lineaire pose qui se paie, et c&apos;est lui
-              que note le critere de raccordement.
+              km a vol d&apos;oiseau. C&apos;est le linéaire pose qui se paie, et c&apos;est lui
+              que note le critère de raccordement.
             </p>
           )}
           <p className="legende-note">
@@ -646,13 +646,13 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               <>
                 Valeur que vous avez choisie.{' '}
                 <button type="button" className="bouton-discret" onClick={etat.reinitialiserRayon}>
-                  Revenir a la valeur de la filiere ({rayonFiliere} km)
+                  Revenir à la valeur de la filière ({rayonFiliere} km)
                 </button>
               </>
             ) : (
               <>
-                Valeur indicative pour la filiere {filiereMeta?.libelleCourt ?? ''} : le cout de
-                raccordement se rapporte a la puissance evacuee, il change donc avec la filiere.
+                Valeur indicative pour la filière {filiereMeta?.libelleCourt ?? ''} : le cout de
+                raccordement se rapporte à la puissance evacuee, il change donc avec la filière.
               </>
             )}
           </p>
@@ -697,7 +697,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
                     title={
                       disponible
                         ? `${c.nbObjets?.toLocaleString('fr-FR') ?? ''} objet(s) en base`
-                        : "Couche non ingeree : rien a afficher sur la carte. Le critere correspondant est neanmoins evalue parcelle par parcelle, en interrogeant la source au moment de la qualification."
+                        : "Couche non ingérée : rien à afficher sur la carte. Le critère correspondant est néanmoins evalue parcelle par parcelle, en interrogeant la source au moment de la qualification."
                     }
                   >
                     <input
@@ -711,7 +711,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
                       style={{ background: c.couleur, marginTop: 4, marginRight: 2 }}
                     />
                     {c.libelle}
-                    {!disponible && <span className="etiquette-indisponible">non ingeree</span>}
+                    {!disponible && <span className="etiquette-indisponible">non ingérée</span>}
                   </label>
                 );
               })}
@@ -721,9 +721,9 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         {couchesIndisponibles > 0 && (
           <p className="legende-note" style={{ marginTop: 8 }}>
             <strong>{couchesIndisponibles} couche(s) grisee(s) :</strong> l&apos;ingestion
-            correspondante n&apos;a pas encore ete lancee sur cette installation. Voir la section
+            correspondante n&apos;a pas encore été lancée sur cette installation. Voir la section
             « Calques cartographiques » ci-dessous, qui interroge les services officiels en direct
-            et ne depend pas de l&apos;ingestion.
+            et ne dépend pas de l&apos;ingestion.
           </p>
         )}
       </div>
@@ -773,8 +773,8 @@ function Calques({ referentiel }: { referentiel: Referentiel }): JSX.Element | n
       </summary>
       <div className="section-corps">
         <p className="legende-note">
-          Contraintes de reference affichees en superposition. Chaque calque indique sa source et
-          son millesime : une contrainte sans provenance datee n&apos;est pas opposable dans un
+          Contraintes de référence affichees en superposition. Chaque calque indique sa source et
+          son millésime : une contrainte sans provenance datee n&apos;est pas opposable dans un
           dossier.
         </p>
 

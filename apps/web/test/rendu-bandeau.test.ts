@@ -80,7 +80,7 @@ test('un avertissement masque pour la session disparait, les autres restent', ()
 
 test('LE BANDEAU DE L’AUDIT 9 : le retard sur la donnee est annonce, avec son compte', () => {
   const t = bandeau({ parcellesARafraichir: 438 });
-  assert.ok(t.includes('Parcelles en retard sur la donnee'), 'le titre du bandeau de retard manque');
+  assert.ok(t.includes('Parcelles en retard sur la donnée'), 'le titre du bandeau de retard manque');
   assert.ok(
     t.includes('438'),
     'le nombre de parcelles en retard doit etre affiche : « il y a du retard » sans chiffre ne se pilote pas',
@@ -91,7 +91,7 @@ test('aucun retard, aucun bandeau de retard — un compteur a zero ne doit pas a
   for (const valeur of [0, null]) {
     const t = bandeau({ parcellesARafraichir: valeur });
     assert.ok(
-      !t.includes('Parcelles en retard sur la donnee'),
+      !t.includes('Parcelles en retard sur la donnée'),
       `parcellesARafraichir=${valeur} ne doit declencher aucun bandeau de retard`,
     );
   }
@@ -104,22 +104,22 @@ test('LE POINT DE L’AUDIT 9 : un compte en lecture seule voit le retard mais p
    * le bouton reviendrait a promettre un 403.
    */
   const lecture = bandeau({ parcellesARafraichir: 12, role: 'lecture' });
-  assert.ok(lecture.includes('Parcelles en retard sur la donnee'), 'le retard est du a tout le monde');
+  assert.ok(lecture.includes('Parcelles en retard sur la donnée'), 'le retard est du a tout le monde');
   assert.ok(
-    !lecture.includes('Rafraichir un lot'),
+    !lecture.includes('Rafraîchir un lot'),
     'un compte en lecture seule ne doit pas se voir proposer une action qui finira en 403',
   );
 
   for (const role of ['admin', 'prospection'] as const) {
     const t = bandeau({ parcellesARafraichir: 12, role });
-    assert.ok(t.includes('Rafraichir un lot'), `le role ${role} doit pouvoir reprendre un lot`);
+    assert.ok(t.includes('Rafraîchir un lot'), `le role ${role} doit pouvoir reprendre un lot`);
   }
 });
 
 test('les sources perimees sont nommees, pas seulement comptees', () => {
   // Une alerte qui ne dit pas QUELLE source est perimee n'est pas actionnable.
   const t = bandeau({ sourcesPerimees: ['postes_sources', 'zaer_local'] });
-  assert.ok(t.includes('Sources a rafraichir'), 'le titre manque');
+  assert.ok(t.includes('Sources à rafraîchir'), 'le titre manque');
   assert.ok(t.includes('postes_sources') && t.includes('zaer_local'), 'les sources doivent etre nommees');
 });
 

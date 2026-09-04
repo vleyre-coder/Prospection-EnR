@@ -106,7 +106,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           <p style={{ margin: '5px 0 0' }}>
             {err?.message ?? 'Erreur inconnue.'}
             {err?.estSourceIndisponible &&
-              " Les criteres concernes resteront non evalues : l'absence de donnee ne vaut pas absence de contrainte."}
+              " Les critères concernés resteront non evalues : l'absence de donnée ne vaut pas absence de contrainte."}
           </p>
           <button
             type="button"
@@ -140,7 +140,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
               });
             }}
           >
-            Rafraichir
+            Rafraîchir
           </button>
           <button type="button" className="bouton-discret" onClick={() => window.print()}>
             Imprimer
@@ -163,7 +163,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           </h2>
           <div className="reference">
             IDU {fiche.parcelle.idu} &middot; commune {fiche.parcelle.codeInsee} &middot;
-            departement {fiche.parcelle.codeDepartement}
+            département {fiche.parcelle.codeDepartement}
           </div>
         </div>
 
@@ -183,15 +183,15 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
         <BlocExports idu={idu} filiere={filiere} />
 
         <div className="note-bas">
-          <strong>Tracabilite.</strong> {Object.keys(fiche.snapshot.sources).length} source(s)
+          <strong>Traçabilité.</strong> {Object.keys(fiche.snapshot.sources).length} source(s)
           interrogee(s) le {formatDateHeure(fiche.snapshot.dateSnapshot)}.{' '}
           {fiche.connecteursEnEchec.length > 0 && (
             <>
-              {fiche.connecteursEnEchec.length} connecteur(s) en echec (
-              {fiche.connecteursEnEchec.join(', ')}) : les criteres correspondants sont grises.{' '}
+              {fiche.connecteursEnEchec.length} connecteur(s) en échec (
+              {fiche.connecteursEnEchec.join(', ')}) : les critères correspondants sont grises.{' '}
             </>
           )}
-          Moteur de scoring version {score.versionMoteur}. Referentiel reglementaire verifie le{' '}
+          Moteur de scoring version {score.versionMoteur}. Référentiel réglementaire verifie le{' '}
           {formatDate(referentiel.referentielDerniereVerification)}. Le contour cadastral est
           indicatif et sans valeur juridique.
         </div>
@@ -233,7 +233,7 @@ function Synthese({
           style={{ background: couleur }}
         >
           {score.scoreGlobal == null ? (
-            <span className="valeur">ECARTEE</span>
+            <span className="valeur">ÉCARTÉE</span>
           ) : (
             <>
               <span className="valeur">{Math.round(score.scoreGlobal)}</span>
@@ -267,7 +267,7 @@ function Synthese({
             <div style={{ width: `${Math.round(score.couvertureDonnees * 100)}%` }} />
           </div>
           <div className="jauge-legende">
-            Couverture de donnees : {Math.round(score.couvertureDonnees * 100)} %
+            Couverture de données : {Math.round(score.couvertureDonnees * 100)} %
             {score.couvertureDonnees < 0.8 &&
               ` — ${score.criteres.filter((c) => c.note == null).length} critere(s) non evalue(s)`}
           </div>
@@ -281,7 +281,7 @@ function Synthese({
       {score.limitesViabilite.map((l) => (
         <div key={l.id} className="carte-ko derogeable">
           <div className="entete">
-            <span className="marqueur">Viabilite</span>
+            <span className="marqueur">Viabilité</span>
             {l.libelle}
           </div>
           <p className="motif">{l.motif}</p>
@@ -289,7 +289,7 @@ function Synthese({
       ))}
 
       <details className="section" open>
-        <summary>Synthese</summary>
+        <summary>Synthèse</summary>
         <div className="section-corps">
           {score.pointsForts.length > 0 && (
             <>
@@ -327,7 +327,7 @@ function Synthese({
       {score.seuilsProcedure.length > 0 && (
         <details className="section" open>
           <summary>
-            Seuils de procedure applicables
+            Seuils de procédure applicables
             <span className="compteur-section">{score.seuilsProcedure.length}</span>
           </summary>
           <div className="section-corps">
@@ -335,9 +335,9 @@ function Synthese({
               <LigneSeuil key={s.regleId} seuil={s} />
             ))}
             <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', marginTop: 9 }}>
-              Les seuils reglementaires evoluent : la date d&apos;entree en vigueur de chaque
-              regle appliquee est indiquee. Verifiez la version en vigueur a la date de votre
-              depot.
+              Les seuils réglementaires evoluent : la date d&apos;entrée en vigueur de chaque
+              règle appliquée est indiquee. Verifiez la version en vigueur à la date de votre
+              dépôt.
             </p>
           </div>
         </details>
@@ -365,7 +365,7 @@ function CarteKnockOut({ ko, referentiel }: { ko: KnockOut; referentiel: Referen
           {regle.reference} &middot; en vigueur depuis le {formatDate(regle.dateEntreeEnVigueur)}
           {regle.instable && ' · seuil susceptible d’avoir evolue'}
           {/* Une reference redigee sans relecture juridique le dit : voir REGLES_COMMUNES. */}
-          {regle.aValiderParJuriste && ' · reference a faire valider par un juriste'}
+          {regle.aValiderParJuriste && ' · référence à faire valider par un juriste'}
         </div>
       )}
       {ko.source && (
@@ -384,7 +384,7 @@ function LigneSeuil({ seuil }: { seuil: SeuilProcedure }): JSX.Element {
     <div className="seuil-ligne">
       <span className="seuil-marque" title={
         seuil.applicable === true
-          ? 'Applicable au vu des caracteristiques estimees'
+          ? 'Applicable au vu des caractéristiques estimées'
           : seuil.applicable === false
             ? 'Non applicable'
             : 'Applicabilite indeterminee'
@@ -424,7 +424,7 @@ function SectionCriteres({
   return (
     <details className="section" open>
       <summary>
-        Detail des criteres
+        Détail des critères
         <span className="compteur-section">
           {score.criteres.length} dont {score.criteres.filter((c) => c.note == null).length} non
           evalue(s)
@@ -524,7 +524,7 @@ function LigneCritere({
             <div className="source-bloc">
               <span className="nom">Source non renseignee</span>
               <div style={{ color: 'var(--texte-faible)' }}>
-                Ce critere n&apos;a pas pu etre rattache a une source : la donnee est indisponible.
+                Ce critère n&apos;a pas pu être rattache à une source : la donnée est indisponible.
               </div>
             </div>
           )}
@@ -536,7 +536,7 @@ function LigneCritere({
               <br />
               {r.reference} &middot; en vigueur depuis le{' '}
               <span className="date">{formatDate(r.dateEntreeEnVigueur)}</span>
-              {r.instable && ' · regle instable ou declinee localement'}
+              {r.instable && ' · règle instable ou déclinée localement'}
             </div>
           ))}
 
@@ -561,13 +561,13 @@ function BlocSource({ source }: { source: SourceRef }): JSX.Element {
       <dl>
         {source.millesime && (
           <>
-            <dt>Millesime</dt>
+            <dt>Millésime</dt>
             <dd>{source.millesime}</dd>
           </>
         )}
         {source.dateMiseAJour && (
           <>
-            <dt>Mise a jour</dt>
+            <dt>Mise à jour</dt>
             <dd>{formatDate(source.dateMiseAJour)}</dd>
           </>
         )}
@@ -604,7 +604,7 @@ function BlocAvertissement({ avertissement }: { avertissement: Avertissement }):
  */
 function val(v: unknown, unite = ''): JSX.Element {
   const r = valeurAffichable(v, unite, formatNombre);
-  if (r.absente) return <span className="absent">donnee indisponible</span>;
+  if (r.absente) return <span className="absent">donnée indisponible</span>;
   return <>{r.texte}</>;
 }
 
@@ -643,7 +643,7 @@ function Rubrique({
 }
 
 function zonageTexte(z: { recouvre: boolean | null; distanceM: number | null; nom: string | null }): JSX.Element {
-  if (z.recouvre === null && z.distanceM === null) return <span className="absent">donnee indisponible</span>;
+  if (z.recouvre === null && z.distanceM === null) return <span className="absent">donnée indisponible</span>;
   if (z.recouvre) return <>Recouvrement{z.nom ? ` — ${z.nom}` : ''}</>;
   if (z.distanceM == null) return <>hors zonage</>;
   return (
@@ -706,7 +706,7 @@ function RubriquesDonnees({
                       <>
                         {' '}
                         <a href={z.urlReglement} target="_blank" rel="noreferrer">
-                          reglement
+                          règlement
                         </a>
                       </>
                     )}
@@ -752,9 +752,9 @@ function RubriquesDonnees({
             // ce qui est le cas de la majorite d'entre eux. Les confondre affichait « departement
             // non ingere » sur un fait vrai.
             s.urbanisme.documentCadrePvSol.departementCouvert == null ? (
-              <span className="absent">departement non ingere</span>
+              <span className="absent">département non ingere</span>
             ) : s.urbanisme.documentCadrePvSol.departementCouvert === false ? (
-              <>aucun document-cadre departemental</>
+              <>aucun document-cadre départemental</>
             ) : (
               <>
                 {s.urbanisme.documentCadrePvSol.parcelleEligible == null
@@ -791,7 +791,7 @@ function RubriquesDonnees({
           ['Code culture', val(s.occupationSol.rpg.codeCulture)],
           ['Millesime RPG', val(s.occupationSol.rpg.millesime)],
           ['Millesimes declares', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],
-          ['Inculte depuis le 10/03/2013', s.occupationSol.inculteDepuis2013 == null ? <span className="absent">a demontrer (historique RPG et photo-interpretation)</span> : val(s.occupationSol.inculteDepuis2013)],
+          ['Inculte depuis le 10/03/2013', s.occupationSol.inculteDepuis2013 == null ? <span className="absent">à demontrer (historique RPG et photo-interprétation)</span> : val(s.occupationSol.inculteDepuis2013)],
           [
             'AOP / AOC',
             s.occupationSol.aop.presente == null ? (
@@ -820,7 +820,7 @@ function RubriquesDonnees({
       />
 
       <Rubrique
-        titre="Topographie et geotechnique"
+        titre="Topographie et géotechnique"
         referentiel={referentiel}
         enfants={[
           ['Pente moyenne', val(s.topographie.pentePct, '%')],
@@ -828,7 +828,7 @@ function RubriquesDonnees({
           ['Orientation', val(s.topographie.orientationDeg, '°')],
           ['Altitude', val(s.topographie.altitudeM, 'm')],
           ['Denivele', val(s.topographie.deniveleM, 'm')],
-          ['Alea retrait-gonflement des argiles', val(s.topographie.aleaArgiles)],
+          ['Aléa retrait-gonflement des argiles', val(s.topographie.aleaArgiles)],
           ['Cavites souterraines (< 1 km)', val(s.topographie.cavitesProches)],
           ['Mouvements de terrain (< 1 km)', val(s.topographie.mouvementsTerrain)],
         ]}
@@ -876,7 +876,7 @@ function RubriquesDonnees({
           ['Natura 2000 — oiseaux', zonageTexte(s.milieux.natura2000Oiseaux)],
           ['ZNIEFF de type I', zonageTexte(s.milieux.znieff1)],
           ['ZNIEFF de type II', zonageTexte(s.milieux.znieff2)],
-          ['Arrete de protection de biotope', zonageTexte(s.milieux.appb)],
+          ['Arrêté de protection de biotope', zonageTexte(s.milieux.appb)],
           ['Reserve naturelle', zonageTexte(s.milieux.reserveNaturelle)],
           ['Coeur de parc national', zonageTexte(s.milieux.coeurParcNational)],
           ['Parc naturel regional', zonageTexte(s.milieux.parcNaturelRegional)],
@@ -886,7 +886,7 @@ function RubriquesDonnees({
               ? val(null)
               : val(
                   s.milieux.trameVerteBleue.reservoir
-                    ? 'reservoir de biodiversite'
+                    ? 'réservoir de biodiversité'
                     : s.milieux.trameVerteBleue.corridor
                       ? 'corridor'
                       : 'hors trame',
@@ -901,13 +901,13 @@ function RubriquesDonnees({
           [
             'Sensibilite avifaune',
             s.milieux.sensibiliteAvifaune == null
-              ? val('aucune source ingeree - a verifier aupres de la DREAL / LPO')
+              ? val('aucune source ingérée - à vérifier auprès de la DREAL / LPO')
               : val(s.milieux.sensibiliteAvifaune, '/100'),
           ],
           [
             'Sensibilite chiropteres',
             s.milieux.sensibiliteChiropteres == null
-              ? val('aucune source ingeree - a verifier aupres de la DREAL / LPO')
+              ? val('aucune source ingérée - à vérifier auprès de la DREAL / LPO')
               : val(s.milieux.sensibiliteChiropteres, '/100'),
           ],
         ]}
@@ -919,7 +919,7 @@ function RubriquesDonnees({
         enfants={[
           ['Monument historique le plus proche', val(s.patrimoine.monumentHistorique.nom)],
           ['Distance', val(s.patrimoine.monumentHistorique.distanceM, 'm')],
-          ['Dans un perimetre de protection', val(s.patrimoine.monumentHistorique.dansPerimetreProtection)],
+          ['Dans un périmètre de protection', val(s.patrimoine.monumentHistorique.dansPerimetreProtection)],
           ['Site classe', zonageTexte(s.patrimoine.siteClasse)],
           ['Site inscrit', zonageTexte(s.patrimoine.siteInscrit)],
           ['Site patrimonial remarquable', zonageTexte(s.patrimoine.spr)],
@@ -928,9 +928,9 @@ function RubriquesDonnees({
           // alentour, ce qui ne mesure aucune covisibilite reelle. Il ne sera renseigne
           // que par une etude paysagere.
           [
-            'Indice de covisibilite',
+            'Indice de covisibilité',
             s.patrimoine.covisibiliteIndice == null
-              ? val('non evalue - releve d’une etude paysagere')
+              ? val('non evalue - relevé d’une étude paysagere')
               : val(s.patrimoine.covisibiliteIndice, '/100'),
           ],
           ['Sensibilite archeologique', val(s.patrimoine.sensibiliteArcheologique)],
@@ -964,7 +964,7 @@ function RubriquesDonnees({
           ['Reseaux enterres', s.risques.reseauxEnterres.length ? <>{s.risques.reseauxEnterres.join(', ')}</> : val(null)],
           ['Sites et sols pollues (< 500 m)', val(s.risques.sitesPollues)],
           ['ICPE a proximite', val(s.risques.icpeProches)],
-          ['Obligation de debroussaillement', val(s.risques.obligationDebroussaillement)],
+          ['Obligation de débroussaillement', val(s.risques.obligationDebroussaillement)],
         ]}
       />
 
@@ -978,7 +978,7 @@ function RubriquesDonnees({
           ['Tension', val(poste?.tension)],
           ['Distance', val(poste?.distanceKm, 'km')],
           ['Capacite residuelle', val(poste?.capaciteResiduelleMw, 'MW')],
-          ['Etat de saturation', val(poste?.etatSaturation)],
+          ['État de saturation', val(poste?.etatSaturation)],
           ['File d’attente', val(poste?.fileAttenteMw, 'MW')],
           ['Quote-part S3REnR', val(poste?.quotePartEurParKw, 'EUR/kW')],
           [
@@ -1028,7 +1028,7 @@ function RubriquesDonnees({
       />
 
       <Rubrique
-        titre="Gisement, bati et acces"
+        titre="Gisement, bati et accès"
         referentiel={referentiel}
         enfants={[
           ['Irradiation', val(s.gisement.irradiationKwhM2An, 'kWh/m²/an')],
@@ -1125,7 +1125,7 @@ function BlocProspection({
       </summary>
       <div className="section-corps">
         <div className="champ">
-          <label htmlFor="statut-prospection">Etat de prospection</label>
+          <label htmlFor="statut-prospection">État de prospection</label>
           <select
             id="statut-prospection"
             value={fiche.lead?.statut ?? ''}
@@ -1148,17 +1148,17 @@ function BlocProspection({
             id="notes-prospection"
             rows={3}
             value={notes}
-            placeholder="Proprietaire, contacts, historique des echanges…"
+            placeholder="Propriétaire, contacts, historique des échanges…"
             onChange={(e) => enregistrerNotes(e.target.value)}
           />
         </div>
 
         {fiche.lead && fiche.lead.scoreInitial != null && score.scoreGlobal != null && (
           <p style={{ fontSize: 11.5, color: 'var(--texte-faible)', margin: '0 0 8px' }}>
-            Score a la prise en prospection : {fiche.lead.scoreInitial} · score actuel :{' '}
+            Score à la prise en prospection : {fiche.lead.scoreInitial} · score actuel :{' '}
             {score.scoreGlobal}
             {Math.abs(fiche.lead.scoreInitial - score.scoreGlobal) > 5 &&
-              ' — ecart notable, les donnees sources ont evolue.'}
+              ' — écart notable, les données sources ont evolue.'}
           </p>
         )}
 

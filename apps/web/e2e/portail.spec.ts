@@ -133,7 +133,7 @@ function jetonDeSession(): string {
     const entree = (origine.localStorage ?? []).find((e) => e.name === 'enr_jeton');
     if (entree) return entree.value;
   }
-  throw new Error("L'etat de session ne porte pas de jeton : connexion.setup.ts a-t-il tourne ?");
+  throw new Error("L'état de session ne porte pas de jeton : connexion.setup.ts a-t-il tourne ?");
 }
 
 let relais: Server;
@@ -215,7 +215,7 @@ test("avec les identifiants, l'application demarre et reste utilisable", async (
     // Et non le formulaire de connexion : le jeton a bien traverse.
     await expect(page.getByLabel('Adresse electronique')).toHaveCount(0);
 
-    expect(refusees, 'aucune ressource ne doit etre refusee par le portail').toEqual([]);
+    expect(refusees, 'aucune ressource ne doit être refusée par le portail').toEqual([]);
 
     // Le gros fragment de code — MapLibre, 800 ko — est charge depuis un worker. S'il avait ete
     // refuse, la carte serait absente sans que rien ne le dise.
@@ -225,7 +225,7 @@ test("avec les identifiants, l'application demarre et reste utilisable", async (
   }
 });
 
-test('un mauvais mot de passe ne franchit pas le portail, meme avec un jeton valide', async ({
+test('un mauvais mot de passe ne franchit pas le portail, même avec un jeton valide', async ({
   browser,
 }) => {
   /**

@@ -48,15 +48,15 @@ export function Connexion({
       <form className="connexion" onSubmit={soumettre}>
         <h1>Prospection ENR</h1>
         <p className="connexion-sous-titre">
-          Identification et priorisation des parcelles a demarcher, filiere par filiere.
+          Identification et priorisation des parcelles à démarcher, filière par filière.
         </p>
 
         {expiree && (
           <div className="erreur-encart" role="status" style={{ marginBottom: 12 }}>
             <strong>Session expiree</strong>
             <p style={{ margin: '4px 0 0' }}>
-              Votre session a depasse sa duree de validite. Reconnectez-vous : votre travail
-              enregistre est intact, seul l&rsquo;affichage a ete interrompu.
+              Votre session a depasse sa durée de validite. Reconnectez-vous : votre travail
+              enregistre est intact, seul l&rsquo;affichage a été interrompu.
             </p>
           </div>
         )}
@@ -92,7 +92,7 @@ export function Connexion({
         </button>
 
         <p className="connexion-aide">
-          Au premier demarrage, les identifiants sont ceux definis par <code>ADMIN_EMAIL</code> et{' '}
+          Au premier démarrage, les identifiants sont ceux definis par <code>ADMIN_EMAIL</code> et{' '}
           <code>ADMIN_MOT_DE_PASSE</code>. Si vous ne les avez pas definis, le mot de passe genere
           est affiche dans les journaux du serveur (<code>docker compose logs api</code>).
         </p>
