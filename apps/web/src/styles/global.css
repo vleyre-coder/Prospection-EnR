@@ -2172,3 +2172,103 @@ button:focus-visible,
     background: #3a2e0d;
   }
 }
+
+
+/* ------------------------------------------------------------------ zones a prospecter */
+
+/*
+ * LA LISTE QUE L'APPLICATION PROPOSE D'ELLE-MEME.
+ *
+ * Chaque zone est un BOUTON pleine largeur et non une ligne cliquable : la cible est alors la
+ * ligne entiere, au clavier comme a la souris, et le role est annonce aux lecteurs d'ecran sans
+ * qu'on ait a le bricoler avec `role` et `tabindex`.
+ */
+.liste-zones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  text-align: left;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+.zone:hover {
+  background: var(--fond-survol);
+  border-color: var(--bordure-forte);
+}
+
+.zone-titre {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.zone-dep {
+  font-weight: 400;
+  color: var(--texte-faible);
+}
+
+/* La surface utile est le chiffre qui decide : elle porte le seul gras de la ligne. */
+.zone-mesures {
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+.zone-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/*
+ * Les etiquettes disent ce qu'on IGNORE autant que ce qu'on sait. « implantation non precisee »
+ * doit se voir sans crier : c'est une reserve, pas une alerte.
+ */
+.zone-etiquette {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: var(--fond-panneau-2);
+  border: 1px solid var(--bordure);
+  color: var(--texte-faible);
+}
+
+.zone-etiquette.zone-vue {
+  background: var(--accent-clair);
+  border-color: var(--accent-clair);
+  color: var(--accent);
+}
+
+/* Le texte d'aide d'une section : il explique ce que la section propose, en une phrase. */
+.aide-section {
+  margin: 0 0 7px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--texte-faible);
+}
+
+/* Une commande a recopier : elle doit se distinguer de la phrase qui la porte. */
+.commande {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 3px 7px;
+  font-family: var(--police-mono);
+  font-size: 11.5px;
+  background: var(--fond-panneau-2);
+  border: 1px solid var(--bordure);
+  border-radius: 4px;
+  color: var(--texte-doux);
+  user-select: all;
+}

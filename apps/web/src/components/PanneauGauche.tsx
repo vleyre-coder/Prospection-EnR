@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react';
+import { PanneauZones } from './PanneauZones.js';
 import {
   ORDRE_TYPES_SOL,
   TYPES_SOL as TABLE_TYPES_SOL,
@@ -22,6 +23,8 @@ import { FEUX, STATUTS, useEtat } from '../store/etat.js';
 
 interface Props {
   referentiel: Referentiel;
+  /** Recentre la carte sur une zone proposee. */
+  onAllerVersZone: (bbox: [number, number, number, number]) => void;
 }
 
 /** Criteres de filtre pertinents par filiere. */
@@ -43,7 +46,7 @@ const FILTRES_PAR_FILIERE: Record<Filiere, Array<'pente' | 'distanceHabitation' 
  */
 const TYPES_SOL: Array<[string, string]> = ORDRE_TYPES_SOL.map((id) => [id, TABLE_TYPES_SOL[id].court]);
 
-export function PanneauGauche({ referentiel }: Props): JSX.Element {
+export function PanneauGauche({ referentiel, onAllerVersZone }: Props): JSX.Element {
   const etat = useEtat();
   const { filiere } = etat;
   const meta = referentiel.filieres.find((f) => f.id === filiere);
@@ -89,16 +92,34 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
         )}
 
         {/*
-          L'ORDRE EST CELUI DE L'USAGE, et il etait inverse.
-          La legende venait en premier, ouverte, et poussait filtres, calques et couches sous la
-          ligne de flottaison : sur une capture en 1600x1000, le panneau n'affichait RIEN
-          d'actionnable sans defiler. Une legende se consulte, des filtres se manipulent.
+          ═══════════════════════════════════════════════════════════════════════════════════════
+          L'ORDRE DIT CE QUE L'OUTIL FAIT
+          ═══════════════════════════════════════════════════════════════════════════════════════
+
+          PREMIERE VERSION : legende, puis filtres. La legende, ouverte, mesurait plus de 700 px et
+          poussait tout le reste sous la ligne de flottaison — le panneau n'affichait rien
+          d'actionnable sans defiler. Corrige en mettant les filtres devant.
+
+          MAIS LES FILTRES DEVANT DISENT ENCORE : « REGLE, ET TU VERRAS ». C'est l'ordre d'un
+          tableau de bord d'expert, pas celui d'une aide a la prospection. La demande du
+          proprietaire est explicite : « l'appli travaille pour donner de base les zones a
+          prospecter, et ensuite, a des fins de lecture et de clarte, on joue sur les couches ».
+
+          L'ordre suit donc le raisonnement, et non la mecanique :
+
+            1. CE QUE L'APPLICATION PROPOSE — les zones. Ouvert.
+            2. CE QU'ON AFFICHE pour les lire — couches, calques, legende. C'est de la LECTURE.
+            3. CE QU'ON AFFINE si l'on veut — filtres, ponderations. Replie : l'outil doit servir
+               sans qu'on y touche.
         */}
-        <Filtres referentiel={referentiel} pertinents={pertinents} />
+        <PanneauZones filiere={filiere} referentiel={referentiel} onAllerVers={onAllerVersZone} />
+
         <Couches referentiel={referentiel} />
         <Calques referentiel={referentiel} />
-        <Ponderations referentiel={referentiel} />
         <Legende referentiel={referentiel} />
+
+        <Filtres referentiel={referentiel} pertinents={pertinents} />
+        <Ponderations referentiel={referentiel} />
       </div>
     </aside>
   );

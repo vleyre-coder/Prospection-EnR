@@ -435,6 +435,33 @@ export interface ResultatRecherche {
   codeInsee: string | null;
 }
 
+/** Une zone proposee a la prospection. Reflet de `ZoneProposee` cote serveur. */
+export interface ZoneProposee {
+  id: string;
+  nom: string | null;
+  codeInsee: string | null;
+  nomCommune: string | null;
+  codeDepartement: string | null;
+  filieres: string[];
+  surfaceHa: number;
+  surfaceUtileHa: number;
+  dateDeliberation: string | null;
+  centre: [number, number];
+  bbox: [number, number, number, number];
+  nbParcellesQualifiees: number;
+  nbPropices: number;
+  /** La deliberation precise-t-elle le type d'implantation ? Voir la migration 016. */
+  implantationPrecisee: boolean;
+}
+
+export interface ReponseZones {
+  zones: ZoneProposee[];
+  /** Ce que l'on SAIT du territoire : « aucune zone » et « pas de donnee » ne sont pas la meme phrase. */
+  couverture: { departementsIngeres: string[]; donneePresente: boolean };
+  surfaceUtileMinHa: number;
+  nbTropPetites: number;
+}
+
 export interface LigneListe {
   idu: string;
   nomCommune: string | null;
@@ -640,6 +667,20 @@ export const api = {
 
   tableauDeBord: (filiere: Filiere) =>
     appeler<TableauDeBord>(`/api/tableau-de-bord?filiere=${filiere}`),
+
+  /**
+   * Les zones que l'application propose d'elle-meme.
+   *
+   * `bbox` est FACULTATIF, et c'est ce qui permet de proposer quelque chose des l'ouverture, avant
+   * que l'utilisateur ait cadre quoi que ce soit. Passe, il restreint la proposition a ce qu'il
+   * regarde.
+   */
+  zones: (filiere: Filiere, bbox?: [number, number, number, number], limite?: number) => {
+    const p = new URLSearchParams({ filiere });
+    if (bbox) p.set('bbox', bbox.join(','));
+    if (limite != null) p.set('limite', String(limite));
+    return appeler<ReponseZones>(`/api/zones?${p.toString()}`);
+  },
 
   creerLead: (corps: { idu?: string; siteId?: string; filiere: Filiere; statut?: string; notes?: string }) =>
     appeler<Lead>('/api/leads', { methode: 'POST', corps }),

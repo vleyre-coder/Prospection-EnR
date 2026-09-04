@@ -1233,6 +1233,37 @@ const MUTATIONS = [
     cwd: 'apps/api',
     commande: ['tsx', '--test', 'test/zaer-implantation.test.ts'],
   },
+
+  {
+    audit: 'audit 13',
+    quoi: 'une liste vide se lit « rien a prospecter » alors que rien n’a ete ingere',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '    if (!donnees.couverture.donneePresente) {',
+    vers: '    if (false) {',
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'la reserve « implantation non precisee » disparait de l’ecran',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '          {!zone.implantationPrecisee && (',
+    vers: '          {false && (',
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 13',
+    quoi: 'la liste affiche la surface BRUTE la ou la surface utile decide',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '          <strong>{formatNombre(zone.surfaceUtileHa, \'ha\', 1)}</strong> utiles sur{\' \'}',
+    vers: '          <strong>{formatNombre(zone.surfaceHa, \'ha\', 1)}</strong> utiles sur{\' \'}',
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
 ];
 
 /**

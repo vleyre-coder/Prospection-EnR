@@ -89,8 +89,21 @@ test('@revue captures des vues principales', async ({ page }) => {
   await laisserPeindre(page);
   await page.screenshot({ path: `${SORTIE}/05-tableau-de-bord.png` });
 
-  // 6. Panneau gauche (couches, filtres) sur la carte.
+  /*
+   * 6. Panneau gauche sur la carte.
+   *
+   * L'ATTENTE N'EST PAS COSMETIQUE ICI. Le panneau interroge « les zones a prospecter » a chaque
+   * montage, et il se remonte au retour depuis le tableau de bord — ou il n'est pas affiche. La
+   * capture prise dans la foulee du clic montrait « Recherche des zones… » et non la liste : elle
+   * documentait la latence, pas l'interface. La liste elle-meme est attendue explicitement, ce qui
+   * vaut mieux qu'un delai fixe.
+   */
   await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: /carte/i }).click();
+  await page
+    .locator('.liste-zones, .vide')
+    .first()
+    .waitFor({ timeout: 20_000 })
+    .catch(() => undefined);
   await page.screenshot({ path: `${SORTIE}/06-carte-panneau.png` });
 });
 

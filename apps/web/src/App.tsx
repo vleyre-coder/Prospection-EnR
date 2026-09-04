@@ -193,6 +193,26 @@ export function App(): JSX.Element {
     etat.definirVue('carte');
   };
 
+  /**
+   * Se rendre sur une zone proposee.
+   *
+   * Distinct de `allerVers` : une zone n'est pas un resultat de recherche — elle n'a ni IDU ni
+   * type — et surtout elle ne doit RIEN selectionner. On y va pour regarder, pas pour ouvrir une
+   * fiche : c'est le geste qui suit « ou aller ? », pas celui qui suit « que sais-tu de ceci ? ».
+   */
+  const allerVersZone = (bbox: [number, number, number, number]): void => {
+    const m = carteRef.current;
+    etat.definirVue('carte');
+    if (!m) return;
+    m.fitBounds(
+      [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]],
+      ],
+      { padding: 90, maxZoom: 16, duration: 800 },
+    );
+  };
+
   const ouvrirDepuisListe = (l: LigneListe): void => {
     etat.selectionnerParcelle(l.idu);
     etat.definirVue('carte');
@@ -246,7 +266,9 @@ export function App(): JSX.Element {
          * doit retrouver le panneau tel qu'on l'avait laisse. D'ou un test sur la vue, et non un
          * changement d'etat.
          */}
-        {etat.vue !== 'tableau' && etat.panneauGaucheOuvert && <PanneauGauche referentiel={ref} />}
+        {etat.vue !== 'tableau' && etat.panneauGaucheOuvert && (
+          <PanneauGauche referentiel={ref} onAllerVersZone={allerVersZone} />
+        )}
 
         <div className="zone-centrale">
           {etat.vue !== 'tableau' && !etat.panneauGaucheOuvert && (
