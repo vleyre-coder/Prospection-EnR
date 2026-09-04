@@ -131,7 +131,7 @@ test('L’ÉCRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l�
   const referentielRetenu = new Promise<void>((resoudre) => {
     libererReferentiel = resoudre;
   });
-  await page.route('**/api/référentiel*', async (route) => {
+  await page.route('**/api/referentiel*', async (route) => {
     await referentielRetenu;
     await route.continue();
   });

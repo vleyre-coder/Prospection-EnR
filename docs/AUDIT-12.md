@@ -335,3 +335,36 @@ chaîne dans un fichier. Seule l'exécution du test en a besoin. Deux correction
 
 Les mutations de bout en bout ont ensuite été jouées pour de vrai, avec navigateur et base semée :
 **2 / 2**.
+
+## 9. Le pire défaut de cet audit : un test qui passait pour la mauvaise raison
+
+L'exécution 46 est revenue rouge une fois de plus, et cette fois **pas** sur un motif : la mutation
+que le cinquième test d'`accueil.spec.ts` est le seul à attraper n'était plus attrapée. `1 / 2`.
+
+J'avais lancé cette famille localement une heure plus tôt et obtenu `2 / 2`. **C'était de la
+chance**, et je l'ai d'abord prise pour une preuve. Rejouée avec la commande exacte de la CI, la
+mesure locale a donné `1 / 2` elle aussi.
+
+La cause est de moi, et c'est la plus vicieuse de la session :
+
+```
+await page.route('**/api/référentiel*', async (route) => {
+```
+
+**Une passe d'accentuation avait accentué un motif d'URL.** `'**/api/referentiel*'` est un chemin,
+pas une phrase. Le motif ne correspondait donc plus à aucune requête, la réponse du référentiel
+n'était plus retenue, et le test — qui n'a de sens que s'il observe la transition *pendant* le
+chargement — passait **trivialement**. Il comptait zéro apparition parce qu'il n'y avait plus de
+transition à observer, et non parce que le correctif tenait.
+
+Un test qui passe pour la mauvaise raison est pire qu'un test rouge : il occupe la place d'une
+vérification et n'en fait aucune. Et il ne pouvait être trouvé ni par le typage, ni par la suite
+de tests, ni par la lecture — seulement par la campagne de mutation, dont c'est exactement le
+métier. C'est l'argument le plus solide de ce dépôt en faveur de cette campagne.
+
+Deux corrections : le motif est rétabli, et la règle mécanique du garde du §4 admet désormais
+`* ? = &` comme caractères d'identifiant, de sorte qu'un motif d'URL ou de glob ne puisse plus
+jamais être pris pour du texte affiché. Vérifié sur la commande exacte de la CI, base semée et
+Chromium réel : **2 / 2**, code de sortie 0. Et le garde du §8 a montré sa valeur au passage :
+en modifiant cette règle, j'ai invalidé le motif d'une de mes propres mutations, et je l'ai su en
+deux secondes au lieu de huit minutes.

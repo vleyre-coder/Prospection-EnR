@@ -1101,7 +1101,7 @@ const MUTATIONS = [
     audit: 'audit 12',
     quoi: "la regle qui ecarte les litteraux identifiants est levee : `'agrivoltaisme'` repasse pour du texte",
     fichier: 'apps/web/test/orthographe-affichee.test.ts',
-    de: "export const IDENTIFIANT = /^[a-z0-9_.:/-]+$/;",
+    de: "export const IDENTIFIANT = /^[a-z0-9_.:/*?=&-]+$/;",
     vers: 'export const IDENTIFIANT = /^$/;',
     tests: ['apps/web/test/orthographe-affichee.test.ts'],
     cwd: 'apps/web',

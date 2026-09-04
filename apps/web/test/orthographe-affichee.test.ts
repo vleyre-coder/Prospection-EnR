@@ -119,8 +119,17 @@ const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.TemplateTail,
 ]);
 
-/** Un litteral qui n'est qu'un identifiant, un chemin ou une clef. */
-export const IDENTIFIANT = /^[a-z0-9_.:/-]+$/;
+/**
+ * Un litteral qui n'est qu'un identifiant, un chemin, une clef ou un motif d'URL.
+ *
+ * LES `*` ET LES `?` VIENNENT D'UN DEFAUT REEL, trouve par la campagne de mutation. Une passe
+ * d'accentuation a transforme `page.route('**​/api/referentiel*')` en `'**​/api/référentiel*'`.
+ * Le motif ne correspondait plus a aucune requete, donc la reponse du referentiel n'etait plus
+ * retenue, donc le test qui EXIGE d'observer la transition pendant le chargement passait
+ * trivialement — et la mutation qu'il est le seul a attraper redevenait invisible. Un test qui
+ * passe pour la mauvaise raison est pire qu'un test rouge.
+ */
+export const IDENTIFIANT = /^[a-z0-9_.:/*?=&-]+$/;
 /** Un litteral qui porte du SQL : ses mots sont des noms de colonnes. */
 export const SQL = /\b(SELECT|FROM|WHERE|INSERT|UPDATE|JOIN)\b/;
 
