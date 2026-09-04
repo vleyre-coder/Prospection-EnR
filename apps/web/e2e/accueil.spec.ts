@@ -139,7 +139,7 @@ test('L’ÉCRAN D’OUVERTURE N’EST PAS REMONTE au passage du chargement a l�
   await connexionBrute(page);
 
   // On est dans la branche de chargement, avec l'ecran d'ouverture par-dessus.
-  await expect(page.getByText(/Chargement du referentiel/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Chargement du référentiel/i)).toBeVisible({ timeout: 30_000 });
   const accueil = page.getByRole('status', { name: /ouverture de prospection/i });
   await expect(accueil).toBeVisible();
 

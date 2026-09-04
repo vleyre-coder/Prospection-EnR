@@ -104,7 +104,7 @@ test('l’adoption est refusee sur une base vierge', async (t) => {
   try {
     await assert.rejects(
       () => appliquerMigrations({ adopterSansExecuter: true }),
-      /Adoption refusee/,
+      /Adoption refusée/,
       'une base sans schema ne doit pas pouvoir etre marquee a jour',
     );
     // La garde intervient avant toute ecriture : aucun fichier n'est enregistre.
