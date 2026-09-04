@@ -99,7 +99,11 @@ export interface EtatPagination {
  * La pagination est verifiee a chaque tour : une page qui renvoie moins que la taille demandee est
  * la derniere. On ne se fie PAS a `numberMatched`, qui n'est pas toujours renseigne sur ce service.
  */
-async function* objetsWfs(typeName: string, etat?: EtatPagination): AsyncGenerator<Entite> {
+async function* objetsWfs(
+  typeName: string,
+  etat?: EtatPagination,
+  filtreCql?: string,
+): AsyncGenerator<Entite> {
   for (let page = 0; page < PAGES_MAX; page += 1) {
     const url = avecParams(config.sources.geoplateformeWfs, {
       SERVICE: 'WFS',
@@ -110,6 +114,7 @@ async function* objetsWfs(typeName: string, etat?: EtatPagination): AsyncGenerat
       SRSNAME: 'EPSG:4326',
       COUNT: String(TAILLE_PAGE),
       STARTINDEX: String(page * TAILLE_PAGE),
+      ...(filtreCql ? { CQL_FILTER: filtreCql } : {}),
     });
 
     /**
@@ -198,6 +203,31 @@ const COUCHE_ZAER = 'zaer:zaer';
 const DETAILS_PV_AU_SOL = new Set(['SOL', 'SURFACE']);
 
 /**
+ * Details qui designent une implantation qui n'est PAS du foncier : toiture, ombriere de parking.
+ *
+ * Enumerer les exclusions plutot que de les deduire par complement est ce qui permet le troisieme
+ * etat : ni « au sol », ni « exclu », mais « la deliberation ne dit pas ». Voir la migration 016.
+ */
+const DETAILS_PV_HORS_FONCIER = new Set(['TOIT', 'TOITURE', 'OMBRIERE', 'PARKING']);
+
+/**
+ * Le detail d'implantation d'une ZAER photovoltaique, en trois etats.
+ *
+ * POURQUOI TROIS ET NON DEUX. La regle d'origine ne retenait que « SOL » et ecartait tout le reste,
+ * ce qui confond « la deliberation dit que c'est une toiture » et « la deliberation ne dit rien ».
+ * Mesure sur la source : au national, `detail_filiere1` est vide pour 10 % des ZAER PV ; dans
+ * l'Eure-et-Loir, pour 93 % d'entre elles. La confusion coutait donc 4 656 zones sur ce seul
+ * departement — ecartees en silence, alors que la commune les a bien designees pour du
+ * photovoltaique.
+ */
+export function implantationPv(detail: string | null | undefined): 'sol' | 'hors_foncier' | 'inconnue' {
+  const d = (detail ?? '').trim().toUpperCase();
+  if (DETAILS_PV_AU_SOL.has(d)) return 'sol';
+  if (DETAILS_PV_HORS_FONCIER.has(d)) return 'hors_foncier';
+  return 'inconnue';
+}
+
+/**
  * Vocabulaires non reconnus rencontres, avec leur nombre d'occurrences.
  *
  * Comptes plutot que journalises un par un : voir la branche `default` de `filieresZaer`. Le
@@ -236,8 +266,15 @@ export function filieresZaer(
 
   switch (f) {
     case 'SOLAIRE_PV':
-      // LE PIEGE PRINCIPAL. 68 % des ZAER photovoltaiques echantillonnees sont des TOITURES.
-      return DETAILS_PV_AU_SOL.has(d) ? ['solaire_sol'] : [];
+      /*
+       * LE PIEGE PRINCIPAL. 58 % des ZAER photovoltaiques echantillonnees au national sont des
+       * TOITURES. Elles restent ecartees : ce n'est pas du foncier.
+       *
+       * Une implantation INCONNUE, elle, est desormais retenue — voir `implantationPv` et la
+       * migration 016. Elle est marquee `implantation_precisee = false` en base, ce qui la rend
+       * proposable a la prospection sans lui laisser ouvrir le moindre argument reglementaire.
+       */
+      return implantationPv(d) === 'hors_foncier' ? [] : ['solaire_sol'];
     case 'EOLIEN':
       return ['eolien_terrestre'];
     case 'BIOMETHANE':
@@ -273,12 +310,28 @@ export function filieresZaer(
  */
 export { FILIERES_HORS_ZAER } from '@enr/core';
 
-export async function ingererZaer(): Promise<{
+/**
+ * Ingere les zones d'acceleration, tout le pays ou seulement quelques departements.
+ *
+ * POURQUOI LE FILTRE EXISTE. La couche nationale porte 1 089 671 objets. Tant que l'ingestion etait
+ * tout-ou-rien, la seule facon d'avoir la moindre zone en base etait de tout ingerer — des heures de
+ * travail et plusieurs gigaoctets — ce qui revenait a n'en avoir aucune. Or l'application propose
+ * desormais ces zones comme reponse a « ou prospecter » : elle a besoin qu'on puisse allumer un
+ * departement en quelques minutes, puis un autre. Le filtre est celui de la source elle-meme
+ * (`CQL_FILTER` sur l'attribut `dep`), donc c'est le serveur qui trie, pas nous apres coup.
+ *
+ * CE QUE LE FILTRE INTERDIT, et le code s'en garde : l'effacement des disparus. `effacerDisparus`
+ * supprime ce que la pagination n'a pas revu ; sur une ingestion limitee au 28, cela effacerait
+ * toutes les zones des autres departements. La pagination n'est donc declaree complete, et
+ * l'effacement autorise, que sur une ingestion NATIONALE.
+ */
+export async function ingererZaer(departements?: readonly string[]): Promise<{
   connecteur: string;
   nbObjets: number;
   nbSansGeometrie: number;
   nbSansFiliere: number;
   millesime: string | null;
+  departements: string[] | null;
 }> {
   let nbObjets = 0;
   let nbSansGeometrie = 0;
@@ -295,7 +348,10 @@ export async function ingererZaer(): Promise<{
   const pagination: EtatPagination = { complete: false };
 
   // Les filieres sont portees par une CHAINE et non un tableau : voir le commentaire dans la requete.
-  type Ligne = [string, string | null, string | null, string, string, string | null, string];
+  // Le dernier membre porte « oui »/« non » : l'implantation est-elle precisee par la
+  // deliberation ? Une chaine et non un booleen, parce que `unnest` recoit des `text[]`
+  // homogenes.
+  type Ligne = [string, string | null, string | null, string, string, string | null, string, string];
   const lot: Ligne[] = [];
 
   const viderLot = async (): Promise<void> => {
@@ -303,7 +359,7 @@ export async function ingererZaer(): Promise<{
     await requete(
       `INSERT INTO zaer
          (identifiant_source, code_insee, code_departement, filieres, geom, date_deliberation,
-          attributs, source_document, est_demonstration)
+          attributs, source_document, est_demonstration, implantation_precisee)
        -- DISTINCT ON : une page rejouee apres un echec transitoire reemet ses objets, et
        -- ON CONFLICT DO UPDATE refuse de toucher deux fois la meme ligne dans une seule commande
        -- (« cannot affect row a second time »). Le defaut s'est produit sur l'ingestion des sites, ou
@@ -322,9 +378,11 @@ export async function ingererZaer(): Promise<{
               -- identifiants du domaine.
               string_to_array(d.filieres, ','),
               ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(d.geom), 4326)),
-              d.valid_date::date, d.attributs::jsonb, 'WFS Geoplateforme zaer:zaer', false
-         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[])
-              AS d(identifiant, insee, dep, filieres, geom, valid_date, attributs)
+              d.valid_date::date, d.attributs::jsonb, 'WFS Geoplateforme zaer:zaer', false,
+              d.precisee = 'oui'
+         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[],
+                     $8::text[])
+              AS d(identifiant, insee, dep, filieres, geom, valid_date, attributs, precisee)
        ON CONFLICT (identifiant_source) WHERE identifiant_source IS NOT NULL DO UPDATE SET
          code_insee = EXCLUDED.code_insee,
          code_departement = EXCLUDED.code_departement,
@@ -332,6 +390,7 @@ export async function ingererZaer(): Promise<{
          geom = EXCLUDED.geom,
          date_deliberation = EXCLUDED.date_deliberation,
          attributs = EXCLUDED.attributs,
+         implantation_precisee = EXCLUDED.implantation_precisee,
          -- Revue par cette ingestion : c'est ce qui la distingue d'une ligne oubliee, donc disparue
          -- de la source (audit 9, defaut D1).
          updated_at = now()`,
@@ -343,13 +402,22 @@ export async function ingererZaer(): Promise<{
         lot.map((l) => l[4]),
         lot.map((l) => l[5]),
         lot.map((l) => l[6]),
+        lot.map((l) => l[7]),
       ],
     );
     lot.length = 0;
   };
 
   try {
-    for await (const entite of objetsWfs(COUCHE_ZAER, pagination)) {
+    /*
+     * Le filtre est passe a la SOURCE. `dep IN ('28','45')` en CQL : c'est le serveur qui restreint,
+     * donc on ne telecharge pas un million d'objets pour en garder dix mille.
+     */
+    const filtre =
+      departements && departements.length > 0
+        ? `dep IN (${departements.map((d) => `'${d.replace(/'/g, "''")}'`).join(',')})`
+        : undefined;
+    for await (const entite of objetsWfs(COUCHE_ZAER, pagination, filtre)) {
       const p = entite.properties ?? {};
       const g = entite.geometry;
       if (!g || typeof g !== 'object') {
@@ -392,6 +460,17 @@ export async function ingererZaer(): Promise<{
           epci: p['epci'] ?? null,
           commentaire: p['commentaire'] ?? null,
         }),
+        /*
+         * L'implantation n'est « precisee » que pour le photovoltaique, seule filiere dont la
+         * source distingue le sol de la toiture. Pour l'eolien et la methanisation, la question ne
+         * se pose pas : une eolienne et un methaniseur sont au sol par nature, la deliberation est
+         * donc precise par construction.
+         */
+        p['filiere'] === 'SOLAIRE_PV' &&
+        implantationPv(typeof p['detail_filiere1'] === 'string' ? p['detail_filiere1'] : null) !==
+          'sol'
+          ? 'non'
+          : 'oui',
       ]);
       nbObjets += 1;
 
@@ -402,11 +481,31 @@ export async function ingererZaer(): Promise<{
   } catch (err) {
     journal.error({ err }, "Échec de l'ingestion des ZAER");
     await enregistrerIngestion('zaer_local', 'echec', (err as Error).message, nbObjets);
-    return { connecteur: 'zaer_local', nbObjets, nbSansGeometrie, nbSansFiliere, millesime: null };
+    return {
+      connecteur: 'zaer_local',
+      nbObjets,
+      nbSansGeometrie,
+      nbSansFiliere,
+      millesime: null,
+      departements: departements ? [...departements] : null,
+    };
   }
 
-  // Zones retirees de la source : une deliberation annulee ou revisee ne doit pas survivre en base.
-  const disparus = await effacerDisparus({ table: 'zaer', connecteur: 'zaer_local' }, debutRun, pagination.complete);
+  /*
+   * Zones retirees de la source : une deliberation annulee ou revisee ne doit pas survivre en base.
+   *
+   * L'EFFACEMENT EST INTERDIT SUR UNE INGESTION PARTIELLE. `effacerDisparus` supprime ce que la
+   * pagination n'a pas revu. Sur une ingestion limitee au 28, « pas revu » comprend les zones de
+   * tous les autres departements : l'effacement viderait la base a chaque ingestion departementale.
+   * La pagination peut etre complete au sens du parcours — toutes les pages du FILTRE ont ete lues —
+   * sans que le territoire le soit. Les deux notions sont distinctes et ne l'etaient pas.
+   */
+  const parcoursNational = !departements || departements.length === 0;
+  const disparus = await effacerDisparus(
+    { table: 'zaer', connecteur: 'zaer_local' },
+    debutRun,
+    pagination.complete && parcoursNational,
+  );
 
   // Couverture PAR DEPARTEMENT : sans elle, `zaer()` ne peut pas distinguer « aucune ZAER ici » de
   // « ce departement n'a pas ete ingere », et le critere resterait gris malgre l'ingestion.
@@ -441,7 +540,14 @@ export async function ingererZaer(): Promise<{
       `${disparus.supprimes} disparues effacees (${disparus.motif})`,
     nbObjets,
   );
-  return { connecteur: 'zaer_local', nbObjets, nbSansGeometrie, nbSansFiliere, millesime: null };
+  return {
+    connecteur: 'zaer_local',
+    nbObjets,
+    nbSansGeometrie,
+    nbSansFiliere,
+    millesime: null,
+    departements: departements ? [...departements] : null,
+  };
 }
 
 // ---------------------------------------------------------------------------

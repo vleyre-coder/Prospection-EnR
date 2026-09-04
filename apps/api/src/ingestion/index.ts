@@ -468,7 +468,7 @@ export async function ingererVent(): Promise<{ connecteur: string; octets: numbe
 // Registre des jobs
 // ---------------------------------------------------------------------------
 
-export const JOBS: Record<string, () => Promise<Record<string, unknown>>> = {
+export const JOBS: Record<string, (departements?: readonly string[]) => Promise<Record<string, unknown>>> = {
   communes: ingererCommunes,
   postes_sources: ingererPostesSources,
   reseau_gaz: ingererReseauGaz,
@@ -554,18 +554,37 @@ export async function avecVerrouIngestion<T>(
   }
 }
 
-export async function lancerIngestion(connecteur: string): Promise<Record<string, unknown>> {
+/**
+ * Lance un job, eventuellement restreint a des departements.
+ *
+ * TOUS LES JOBS N'ACCEPTENT PAS DE RESTRICTION, et c'est deliberement un refus explicite plutot
+ * qu'un parametre ignore : demander `postes_sources:28` et recevoir une ingestion nationale
+ * silencieuse serait la pire des reponses — on croirait avoir limite le travail. Seul `zaer_local`
+ * sait aujourd'hui restreindre, parce que sa source expose un attribut de departement.
+ */
+const JOBS_PAR_DEPARTEMENT = new Set(['zaer_local']);
+
+export async function lancerIngestion(
+  connecteur: string,
+  departements?: readonly string[],
+): Promise<Record<string, unknown>> {
   const job = JOBS[connecteur];
   if (!job) {
     throw new Error(
       `Aucun job d'ingestion pour "${connecteur}". Jobs disponibles : ${Object.keys(JOBS).join(', ')}`,
     );
   }
+  if (departements && departements.length > 0 && !JOBS_PAR_DEPARTEMENT.has(connecteur)) {
+    throw new Error(
+      `Le job "${connecteur}" n'accepte pas de restriction par departement. ` +
+        `Jobs qui l'acceptent : ${[...JOBS_PAR_DEPARTEMENT].join(', ')}.`,
+    );
+  }
 
   return avecVerrouIngestion(connecteur, async () => {
-    journal.info({ connecteur }, 'Debut d\'ingestion');
+    journal.info({ connecteur, departements: departements ?? null }, 'Debut d\'ingestion');
     const debut = Date.now();
-    const resultat = await job();
+    const resultat = await job(departements);
     journal.info({ connecteur, dureeMs: Date.now() - debut, ...resultat }, 'Ingestion terminee');
     return { ...resultat, dureeMs: Date.now() - debut };
   });

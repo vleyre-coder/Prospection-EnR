@@ -45,8 +45,27 @@ test('une ZAER photovoltaique EN TOITURE ne concerne pas la prospection fonciere
    */
   assert.deepEqual(filieresZaer('SOLAIRE_PV', 'TOIT'), []);
   assert.deepEqual(filieresZaer('SOLAIRE_PV', 'OMBRIERE'), [], 'un ombrage de parking n’est pas du foncier');
-  assert.deepEqual(filieresZaer('SOLAIRE_PV', ''), [], 'detail absent : on ne suppose pas le sol');
-  assert.deepEqual(filieresZaer('SOLAIRE_PV', 'NULL'), [], 'la chaine « NULL » est un detail absent');
+});
+
+test('un detail d’implantation ABSENT n’est plus traite comme une toiture', () => {
+  /*
+   * CE QUE CE TEST AFFIRMAIT AVANT, et pourquoi cela a change. Il exigeait que `SOLAIRE_PV` sans
+   * detail rende `[]` — « detail absent : on ne suppose pas le sol ». L'intention etait juste, la
+   * consequence ne l'etait pas : elle confond « la deliberation dit toiture » et « la deliberation
+   * ne dit rien ».
+   *
+   * Mesure sur la source, qui a fait changer la regle : au national, `detail_filiere1` est vide pour
+   * 10 % des ZAER photovoltaiques ; dans l'Eure-et-Loir, pour 93 % d'entre elles. L'ingestion de ce
+   * departement retenait 799 zones sur 10 650 — et le seul signe visible etait une ligne de journal.
+   *
+   * La zone est donc desormais ingeree, avec `implantation_precisee = false`. Elle est PROPOSEE a la
+   * prospection et n'ouvre AUCUN argument reglementaire : le critere `urb_zaer` l'exclut par un
+   * predicat SQL, et `zaer-implantation.test.ts` tient les deux bouts. On ne suppose toujours pas le
+   * sol ; on cesse simplement de supposer la toiture.
+   */
+  assert.deepEqual(filieresZaer('SOLAIRE_PV', ''), ['solaire_sol']);
+  assert.deepEqual(filieresZaer('SOLAIRE_PV', 'NULL'), ['solaire_sol']);
+  assert.deepEqual(filieresZaer('SOLAIRE_PV', 'AUTRE'), ['solaire_sol']);
 });
 
 test('une ZAER photovoltaique AU SOL concerne bien la filiere solaire au sol', () => {

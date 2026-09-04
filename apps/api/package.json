@@ -16,7 +16,7 @@
     "test": "tsx --test test/*.test.ts",
     "verser:proprietaires": "tsx src/scripts/verser-proprietaires.ts",
     "semer:e2e": "tsx scripts/semer-e2e.ts",
-    "test:base": "tsx --test --test-concurrency=1 test/couverture-disque.test.ts test/disparus.test.ts test/effacement-cycle.test.ts test/ingestion-exclusive.test.ts test/migrations.test.ts test/pagination-stable.test.ts test/patrimoine-couches.test.ts test/postgis.test.ts test/rapport-pdf.test.ts test/recherche-parcelle-inconnue.test.ts test/reprise-couverture-reseaux.test.ts test/snapshot-perime-par-donnee.test.ts test/sql-analysable.test.ts test/serialisation-base.test.ts"
+    "test:base": "tsx --test --test-concurrency=1 test/couverture-disque.test.ts test/disparus.test.ts test/effacement-cycle.test.ts test/ingestion-exclusive.test.ts test/migrations.test.ts test/pagination-stable.test.ts test/patrimoine-couches.test.ts test/postgis.test.ts test/rapport-pdf.test.ts test/recherche-parcelle-inconnue.test.ts test/reprise-couverture-reseaux.test.ts test/snapshot-perime-par-donnee.test.ts test/sql-analysable.test.ts test/serialisation-base.test.ts test/zones.test.ts test/zaer-implantation.test.ts"
   },
   "dependencies": {
     "@enr/core": "0.1.0",

@@ -198,6 +198,18 @@ export async function zaer(pt: Position, codeDepartement: string): Promise<Urban
         -- Les zones de demonstration sont ecartees : une ZAER fictive vaudrait un
         -- argument reglementaire majeur qui n'existe pas.
         WHERE est_demonstration = false
+          /*
+           * ET LES ZONES DONT L'IMPLANTATION N'EST PAS PRECISEE, pour la meme raison.
+           *
+           * Depuis la migration 016, une ZAER photovoltaique dont la deliberation ne dit pas si
+           * elle vise le sol ou la toiture est ingeree — elle vaut une piste de prospection, et en
+           * ecarter 93 % dans certains departements rendait l'application aveugle. Mais elle ne
+           * vaut PAS un argument reglementaire : affirmer « cette parcelle est en zone
+           * d'acceleration » alors que la zone pourrait ne viser que des toitures ferait monter un
+           * score sur une supposition. Proposer et affirmer ne demandent pas le meme niveau de
+           * preuve, et c'est cette ligne qui tient la difference.
+           */
+          AND implantation_precisee
           AND ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326))`,
       [pt[0], pt[1]],
     ),
