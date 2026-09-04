@@ -74,10 +74,10 @@ export interface FiliereMeta {
 export const FILIERES_META: Record<Filiere, FiliereMeta> = {
   solaire_sol: {
     id: 'solaire_sol',
-    libelle: 'Solaire au sol / agrivoltaisme',
+    libelle: 'Solaire au sol / agrivoltaïsme',
     libelleCourt: 'Solaire au sol',
     description:
-      "Centrale photovoltaïque au sol sur terrain dégradé, inculte ou en configuration agrivoltaique sur parcelle agricole exploitée.",
+      "Centrale photovoltaïque au sol sur terrain dégradé, inculte ou en configuration agrivoltaïque sur parcelle agricole exploitée.",
     icone: 'sun',
     critereRoi: "Régime d'implantation (dégradé / inculte / agricole) et irradiation",
     surfaceUtileMinHa: 1,
@@ -89,8 +89,8 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
   },
   eolien_terrestre: {
     id: 'eolien_terrestre',
-    libelle: 'Eolien terrestre',
-    libelleCourt: 'Eolien',
+    libelle: 'Éolien terrestre',
+    libelleCourt: 'Éolien',
     description:
       'Parc éolien terrestre soumis à autorisation environnementale (ICPE 2980), avec contrainte de 500 m des habitations.',
     icone: 'wind',
@@ -116,7 +116,7 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     description:
       "Installation de stockage d'électricité sur batteries, raccordée au réseau. Le gisement de ressource n'intervient pas.",
     icone: 'battery',
-    critereRoi: 'Distance et capacité residuelle du poste source',
+    critereRoi: 'Distance et capacité résiduelle du poste source',
     surfaceUtileMinHa: 0.5,
     surfaceUtileOptimaleHa: 3,
     gisementPertinent: false,
@@ -126,12 +126,12 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
   },
   methanisation: {
     id: 'methanisation',
-    libelle: 'Methanisation',
-    libelleCourt: 'Methanisation',
+    libelle: 'Méthanisation',
+    libelleCourt: 'Méthanisation',
     description:
-      "Unité de méthanisation agricole ou territoriale, en injection biomethane ou cogénération, soumise a ICPE 2781.",
+      "Unité de méthanisation agricole ou territoriale, en injection biométhane ou cogénération, soumise à ICPE 2781.",
     icone: 'leaf',
-    critereRoi: "Densité d'intrants mobilisables et debouche (injection gaz ou épandage)",
+    critereRoi: "Densité d'intrants mobilisables et débouché (injection gaz ou épandage)",
     surfaceUtileMinHa: 1,
     surfaceUtileOptimaleHa: 4,
     gisementPertinent: true,

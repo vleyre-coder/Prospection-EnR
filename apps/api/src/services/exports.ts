@@ -344,7 +344,7 @@ const ouiNon = (v: boolean | null | undefined): string =>
 export const libelleRpg = (rpg: ParcelleSnapshot['occupationSol']['rpg']): string => {
   if (rpg.libelleCulture) return rpg.libelleCulture;
   if (rpg.anneesDeclareesConsecutives == null) return 'non renseigne (RPG non consulte)';
-  return 'aucune declaration PAC';
+  return 'aucune déclaration PAC';
 };
 
 export function ficheParcellePdf(
@@ -367,7 +367,7 @@ export function ficheParcellePdf(
     info: {
       Title: `Rapport de qualification ${parcelle.idu} - ${meta.libelleCourt}`,
       Author: 'Prospection EnR',
-      Subject: `Parcelle ${parcelle.idu}, filiere ${meta.libelle}`,
+      Subject: `Parcelle ${parcelle.idu}, filière ${meta.libelle}`,
     },
   });
 
@@ -376,7 +376,7 @@ export function ficheParcellePdf(
 
   // ===================================================================== tete
   doc.fontSize(7.8).font('Helvetica-Bold').fillColor(ENCRE_FAIBLE);
-  doc.text('PROSPECTION ENR - RAPPORT DE QUALIFICATION FONCIERE', MARGE, HAUT, {
+  doc.text('PROSPECTION ENR - RAPPORT DE QUALIFICATION FONCIÈRE', MARGE, HAUT, {
     characterSpacing: 0.8,
   });
   doc.fontSize(19).font('Helvetica-Bold').fillColor('#0f172a');
@@ -384,7 +384,7 @@ export function ficheParcellePdf(
   doc.fontSize(10).font('Helvetica').fillColor(ENCRE_FAIBLE);
   doc.text(
     net(
-      `Filiere etudiee : ${meta.libelle}  -  IDU ${parcelle.idu}  -  ${surfaceHa.toFixed(2).replace('.', ',')} ha  -  rapport du ${dateFr(new Date())}`,
+      `Filière étudiée : ${meta.libelle}  -  IDU ${parcelle.idu}  -  ${surfaceHa.toFixed(2).replace('.', ',')} ha  -  rapport du ${dateFr(new Date())}`,
     ),
     MARGE,
     doc.y + 2,
@@ -395,10 +395,10 @@ export function ficheParcellePdf(
   // Colonne de droite du bandeau : les libelles de regime peuvent passer a la ligne, donc
   // la hauteur du bandeau est deduite de leur hauteur reelle au lieu d'etre fixee.
   const infos = [
-    `Couverture des donnees : ${Math.round(score.couvertureDonnees * 100)} %`,
+    `Couverture des données : ${Math.round(score.couvertureDonnees * 100)} %`,
     score.regimeImplantation
-      ? `Regime : ${LIBELLES_REGIME[score.regimeImplantation] ?? score.regimeImplantation}`
-      : "Regime d'implantation non determine",
+      ? `Régime : ${LIBELLES_REGIME[score.regimeImplantation] ?? score.regimeImplantation}`
+      : "Régime d'implantation non determine",
     `Calcul du ${dateFr(score.dateCalcul)} - moteur ${score.versionMoteur}`,
   ];
   const largeurInfos = total * 0.34 - 16;
@@ -423,8 +423,8 @@ export function ficheParcellePdf(
   doc.fontSize(8.6).font('Helvetica').text(
     net(
       score.knockOuts.length > 0
-        ? `${score.knockOuts.length} critere(s) redhibitoire(s) declenche(s)`
-        : `Critere determinant : ${meta.critereRoi}`,
+        ? `${score.knockOuts.length} critère(s) rédhibitoire(s) declenche(s)`
+        : `Critère déterminant : ${meta.critereRoi}`,
     ),
     MARGE + 100,
     yv + 32,
@@ -442,7 +442,7 @@ export function ficheParcellePdf(
 
   // ==================================================== criteres redhibitoires
   if (score.knockOuts.length > 0) {
-    titreSection(doc, 'Criteres redhibitoires');
+    titreSection(doc, 'Critères rédhibitoires');
     for (const k of score.knockOuts) {
       /**
        * Le FONDEMENT, pas son identifiant technique.
@@ -472,7 +472,7 @@ export function ficheParcellePdf(
         : k.regleLiee
           ? `Fondement : ${k.regleLiee}`
           : null;
-      encadre(doc, k.derogeable ? 'orange' : 'rouge', `${k.derogeable ? 'Derogeable' : 'Bloquant'} - ${k.libelle}`, [
+      encadre(doc, k.derogeable ? 'orange' : 'rouge', `${k.derogeable ? 'Dérogeable' : 'Bloquant'} - ${k.libelle}`, [
         k.motif,
         ...(fondement ? [fondement] : []),
       ]);
@@ -496,7 +496,7 @@ export function ficheParcellePdf(
   }
 
   // =========================================================== synthese
-  titreSection(doc, 'Synthese');
+  titreSection(doc, 'Synthèse');
   if (score.pointsForts.length === 0 && score.pointsVigilance.length === 0) {
     doc.fontSize(8.6).fillColor(ENCRE_FAIBLE).text('Aucun point saillant : tous les critères évalués sont dans la moyenne.', MARGE, doc.y, { width: total });
     doc.fillColor(ENCRE);
@@ -512,8 +512,8 @@ export function ficheParcellePdf(
       doc,
       [
         { titre: 'Nature', part: 0.16 },
-        { titre: 'Critere', part: 0.44 },
-        { titre: 'Valeur mesuree', part: 0.4 },
+        { titre: 'Critère', part: 0.44 },
+        { titre: 'Valeur mesurée', part: 0.4 },
       ],
       lignes,
     );
@@ -525,13 +525,13 @@ export function ficheParcellePdf(
   const zonagePrincipal = [...urba.zonages].sort((a, b) => (b.partRecouvrement ?? 0) - (a.partRecouvrement ?? 0))[0];
   grilleCles(doc, [
     ['Commune', `${parcelle.nomCommune ?? '-'} (${parcelle.codeInsee})`],
-    ['Departement', snapshot.identite.codeDepartement || parcelle.codeInsee.slice(0, 2)],
-    ['Section / numero', `${parcelle.section} ${parcelle.numero}`],
+    ['Département', snapshot.identite.codeDepartement || parcelle.codeInsee.slice(0, 2)],
+    ['Section / numéro', `${parcelle.section} ${parcelle.numero}`],
     ['Identifiant (IDU)', parcelle.idu],
     ['Contenance cadastrale', nb(parcelle.contenanceM2 != null ? parcelle.contenanceM2 / 10000 : null, 'ha', 2)],
-    ['Surface calculee', nb(parcelle.surfaceCalculeeM2 != null ? parcelle.surfaceCalculeeM2 / 10000 : null, 'ha', 2)],
+    ['Surface calculée', nb(parcelle.surfaceCalculeeM2 != null ? parcelle.surfaceCalculeeM2 / 10000 : null, 'ha', 2)],
     [
-      'Coordonnees (WGS84)',
+      'Coordonnées (WGS84)',
       // EXCEPTION AU SEPARATEUR FRANCAIS, deliberee : la paire est deja separee par une
       // virgule, donc « 48,15000 N, 1,75000 E » serait ambigu. Et ces coordonnees sont faites
       // pour etre recopiees dans un outil cartographique, qui attend le point decimal.
@@ -549,12 +549,12 @@ export function ficheParcellePdf(
         ? (LIBELLES_TYPE_SOL[snapshot.occupationSol.typeSol] ?? snapshot.occupationSol.typeSol)
         : 'non determinee',
     ],
-    ['Culture declaree (RPG)', libelleRpg(snapshot.occupationSol.rpg)],
+    ['Culture déclarée (RPG)', libelleRpg(snapshot.occupationSol.rpg)],
     ['Pente moyenne', nb(snapshot.topographie.pentePct, '%', 1)],
     ['Altitude', nb(snapshot.topographie.altitudeM, 'm')],
-    ['Denivele', nb(snapshot.topographie.deniveleM, 'm')],
+    ['Dénivelé', nb(snapshot.topographie.deniveleM, 'm')],
     ['Habitation la plus proche', nb(snapshot.bati.distanceHabitationM, 'm')],
-    ['Zone d\'acceleration ENR', urba.zaer.present == null ? 'non renseigne' : ouiNon(urba.zaer.present)],
+    ['Zone d\'accélération ENR', urba.zaer.present == null ? 'non renseigne' : ouiNon(urba.zaer.present)],
     // L'arrete de protection de biotope figurait dans l'interface et PAS dans le rapport : un
     // APPB a 200 m etait visible a l'ecran et absent du document transmis. Or c'est une
     // protection absolue (art. R.411-15 du code de l'environnement), non derogeable par une
@@ -563,7 +563,7 @@ export function ficheParcellePdf(
     ['Protection de biotope (APPB)', libelleAppb(snapshot.milieux.appb)],
   ]);
   if (zonagePrincipal?.urlReglement) {
-    doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(net(`Reglement applicable : ${zonagePrincipal.urlReglement}`), MARGE, doc.y, { width: total });
+    doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(net(`Règlement applicable : ${zonagePrincipal.urlReglement}`), MARGE, doc.y, { width: total });
     doc.fillColor(ENCRE);
   }
 
@@ -587,7 +587,7 @@ export function ficheParcellePdf(
           // avec lui-meme (5,7 km en synthese, 4,2 km ici, sans mention du coefficient).
           { titre: 'Vol d\'oiseau', part: 0.11, align: 'right' },
           { titre: 'Tracé estimé', part: 0.11, align: 'right' },
-          { titre: 'Capacite', part: 0.11, align: 'right' },
+          { titre: 'Capacité', part: 0.11, align: 'right' },
           { titre: 'Saturation', part: 0.13 },
           { titre: 'Renforcement', part: 0.18 },
         ],
@@ -622,9 +622,9 @@ export function ficheParcellePdf(
         .fillColor(ENCRE_FAIBLE)
         .text(
           net(
-            `Trace estime = vol d'oiseau majore de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
+            `Tracé estimé = vol d'oiseau majore de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
               '(contournement du parcellaire et de la voirie). C\'est cette valeur qui est notée ' +
-              'dans la synthèse ; elle ne remplace pas une étude de trace.',
+              'dans la synthèse ; elle ne remplace pas une étude de tracé.',
           ),
           MARGE,
           doc.y + 2,
@@ -642,21 +642,21 @@ export function ficheParcellePdf(
           'Canalisation de gaz la plus proche',
           racc.reseauGaz.distanceCanalisationKm != null
             ? nb(racc.reseauGaz.distanceCanalisationKm, 'km', 1)
-            : 'trace non ingere - a demander a GRDF / GRTgaz',
+            : 'tracé non ingere - à demander à GRDF / GRTgaz',
         ],
         [
           'Site d\'injection existant le plus proche',
           racc.reseauGaz.distanceSiteInjectionKm != null
-            ? `${nb(racc.reseauGaz.distanceSiteInjectionKm, 'km', 1)} (indicateur de filiere, non une distance de raccordement)`
+            ? `${nb(racc.reseauGaz.distanceSiteInjectionKm, 'km', 1)} (indicateur de filière, non une distance de raccordement)`
             : 'aucun recense',
         ],
         ['Gestionnaire', racc.reseauGaz.gestionnaire ?? 'non renseigne'],
-        ['Rebours necessaire', ouiNon(racc.reseauGaz.reboursNecessaire)],
+        ['Rebours nécessaire', ouiNon(racc.reseauGaz.reboursNecessaire)],
         [
-          'Capacite d\'injection',
+          'Capacité d\'injection',
           racc.reseauGaz.capaciteInjectionNm3h != null
             ? nb(racc.reseauGaz.capaciteInjectionNm3h, 'Nm3/h', 0)
-            : 'non publiee',
+            : 'non publiée',
         ],
       ]);
     }
@@ -668,14 +668,14 @@ export function ficheParcellePdf(
     tableau(
       doc,
       [
-        { titre: 'Procedure', part: 0.46 },
+        { titre: 'Procédure', part: 0.46 },
         { titre: 'Applicable', part: 0.14 },
         { titre: 'Fondement et date d\'entrée en vigueur', part: 0.4 },
       ],
       score.seuilsProcedure.map((s) => ({
         cellules: [
           s.libelle,
-          s.applicable === true ? 'oui' : s.applicable === false ? 'non' : 'a verifier',
+          s.applicable === true ? 'oui' : s.applicable === false ? 'non' : 'à vérifier',
           // `dateFr` et non la date brute : le rapport ecrit « rapport du 07/08/2026 » en tete, et
           // affichait « depuis le 2022-10-01 » ici. Deux conventions de date dans un document remis a
           // un proprietaire ou a un financeur (audit 10, defaut B2).
@@ -732,8 +732,8 @@ export function ficheParcellePdf(
   tableau(
     doc,
     [
-      { titre: 'Critere', part: 0.38 },
-      { titre: 'Valeur mesuree', part: 0.38 },
+      { titre: 'Critère', part: 0.38 },
+      { titre: 'Valeur mesurée', part: 0.38 },
       { titre: 'Note /100', part: 0.12, align: 'right' },
       { titre: 'Poids', part: 0.12, align: 'right' },
     ],
@@ -747,7 +747,7 @@ export function ficheParcellePdf(
     tableau(
       doc,
       [
-        { titre: 'Critere', part: 0.3 },
+        { titre: 'Critère', part: 0.3 },
         { titre: 'Precision', part: 0.7 },
       ],
       commentes.map((c) => ({ cellules: [c.libelle, c.commentaire ?? ''], pastille: c.feu })),
@@ -755,14 +755,14 @@ export function ficheParcellePdf(
   }
 
   // ===================================================== sources
-  titreSection(doc, 'Sources et fraicheur des données');
+  titreSection(doc, 'Sources et fraîcheur des données');
   const sources = Object.values(snapshot.sources);
   tableau(
     doc,
     [
       { titre: 'Source', part: 0.42 },
-      { titre: 'Millesime', part: 0.14 },
-      { titre: 'Interrogee le', part: 0.16 },
+      { titre: 'Millésime', part: 0.14 },
+      { titre: 'Interrogée le', part: 0.16 },
       { titre: 'Valeur juridique', part: 0.28 },
     ],
     sources.map((s) => ({
@@ -773,7 +773,7 @@ export function ficheParcellePdf(
         s.valeurJuridique === 'opposable'
           ? 'opposable'
           : s.valeurJuridique === 'pre_reperage'
-            ? 'pre-reperage, a confirmer'
+            ? 'pre-reperage, à confirmer'
             : 'indicative',
       ],
       pastille: s.valeurJuridique === 'opposable' ? 'vert' : s.valeurJuridique === 'indicative' ? 'orange' : 'gris',
@@ -781,13 +781,13 @@ export function ficheParcellePdf(
   );
   if (connecteursEnEchec.length > 0) {
     encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
-      `${connecteursEnEchec.join(', ')}. Les criteres qui en dependent sont restes non evalues. ` +
+      `${connecteursEnEchec.join(', ')}. Les critères qui en dependent sont restes non évalués. ` +
         'Relancer la qualification de la parcelle permettra de les compléter.',
     ]);
   }
 
   // ============================================= avertissements
-  titreSection(doc, 'Avertissements - a lire avant tout usage');
+  titreSection(doc, 'Avertissements - à lire avant tout usage');
   for (const a of AVERTISSEMENTS.filter((x) => x.portee === 'global')) {
     assurerPlace(doc, 26);
     doc.fontSize(8.4).font('Helvetica-Bold').fillColor('#0f172a').text(net(a.titre), MARGE, doc.y, { width: total });
@@ -800,7 +800,7 @@ export function ficheParcellePdf(
   assurerPlace(doc, 30);
   doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(
     net(
-      `Referentiel reglementaire verifie le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
+      `Référentiel réglementaire verifie le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
         'Le contour cadastral est issu du Plan Cadastral Informatise : il est indicatif et sans valeur juridique. ' +
         'Seul un document d\'arpentage établi par un géomètre-expert fait foi.',
     ),
@@ -826,7 +826,7 @@ export function ficheParcellePdf(
       .stroke();
     doc.fontSize(7).font('Helvetica').fillColor(ENCRE_FAIBLE);
     doc.text(
-      net(`Prospection EnR - aide a la decision, pas une garantie de faisabilite - parcelle ${parcelle.idu}`),
+      net(`Prospection EnR - aide à la décision, pas une garantie de faisabilité - parcelle ${parcelle.idu}`),
       MARGE,
       y,
       { width: total * 0.75, lineBreak: false },
@@ -882,10 +882,10 @@ export function csvResultats(lignes: LigneResultatFiltre[]): string {
     'IDU',
     'Commune',
     'Section',
-    'Numero',
+    'Numéro',
     'Surface (ha)',
     'Statut score',
-    'Ecartee reglementairement',
+    'Écartée réglementairement',
     'Score global',
     'Statut prospection',
     'Vol d\'oiseau poste source (km)',

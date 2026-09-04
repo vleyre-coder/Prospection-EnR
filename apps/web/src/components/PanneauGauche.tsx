@@ -10,7 +10,13 @@
  */
 
 import { useState } from 'react';
-import { volOiseauPourLineaireKm, type Feu, type Filiere } from '@enr/core';
+import {
+  ORDRE_TYPES_SOL,
+  TYPES_SOL as TABLE_TYPES_SOL,
+  volOiseauPourLineaireKm,
+  type Feu,
+  type Filiere,
+} from '@enr/core';
 import { api, type Referentiel } from '../api/client.js';
 import { FEUX, STATUTS, useEtat } from '../store/etat.js';
 
@@ -26,13 +32,16 @@ const FILTRES_PAR_FILIERE: Record<Filiere, Array<'pente' | 'distanceHabitation' 
   methanisation: ['distanceHabitation', 'pente'],
 };
 
-const TYPES_SOL: Array<[string, string]> = [
-  ['artificialise', 'Artificialisé'],
-  ['degrade', 'Dégradé / friche'],
-  ['inculte', 'Inculte'],
-  ['agricole_exploite', 'Agricole exploité'],
-  ['naturel_forestier', 'Naturel / forestier'],
-];
+/**
+ * Les pastilles de nature du sol, prises du vocabulaire partage.
+ *
+ * CETTE LISTE ETAIT UNE TROISIEME COPIE. `@enr/scoring` portait la table longue, l'export PDF la
+ * lui empruntait depuis un audit precedent, et ce fichier en gardait une version courte a lui —
+ * pendant que la vue Liste, faute d'y avoir acces, affichait la valeur d'enumeration brute.
+ * `@enr/core` porte desormais les deux longueurs ; il ne reste plus qu'un endroit a corriger le
+ * jour ou un libelle change.
+ */
+const TYPES_SOL: Array<[string, string]> = ORDRE_TYPES_SOL.map((id) => [id, TABLE_TYPES_SOL[id].court]);
 
 export function PanneauGauche({ referentiel }: Props): JSX.Element {
   const etat = useEtat();
@@ -43,7 +52,7 @@ export function PanneauGauche({ referentiel }: Props): JSX.Element {
   return (
     <aside className="panneau panneau-gauche">
       <div className="panneau-entete">
-        <h2>{meta?.libelleCourt ?? 'Filiere'}</h2>
+        <h2>{meta?.libelleCourt ?? 'Filière'}</h2>
         <button
           type="button"
           className="bouton-discret"
@@ -111,7 +120,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
    */
   return (
     <details className="section">
-      <summary>Legende</summary>
+      <summary>Légende</summary>
       <div className="section-corps">
         <div className="legende-bloc">
           <div className="legende-titre">Score de la parcelle</div>
@@ -124,9 +133,9 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               style={{ background: 'transparent', borderStyle: 'solid', borderColor: 'var(--bordure-forte)' }}
             />
             <span>
-              <strong>Non analysee</strong>
+              <strong>Non analysée</strong>
               <span className="desc">
-                Aucun score calcule : la parcelle n&apos;est pas coloree, seul son contour
+                Aucun score calcule : la parcelle n&apos;est pas colorée, seul son contour
                 apparaît. Lancez « Qualifier l&apos;emprise » sur votre secteur.
               </span>
             </span>
@@ -161,8 +170,8 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         <div className="legende-bloc">
           <div className="legende-titre">Ou en est votre démarchage</div>
           <p className="legende-note">
-            Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien a voir
-            avec le score : une parcelle peut être excellente et jamais contactee, ou mediocre et
+            Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien à voir
+            avec le score : une parcelle peut être excellente et jamais contactee, ou médiocre et
             déjà sous promesse. Le statut se change dans la fiche de la parcelle, onglet
             prospection.
           </p>
@@ -277,9 +286,9 @@ function Filtres({
         </div>
 
         <div className="champ">
-          <label htmlFor="dist-poste">Linéaire de raccordement max. (km de trace)</label>
+          <label htmlFor="dist-poste">Linéaire de raccordement max. (km de tracé)</label>
           <p className="legende-note">
-            Filtre le trace estime, pas le vol d&apos;oiseau : c&apos;est la même grandeur que
+            Filtre le tracé estimé, pas le vol d&apos;oiseau : c&apos;est la même grandeur que
             le rayon dessine sur la carte et que la note du critère de raccordement.
           </p>
           <input
@@ -296,7 +305,7 @@ function Filtres({
 
         {pertinents.includes('capacitePoste') && (
           <div className="champ">
-            <label htmlFor="cap-poste">Capacité residuelle min. du poste (MW)</label>
+            <label htmlFor="cap-poste">Capacité résiduelle min. du poste (MW)</label>
             <input
               id="cap-poste"
               type="number"
@@ -428,7 +437,7 @@ function Filtres({
             Voir les resultats
           </button>
           <button type="button" className="bouton" onClick={etat.reinitialiserFiltres}>
-            Reinitialiser
+            Réinitialiser
           </button>
         </div>
       </div>
@@ -464,8 +473,8 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
       </summary>
       <div className="section-corps">
         <p style={{ fontSize: 11.5, color: 'var(--texte-faible)', margin: '0 0 8px' }}>
-          Les poids sont normalises a 100 % sur les critères réellement evaluables. Deplacer un
-          curseur recolore immediatement la carte.
+          Les poids sont normalisés à 100 % sur les critères réellement evaluables. Déplacer un
+          curseur recolore immédiatement la carte.
         </p>
 
         {[...parFamille.entries()].map(([famille, criteres]) => (
@@ -509,7 +518,7 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
             />
           </div>
           <div className="champ">
-            <label htmlFor="seuil-orange">Seuil « ecarte »</label>
+            <label htmlFor="seuil-orange">Seuil « écarté »</label>
             <input
               id="seuil-orange"
               type="number"
@@ -553,7 +562,7 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
                   setMessage(`Profil « ${nomProfil} » enregistre.`);
                   setNomProfil('');
                 })
-                .catch((e: Error) => setMessage(`Echec : ${e.message}`))
+                .catch((e: Error) => setMessage(`Échec : ${e.message}`))
             }
           >
             Enregistrer
@@ -592,7 +601,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
   }
 
   const libellesGroupes: Record<string, string> = {
-    reseaux: 'Reseaux',
+    reseaux: 'Réseaux',
     environnement: 'Environnement',
     patrimoine: 'Patrimoine',
     risques: 'Risques',
@@ -607,7 +616,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         <span className="compteur-section">{etat.couchesActives.length} active(s)</span>
       </summary>
       <div className="section-corps">
-        <div className="legende-titre">Reseaux</div>
+        <div className="legende-titre">Réseaux</div>
         <label className="case">
           <input type="checkbox" checked={etat.afficherPostes} onChange={etat.basculerPostes} />
           Postes sources et capacités
@@ -623,9 +632,9 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
 
         <div className="champ" style={{ marginTop: 7 }}>
           <label htmlFor="rayon">
-            Rayon de raccordement affiche :{' '}
+            Rayon de raccordement affiché :{' '}
             {etat.rayonRaccordementKm > 0
-              ? `${etat.rayonRaccordementKm} km de trace estime`
+              ? `${etat.rayonRaccordementKm} km de tracé estimé`
               : 'masque'}
           </label>
           {/* Le cercle est geodesique, le budget est un lineaire : la conversion doit etre
@@ -637,7 +646,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               {volOiseauPourLineaireKm(etat.rayonRaccordementKm).toLocaleString('fr-FR', {
                 maximumFractionDigits: 1,
               })}{' '}
-              km a vol d&apos;oiseau. C&apos;est le linéaire pose qui se paie, et c&apos;est lui
+              km à vol d&apos;oiseau. C&apos;est le linéaire pose qui se paie, et c&apos;est lui
               que note le critère de raccordement.
             </p>
           )}
@@ -651,8 +660,8 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
               </>
             ) : (
               <>
-                Valeur indicative pour la filière {filiereMeta?.libelleCourt ?? ''} : le cout de
-                raccordement se rapporte à la puissance evacuee, il change donc avec la filière.
+                Valeur indicative pour la filière {filiereMeta?.libelleCourt ?? ''} : le coût de
+                raccordement se rapporte à la puissance évacuée, il change donc avec la filière.
               </>
             )}
           </p>
@@ -737,7 +746,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
 
 const LIBELLES_GROUPES_CALQUES: Record<string, string> = {
   foret: 'Forets et boisements',
-  environnement: 'Milieux naturels proteges',
+  environnement: 'Milieux naturels protégés',
   patrimoine: 'Patrimoine',
   risques: 'Risques',
   urbanisme: 'Urbanisme',
@@ -804,7 +813,7 @@ function Calques({ referentiel }: { referentiel: Referentiel }): JSX.Element | n
                       <span className="etiquette-indisponible">indisponible</span>
                     )}
                     {!chargement && !indisponible && c.zoomMin != null && (
-                      <span className="etiquette-zoom" title={`Visible a partir du zoom ${c.zoomMin}`}>
+                      <span className="etiquette-zoom" title={`Visible à partir du zoom ${c.zoomMin}`}>
                         zoom {c.zoomMin}+
                       </span>
                     )}

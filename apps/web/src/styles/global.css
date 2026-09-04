@@ -421,8 +421,9 @@ button:focus-visible,
  * occuper 130 px sur 1 000 (13 % de l'ecran, 22 % en fenetre de 800 px de haut, mesure sur
  * capture) avant la moindre donnee.
  *
- * `auto-fit` avec un minimum de 340 px : deux colonnes des 720 px de large, une seule en
- * dessous — ou l'empilement redevient le bon choix. Le texte n'est ni tronque ni masque.
+ * Une colonne par defaut, deux au-dela de 1 200 px — le seuil et le gain sont mesures au
+ * navigateur dans le commentaire de la regle `@media` ci-dessous. Le texte n'est ni tronque ni
+ * masque, et le bouton « Masquer » ne vaut que pour la session en cours.
  */
 .bandeaux-cadre {
   display: grid;

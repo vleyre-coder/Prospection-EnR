@@ -56,7 +56,7 @@ const SYMBOLES: Array<{ id: string; libelle: string; dessin: JSX.Element }> = [
   },
   {
     id: 'eolien',
-    libelle: 'Eolien',
+    libelle: 'Éolien',
     // Mat et trois pales.
     dessin: (
       <>
@@ -80,7 +80,7 @@ const SYMBOLES: Array<{ id: string; libelle: string; dessin: JSX.Element }> = [
   },
   {
     id: 'methanisation',
-    libelle: 'Methanisation',
+    libelle: 'Méthanisation',
     // Digesteur a toit bombe et sa torchere.
     dessin: (
       <>
@@ -126,7 +126,7 @@ export function Demarrage({ onTermine }: { onTermine: () => void }): JSX.Element
         <h1 className="accueil-titre">
           Prospection<span className="accueil-titre-accent"> EnR</span>
         </h1>
-        <p className="accueil-sous-titre">Aide à la décision fonciere &mdash; France</p>
+        <p className="accueil-sous-titre">Aide à la décision foncière &mdash; France</p>
 
         <div className="accueil-symboles">
           {SYMBOLES.map((s, i) => (

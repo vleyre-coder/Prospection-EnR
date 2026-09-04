@@ -36,7 +36,7 @@ export function Connexion({
       .catch((err: ErreurApi) =>
         setErreur(
           err.estReseau
-            ? "L'API est injoignable. Verifiez que le serveur est demarre."
+            ? "L'API est injoignable. Vérifiez que le serveur est demarre."
             : err.message,
         ),
       )
@@ -61,7 +61,7 @@ export function Connexion({
           </div>
         )}
 
-        <label htmlFor="connexion-email">Adresse electronique</label>
+        <label htmlFor="connexion-email">Adresse électronique</label>
         <input
           id="connexion-email"
           type="email"
@@ -94,7 +94,7 @@ export function Connexion({
         <p className="connexion-aide">
           Au premier démarrage, les identifiants sont ceux definis par <code>ADMIN_EMAIL</code> et{' '}
           <code>ADMIN_MOT_DE_PASSE</code>. Si vous ne les avez pas definis, le mot de passe genere
-          est affiche dans les journaux du serveur (<code>docker compose logs api</code>).
+          est affiché dans les journaux du serveur (<code>docker compose logs api</code>).
         </p>
       </form>
     </div>

@@ -104,14 +104,14 @@ export function BandeauAvertissements({
             {sourcesPerimees.length > 0 && (
               <p>
                 <strong>Sources à rafraîchir.</strong> {sourcesPerimees.length} source(s) depassent
-                leur periodicite de mise à jour ({sourcesPerimees.join(', ')}). Les critères
+                leur périodicité de mise à jour ({sourcesPerimees.join(', ')}). Les critères
                 concernés peuvent être obsoletes ou indisponibles.
               </p>
             )}
             {enRetard && (
               <p>
                 <strong>Parcelles en retard sur la donnée.</strong> {parcellesARafraichir}{' '}
-                parcelle(s) ont été qualifiées avant la derniere ingestion de leur département : la
+                parcelle(s) ont été qualifiées avant la dernière ingestion de leur département : la
                 carte et les listes affichent pour elles l&apos;état d&apos;avant. Ouvrir une fiche
                 met la parcelle à jour{peutRafraichir ? ' ; le bouton reprend un lot' : ''}.
               </p>

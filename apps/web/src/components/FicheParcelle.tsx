@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { libelleTypeSol } from '@enr/core';
 import type {
   Avertissement,
   EvaluationCritere,
@@ -76,7 +77,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           <div className="chargement">
             <span className="tourniquet" />
             Interrogation des sources officielles (cadastre, urbanisme, RPG, risques,
-            altimetrie, raccordement)…
+            altimétrie, raccordement)…
           </div>
           {Array.from({ length: 9 }, (_, i) => (
             <div key={i} className="squelette" style={{ width: `${95 - i * 6}%` }} />
@@ -106,7 +107,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           <p style={{ margin: '5px 0 0' }}>
             {err?.message ?? 'Erreur inconnue.'}
             {err?.estSourceIndisponible &&
-              " Les critères concernés resteront non evalues : l'absence de donnée ne vaut pas absence de contrainte."}
+              " Les critères concernés resteront non évalués : l'absence de donnée ne vaut pas absence de contrainte."}
           </p>
           <button
             type="button"
@@ -184,7 +185,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
 
         <div className="note-bas">
           <strong>Traçabilité.</strong> {Object.keys(fiche.snapshot.sources).length} source(s)
-          interrogee(s) le {formatDateHeure(fiche.snapshot.dateSnapshot)}.{' '}
+          interrogée(s) le {formatDateHeure(fiche.snapshot.dateSnapshot)}.{' '}
           {fiche.connecteursEnEchec.length > 0 && (
             <>
               {fiche.connecteursEnEchec.length} connecteur(s) en échec (
@@ -261,7 +262,7 @@ function Synthese({
           {score.regimeImplantation && <div className="synthese-reserve">{reserveRegime}</div>}
           <div className="synthese-regime">
             {formatNombre(surfaceHa, 'ha', 2)}
-            {personnalise && ' · ponderation personnalisee'}
+            {personnalise && ' · pondération personnalisée'}
           </div>
           <div className="jauge" aria-hidden>
             <div style={{ width: `${Math.round(score.couvertureDonnees * 100)}%` }} />
@@ -269,7 +270,7 @@ function Synthese({
           <div className="jauge-legende">
             Couverture de données : {Math.round(score.couvertureDonnees * 100)} %
             {score.couvertureDonnees < 0.8 &&
-              ` — ${score.criteres.filter((c) => c.note == null).length} critere(s) non evalue(s)`}
+              ` — ${score.criteres.filter((c) => c.note == null).length} critère(s) non evalue(s)`}
           </div>
         </div>
       </div>
@@ -335,8 +336,8 @@ function Synthese({
               <LigneSeuil key={s.regleId} seuil={s} />
             ))}
             <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', marginTop: 9 }}>
-              Les seuils réglementaires evoluent : la date d&apos;entrée en vigueur de chaque
-              règle appliquée est indiquee. Verifiez la version en vigueur à la date de votre
+              Les seuils réglementaires évoluent : la date d&apos;entrée en vigueur de chaque
+              règle appliquée est indiquee. Vérifiez la version en vigueur à la date de votre
               dépôt.
             </p>
           </div>
@@ -356,7 +357,7 @@ function CarteKnockOut({ ko, referentiel }: { ko: KnockOut; referentiel: Referen
   return (
     <div className={`carte-ko${ko.derogeable ? ' derogeable' : ''}`}>
       <div className="entete">
-        <span className="marqueur">{ko.derogeable ? 'Derogeable' : 'Redhibitoire'}</span>
+        <span className="marqueur">{ko.derogeable ? 'Dérogeable' : 'Rédhibitoire'}</span>
         {ko.libelle}
       </div>
       <p className="motif">{ko.motif}</p>
@@ -371,7 +372,7 @@ function CarteKnockOut({ ko, referentiel }: { ko: KnockOut; referentiel: Referen
       {ko.source && (
         <div className="regle">
           Source : {ko.source.nom}
-          {ko.source.millesime ? ` (millesime ${ko.source.millesime})` : ''}
+          {ko.source.millesime ? ` (millésime ${ko.source.millesime})` : ''}
         </div>
       )}
     </div>
@@ -387,7 +388,7 @@ function LigneSeuil({ seuil }: { seuil: SeuilProcedure }): JSX.Element {
           ? 'Applicable au vu des caractéristiques estimées'
           : seuil.applicable === false
             ? 'Non applicable'
-            : 'Applicabilite indeterminee'
+            : 'Applicabilité indéterminée'
       }>{marque}</span>
       <span>
         {seuil.libelle}
@@ -522,7 +523,7 @@ function LigneCritere({
             <BlocSource source={critere.source} />
           ) : (
             <div className="source-bloc">
-              <span className="nom">Source non renseignee</span>
+              <span className="nom">Source non renseignée</span>
               <div style={{ color: 'var(--texte-faible)' }}>
                 Ce critère n&apos;a pas pu être rattache à une source : la donnée est indisponible.
               </div>
@@ -571,7 +572,7 @@ function BlocSource({ source }: { source: SourceRef }): JSX.Element {
             <dd>{formatDate(source.dateMiseAJour)}</dd>
           </>
         )}
-        <dt>Interrogee le</dt>
+        <dt>Interrogée le</dt>
         <dd>{formatDateHeure(source.dateInterrogation)}</dd>
         <dt>Valeur</dt>
         <dd>{juridique[source.valeurJuridique] ?? source.valeurJuridique}</dd>
@@ -673,15 +674,15 @@ function RubriquesDonnees({
   return (
     <>
       <Rubrique
-        titre="Identite"
+        titre="Identité"
         cible="identite"
         referentiel={referentiel}
         enfants={[
           ['Commune', val(`${s.identite.nomCommune} (${s.identite.codeInsee})`)],
-          ['Prefixe / section / n°', val(`${s.identite.prefixe} ${s.identite.section} ${s.identite.numero}`)],
+          ['Préfixe / section / n°', val(`${s.identite.prefixe} ${s.identite.section} ${s.identite.numero}`)],
           ['Contenance cadastrale', val(s.identite.contenanceM2, 'm²')],
-          ['Surface calculee', val(s.identite.surfaceCalculeeM2, 'm²')],
-          ['Departement', val(s.identite.codeDepartement)],
+          ['Surface calculée', val(s.identite.surfaceCalculeeM2, 'm²')],
+          ['Département', val(s.identite.codeDepartement)],
         ]}
       />
 
@@ -724,8 +725,8 @@ function RubriquesDonnees({
                 {s.urbanisme.prescriptions.map((p, i) => (
                   <div key={i}>
                     {p.libelle ?? p.type}
-                    {p.estEbc && ' — espace boise classe'}
-                    {p.estEmplacementReserve && ' — emplacement reserve'}
+                    {p.estEbc && ' — espace boisé classe'}
+                    {p.estEmplacementReserve && ' — emplacement réserve'}
                   </div>
                 ))}
               </>
@@ -733,7 +734,7 @@ function RubriquesDonnees({
           ],
           ['Servitudes', s.urbanisme.servitudes.length ? <>{s.urbanisme.servitudes.join(', ')}</> : <>aucune</>],
           [
-            'Zone d’acceleration ENR',
+            'Zone d’accélération ENR',
             s.urbanisme.zaer.present == null ? (
               val(null)
             ) : s.urbanisme.zaer.present ? (
@@ -758,12 +759,12 @@ function RubriquesDonnees({
             ) : (
               <>
                 {s.urbanisme.documentCadrePvSol.parcelleEligible == null
-                  ? 'eligibilite a apprecier'
+                  ? 'éligibilité à apprécier'
                   : s.urbanisme.documentCadrePvSol.parcelleEligible
-                    ? 'parcelle eligible'
-                    : 'parcelle non eligible'}
+                    ? 'parcelle éligible'
+                    : 'parcelle non éligible'}
                 {s.urbanisme.documentCadrePvSol.dateArrete
-                  ? ` — arrete du ${formatDate(s.urbanisme.documentCadrePvSol.dateArrete)}`
+                  ? ` — arrêté du ${formatDate(s.urbanisme.documentCadrePvSol.dateArrete)}`
                   : ''}
               </>
             ),
@@ -775,7 +776,9 @@ function RubriquesDonnees({
         titre="Occupation et nature du sol"
         referentiel={referentiel}
         enfants={[
-          ['Type de sol retenu', val(s.occupationSol.typeSol)],
+          // La fiche affichait `agricole_exploite`, souligne compris, la ou le PDF ecrit
+          // « Terrain agricole exploité ». Meme table, meme mot, desormais.
+          ['Type de sol retenu', val(libelleTypeSol(s.occupationSol.typeSol, 'long'))],
           [
             'Culture (RPG)',
             /* « donnee indisponible » et « aucune declaration » ne sont pas la meme chose :
@@ -789,9 +792,9 @@ function RubriquesDonnees({
             })(),
           ],
           ['Code culture', val(s.occupationSol.rpg.codeCulture)],
-          ['Millesime RPG', val(s.occupationSol.rpg.millesime)],
-          ['Millesimes declares', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],
-          ['Inculte depuis le 10/03/2013', s.occupationSol.inculteDepuis2013 == null ? <span className="absent">à demontrer (historique RPG et photo-interprétation)</span> : val(s.occupationSol.inculteDepuis2013)],
+          ['Millésime RPG', val(s.occupationSol.rpg.millesime)],
+          ['Millésimes declares', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],
+          ['Inculte depuis le 10/03/2013', s.occupationSol.inculteDepuis2013 == null ? <span className="absent">à démontrer (historique RPG et photo-interprétation)</span> : val(s.occupationSol.inculteDepuis2013)],
           [
             'AOP / AOC',
             s.occupationSol.aop.presente == null ? (
@@ -827,9 +830,9 @@ function RubriquesDonnees({
           ['Pente maximale', val(s.topographie.penteMaxPct, '%')],
           ['Orientation', val(s.topographie.orientationDeg, '°')],
           ['Altitude', val(s.topographie.altitudeM, 'm')],
-          ['Denivele', val(s.topographie.deniveleM, 'm')],
+          ['Dénivelé', val(s.topographie.deniveleM, 'm')],
           ['Aléa retrait-gonflement des argiles', val(s.topographie.aleaArgiles)],
-          ['Cavites souterraines (< 1 km)', val(s.topographie.cavitesProches)],
+          ['Cavités souterraines (< 1 km)', val(s.topographie.cavitesProches)],
           ['Mouvements de terrain (< 1 km)', val(s.topographie.mouvementsTerrain)],
         ]}
       />
@@ -845,7 +848,7 @@ function RubriquesDonnees({
               val(null)
             ) : (
               <>
-                {{ oui: 'cartographiee', non: 'hors zonage cartographie', a_confirmer: 'a confirmer' }[
+                {{ oui: 'cartographiee', non: 'hors zonage cartographie', a_confirmer: 'à confirmer' }[
                   s.eau.zoneHumide
                 ]}
               </>
@@ -860,9 +863,9 @@ function RubriquesDonnees({
                 ? val(`perimetre ${s.eau.captageAep.type ?? 'non precise'}`)
                 : val(s.eau.captageAep.distanceM, 'm'),
           ],
-          ['Alea inondation', val(s.eau.inondation.alea)],
+          ['Aléa inondation', val(s.eau.inondation.alea)],
           ['Zonage PPRI', val(s.eau.inondation.zonagePpri)],
-          ['Territoire a risque important (TRI)', val(s.eau.inondation.dansTri)],
+          ['Territoire à risque important (TRI)', val(s.eau.inondation.dansTri)],
           ['Contexte karstique', val(s.eau.karst)],
         ]}
       />
@@ -877,9 +880,9 @@ function RubriquesDonnees({
           ['ZNIEFF de type I', zonageTexte(s.milieux.znieff1)],
           ['ZNIEFF de type II', zonageTexte(s.milieux.znieff2)],
           ['Arrêté de protection de biotope', zonageTexte(s.milieux.appb)],
-          ['Reserve naturelle', zonageTexte(s.milieux.reserveNaturelle)],
-          ['Coeur de parc national', zonageTexte(s.milieux.coeurParcNational)],
-          ['Parc naturel regional', zonageTexte(s.milieux.parcNaturelRegional)],
+          ['Réserve naturelle', zonageTexte(s.milieux.reserveNaturelle)],
+          ['Cœur de parc national', zonageTexte(s.milieux.coeurParcNational)],
+          ['Parc naturel régional', zonageTexte(s.milieux.parcNaturelRegional)],
           [
             'Trame verte et bleue',
             s.milieux.trameVerteBleue.reservoir == null && s.milieux.trameVerteBleue.corridor == null
@@ -892,20 +895,20 @@ function RubriquesDonnees({
                       : 'hors trame',
                 ),
           ],
-          ['Enjeu defrichement', val(s.milieux.enjeuDefrichement)],
-          ['Pre-enjeu especes protegees', val(s.milieux.preEnjeuEspeces, '/100')],
+          ['Enjeu défrichement', val(s.milieux.enjeuDefrichement)],
+          ['Pre-enjeu espèces protégées', val(s.milieux.preEnjeuEspeces, '/100')],
           // Aucune source nationale ne publie ces deux sensibilites a la parcelle. Le
           // champ existe pour accueillir un atlas DREAL ou LPO le jour ou il sera ingere ;
           // tant qu'il est vide, on le dit, plutot que d'afficher une case blanche qui se
           // lit « rien a signaler ».
           [
-            'Sensibilite avifaune',
+            'Sensibilité avifaune',
             s.milieux.sensibiliteAvifaune == null
               ? val('aucune source ingérée - à vérifier auprès de la DREAL / LPO')
               : val(s.milieux.sensibiliteAvifaune, '/100'),
           ],
           [
-            'Sensibilite chiropteres',
+            'Sensibilité chiroptères',
             s.milieux.sensibiliteChiropteres == null
               ? val('aucune source ingérée - à vérifier auprès de la DREAL / LPO')
               : val(s.milieux.sensibiliteChiropteres, '/100'),
@@ -933,7 +936,7 @@ function RubriquesDonnees({
               ? val('non evalue - relevé d’une étude paysagere')
               : val(s.patrimoine.covisibiliteIndice, '/100'),
           ],
-          ['Sensibilite archeologique', val(s.patrimoine.sensibiliteArcheologique)],
+          ['Sensibilité archéologique', val(s.patrimoine.sensibiliteArcheologique)],
         ]}
       />
 
@@ -959,11 +962,11 @@ function RubriquesDonnees({
               </>
             ),
           ],
-          ['Servitudes aeronautiques', val(s.risques.servitudesAeronautiques)],
+          ['Servitudes aéronautiques', val(s.risques.servitudesAeronautiques)],
           ['Faisceaux hertziens', val(s.risques.faisceauxHertziens)],
-          ['Reseaux enterres', s.risques.reseauxEnterres.length ? <>{s.risques.reseauxEnterres.join(', ')}</> : val(null)],
+          ['Réseaux enterres', s.risques.reseauxEnterres.length ? <>{s.risques.reseauxEnterres.join(', ')}</> : val(null)],
           ['Sites et sols pollues (< 500 m)', val(s.risques.sitesPollues)],
-          ['ICPE a proximite', val(s.risques.icpeProches)],
+          ['ICPE à proximité', val(s.risques.icpeProches)],
           ['Obligation de débroussaillement', val(s.risques.obligationDebroussaillement)],
         ]}
       />
@@ -977,7 +980,7 @@ function RubriquesDonnees({
           ['Gestionnaire', val(poste?.gestionnaire)],
           ['Tension', val(poste?.tension)],
           ['Distance', val(poste?.distanceKm, 'km')],
-          ['Capacite residuelle', val(poste?.capaciteResiduelleMw, 'MW')],
+          ['Capacité résiduelle', val(poste?.capaciteResiduelleMw, 'MW')],
           ['État de saturation', val(poste?.etatSaturation)],
           ['File d’attente', val(poste?.fileAttenteMw, 'MW')],
           ['Quote-part S3REnR', val(poste?.quotePartEurParKw, 'EUR/kW')],
@@ -1014,7 +1017,7 @@ function RubriquesDonnees({
             s.raccordement.reseauGaz.distanceCanalisationKm != null ? (
               val(s.raccordement.reseauGaz.distanceCanalisationKm, 'km')
             ) : (
-              <span className="absent">trace non ingere</span>
+              <span className="absent">tracé non ingere</span>
             ),
           ],
           [
@@ -1022,8 +1025,8 @@ function RubriquesDonnees({
             val(s.raccordement.reseauGaz.distanceSiteInjectionKm, 'km'),
           ],
           ['Gestionnaire gaz', val(s.raccordement.reseauGaz.gestionnaire)],
-          ['Capacite d’injection', val(s.raccordement.reseauGaz.capaciteInjectionNm3h, 'Nm³/h')],
-          ['Rebours necessaire', val(s.raccordement.reseauGaz.reboursNecessaire)],
+          ['Capacité d’injection', val(s.raccordement.reseauGaz.capaciteInjectionNm3h, 'Nm³/h')],
+          ['Rebours nécessaire', val(s.raccordement.reseauGaz.reboursNecessaire)],
         ]}
       />
 
@@ -1032,17 +1035,17 @@ function RubriquesDonnees({
         referentiel={referentiel}
         enfants={[
           ['Irradiation', val(s.gisement.irradiationKwhM2An, 'kWh/m²/an')],
-          ['Productible estime', val(s.gisement.productibleKwhKwcAn, 'kWh/kWc/an')],
-          ['Vent a 100 m', val(s.gisement.ventVitesse100mMs, 'm/s')],
-          ['Intrants methanisables', val(s.gisement.intrantsMethaTonnesMsAn, 't MS/an')],
-          ['Elevages (< 10 km)', val(s.gisement.elevagesRayon10km)],
+          ['Productible estimé', val(s.gisement.productibleKwhKwcAn, 'kWh/kWc/an')],
+          ['Vent à 100 m', val(s.gisement.ventVitesse100mMs, 'm/s')],
+          ['Intrants méthanisables', val(s.gisement.intrantsMethaTonnesMsAn, 't MS/an')],
+          ['Élevages (< 10 km)', val(s.gisement.elevagesRayon10km)],
           ['Industries agroalimentaires (< 20 km)', val(s.gisement.iaaRayon20km)],
-          ['Surfaces d’epandage (< 10 km)', val(s.gisement.surfacesEpandageHa, 'ha')],
+          ['Surfaces d’épandage (< 10 km)', val(s.gisement.surfacesEpandageHa, 'ha')],
           ['Habitation la plus proche', val(s.bati.distanceHabitationM, 'm')],
           ['Habitations dans 500 m', val(s.bati.nbHabitationsRayon500m)],
           ['Zone d’habitat la plus proche', val(s.bati.distanceZoneHabitatM, 'm')],
           ['Voirie carrossable', val(s.acces.distanceVoirieM, 'm')],
-          ['Acces poids lourds', val(s.acces.accesPoidsLourds)],
+          ['Accès poids lourds', val(s.acces.accesPoidsLourds)],
         ]}
       />
 
@@ -1051,11 +1054,11 @@ function RubriquesDonnees({
         cible="foncier"
         referentiel={referentiel}
         enfants={[
-          ['Proprietaires estimes', val(s.foncier.nbProprietairesEstime)],
+          ['Propriétaires estimes', val(s.foncier.nbProprietairesEstime)],
           ['Indivision probable', val(s.foncier.indivisionProbable)],
           ['Surface d’un seul tenant', val(s.foncier.surfaceDunSeulTenantHa, 'ha')],
           ['Indice de morcellement', val(s.foncier.morcellementIndice, '/100')],
-          ['Proprietaire public', val(s.foncier.proprietairePublic)],
+          ['Propriétaire public', val(s.foncier.proprietairePublic)],
         ]}
       />
     </>
@@ -1098,7 +1101,7 @@ function BlocProspection({
       setMessage('Statut enregistre.');
       invalider();
     },
-    onError: (e: ErreurApi) => setMessage(`Echec : ${e.message}`),
+    onError: (e: ErreurApi) => setMessage(`Échec : ${e.message}`),
   });
 
   const enregistrerNotes = (texte: string): void => {
@@ -1110,10 +1113,10 @@ function BlocProspection({
         : api.creerLead({ idu: fiche.parcelle.idu, filiere, notes: texte });
       void action
         .then(() => {
-          setMessage('Notes enregistrees.');
+          setMessage('Notes enregistrées.');
           invalider();
         })
-        .catch((e: ErreurApi) => setMessage(`Echec : ${e.message}`));
+        .catch((e: ErreurApi) => setMessage(`Échec : ${e.message}`));
     }, 900);
   };
 

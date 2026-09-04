@@ -82,7 +82,7 @@ function proceduresTransversales(s: ParcelleSnapshot): Array<SeuilProcedure | nu
       'defrichement',
       s.milieux.enjeuDefrichement,
       s.milieux.enjeuDefrichement === true
-        ? `Parcelle boisee${f.partBoisee != null ? ` a environ ${formatNombre(f.partBoisee * 100, '%', 0)}` : ''} : une autorisation de defrichement et sa compensation sont a prevoir, avec un delai d'instruction propre.`
+        ? `Parcelle boisée${f.partBoisee != null ? ` à environ ${formatNombre(f.partBoisee * 100, '%', 0)}` : ''} : une autorisation de défrichement et sa compensation sont à prévoir, avec un délai d'instruction propre.`
         : null,
     ),
     // Aucune source nationale ne prejuge l'enjeu especes a la parcelle : toujours « a verifier ».
@@ -126,7 +126,7 @@ export function construireSeuilsProcedure(
           // `formatNombre` et non l'interpolation brute : `${pct}` ecrivait « 0.38 MWc », avec un
           // point decimal, dans une phrase qui contient par ailleurs « 0,5 MWc/ha ». Mesure sur
           // 439 parcelles x 4 filieres : 435 occurrences (audit 10, defaut B1).
-          : `Puissance estimee ${formatNombre(pct, 'MWc', 2)} : ${pct >= 3 ? 'permis de construire' : 'declaration prealable'} (estimation a raison de ${regimeImplantation === 'agrivoltaisme' ? '0,5' : '1'} MWc/ha).`,
+          : `Puissance estimée ${formatNombre(pct, 'MWc', 2)} : ${pct >= 3 ? 'permis de construire' : 'déclaration préalable'} (estimation à raison de ${regimeImplantation === 'agrivoltaisme' ? '0,5' : '1'} MWc/ha).`,
       ),
       seuil(filiere, 'eval_env_systematique', pct == null ? null : pct >= 3),
       seuil(filiere, 'eval_env_cas_par_cas', pct == null ? null : pct >= 0.3 && pct < 3),
@@ -146,7 +146,7 @@ export function construireSeuilsProcedure(
         'compensation_agricole',
         solAgricole == null ? null : solAgricole === 'agricole_exploite',
         solAgricole === 'agricole_exploite'
-          ? `Sol agricole exploite${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'etude prealable est probablement due. Le seuil de surface est fixe par arrete prefectoral — le verifier aupres de la DDT${regimeImplantation === 'agrivoltaisme' ? '. Une configuration agrivoltaique maintenant une production significative peut en dispenser' : ''}.`
+          ? `Sol agricole exploité${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'étude préalable est probablement due. Le seuil de surface est fixe par arrêté préfectoral — le vérifier auprès de la DDT${regimeImplantation === 'agrivoltaisme' ? '. Une configuration agrivoltaïque maintenant une production significative peut en dispenser' : ''}.`
           : null,
       ),
       seuil(filiere, 'demantelement', true),
@@ -199,7 +199,7 @@ export function construireSeuilsProcedure(
         'faisceaux_hertziens',
         s.risques.faisceauxHertziens,
         s.risques.faisceauxHertziens === true
-          ? "La parcelle est grevee d'une servitude de protection radioélectrique : l'implantation devra dégager le faisceau, ce qui contraint fortement le plan de masse."
+          ? "La parcelle est grevée d'une servitude de protection radioélectrique : l'implantation devra dégager le faisceau, ce qui contraint fortement le plan de masse."
           : null,
       ),
       // Systematique des lors que la rubrique 2980 est franchie, c'est-a-dire pour tout parc.
@@ -216,7 +216,7 @@ export function construireSeuilsProcedure(
         p == null ? true : p * 1000 > 600,
         p == null
           ? "Tout projet de taille industrielle depasse le seuil de 600 kW : régime de déclaration a minima."
-          : `Puissance envisagee ${p} MW : ${p * 1000 > 600 ? 'declaration ICPE 2925-2 requise' : 'sous le seuil de declaration'}.`,
+          : `Puissance envisagee ${p} MW : ${p * 1000 > 600 ? 'déclaration ICPE 2925-2 requise' : 'sous le seuil de déclaration'}.`,
       ),
       seuil(filiere, 'securite_incendie', true),
       seuil(filiere, 'chimie_lfp', true),
@@ -244,7 +244,7 @@ export function construireSeuilsProcedure(
         'effets_domino',
         s.risques.icpeProches == null ? null : s.risques.icpeProches > 0,
         s.risques.icpeProches != null && s.risques.icpeProches > 0
-          ? `${s.risques.icpeProches} installation(s) classee(s) a proximite : l'instruction examinera les effets domino dans les deux sens.`
+          ? `${s.risques.icpeProches} installation(s) classée(s) à proximité : l'instruction examinera les effets domino dans les deux sens.`
           : null,
       ),
       // Le S3REnR : rappel systematique, parce que c'est le point de methode le plus couteux a
@@ -284,7 +284,7 @@ export function construireSeuilsProcedure(
         'sous_produits_animaux',
         s.gisement.elevagesRayon10km == null ? null : s.gisement.elevagesRayon10km > 0,
         s.gisement.elevagesRayon10km != null && s.gisement.elevagesRayon10km > 0
-          ? `${s.gisement.elevagesRayon10km} elevage(s) dans le rayon d'approvisionnement : des intrants d'origine animale sont probables, ce qui appelle un agrement sanitaire distinct de l'ICPE.`
+          ? `${s.gisement.elevagesRayon10km} élevage(s) dans le rayon d'approvisionnement : des intrants d'origine animale sont probables, ce qui appelle un agrément sanitaire distinct de l'ICPE.`
           : null,
       ),
       seuil(

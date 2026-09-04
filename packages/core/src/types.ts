@@ -121,6 +121,77 @@ export interface Urbanisme {
 
 export type TypeSol = 'artificialise' | 'degrade' | 'agricole_exploite' | 'inculte' | 'naturel_forestier';
 
+/**
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ * LES LIBELLES DE LA NATURE DU SOL, A UN SEUL ENDROIT — POUR LA SECONDE FOIS
+ * ═════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE L'ECRAN MONTRAIT ENCORE, releve sur une capture de la vue Liste. La colonne « Nature du
+ * sol » affichait `artificialise` et `agricole exploite` — la valeur d'ENUMERATION, dont on avait
+ * seulement remplace les soulignes par des espaces. La fiche faisait de meme sur « Type de sol
+ * retenu : agricole_exploite », souligne compris.
+ *
+ * ET LA TABLE EXISTAIT DEJA — deux fois. `LIBELLES_TYPE_SOL` vivait dans `@enr/scoring`, d'ou un
+ * audit precedent l'avait tiree pour reparer exactement ce defaut dans le rapport PDF, en ecrivant
+ * dans son commentaire : « un libelle est une decision de vocabulaire ; il ne doit exister qu'a un
+ * seul endroit ». Le panneau de filtres en gardait pourtant une TROISIEME copie, plus courte, dans
+ * `PanneauGauche.tsx`. Trois graphies pour la meme chose, dont une illisible.
+ *
+ * POURQUOI DANS `core` ET PAS DANS `scoring`. Parce que `@enr/web` ne depend pas de `@enr/scoring`
+ * — c'est la raison mecanique pour laquelle la copie du panneau de filtres existait. Une table
+ * placee dans le paquet que TOUT LE MONDE importe est la seule qui ferme la porte a la quatrieme
+ * copie.
+ *
+ * DEUX LONGUEURS, PARCE QUE LES DEUX SONT LEGITIMES : une pastille de filtre et une cellule de
+ * tableau ne peuvent pas porter « Terrain dégradé (ancienne carrière, friche, décharge…) », et une
+ * fiche ou un PDF ont la place de l'ecrire. Le choix reste donc explicite a l'appel, mais le
+ * vocabulaire, lui, est unique.
+ */
+export const TYPES_SOL: Record<TypeSol, { court: string; long: string }> = {
+  artificialise: { court: 'Artificialisé', long: 'Terrain artificialisé' },
+  degrade: {
+    court: 'Dégradé / friche',
+    long: 'Terrain dégradé (ancienne carrière, friche, décharge…)',
+  },
+  inculte: { court: 'Inculte', long: 'Terrain inculte ou non exploité' },
+  agricole_exploite: { court: 'Agricole exploité', long: 'Terrain agricole exploité' },
+  naturel_forestier: { court: 'Naturel / forestier', long: 'Espace naturel ou forestier' },
+};
+
+/** Ordre d'affichage des natures de sol, du plus artificialise au plus naturel. */
+export const ORDRE_TYPES_SOL: readonly TypeSol[] = [
+  'artificialise',
+  'degrade',
+  'inculte',
+  'agricole_exploite',
+  'naturel_forestier',
+];
+
+/** Libelles longs, pour la fiche et les documents remis a un tiers. */
+export const LIBELLES_TYPE_SOL: Record<TypeSol, string> = {
+  artificialise: TYPES_SOL.artificialise.long,
+  degrade: TYPES_SOL.degrade.long,
+  inculte: TYPES_SOL.inculte.long,
+  agricole_exploite: TYPES_SOL.agricole_exploite.long,
+  naturel_forestier: TYPES_SOL.naturel_forestier.long,
+};
+
+/**
+ * Rend le libelle d'une nature de sol venue de la base, ou la valeur brute si elle est inconnue.
+ *
+ * La valeur traverse SQL en `string` : elle peut donc sortir de l'enumeration si le schema evolue
+ * sans que ce fichier suive. Rendre la valeur brute plutot que « — » garde l'information a l'ecran
+ * et rend l'oubli visible, au lieu de le faire disparaitre.
+ */
+export function libelleTypeSol(
+  valeur: string | null | undefined,
+  longueur: 'court' | 'long' = 'court',
+): string | null {
+  if (valeur == null || valeur === '') return null;
+  const entree = (TYPES_SOL as Record<string, { court: string; long: string } | undefined>)[valeur];
+  return entree ? entree[longueur] : valeur;
+}
+
 export interface OccupationSol {
   /** Classification synthetique retenue par le moteur pour determiner le regime PV. */
   typeSol: TypeSol | null;

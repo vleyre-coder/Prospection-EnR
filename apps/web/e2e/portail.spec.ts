@@ -213,7 +213,7 @@ test("avec les identifiants, l'application demarre et reste utilisable", async (
     // L'application est la : la barre de vues n'apparait qu'apres le montage complet.
     await expect(page.getByRole('group', { name: 'Vue' })).toBeVisible({ timeout: 30_000 });
     // Et non le formulaire de connexion : le jeton a bien traverse.
-    await expect(page.getByLabel('Adresse electronique')).toHaveCount(0);
+    await expect(page.getByLabel('Adresse électronique')).toHaveCount(0);
 
     expect(refusees, 'aucune ressource ne doit être refusée par le portail').toEqual([]);
 

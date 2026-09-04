@@ -94,7 +94,7 @@ test('un RPG non consulte ne se lit pas « aucune declaration »', () => {
 
 test('un RPG consulte sans ilot affirme l’absence de declaration', () => {
   const r = libelleCultureRpg(rpg({ anneesDeclareesConsecutives: 0 }));
-  assert.equal(r.texte, 'aucune declaration PAC');
+  assert.equal(r.texte, 'aucune déclaration PAC');
   // Pas un « absent » : c'est une information, et meme un atout en solaire au sol.
   assert.equal(r.absent, false);
 });

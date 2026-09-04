@@ -105,7 +105,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
     rAppb,
   ] = await Promise.all([
     urbanismeParcelle(geom, parcelle.surfaceCalculeeM2).catch((e) => {
-      journal.warn({ err: e, idu: parcelle.idu }, 'Echec urbanisme');
+      journal.warn({ err: e, idu: parcelle.idu }, 'Échec urbanisme');
       return null;
     }),
     foret(geom, parcelle.surfaceCalculeeM2),
@@ -345,8 +345,8 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
         idu: parcelle.idu,
         anomalies: anomalies.map((a) => `${a.chemin} = ${a.valeur} ${a.unite} (borne ${a.min}..${a.max})`),
       },
-      'Grandeurs hors bornes de vraisemblance : ramenées a « donnée indisponible ». ' +
-        'Verifiez le connecteur ou le calcul concerne.',
+      'Grandeurs hors bornes de vraisemblance : ramenées à « donnée indisponible ». ' +
+        'Vérifiez le connecteur ou le calcul concerne.',
     );
   }
 

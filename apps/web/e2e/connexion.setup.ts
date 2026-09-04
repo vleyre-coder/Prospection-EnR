@@ -25,7 +25,7 @@ import { E2E, FICHIER_ETAT_SESSION } from '../playwright.config.js';
 setup('connexion unique, session conservée', async ({ page }) => {
   await page.goto('/');
 
-  const champEmail = page.getByLabel('Adresse electronique');
+  const champEmail = page.getByLabel('Adresse électronique');
   await expect(champEmail).toBeVisible({ timeout: 30_000 });
   await champEmail.fill(E2E.email);
   await page.getByLabel('Mot de passe').fill(E2E.motDePasse);

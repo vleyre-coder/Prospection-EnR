@@ -191,8 +191,8 @@ export function determinerRegimeImplantation(s: ParcelleSnapshot, filiere: Filie
 }
 
 export const LIBELLES_REGIME: Record<string, string> = {
-  pv_sol_terrain_degrade: 'Photovoltaïque au sol sur terrain dégradé ou artificialise (présumé)',
-  agrivoltaisme: 'Agrivoltaisme sur parcelle agricole exploitée (présumé)',
+  pv_sol_terrain_degrade: 'Photovoltaïque au sol sur terrain dégradé ou artificialisé (présumé)',
+  agrivoltaisme: 'Agrivoltaïsme sur parcelle agricole exploitée (présumé)',
   pv_sol_document_cadre: 'Photovoltaïque au sol sur terrain inculte (document-cadre départemental)',
   pv_sol_defrichement: 'Photovoltaïque au sol avec défrichement (fortement penalise)',
 };
@@ -211,8 +211,8 @@ export const LIBELLES_REGIME: Record<string, string> = {
 export const RESERVE_REGIME =
   "Régime PRÉSUMÉ, deduit de la nature du sol observée. Le classement en terrain dégradé au " +
   "sens du décret du 29 décembre 2023 suppose d'établir l'historique du site (ancienne " +
-  "carriere, décharge, friche, pollution), et le caractère agricole exploité s'apprecie sur " +
-  "l'activite reelle. A confirmer avant tout depot.";
+  "carrière, décharge, friche, pollution), et le caractère agricole exploité s'apprecie sur " +
+  "l'activité réelle. A confirmer avant tout dépôt.";
 
 /**
  * Limites de viabilite economique.
@@ -268,7 +268,7 @@ function evaluerLimitesViabilite(
     surfaceCadastraleHa > 0 ? 1 - surfaceHa / surfaceCadastraleHa : 0;
   const reserveModele =
     partDeduite > 0.4
-      ? ` ATTENTION : la deduction atteint ${Math.round(partDeduite * 100)} % de la surface` +
+      ? ` ATTENTION : la déduction atteint ${Math.round(partDeduite * 100)} % de la surface` +
         ` cadastrale. Le modèle d'érosion perimetrale suppose une emprise dont le contour est` +
         ` petit devant l'aire ; il quitte ce régime sous environ 1 ha et la surface implantable` +
         ` annoncée n'y est plus qu'un ordre de grandeur pessimiste. À trancher sur plan de masse.`
@@ -277,12 +277,12 @@ function evaluerLimitesViabilite(
   if (surfaceHa < min * 0.25) {
     limites.push({
       id: 'viab_surface_tres_insuffisante',
-      libelle: 'Surface tres insuffisante',
+      libelle: 'Surface très insuffisante',
       motif:
         `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
         `au cadastre), soit moins du quart de la surface minimale indicative de ${ha(min)} ha pour la ` +
-        `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'interet ` +
-        `qu'agregee a des parcelles voisines au sein d'un site.${reserveModele}`,
+        `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'intérêt ` +
+        `qu'agregee à des parcelles voisines au sein d'un site.${reserveModele}`,
       statutMaximal: 'rouge',
     });
   } else if (surfaceHa < min * 0.6) {
@@ -291,8 +291,8 @@ function evaluerLimitesViabilite(
       libelle: 'Surface insuffisante seule',
       motif:
         `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
-        `au cadastre), en dessous de la surface minimale indicative de ${ha(min)} ha pour la filiere ` +
-        `${meta.libelleCourt}. Seuil ECONOMIQUE et non reglementaire : a regrouper avec des ` +
+        `au cadastre), en dessous de la surface minimale indicative de ${ha(min)} ha pour la filière ` +
+        `${meta.libelleCourt}. Seuil ÉCONOMIQUE et non réglementaire : à regrouper avec des ` +
         `parcelles voisines pour atteindre une taille finançable.${reserveModele}`,
       statutMaximal: 'orange',
     });
@@ -465,10 +465,10 @@ export function calculerScore(
       id: 'criteres_sans_source',
       libelle: 'Enjeux déterminants non évalués, faute de source',
       motif:
-        `${criteresSansSource.length} critere(s) n'ont aucune source ingeree sur ce territoire : ` +
-        `${criteresSansSource.join(', ')}. Ils sont exclus du calcul plutot que comptes comme ` +
-        `manquants - sans quoi la filière entiere basculerait en gris, ce qui n'aiderait a ` +
-        `rien. Le score reste donc comparable d'une parcelle a l'autre, mais aucune parcelle ` +
+        `${criteresSansSource.length} critère(s) n'ont aucune source ingérée sur ce territoire : ` +
+        `${criteresSansSource.join(', ')}. Ils sont exclus du calcul plutôt que comptes comme ` +
+        `manquants - sans quoi la filière entière basculerait en gris, ce qui n'aiderait à ` +
+        `rien. Le score reste donc comparable d'une parcelle à l'autre, mais aucune parcelle ` +
         `ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.`,
       statutMaximal: 'orange',
     });
@@ -479,8 +479,8 @@ export function calculerScore(
       id: 'couverture_insuffisante',
       libelle: 'Couverture de données insuffisante pour conclure',
       motif:
-        `Seuls ${Math.round(couvertureDonnees * 100)} % du poids des criteres ont pu etre evalues ` +
-        `(${criteres.filter((c) => c.note == null).length} critere(s) sans donnee). Le score est ` +
+        `Seuls ${Math.round(couvertureDonnees * 100)} % du poids des critères ont pu être évalués ` +
+        `(${criteres.filter((c) => c.note == null).length} critère(s) sans donnée). Le score est ` +
         `calcule sur les seuls critères renseignes : il est donc optimiste, car les données ` +
         `manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut ` +
         `pas être classée propice tant que la couverture n'atteint pas ` +
@@ -526,7 +526,7 @@ export function calculerScore(
     .slice(0, 3 - pointsVigilance.length)
     .map((c) => ({
       critereId: c.id,
-      libelle: `${c.libelle} : donnee manquante`,
+      libelle: `${c.libelle} : donnée manquante`,
       valeur: c.valeurAffichee,
       impact: 0,
     }));
@@ -534,7 +534,7 @@ export function calculerScore(
   const avertissements = AVERTISSEMENTS_GLOBAUX.map((a) => a.texte);
   if (couvertureDonnees < 0.8) {
     avertissements.push(
-      `Couverture de donnees de ${Math.round(couvertureDonnees * 100)} % : ${criteres.filter((c) => c.note == null).length} critere(s) n'ont pu etre evalues. L'absence de donnee ne vaut pas absence de contrainte.`,
+      `Couverture de données de ${Math.round(couvertureDonnees * 100)} % : ${criteres.filter((c) => c.note == null).length} critère(s) n'ont pu être évalués. L'absence de donnée ne vaut pas absence de contrainte.`,
     );
   }
   for (const limite of limitesViabilite) {
@@ -542,7 +542,7 @@ export function calculerScore(
   }
   if ((options.knockOutsDesactives?.length ?? 0) > 0) {
     avertissements.push(
-      `Mode scenario derogatoire : ${options.knockOutsDesactives!.length} critere(s) redhibitoire(s) ont ete desactives manuellement. Le resultat ne reflete pas le cadre reglementaire en vigueur.`,
+      `Mode scénario dérogatoire : ${options.knockOutsDesactives!.length} critère(s) rédhibitoire(s) ont été desactives manuellement. Le résultat ne reflete pas le cadre réglementaire en vigueur.`,
     );
   }
 
@@ -742,7 +742,7 @@ export function calculerScoreSite(
         `Les parcelles retenues ne forment pas une emprise continue mais ${nbGroupesContigus} ` +
         `groupes séparés. Chacun demanderait sa propre clôture, sa propre piste et son propre ` +
         `raccordement : le site n'est pas un projet mais plusieurs. La surface implantable est ` +
-        `estimee groupe par groupe (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
+        `estimée groupe par groupe (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
         `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre) et non comme une emprise unique, qui ` +
         `l'aurait surestimee. A rapprocher d'un regroupement effectivement jointif.`,
       statutMaximal: 'orange',
@@ -755,7 +755,7 @@ export function calculerScoreSite(
         `La disposition géométrique des parcelles n'a pas été vérifiée. La surface implantable ` +
         `est donc deduite parcelle par parcelle (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
         `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre), hypothese prudente : si les parcelles ` +
-        `sont jointives, la surface reelle est supérieure.`,
+        `sont jointives, la surface réelle est supérieure.`,
       statutMaximal: 'orange',
     });
   }

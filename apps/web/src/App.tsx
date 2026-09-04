@@ -156,7 +156,7 @@ export function App(): JSX.Element {
           <h2 style={{ fontSize: 16 }}>Application indisponible</h2>
           <p>
             {err?.estReseau
-              ? "L'API est injoignable. Demarrez le serveur (npm run dev:api) et verifiez la base de données."
+              ? "L'API est injoignable. Demarrez le serveur (npm run dev:api) et vérifiez la base de données."
               : (err?.message ?? 'Erreur inconnue.')}
           </p>
           <button type="button" className="bouton" onClick={() => void referentiel.refetch()}>
@@ -255,7 +255,7 @@ export function App(): JSX.Element {
               className="bouton poignee-gauche"
               onClick={etat.basculerPanneauGauche}
             >
-              Filtres et legende
+              Filtres et légende
             </button>
           )}
 
@@ -374,9 +374,9 @@ function OutilsCarte({
         const d = e.derniereCampagne;
         if (d?.interrompue) {
           setQualification(
-            `Attention : la derniere campagne de qualification a été interrompue a ` +
+            `Attention : la dernière campagne de qualification a été interrompue à ` +
               `${d.traitees} parcelle(s) sur ${d.total}. Le lot est INCOMPLET — les parcelles ` +
-              `manquantes n'ont pas été interrogees, leur absence de la carte ne veut donc rien ` +
+              `manquantes n'ont pas été interrogées, leur absence de la carte ne veut donc rien ` +
               `dire. Relancez la qualification sur le même secteur pour le compléter.`,
           );
         }
@@ -407,7 +407,7 @@ function OutilsCarte({
           // attente ne distingue pas « ma demande est perdue » de « mon tour vient ».
           const attente =
             e.fileAttente.length > 0
-              ? ` — ${e.fileAttente.length} demande(s) en attente derriere`
+              ? ` — ${e.fileAttente.length} demande(s) en attente derrière`
               : '';
           setQualification(
             e.enCours
@@ -416,7 +416,7 @@ function OutilsCarte({
                     ? ` — encore ${Math.ceil(e.resteSecondes / 60)} min environ`
                     : ''
                 }${attente}`
-              : `${e.message ?? 'Qualification terminee'}. Carte mise a jour.`,
+              : `${e.message ?? 'Qualification terminée'}. Carte mise à jour.`,
           );
           // La couverture est connue des la fin de la phase de recuperation, soit bien avant la fin
           // de la campagne : la publier tout de suite permet d'arreter et de relancer autrement.
@@ -427,7 +427,7 @@ function OutilsCarte({
           const d = e.derniereCampagne;
           if (!e.enCours && d?.interrompue) {
             setQualification(
-              `Campagne INTERROMPUE a ${d.traitees} parcelle(s) sur ${d.total}. Le lot est ` +
+              `Campagne INTERROMPUE à ${d.traitees} parcelle(s) sur ${d.total}. Le lot est ` +
                 `incomplet : relancez la qualification sur le même secteur.`,
             );
           }
@@ -453,7 +453,7 @@ function OutilsCarte({
     // l'emprise couvre un departement entier et represente des semaines de traitement.
     if (m.getZoom() < 10) {
       setQualification(
-        'Zoomez un peu : au-delà de l’échelle du département, la qualification demanderait des semaines. Le niveau d’une a quelques communes est le bon.',
+        'Zoomez un peu : au-delà de l’échelle du département, la qualification demanderait des semaines. Le niveau d’une à quelques communes est le bon.',
       );
       return;
     }
@@ -481,7 +481,7 @@ function OutilsCarte({
         const reserves: string[] = [];
         if (est.nbEcarteesEstime > 0) {
           reserves.push(
-            `Environ ${est.nbEcarteesEstime} parcelle(s) seront ECARTEES car plus petites que ` +
+            `Environ ${est.nbEcarteesEstime} parcelle(s) seront ÉCARTÉES car plus petites que ` +
               `${(est.surfaceMinM2 / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha.`,
           );
         }
@@ -493,7 +493,7 @@ function OutilsCarte({
         }
         if (reserves.length > 0) {
           reserves.push(
-            'Une parcelle precise peut toujours être qualifiee en la cliquant sur le cadastre, ' +
+            'Une parcelle precise peut toujours être qualifiée en la cliquant sur le cadastre, ' +
               'ou par sa référence dans la recherche.',
           );
         }
@@ -501,7 +501,7 @@ function OutilsCarte({
         // soit le volume : elles ne parlent pas du temps mais de ce que la campagne ne verra pas.
         if (est.nbEstime > 40 || reserves.length > 0) {
           const ok = window.confirm(
-            `Environ ${est.nbEstime} parcelles a qualifier sur ce secteur, soit de l'ordre de ` +
+            `Environ ${est.nbEstime} parcelles à qualifier sur ce secteur, soit de l'ordre de ` +
               `${est.dureeEstimeeMin} minutes.\n\n` +
               (reserves.length > 0 ? `${reserves.join('\n\n')}\n\n` : '') +
               "Le traitement se fait en arrière-plan : vous pouvez continuer à travailler, " +
@@ -518,30 +518,30 @@ function OutilsCarte({
             setSuiviActif(true);
             setQualification(
               r.position != null && r.position > 0
-                ? `Demande enregistree en position ${r.position} : une campagne occupe deja les ` +
+                ? `Demande enregistrée en position ${r.position} : une campagne occupe déjà les ` +
                     `sources, limitées à une requête par seconde. La votre demarrera seule.`
                 : (r.etat?.message ?? 'Campagne lancée en arrière-plan…'),
             );
           } else {
             setQualification(
-              `${r.nbEnrichies ?? 0} parcelle(s) qualifiee(s) sur ${r.nbParcelles ?? 0}` +
-                ((r.nbEchecs ?? 0) > 0 ? `, ${r.nbEchecs} en echec` : '') +
-                '. Carte mise a jour.',
+              `${r.nbEnrichies ?? 0} parcelle(s) qualifiée(s) sur ${r.nbParcelles ?? 0}` +
+                ((r.nbEchecs ?? 0) > 0 ? `, ${r.nbEchecs} en échec` : '') +
+                '. Carte mise à jour.',
             );
             // Meme regle que pour une campagne en arriere-plan : ce qui a ete ecarte doit se voir.
             if ((r.nbEcarteesSurface ?? 0) > 0) {
               setCouverture(
-                `${r.nbEcarteesSurface} parcelle(s) du secteur n'ont PAS ete qualifiees : plus ` +
+                `${r.nbEcarteesSurface} parcelle(s) du secteur n'ont PAS été qualifiées : plus ` +
                   `petites que ${((r.surfaceMinAppliqueeM2 ?? 0) / 10000).toLocaleString('fr-FR', {
                     maximumFractionDigits: 2,
-                  })} ha. Cliquez une parcelle du cadastre pour la qualifier malgre tout.`,
+                  })} ha. Cliquez une parcelle du cadastre pour la qualifier malgré tout.`,
               );
             }
             rafraichirTuiles();
           }
         });
       })
-      .catch((e: ErreurApi) => setQualification(`Echec : ${e.message}`));
+      .catch((e: ErreurApi) => setQualification(`Échec : ${e.message}`));
   };
 
   return (
@@ -632,7 +632,7 @@ function OutilsCarte({
                   );
                   etat.viderSelection();
                 })
-                .catch((e: ErreurApi) => window.alert(`Creation impossible : ${e.message}`));
+                .catch((e: ErreurApi) => window.alert(`Création impossible : ${e.message}`));
             }}
           >
             Agreger en site

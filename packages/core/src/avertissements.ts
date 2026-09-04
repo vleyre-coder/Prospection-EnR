@@ -116,7 +116,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: 'Données de propriétaires : accès restreint',
     texte:
-      "Les informations relatives aux propriétaires sont des données à caractère personnel. Leur consultation est journalisée et réservée aux utilisateurs habilités, dans le cadre de la finalité de prospection fonciere déclarée. Toute diffusion en dehors de ce cadre est interdite.",
+      "Les informations relatives aux propriétaires sont des données à caractère personnel. Leur consultation est journalisée et réservée aux utilisateurs habilités, dans le cadre de la finalité de prospection foncière déclarée. Toute diffusion en dehors de ce cadre est interdite.",
     cible: ['foncier', 'fonc_nb_proprietaires', 'fonc_maitrise'],
   },
 ];

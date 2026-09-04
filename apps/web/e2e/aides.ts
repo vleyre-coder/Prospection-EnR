@@ -65,7 +65,7 @@ export async function seConnecter(
 
   if (!attendreApplication) return;
 
-  const champEmail = page.getByLabel('Adresse electronique');
+  const champEmail = page.getByLabel('Adresse électronique');
   const barreVues = page.getByRole('group', { name: 'Vue' });
 
   /**

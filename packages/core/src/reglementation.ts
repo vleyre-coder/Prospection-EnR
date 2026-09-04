@@ -83,16 +83,16 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
   },
   eval_env_cas_par_cas: {
     id: 'pv_eval_env_cas_par_cas',
-    libelle: 'Examen au cas par cas de 300 kWc a 3 MWc',
+    libelle: 'Examen au cas par cas de 300 kWc à 3 MWc',
     valeur: 0.3,
     unite: 'MWc',
     reference: "Code de l'environnement, art. R.122-2, annexe, rubrique 30",
     dateEntreeEnVigueur: '2022-10-01',
     instable: true,
     commentaire:
-      "La rubrique 30 de l'annexe a l'article R.122-2 a été remaniée plusieurs fois depuis 2020 " +
+      "La rubrique 30 de l'annexe à l'article R.122-2 a été remaniée plusieurs fois depuis 2020 " +
       "et les bornes de puissance declenchant l'examen au cas par cas ont bouge à chaque " +
-      "révision. La décision relevé en outre de l'autorité environnementale, qui apprecie la " +
+      "révision. La décision relève en outre de l'autorité environnementale, qui apprecie la " +
       "sensibilité du milieu au-delà du seul seuil de puissance : deux projets de même puissance " +
       "peuvent recevoir des réponses différentes. À confirmer auprès de la DREAL avant tout dépôt.",
   },
@@ -117,7 +117,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
   },
   agri_taux_couverture: {
     id: 'agri_taux_couverture',
-    libelle: 'Agrivoltaisme : taux de couverture maximal de 40 % de la parcelle',
+    libelle: 'Agrivoltaïsme : taux de couverture maximal de 40 % de la parcelle',
     valeur: 40,
     unite: '%',
     reference: "Décret n°2024-318 du 8 avril 2024, art. 2 ; Code de l'énergie art. R.314-108 et s.",
@@ -129,7 +129,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
   },
   agri_zone_temoin: {
     id: 'agri_zone_temoin',
-    libelle: "Agrivoltaisme : zone témoin d'au moins 5 % de la surface",
+    libelle: "Agrivoltaïsme : zone témoin d'au moins 5 % de la surface",
     valeur: 5,
     unite: '%',
     reference: 'Décret n°2024-318 du 8 avril 2024',
@@ -139,7 +139,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
   },
   agri_avis_cdpenaf: {
     id: 'agri_avis_cdpenaf',
-    libelle: 'Avis de la CDPENAF requis pour les projets agrivoltaiques',
+    libelle: 'Avis de la CDPENAF requis pour les projets agrivoltaïques',
     reference: "Code de l'urbanisme, art. L.111-30 ; décret n°2024-318 du 8 avril 2024",
     dateEntreeEnVigueur: '2024-04-09',
   },
@@ -160,38 +160,38 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2016-12-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031104466`,
     commentaire:
-      "Due lorsqu'un projet soustrait durablement des terres a l'usage agricole au-delà d'un seuil de " +
+      "Due lorsqu'un projet soustrait durablement des terres à l'usage agricole au-delà d'un seuil de " +
       'surface fixe par ARRÊTÉ PRÉFECTORAL — de l\'ordre de un à cinq hectares selon les départements, ' +
       "sans règle nationale. L'étude chiffre l'effet sur l'économie agricole du territoire et propose des " +
       'mesures de compensation collective, souvent une contribution à un fonds. Compter plusieurs mois. Une ' +
-      'installation agrivoltaique qui maintient une production agricole significative peut y échapper : ' +
+      'installation agrivoltaïque qui maintient une production agricole significative peut y échapper : ' +
       "c'est précisément l'un des intérêts du régime.",
     instable: true,
     aValiderParJuriste: true,
   },
   demantelement: {
     id: 'pv_demantelement',
-    libelle: 'Démantèlement, remise en état et garanties financieres',
+    libelle: 'Démantèlement, remise en état et garanties financières',
     reference:
       "Code de l'urbanisme, art. L.111-29 (loi APER) ; décret n°2024-318 du 8 avril 2024 (réversibilité " +
-      "de l'installation agrivoltaique) ; Code de l'énergie, art. R.314-108 et suivants",
+      "de l'installation agrivoltaïque) ; Code de l'énergie, art. R.314-108 et suivants",
     dateEntreeEnVigueur: '2024-04-09',
     commentaire:
       "L'obligation de remise en état est systématique ; ce qui varie, c'est l'exigence de GARANTIES " +
-      'FINANCIERES, que le préfet ou la collectivité peut imposer, et le contenu de la promesse de bail. ' +
-      "Pour l'agrivoltaisme, la réversibilité fait partie des conditions du régime lui-même : une " +
-      "installation non réversible n'est pas agrivoltaique, et perd le bénéfice du dispositif. C'est " +
-      'souvent la premiere question du propriétaire.',
+      'FINANCIÈRES, que le préfet ou la collectivité peut imposer, et le contenu de la promesse de bail. ' +
+      "Pour l'agrivoltaïsme, la réversibilité fait partie des conditions du régime lui-même : une " +
+      "installation non réversible n'est pas agrivoltaïque, et perd le bénéfice du dispositif. C'est " +
+      'souvent la première question du propriétaire.',
     aValiderParJuriste: true,
   },
   aop_viticole: {
     id: 'pv_aop_viticole',
-    libelle: "Aire parcellaire delimitee d'AOP viticole : implantation photovoltaique exclue",
+    libelle: "Aire parcellaire délimitée d'AOP viticole : implantation photovoltaïque exclue",
     reference:
       "Code rural et de la pêche maritime, art. L.641-5 et s. ; doctrines INAO relatives aux installations photovoltaïques",
     dateEntreeEnVigueur: '2023-03-11',
     commentaire:
-      "L'INAO est consulte et s'oppose en principe a l'artificialisation des aires parcellaires délimitées AOP, en particulier viticoles. Traite comme rédhibitoire par défaut, paramétrable.",
+      "L'INAO est consulte et s'oppose en principe à l'artificialisation des aires parcellaires délimitées AOP, en particulier viticoles. Traite comme rédhibitoire par défaut, paramétrable.",
     instable: true,
   },
 };
@@ -204,7 +204,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
   distance_habitation: {
     id: 'eol_distance_habitation',
     libelle:
-      "Éloignement minimal de 500 m des constructions a usage d'habitation et des zones destinées à l'habitation",
+      "Éloignement minimal de 500 m des constructions à usage d'habitation et des zones destinées à l'habitation",
     valeur: 500,
     unite: 'm',
     reference: "Code de l'environnement, art. L.515-44",
@@ -222,7 +222,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2980",
     dateEntreeEnVigueur: '2011-08-23',
     commentaire:
-      "Declaration pour les parcs dont les mats sont < 50 m et la puissance totale >= 20 MW. En pratique, tout parc contemporain releve de l'autorisation environnementale unique.",
+      "Déclaration pour les parcs dont les mâts sont < 50 m et la puissance totale >= 20 MW. En pratique, tout parc contemporain relève de l'autorisation environnementale unique.",
   },
   rayon_enquete_publique: {
     id: 'eol_rayon_enquete',
@@ -271,7 +271,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
       "Ces servitudes protegent les liaisons hertziennes contre les obstacles : un aérogénérateur de plus " +
       "de cent mètres en travers d'un faisceau est en principe incompatible. Elles sont annexées au " +
       "document d'urbanisme et publiées comme servitudes d'utilité publique. Un déplacement de machine " +
-      "suffit parfois à dégager le faisceau, d'ou un caractère derogeable plutôt que bloquant : c'est " +
+      "suffit parfois à dégager le faisceau, d'ou un caractère dérogeable plutôt que bloquant : c'est " +
       "une contrainte d'implantation, dont l'issue se juge sur un plan de masse.",
     instable: true,
     aValiderParJuriste: true,
@@ -303,7 +303,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
   icpe_2925_2: {
     id: 'bess_icpe_2925_2',
     libelle:
-      "ICPE rubrique 2925-2 : declaration pour les installations de stockage d'electricite de puissance > 600 kW",
+      "ICPE rubrique 2925-2 : déclaration pour les installations de stockage d'électricité de puissance > 600 kW",
     valeur: 600,
     unite: 'kW',
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2925, alinéa 2",
@@ -325,7 +325,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
   chimie_lfp: {
     id: 'bess_chimie_lfp',
     libelle: 'Chimie LFP (lithium fer phosphate) recommandee',
-    reference: 'Recommandation technique - non reglementaire',
+    reference: 'Recommandation technique - non réglementaire',
     dateEntreeEnVigueur: '2024-01-01',
     commentaire:
       "La chimie LFP réduit fortement le risque d'emballement thermique par rapport aux chimies NMC, et facilité l'instruction ICPE et l'avis du SDIS.",
@@ -369,7 +369,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
       'domino) ; art. L.515-15 à L.515-19 pour le voisinage d’un site Seveso seuil haut',
     dateEntreeEnVigueur: '2017-03-01',
     commentaire:
-      "Un stockage électrochimique implante pres d’une installation a risque est instruit sous l’angle des " +
+      "Un stockage électrochimique implante pres d’une installation à risque est instruit sous l’angle des " +
       'effets domino, dans les deux sens : ce que le site voisin peut déclencher sur les batteries, et ' +
       'l’inverse. C’est un motif d’instruction longue plus qu’un refus, mais il se decide tôt — d’ou son ' +
       'intérêt en prospection.',
@@ -386,7 +386,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
       "Point de méthode propre à cette filière, et la raison pour laquelle le raccordement pese 42 % du " +
       'score du stockage : les capacités réservées par un S3REnR sont destinées aux installations de ' +
       'PRODUCTION d’énergie renouvelable. Un stockage pur ne s’inscrit pas nécessairement dans cette ' +
-      'réservation et peut se voir appliquer le régime de droit commun, avec un cout et un délai ' +
+      'réservation et peut se voir appliquer le régime de droit commun, avec un coût et un délai ' +
       'différents. À confirmer auprès du gestionnaire de réseau AVANT toute promesse au propriétaire.',
     instable: true,
     aValiderParJuriste: true,
@@ -405,11 +405,11 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     unite: 't/j',
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
     dateEntreeEnVigueur: '2021-06-24',
-    commentaire: 'Matiere vegetale brute, effluents d\'elevage, matieres stercoraires, lactoserum.',
+    commentaire: 'Matière végétale brute, effluents d\'élevage, matières stercoraires, lactoserum.',
   },
   icpe_2781_enregistrement: {
     id: 'metha_2781_e',
-    libelle: 'ICPE 2781-1 : enregistrement de 30 a 100 t/j',
+    libelle: 'ICPE 2781-1 : enregistrement de 30 à 100 t/j',
     valeur: 100,
     unite: 't/j',
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
@@ -423,7 +423,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
     dateEntreeEnVigueur: '2021-06-24',
     commentaire:
-      'La rubrique 2781-2 (autres déchets, notamment biodéchets et boues) relevé de l\'autorisation quel que soit le tonnage au-delà de 100 t/j, avec un régime plus contraignant.',
+      'La rubrique 2781-2 (autres déchets, notamment biodéchets et boues) relève de l\'autorisation quel que soit le tonnage au-delà de 100 t/j, avec un régime plus contraignant.',
   },
   distance_habitation: {
     id: 'metha_distance_habitation',
@@ -473,27 +473,27 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
    */
   sous_produits_animaux: {
     id: 'metha_sous_produits_animaux',
-    libelle: 'Intrants d’origine animale : agrement sanitaire',
+    libelle: 'Intrants d’origine animale : agrément sanitaire',
     reference:
       'Règlement (CE) n°1069/2009 du 21 octobre 2009 (sous-produits animaux) et règlement (UE) ' +
       "n°142/2011 ; Code rural et de la pêche maritime, art. L.226-1 et suivants",
     dateEntreeEnVigueur: '2011-03-04',
     commentaire:
       "Des qu'un intrant contient des sous-produits animaux — lisier, fumier, contenus stomacaux, déchets " +
-      "de découpe — l'unité relevé du règlement sanitaire européen, en plus de l'ICPE. Conséquences " +
-      'concrètes : agrément sanitaire delivre par la DDPP, hygienisation ou pasteurisation selon la ' +
+      "de découpe — l'unité relève du règlement sanitaire européen, en plus de l'ICPE. Conséquences " +
+      'concrètes : agrément sanitaire delivre par la DDPP, hygiénisation ou pasteurisation selon la ' +
       "catégorie des matières, et traçabilité. Le rappel est declenche ici par la présence d'élevages dans " +
-      "le rayon d'approvisionnement, qui rend ces intrants probables ; la nature reelle du plan " +
+      "le rayon d'approvisionnement, qui rend ces intrants probables ; la nature réelle du plan " +
       "d'approvisionnement seule permet de conclure.",
     aValiderParJuriste: true,
   },
   acces_engins: {
     id: 'metha_acces_engins',
-    libelle: 'Acces poids lourds : trafic quotidien d’approvisionnement',
+    libelle: 'Accès poids lourds : trafic quotidien d’approvisionnement',
     reference:
       "Arrêté ministériel du 12 aout 2010 (rubrique 2781, voies d'accès et de circulation) ; règlement " +
       'départemental de défense extérieure contre l’incendie (art. R.2225-7 du code général des ' +
-      'collectivites territoriales)',
+      'collectivités territoriales)',
     dateEntreeEnVigueur: '2010-08-13',
     commentaire:
       "La différence avec les autres filières est le CARACTÈRE QUOTIDIEN du trafic : une unité de quelques " +
@@ -506,7 +506,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
   },
   injection: {
     id: 'metha_injection',
-    libelle: 'Injection de biomethane : droit à l\'injection et rebours',
+    libelle: 'Injection de biométhane : droit à l\'injection et rebours',
     reference:
       "Code de l'énergie, art. L.446-1 et s. ; décret n°2019-1043 du 11 octobre 2019 relatif au droit à l'injection",
     dateEntreeEnVigueur: '2019-10-13',
@@ -541,13 +541,13 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
 export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   coeur_parc_national: {
     id: 'commun_coeur_parc_national',
-    libelle: 'Coeur de parc national : travaux soumis à autorisation spéciale',
+    libelle: 'Cœur de parc national : travaux soumis à autorisation spéciale',
     reference:
-      "Code de l'environnement, art. L.331-4 et L.331-4-1 (réglementation du coeur de parc national)",
+      "Code de l'environnement, art. L.331-4 et L.331-4-1 (réglementation du cœur de parc national)",
     dateEntreeEnVigueur: '2006-04-16',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022478094`,
     commentaire:
-      "Dans le coeur d’un parc national, les travaux sont interdits sauf autorisation spéciale de " +
+      "Dans le cœur d’un parc national, les travaux sont interdits sauf autorisation spéciale de " +
       'l’établissement du parc, et la réglementation propre à chaque parc peut aller plus loin. La date ' +
       'retenue est celle de la loi du 14 avril 2006 qui a refonde le régime.',
     aValiderParJuriste: true,
@@ -563,18 +563,18 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     commentaire:
       "L’article L.332-9 pose une interdiction de principe de détruire ou modifier l’état ou l’aspect de " +
       'la réserve ; l’acte de classement fixe le détail. Une dérogation existe mais reste exceptionnelle ' +
-      'et n’a jamais, a ma connaissance, porte un projet de production d’énergie.',
+      'et n’a jamais, à ma connaissance, porte un projet de production d’énergie.',
     aValiderParJuriste: true,
   },
   appb: {
     id: 'commun_appb',
     libelle: 'Arrêté préfectoral de protection de biotope : interdictions fixées par l’arrêté',
-    reference: "Code de l'environnement, art. R.411-15 a R.411-17 (protection des biotopes)",
+    reference: "Code de l'environnement, art. R.411-15 à R.411-17 (protection des biotopes)",
     dateEntreeEnVigueur: '1977-09-27',
     url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074220/LEGISCTA000006189070`,
     commentaire:
       "La portée dépend ENTIÈREMENT de l’arrêté préfectoral : certains interdisent toute activité, " +
-      'd’autres seulement certaines pratiques a certaines périodes. Lire l’arrêté plutôt que conclure du ' +
+      'd’autres seulement certaines pratiques à certaines périodes. Lire l’arrêté plutôt que conclure du ' +
       'zonage. La date retenue est celle du décret du 25 novembre 1977 qui a cree le dispositif.',
     instable: true,
     aValiderParJuriste: true,
@@ -622,15 +622,15 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     commentaire:
       'Institue par la loi du 30 juillet 2003. Comme pour un plan naturel, la portée exacte est celle du ' +
       'règlement du plan : les zones les plus exposées interdisent toute construction nouvelle, les ' +
-      'suivantes l’autorisent sous prescriptions. Un stockage de batteries a proximité d’un site Seveso ' +
+      'suivantes l’autorisent sous prescriptions. Un stockage de batteries à proximité d’un site Seveso ' +
       'appelle en outre l’examen des effets domino par la DREAL.',
     instable: true,
     aValiderParJuriste: true,
   },
   ebc: {
     id: 'commun_ebc',
-    libelle: 'Espace boise classe : défrichement rejete de plein droit',
-    reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boises classes)",
+    libelle: 'Espace boisé classe : défrichement rejete de plein droit',
+    reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boisés classes)",
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074075/LEGISCTA000031211122`,
     commentaire:
@@ -646,27 +646,27 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     libelle: 'Emplacement réserve : foncier affecte à un autre usage',
     reference:
       "Code de l'urbanisme, art. L.151-41 (emplacements réserves) ; art. L.152-2 (droit de délaissement " +
-      'du proprietaire)',
+      'du propriétaire)',
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031211183`,
     commentaire:
       "La réserve n’interdit pas matériellement d’occuper le terrain, elle le DESTINE à un équipement, une " +
       'voie ou un espace vert au bénéfice d’une collectivité : un projet privé de longue durée y est ' +
       'incompatible en pratique. Elle peut être levée par modification du PLU, ou tomber si la ' +
-      'collectivite renonce.',
+      'collectivité renonce.',
     aValiderParJuriste: true,
   },
   zone_n: {
     id: 'commun_zone_n',
-    libelle: 'Zone naturelle et forestiere (N) : constructibilité très limitée',
+    libelle: 'Zone naturelle et forestière (N) : constructibilité très limitée',
     reference:
-      "Code de l'urbanisme, art. R.151-24 et R.151-25 (zones naturelles et forestieres) ; art. L.151-13 " +
+      "Code de l'urbanisme, art. R.151-24 et R.151-25 (zones naturelles et forestières) ; art. L.151-13 " +
       '(secteurs de taille et de capacité d’accueil limitées)',
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031720483`,
     commentaire:
-      "Deux voies existent et elles n’ont pas le même cout : le STECAL de l’article L.151-13, qui suppose " +
-      'une modification du PLU et l’avis de la CDPENAF, ou une révision du zonage. Compter 12 a 24 mois. ' +
+      "Deux voies existent et elles n’ont pas le même coût : le STECAL de l’article L.151-13, qui suppose " +
+      'une modification du PLU et l’avis de la CDPENAF, ou une révision du zonage. Compter 12 à 24 mois. ' +
       'La loi APER a par ailleurs ouvert des possibilités en zone d’accélération, ce que le moteur prend ' +
       'en compte lorsque la parcelle y figure pour la filière étudiée.',
     instable: true,
@@ -690,16 +690,16 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     libelle: 'Autorisation de défrichement, et compensation',
     reference:
       'Code forestier, art. L.341-1 (définition), L.341-3 (autorisation préalable) et L.341-6 ' +
-      '(compensation en nature ou financiere)',
+      '(compensation en nature ou financière)',
     dateEntreeEnVigueur: '2012-07-01',
     url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000025244092/LEGISCTA000025247458`,
     commentaire:
-      "Le défrichement est le changement de destination d'un terrain boise, même sans coupe : poser des " +
+      "Le défrichement est le changement de destination d'un terrain boisé, même sans coupe : poser des " +
       'panneaux sous couvert suffit à le constituer. L\'autorisation est instruite par la DDT, et la ' +
       'compensation — jusqu\'a plusieurs fois la surface défrichée, ou son équivalent financier — pese ' +
-      'lourdement sur le bilan. Un terrain boise à plus de 5 % declenche ici le rappel, sur la base de la ' +
-      'couverture forestiere mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient ' +
-      'd\'un departement a l\'autre.',
+      'lourdement sur le bilan. Un terrain boisé à plus de 5 % declenche ici le rappel, sur la base de la ' +
+      'couverture forestière mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient ' +
+      'd\'un département à l\'autre.',
     instable: true,
     aValiderParJuriste: true,
   },
@@ -723,7 +723,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     id: 'commun_natura2000_incidences',
     libelle: 'Évaluation des incidences Natura 2000',
     reference:
-      "Code de l'environnement, art. L.414-4 et R.414-19 a R.414-23 (évaluation des incidences sur les " +
+      "Code de l'environnement, art. L.414-4 et R.414-19 à R.414-23 (évaluation des incidences sur les " +
       'sites Natura 2000)',
     dateEntreeEnVigueur: '2010-04-11',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022478059`,
@@ -740,22 +740,22 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     libelle: 'Archéologie preventive : diagnostic et fouille eventuelle',
     reference:
       'Code du patrimoine, art. L.522-1 et suivants ; art. R.523-1 et R.523-4 (zones de présomption de ' +
-      'prescription archeologique)',
+      'prescription archéologique)',
     dateEntreeEnVigueur: '2004-02-24',
     url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006074236/LEGISCTA000006159940`,
     commentaire:
       "Le service régional de l'archéologie peut prescrire un diagnostic sur un projet d'emprise " +
-      "importante, et une fouille si le diagnostic est positif : compter plusieurs mois et un cout à la " +
+      "importante, et une fouille si le diagnostic est positif : compter plusieurs mois et un coût à la " +
       "charge de l'aménageur. Les zones de présomption sont arrêtées par le préfet de région et ne sont " +
       'pas publiées de façon homogène : l\'application ne les connaît pas et laisse « à vérifier ».',
     aValiderParJuriste: true,
   },
   site_classe: {
     id: 'commun_site_classe',
-    libelle: 'Site classe : autorisation spéciale de l’autorité ministerielle',
+    libelle: 'Site classe : autorisation spéciale de l’autorité ministérielle',
     reference:
       "Code de l'environnement, art. L.341-1 (classement) et L.341-10 (travaux soumis à autorisation " +
-      'speciale)',
+      'spéciale)',
     dateEntreeEnVigueur: '2000-09-21',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006833752`,
     commentaire:

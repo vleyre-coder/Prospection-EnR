@@ -69,8 +69,8 @@ export const COULEURS_SATURATION: Record<string, string> = {
 };
 
 export const LIBELLES_SATURATION: Record<string, string> = {
-  disponible: 'Capacite disponible',
-  tendu: 'Capacite tendue',
+  disponible: 'Capacité disponible',
+  tendu: 'Capacité tendue',
   sature: 'Poste sature',
-  inconnu: 'Etat inconnu',
+  inconnu: 'État inconnu',
 };

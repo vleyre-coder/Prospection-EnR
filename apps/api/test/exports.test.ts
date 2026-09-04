@@ -121,7 +121,7 @@ test("le CSV distingue une parcelle ecartee d'une parcelle mal notee", () => {
   ]);
   const lignes = csv.trimEnd().split('\n');
   const entetes = lignes[0]!.split(';');
-  const iEcartee = entetes.indexOf('Ecartee reglementairement');
+  const iEcartee = entetes.indexOf('Écartée réglementairement');
 
   assert.ok(iEcartee > 0, 'la colonne doit exister');
   // Meme statut, meme ordre de grandeur de score : sans cette colonne les deux lignes
@@ -176,7 +176,7 @@ test('LE CHANGEMENT DE FORMAT : le CSV n’ecrit plus aucune cle d’enumeration
   for (const attendu of [
     'Données manquantes',
     'À prospecter',
-    'Terrain agricole exploite',
+    'Terrain agricole exploité',
     'En négociation',
     'Espace naturel ou forestier',
   ]) {
@@ -262,7 +262,7 @@ test('le GeoJSON garde ses cles ET ajoute les libelles : rien ne casse, tout se 
   // Le libelle, en plus.
   assert.equal(props['statut_score_libelle'], 'Données manquantes');
   assert.ok(
-    String(props['regime_implantation_libelle']).startsWith('Agrivoltaisme'),
+    String(props['regime_implantation_libelle']).startsWith('Agrivoltaïsme'),
     `libelle de regime inattendu : ${String(props['regime_implantation_libelle'])}`,
   );
 });
@@ -328,7 +328,7 @@ test("« aucune declaration » n'est ecrit que si le RPG a effectivement repondu
 
   // RPG joignable, aucun ilot recouvrant : l'absence de declaration est un CONSTAT, et
   // c'est meme un argument favorable en solaire au sol. Elle doit donc etre affirmee.
-  assert.equal(libelleRpg({ ...base, anneesDeclareesConsecutives: 0 }), 'aucune declaration PAC');
+  assert.equal(libelleRpg({ ...base, anneesDeclareesConsecutives: 0 }), 'aucune déclaration PAC');
 
   // Declaration presente : le libelle de culture primait deja.
   assert.equal(

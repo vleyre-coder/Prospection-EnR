@@ -275,7 +275,7 @@ test('LE CAS ECARTE : un rapport de parcelle rejetee porte ses motifs et leur ba
   }
   for (const [filiere, iduEcartee] of ECARTEES) {
     const t = await rapport(filiere, iduEcartee);
-    assert.ok(/redhibitoire/i.test(t), `${filiere} : la section des criteres redhibitoires doit exister`);
+    assert.ok(/rédhibitoire/i.test(t), `${filiere} : la section des criteres redhibitoires doit exister`);
 
     const fondements = [...t.matchAll(/Fondement\s*:\s*([^\n]{0,120})/g)].map((m) => m[1]!.trim());
     assert.ok(fondements.length > 0, `${filiere} : une parcelle ecartee doit citer au moins un fondement`);

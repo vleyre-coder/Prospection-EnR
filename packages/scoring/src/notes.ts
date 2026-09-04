@@ -110,18 +110,18 @@ export function moyenneTracee(...notes: Array<number | null>): {
 
 /** Formate une distance en m ou km selon l'ordre de grandeur. */
 export function formatDistance(m: number | null | undefined): string {
-  if (m == null) return 'donnee indisponible';
+  if (m == null) return 'donnée indisponible';
   if (m < 1000) return `${Math.round(m)} m`;
   return `${(m / 1000).toFixed(m < 10000 ? 1 : 0).replace('.', ',')} km`;
 }
 
 export function formatNombre(n: number | null | undefined, unite = '', decimales = 1): string {
-  if (n == null) return 'donnee indisponible';
+  if (n == null) return 'donnée indisponible';
   return `${n.toFixed(decimales).replace('.', ',').replace(/,0$/, '')}${unite ? ` ${unite}` : ''}`;
 }
 
 export function formatBooleen(b: boolean | null | undefined, oui = 'Oui', non = 'Non'): string {
-  if (b == null) return 'donnee indisponible';
+  if (b == null) return 'donnée indisponible';
   return b ? oui : non;
 }
 

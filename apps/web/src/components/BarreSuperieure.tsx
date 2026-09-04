@@ -79,7 +79,7 @@ export function BarreSuperieure({
     <header className="barre">
       <div className="marque">
         <strong>Prospection EnR</strong>
-        <span>aide à la décision fonciere</span>
+        <span>aide à la décision foncière</span>
       </div>
 
       <nav className="filieres" aria-label="Sélection de la filière">

@@ -368,7 +368,7 @@ describe('moteur de scoring', () => {
       { knockOutsDesactives: ['ko_eol_habitation_500'] },
     );
     assert.equal(r.knockOuts.length, 0);
-    assert.ok(r.avertissements.some((a) => /scenario derogatoire/.test(a)));
+    assert.ok(r.avertissements.some((a) => /scénario dérogatoire/.test(a)));
   });
 
   it('reagit au changement de ponderation', () => {
@@ -425,7 +425,7 @@ describe('limites de viabilite economique', () => {
     assert.ok(r.scoreGlobal != null, 'le score reste calcule');
     assert.equal(r.statut, 'orange', `statut ${r.statut} (score ${r.scoreGlobal})`);
     assert.equal(r.limitesViabilite[0]?.id, 'viab_surface_insuffisante');
-    assert.match(r.limitesViabilite[0]!.motif, /ECONOMIQUE et non reglementaire/);
+    assert.match(r.limitesViabilite[0]!.motif, /ÉCONOMIQUE et non réglementaire/);
   });
 
   it('plafonne a rouge une parcelle tres largement sous le seuil', () => {
@@ -525,7 +525,7 @@ describe('criteres sans source nationale', () => {
     const limite = r.limitesViabilite.find((l) => l.id === 'criteres_sans_source');
     assert.ok(limite, 'le plafonnement doit etre explicite');
     assert.equal(limite.statutMaximal, 'orange');
-    assert.match(limite.motif, /gisement|Gisement|debouche|Debouche/);
+    assert.match(limite.motif, /gisement|Gisement|débouché|Débouché/);
   });
 
   it('affiche les criteres concernes en gris, avec leur poids reel', () => {
@@ -714,9 +714,9 @@ describe('surestimations corrigees : surface implantable et lineaire de raccorde
     const r = calculerScore(parcelleType(), 'bess');
     const racc = r.criteres.find((c) => c.id === 'racc_distance_poste');
     assert.ok(racc);
-    // 4,2 km a vol d'oiseau -> 5,67 km de trace estime.
-    assert.match(racc.valeurAffichee, /5,7 km de trace estime/);
-    assert.match(racc.valeurAffichee, /4,2 km a vol d'oiseau/);
+    // 4,2 km a vol d'oiseau -> 5,67 km de trace estime (tracé estimé a l'affichage).
+    assert.match(racc.valeurAffichee, /5,7 km de tracé estimé/);
+    assert.match(racc.valeurAffichee, /4,2 km à vol d'oiseau/);
     // La valeur brute reste la mesure, pas l'estimation : c'est elle qui est tracable.
     assert.equal(racc.valeurBrute, 4.2);
   });

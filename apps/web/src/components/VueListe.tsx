@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Filiere } from '@enr/core';
+import { libelleTypeSol, type Filiere } from '@enr/core';
 import { api, ErreurApi, type LigneListe, type Referentiel } from '../api/client.js';
 import { useEtat } from '../store/etat.js';
 import { formatNombre } from '../utils/geometrie.js';
@@ -241,13 +241,16 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                     title={
                       l.distancePosteKm == null
                         ? undefined
-                        : `${formatNombre(l.distancePosteKm, 'km', 1)} a vol d'oiseau`
+                        : `${formatNombre(l.distancePosteKm, 'km', 1)} à vol d'oiseau`
                     }
                   >
                     {formatNombre(l.lineaireRaccordementKm, 'km', 1)}
                   </td>
                   <td className="num">{formatNombre(l.pentePct, '%', 1)}</td>
-                  <td>{l.typeSol?.replace(/_/g, ' ') ?? '—'}</td>
+                  {/* La colonne montrait `agricole exploite` : la valeur d'enumeration, dont on
+                      avait seulement remplace les soulignes par des espaces. Le vocabulaire est
+                      desormais celui de `@enr/core`, partage avec la fiche, le PDF et le CSV. */}
+                  <td>{libelleTypeSol(l.typeSol) ?? '—'}</td>
                   <td>
                     {statutProspection ? (
                       <span

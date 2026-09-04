@@ -73,19 +73,19 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
               <div className="sous">{d.parStatut['ecarte'] ?? 0} écartée(s)</div>
             </div>
             <div className="indicateur">
-              <div className="lib">Surface securisee</div>
+              <div className="lib">Surface sécurisée</div>
               <div className="val">{formatNombre(d.surfaceSecuriseeHa, '', 1)}</div>
               <div className="sous">hectares</div>
             </div>
             <div className="indicateur">
-              <div className="lib">En negociation</div>
+              <div className="lib">En négociation</div>
               <div className="val">{formatNombre(d.surfaceEnNegociationHa, '', 1)}</div>
               <div className="sous">hectares</div>
             </div>
           </div>
 
           <div className="bloc-graphique">
-            <h3>Repartition du potentiel</h3>
+            <h3>Répartition du potentiel</h3>
             <BarresEmpilees
               donnees={(['vert', 'orange', 'rouge', 'gris'] as const).map((f) => ({
                 libelle: referentiel.palette.libellesScore[f],
@@ -225,7 +225,7 @@ function Courbes({
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span className="point" style={{ background: 'var(--vert)' }} />
-          Passages en « securise »
+          Passages en « sécurisé »
         </span>
       </div>
     </div>

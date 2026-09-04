@@ -127,8 +127,8 @@ export function surfaceUtileEstimee(
     netteHa: Math.round(netteHa * 10000) / 10000,
     coefficient: Math.round(coefficient * 1000) / 1000,
     detail:
-      `Estimation : ${Math.round(coefficient * 100)} % de la surface cadastrale, apres deduction ` +
-      `d'une bande perimetrale de ${r} m (cloture, piste de circulation, acces des secours). ` +
+      `Estimation : ${Math.round(coefficient * 100)} % de la surface cadastrale, après déduction ` +
+      `d'une bande perimetrale de ${r} m (clôture, piste de circulation, accès des secours). ` +
       `Ordre de grandeur de conception, à confirmer par un plan de masse et l'avis du SDIS.`,
   };
 }

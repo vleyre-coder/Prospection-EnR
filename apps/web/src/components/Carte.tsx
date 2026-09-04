@@ -847,7 +847,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
               `${RACINE_ABSOLUE}/api/carte/tuiles/parcelles/{z}/{x}/{y}.mvt?filiere=${etatRef.current.filiere}&t=${Date.now()}`,
             ]);
             etatRef.current.selectionnerParcelle(idu);
-            setQualifClic({ idu, libelle, etat: 'ok', message: 'Parcelle qualifiee — fiche ouverte.' });
+            setQualifClic({ idu, libelle, etat: 'ok', message: 'Parcelle qualifiée — fiche ouverte.' });
           } else {
             setQualifClic({
               idu,
@@ -1341,14 +1341,14 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
             doivent etre annonces, sinon l'information n'existe que visuellement. */}
         {fondInjoignable && (
           <div className="indice-zoom" role="status" aria-live="polite">
-            Fond cartographique IGN injoignable, y compris depuis le serveur : verifiez
-            l&apos;accès a data.geopf.fr. Les parcelles, couches et scores restent utilisables.
+            Fond cartographique IGN injoignable, y compris depuis le serveur : vérifiez
+            l&apos;accès à data.geopf.fr. Les parcelles, couches et scores restent utilisables.
           </div>
         )}
 
         {fondViaRelais && !fondInjoignable && (
           <div className="indice-zoom" role="status" aria-live="polite">
-            Fond cartographique servi via le relais de l&apos;application : l&apos;accès direct a
+            Fond cartographique servi via le relais de l&apos;application : l&apos;accès direct à
             data.geopf.fr est bloque depuis ce poste.
           </div>
         )}
@@ -1386,7 +1386,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
               type="button"
               className="bouton bouton-principal"
               onClick={() => {
-                const nom = window.prompt('Nom du site a créer :', 'Nouveau site');
+                const nom = window.prompt('Nom du site à créer :', 'Nouveau site');
                 if (!nom) return;
                 void api
                   .creerSite({
@@ -1403,7 +1403,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
                     );
                     useEtat.getState().definirOutil('aucun');
                   })
-                  .catch((err: Error) => window.alert(`Creation impossible : ${err.message}`));
+                  .catch((err: Error) => window.alert(`Création impossible : ${err.message}`));
               }}
             >
               Créer un site
@@ -1498,14 +1498,14 @@ function htmlPoste(p: PosteSourceProps, r: Referentiel): string {
   const echapper = (s: unknown): string =>
     String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   const etat = p.etatSaturation ?? 'inconnu';
-  const libelleEtat = r.palette.libellesSaturation[etat] ?? 'Etat inconnu';
+  const libelleEtat = r.palette.libellesSaturation[etat] ?? 'État inconnu';
   const couleur = r.palette.couleursSaturation[etat] ?? '#6b7280';
 
   const lignes: Array<[string, string]> = [];
   if (p.tension) lignes.push(['Tension', echapper(p.tension)]);
   lignes.push([
-    'Capacite residuelle',
-    p.capaciteResiduelleMw != null ? `${p.capaciteResiduelleMw} MW` : 'non publiee',
+    'Capacité résiduelle',
+    p.capaciteResiduelleMw != null ? `${p.capaciteResiduelleMw} MW` : 'non publiée',
   ]);
   if (p.fileAttenteMw != null) lignes.push(["File d'attente", `${p.fileAttenteMw} MW`]);
   if (p.quotePartEurParKw != null) lignes.push(['Quote-part', `${p.quotePartEurParKw} EUR/kW`]);
@@ -1517,7 +1517,7 @@ function htmlPoste(p: PosteSourceProps, r: Referentiel): string {
     ]);
   }
   if (p.enProjet) lignes.push(['Statut', 'poste en projet']);
-  if (p.dateDonnee) lignes.push(['Donnee du', echapper(p.dateDonnee)]);
+  if (p.dateDonnee) lignes.push(['Donnée du', echapper(p.dateDonnee)]);
 
   return `<div class="popup-poste">
     <h4>${echapper(p.nom)}</h4>
@@ -1526,7 +1526,7 @@ function htmlPoste(p: PosteSourceProps, r: Referentiel): string {
       ${echapper(p.gestionnaire)} &mdash; ${echapper(libelleEtat)}
     </div>
     <dl>${lignes.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
-    <p class="note">Capacite indicative (Capareseau), non engageante : seule une etude de
-    raccordement puis une proposition technique et financiere engagent une capacite.</p>
+    <p class="note">Capacité indicative (Capareseau), non engageante : seule une étude de
+    raccordement puis une proposition technique et financière engagent une capacité.</p>
   </div>`;
 }
