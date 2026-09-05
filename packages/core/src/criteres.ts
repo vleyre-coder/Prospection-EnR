@@ -122,7 +122,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       // potentiel agronomique depend de la texture, de la profondeur, de la reserve utile et de
       // l'hydromorphologie du sol, qu'aucune source nationale n'expose a la parcelle.
       'Potentiel agronomique (d’après la culture déclarée)',
-      "Estimé d'après le GROUPE DE CULTURE declare au RPG, et non mesure sur le sol : c'est un proxy, non une analyse pédologique. Un sol à faible potentiel réduit le conflit d'usage et l'opposition de la profession agricole. Critère inverse : un très bon sol penalise le projet. À confirmer par une étude de sol ou l'avis de la chambre d'agriculture.",
+      "Estimé d'après le GROUPE DE CULTURE déclaré au RPG, et non d'une mesure faite sur le sol : c'est un proxy, non une analyse pédologique. Un sol à faible potentiel réduit le conflit d'usage et l'opposition de la profession agricole. Critère inverse : un très bon sol penalise le projet. À confirmer par une étude de sol ou l'avis de la chambre d'agriculture.",
     ),
     def(
       'sol_foret',

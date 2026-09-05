@@ -80,6 +80,23 @@ test('@revue captures des vues principales', async ({ page }) => {
     .screenshot({ path: `${SORTIE}/03-fiche.png`, timeout: 10_000 })
     .catch(() => undefined);
 
+  /*
+   * 3 bis. Le bloc « Avant d'appeler le propriétaire ».
+   *
+   * Il vit bas dans la fiche — juste avant le bloc de prospection, la ou l'operateur passe a
+   * l'acte — donc invisible sur une capture du haut de panneau. Or c'est precisement le bloc que
+   * l'on veut relire : il porte ce que la parcelle reserve, et la question a poser.
+   */
+  const avant = page.locator('.avant-contact').first();
+  if (await avant.count()) {
+    await avant.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await page
+      .locator('.panneau-droite')
+      .screenshot({ path: `${SORTIE}/09-avant-contact.png`, timeout: 10_000 })
+      .catch(() => undefined);
+  }
+
   // 4. Liste.
   await ouvrirListe(page);
   await page.screenshot({ path: `${SORTIE}/04-liste.png` });

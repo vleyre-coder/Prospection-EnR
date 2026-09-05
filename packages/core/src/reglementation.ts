@@ -539,6 +539,85 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
  * REGIME applicable, pas le seuil.
  */
 export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE FONCIER — CE QUI SURPREND AU TELEPHONE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUI MANQUAIT, et c'est la famille de criteres la plus mince du referentiel : le foncier n'en
+   * comptait que DEUX — nombre de proprietaires, facilite de maitrise. Or c'est precisement la
+   * famille qui decide s'il y a une surprise quand on appelle le proprietaire. Trois notions
+   * n'apparaissaient nulle part dans le depot, verifie par recherche : « fermage », « eviction »,
+   * « preemption », « enclave ».
+   *
+   * Ces regles ne notent RIEN. Elles ne changent aucun score : un bail rural ne rend pas un terrain
+   * moins ensoleille. Elles servent a ce que l'operateur sache CE QU'IL IGNORE avant de decrocher —
+   * ce qui est l'inverse d'un critere, et se lit dans la liste « avant d'appeler » de la fiche.
+   */
+  bail_rural: {
+    id: 'commun_bail_rural',
+    libelle: 'Terre exploitée : le fermier doit consentir, pas seulement le propriétaire',
+    reference:
+      'Code rural et de la pêche maritime, art. L.411-1 (statut du fermage), L.411-32 (résiliation ' +
+      "pour un changement de destination) et L.411-69 (indemnité due au preneur sortant)",
+    dateEntreeEnVigueur: '1980-07-01',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006071367/LEGISCTA000006152249`,
+    commentaire:
+      "Toute mise a disposition d'un fonds agricole a titre onéreux est présumée bail rural, même " +
+      'sans écrit. Le preneur bénéficie d’un droit au renouvellement ; sortir la terre de l’usage ' +
+      'agricole suppose son accord, ou une résiliation encadrée assortie d’une indemnité d’éviction. ' +
+      "Le RPG ne publie pas l'identité de l'exploitant : on ne peut donc pas savoir depuis les " +
+      'données si le propriétaire exploité lui-même. La question se pose a lui des le premier appel.',
+    instable: true,
+    aValiderParJuriste: true,
+  },
+  preemption_safer: {
+    id: 'commun_preemption_safer',
+    libelle: 'Vente de terre agricole : droit de préemption de la SAFER',
+    reference:
+      'Code rural et de la pêche maritime, art. L.143-1 et suivants (droit de préemption des SAFER)',
+    dateEntreeEnVigueur: '2014-10-14',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006071367/LEGISCTA000006152257`,
+    commentaire:
+      'La préemption vise les ALIENATIONS a titre onéreux de biens agricoles. Un bail emphytéotique ' +
+      "ou a construction — la forme habituelle d'un projet ENR — n'est pas une aliénation et y " +
+      'échappe en principe, mais une vente, oui. Aucune donnée nationale ne publie les périmètres ' +
+      "d'intervention : la SAFER compétente se consulte, elle ne se déduit pas.",
+    aValiderParJuriste: true,
+  },
+  parcelle_enclavee: {
+    id: 'commun_parcelle_enclavee',
+    libelle: 'Parcelle sans accès a la voie publique : servitude de passage a negocier',
+    reference: 'Code civil, art. 682 a 685-1 (servitude de passage pour cause d’enclave)',
+    // La redaction EN VIGUEUR de l'article 682 vient de la loi n°71-494 du 25 juin 1971, non du
+    // Code civil de 1804 : c'est celle-la qui s'applique, et 1804 faisait echouer le garde des
+    // dates — a juste titre, une date de 1804 dans un referentiel ENR est presque toujours une
+    // erreur de saisie.
+    dateEntreeEnVigueur: '1971-06-25',
+    url: `${LEGIFRANCE}/codes/section_lc/LEGITEXT000006070721/LEGISCTA000006136374`,
+    commentaire:
+      "Le propriétaire enclave a droit a un passage sur les fonds voisins, contre indemnité — mais " +
+      "l'assiette et le montant se négocient avec un TIERS, qui n'est pas l'interlocuteur du " +
+      'projet, et se tranchent au tribunal a défaut d’accord. Un chantier de centrale suppose en ' +
+      'outre un gabarit poids lourds, que le droit de passage minimal ne garantit pas.',
+    aValiderParJuriste: true,
+  },
+  proprietaire_public: {
+    id: 'commun_proprietaire_public',
+    libelle: 'Propriétaire public : occupation soumise à publicité et mise en concurrence',
+    reference:
+      'Code général de la propriété des personnes publiques, art. L.2122-1-1 (sélection préalable) ' +
+      'et L.2122-1-3 (cas de dispense)',
+    dateEntreeEnVigueur: '2017-07-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033525043`,
+    commentaire:
+      "Sur le domaine public, la délivrance d'un titre d'occupation en vue d'une exploitation " +
+      'économique suppose une procédure de sélection préalable. Sur le domaine privé, la commande ' +
+      'publique et les règles de cession s’appliquent différemment. Dans les deux cas la décision ' +
+      'passe par une délibération : ce n’est pas une négociation de gré a gré, et le calendrier ne ' +
+      'se compare pas a celui d’un propriétaire privé.',
+    aValiderParJuriste: true,
+  },
   coeur_parc_national: {
     id: 'commun_coeur_parc_national',
     libelle: 'Cœur de parc national : travaux soumis à autorisation spéciale',

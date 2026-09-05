@@ -391,6 +391,22 @@ export interface ParcelleCarte {
   dateRecuperation: string;
 }
 
+/**
+ * Un point a verifier avant d'appeler le proprietaire. Reflet de `VerificationAvantContact`.
+ *
+ * La gravite ne dit pas la probabilite, elle dit ce que l'operateur risque de decouvrir trop tard :
+ * `arret` peut arreter la negociation, `delai` deplace le calendrier, `contexte` change
+ * l'interlocuteur ou la forme de la demarche.
+ */
+export interface VerificationAvantContact {
+  id: string;
+  gravite: 'arret' | 'delai' | 'contexte';
+  titre: string;
+  texte: string;
+  question: string;
+  regleLiee?: string;
+}
+
 export interface FicheParcelle {
   parcelle: ParcelleCarte;
   snapshot: ParcelleSnapshot;
@@ -398,6 +414,8 @@ export interface FicheParcelle {
   lead: Lead | null;
   connecteursEnEchec: string[];
   avertissements: Avertissement[];
+  /** Ce qui reste a verifier avant de contacter le proprietaire. */
+  avantContact: VerificationAvantContact[];
 }
 
 export interface PosteSourceProps {

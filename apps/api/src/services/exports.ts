@@ -23,6 +23,7 @@ import {
   LIBELLES_REGIME,
   LIBELLES_TYPE_SOL,
   lineaireRaccordementKm,
+  verificationsAvantContact,
 } from '@enr/scoring';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
 import type { LigneResultatFiltre } from './recherche.js';
@@ -784,6 +785,44 @@ export function ficheParcellePdf(
       `${connecteursEnEchec.join(', ')}. Les critères qui en dependent sont restes non évalués. ` +
         'Relancer la qualification de la parcelle permettra de les compléter.',
     ]);
+  }
+
+  /*
+   * ============================================= avant d'appeler le proprietaire
+   *
+   * CE BLOC EST DANS LE PDF, et pas seulement a l'ecran, parce que c'est le PDF qu'on emporte au
+   * rendez-vous. Une liste de verifications consultee sur un ecran resté au bureau ne sert a rien
+   * le jour ou l'on est assis en face du proprietaire.
+   *
+   * Il precede les avertissements du §12 : ceux-la disent ce que l'OUTIL ne garantit pas, celui-ci
+   * ce que la PARCELLE reserve. Le second est actionnable, le premier est une mise en garde de
+   * methode — l'actionnable passe devant.
+   */
+  const aVerifier = verificationsAvantContact(snapshot, score.filiere, {
+    regimeImplantation: score.regimeImplantation ?? null,
+  });
+  if (aVerifier.length > 0) {
+    titreSection(doc, 'Avant de contacter le propriétaire');
+    for (const v of aVerifier) {
+      assurerPlace(doc, 34);
+      doc
+        .fontSize(8.4)
+        .font('Helvetica-Bold')
+        .fillColor('#0f172a')
+        .text(net(v.titre), MARGE, doc.y, { width: total });
+      doc
+        .fontSize(8)
+        .font('Helvetica')
+        .fillColor('#334155')
+        .text(net(v.texte), MARGE, doc.y + 1, { width: total, align: 'justify' });
+      doc
+        .fontSize(8)
+        .font('Helvetica-Oblique')
+        .fillColor('#0f172a')
+        .text(net(`À demander : ${v.question}`), MARGE, doc.y + 1, { width: total });
+      doc.moveDown(0.35);
+    }
+    doc.moveDown(0.3);
   }
 
   // ============================================= avertissements

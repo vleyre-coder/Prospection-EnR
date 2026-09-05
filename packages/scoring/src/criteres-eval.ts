@@ -725,7 +725,7 @@ const sol_potentiel_agronomique: Evaluateur = (s) => {
     commentaire:
       "Critère inverse : plus le potentiel agronomique est élevé, plus le conflit d'usage et " +
       "l'opposition de la profession agricole sont probables. ATTENTION : cet indice n'est pas " +
-      "une mesure de la qualité du sol. Il est DEDUIT du groupe de culture declare au RPG, qui " +
+      "une mesure de la qualité du sol. Il est DÉDUIT du groupe de culture déclaré au RPG, qui " +
       "reflete autant le choix de l'exploitant que l'aptitude du terrain. La qualité réelle " +
       "relevé des bases régionales IGCS, sans API nationale.",
     sourceKey: SRC.rpg,

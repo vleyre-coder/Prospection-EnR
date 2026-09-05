@@ -209,7 +209,7 @@ export const LIBELLES_REGIME: Record<string, string> = {
  * Le regime affiche oriente donc la lecture ; il ne la tranche pas.
  */
 export const RESERVE_REGIME =
-  "Régime PRÉSUMÉ, deduit de la nature du sol observée. Le classement en terrain dégradé au " +
+  "Régime PRÉSUMÉ, déduit de la nature du sol observée. Le classement en terrain dégradé au " +
   "sens du décret du 29 décembre 2023 suppose d'établir l'historique du site (ancienne " +
   "carrière, décharge, friche, pollution), et le caractère agricole exploité s'apprecie sur " +
   "l'activité réelle. A confirmer avant tout dépôt.";
@@ -776,7 +776,7 @@ export function calculerScoreSite(
       motif:
         `La couverture moyenne des parcelles retenues, pondérée par leur surface, atteint ` +
         `${Math.round(couvertureDonnees * 100)} %. Agreger des parcelles mal documentees ne ` +
-        `produit pas un site documente : le site ne peut pas être declare propice tant que la ` +
+        `produit pas un site documente : le site ne peut pas être déclaré propice tant que la ` +
         `couverture n'atteint pas ${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
       statutMaximal: 'orange',
     });
@@ -817,6 +817,11 @@ export function calculerScoreSite(
 }
 
 export { EVALUATEURS, LIBELLES_TYPE_SOL } from './criteres-eval.js';
+export {
+  verificationsAvantContact,
+  type VerificationAvantContact,
+  type GraviteVerification,
+} from './avant-contact.js';
 export { evaluerKnockOuts , IDS_KNOCK_OUTS, type IdKnockOut } from './knockouts.js';
 export { construireSeuilsProcedure, puissancePvEstimeeMwc } from './seuils-procedure.js';
 // Reexportes pour que les exports (PDF, CSV) presentent exactement les grandeurs notees :

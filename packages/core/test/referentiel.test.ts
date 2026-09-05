@@ -74,8 +74,20 @@ test('aucune date d’entree en vigueur n’est dans le futur ni absurde', () =>
     const d = new Date(r.dateEntreeEnVigueur);
     if (Number.isNaN(d.getTime())) anomalies.push(`${id} : date illisible`);
     else if (d > aujourdhui) anomalies.push(`${id} : ${r.dateEntreeEnVigueur} posterieure a la verification`);
-    // Aucun texte fondant un critere ENR ne precede la loi de 1976 sur la protection de la nature.
-    else if (d.getFullYear() < 1976) anomalies.push(`${id} : ${r.dateEntreeEnVigueur} improbable`);
+    /*
+     * PLANCHER DE PLAUSIBILITE, ET SA PREMISSE A CHANGE.
+     *
+     * Il valait 1976 — la loi sur la protection de la nature — au motif qu'« aucun texte fondant un
+     * critere ENR ne la precede ». C'etait vrai tant que le referentiel ne portait que des criteres.
+     * L'audit 14 y a ajoute les references du FONCIER : servitude de passage pour cause d'enclave
+     * (Code civil, redaction de 1971), statut du fermage (1980). Ces textes ne fondent pas un
+     * critere, ils disent a l'operateur qui decide — et ils sont anciens par nature.
+     *
+     * Le plancher descend donc a 1946, l'annee du statut du fermage, qui est le plus ancien texte
+     * que ce produit ait une raison de citer. Il garde tout son role de filet a fautes de frappe :
+     * une date de 1804, ou un millesime mal saisi, echoue toujours.
+     */
+    else if (d.getFullYear() < 1946) anomalies.push(`${id} : ${r.dateEntreeEnVigueur} improbable`);
   }
   assert.deepEqual(anomalies, []);
 });

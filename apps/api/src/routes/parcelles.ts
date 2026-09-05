@@ -2,7 +2,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { AVERTISSEMENTS, CRITERES, estFiliere, FILIERES, type Filiere } from '@enr/core';
-import { calculerScore, IDS_KNOCK_OUTS } from '@enr/scoring';
+import { calculerScore, IDS_KNOCK_OUTS, verificationsAvantContact } from '@enr/scoring';
 import { bboxDepuisChaine } from '../geo.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
@@ -173,6 +173,16 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       lead,
       connecteursEnEchec: snapshot.connecteursEnEchec,
       avertissements: AVERTISSEMENTS,
+      /*
+       * CE QUI RESTE A VERIFIER AVANT D'APPELER LE PROPRIETAIRE.
+       *
+       * Calcule ici et non stocke : ces points se deduisent entierement du snapshot et du regime
+       * d'implantation retenu par le moteur, donc les figer en base creerait une seconde verite a
+       * tenir a jour. Le cout est nul — aucune requete, aucun appel reseau.
+       */
+      avantContact: verificationsAvantContact(snapshot.snapshot, filiere, {
+        regimeImplantation: score.regimeImplantation ?? null,
+      }),
     };
   });
 

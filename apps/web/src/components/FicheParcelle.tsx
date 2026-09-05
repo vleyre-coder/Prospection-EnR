@@ -27,7 +27,13 @@ import type {
   SourceRef,
   StatutProspection,
 } from '@enr/core';
-import { api, ErreurApi, type FicheParcelle as Fiche, type Referentiel } from '../api/client.js';
+import {
+  api,
+  ErreurApi,
+  type FicheParcelle as Fiche,
+  type Referentiel,
+  type VerificationAvantContact,
+} from '../api/client.js';
 import { ponderationCourante, STATUTS, useEtat } from '../store/etat.js';
 import { formatDate, formatDateHeure, formatNombre } from '../utils/geometrie.js';
 import { libelleCultureRpg, valeurAffichable } from '../utils/affichage.js';
@@ -178,6 +184,8 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
         <SectionCriteres score={score} referentiel={referentiel} />
 
         <RubriquesDonnees snapshot={fiche.snapshot} referentiel={referentiel} />
+
+        <AvantContact points={fiche.avantContact ?? []} referentiel={referentiel} />
 
         <BlocProspection fiche={fiche} filiere={filiere} score={score} />
 
@@ -408,6 +416,78 @@ function LigneSeuil({ seuil }: { seuil: SeuilProcedure }): JSX.Element {
 // ---------------------------------------------------------------------------
 // Criteres, regroupes par famille
 // ---------------------------------------------------------------------------
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * AVANT D'APPELER — CE QUE L'OPERATEUR IGNORE ENCORE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * SA PLACE EST ICI, juste avant le bloc de prospection, et pas ailleurs : le bloc suivant est celui
+ * ou l'on cree un contact et ou l'on decroche. Un point de vigilance lu APRES l'appel ne sert a
+ * rien, et lu en tete de fiche il serait noye sous le score.
+ *
+ * CE QUE CE BLOC N'EST PAS : un avertissement de plus. Les avertissements du §12 disent ce que
+ * l'OUTIL ne garantit pas. Celui-ci dit ce que la PARCELLE reserve — un fermier en place, une
+ * indivision, un acces qui traverse chez le voisin — et il porte, pour chaque point, la question a
+ * poser telle quelle. C'est une liste de travail, pas une mise en garde.
+ */
+function AvantContact({
+  points,
+  referentiel,
+}: {
+  points: VerificationAvantContact[];
+  referentiel: Referentiel;
+}): JSX.Element | null {
+  if (points.length === 0) return null;
+  const LIBELLE_GRAVITE: Record<VerificationAvantContact['gravite'], string> = {
+    arret: 'peut arrêter',
+    delai: 'décale le calendrier',
+    contexte: 'change l’interlocuteur',
+  };
+  return (
+    <details className="section" open>
+      <summary>
+        Avant d’appeler le propriétaire
+        <span className="compteur-section">{points.length}</span>
+      </summary>
+      <div className="section-corps">
+        <p className="aide-section">
+          Ce que les données montrent, ce qu’elles ne peuvent pas montrer, et la question à poser.
+          Aucun de ces points n’entre dans le score.
+        </p>
+        {points.map((p) => {
+          // Meme resolution que pour les criteres : le referentiel expose la reglementation par
+          // groupes, pas indexee par identifiant.
+          const regle = p.regleLiee
+            ? Object.values(referentiel.reglementation)
+                .flatMap((g) => Object.values(g))
+                .find((r) => r.id === p.regleLiee)
+            : undefined;
+          return (
+            <div key={p.id} className={`avant-contact gravite-${p.gravite}`}>
+              <div className="entete">
+                <span className="marqueur">{LIBELLE_GRAVITE[p.gravite]}</span>
+                {p.titre}
+              </div>
+              <p className="motif">{p.texte}</p>
+              <p className="question">
+                <strong>À demander :</strong> {p.question}
+              </p>
+              {regle && (
+                <p className="reference">
+                  {regle.reference}
+                  {regle.aValiderParJuriste && (
+                    <> · référence à faire valider par un juriste</>
+                  )}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
 
 function SectionCriteres({
   score,

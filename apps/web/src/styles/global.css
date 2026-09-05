@@ -2272,3 +2272,79 @@ button:focus-visible,
   color: var(--texte-doux);
   user-select: all;
 }
+
+
+/* ------------------------------------------------------------------ avant d'appeler */
+
+/*
+ * LES POINTS A VERIFIER AVANT DE CONTACTER LE PROPRIETAIRE.
+ *
+ * Ils reprennent la forme des cartes de knock-out — meme grammaire visuelle, filet colore a gauche
+ * — parce qu'ils jouent le meme role : ils arretent la main avant qu'elle n'agisse. Ce qui les
+ * distingue est la COULEUR, qui suit la gravite, et la question mise en avant : c'est une liste de
+ * travail, pas une mise en garde de plus.
+ */
+.avant-contact {
+  margin: 0 0 8px;
+  padding: 8px 11px;
+  border-left: 3px solid var(--bordure-forte);
+  border-radius: 0 var(--rayon) var(--rayon) 0;
+  background: var(--fond-panneau-2);
+}
+
+.avant-contact .entete {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.avant-contact .marqueur {
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+
+.avant-contact .motif {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--texte-doux);
+}
+
+/* La question est ce que l'operateur emporte au telephone : elle se detache du raisonnement. */
+.avant-contact .question {
+  margin: 6px 0 0;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-radius: 4px;
+}
+
+.avant-contact .reference {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+/* Trois gravites, trois teintes deja utilisees ailleurs pour le meme sens. */
+.avant-contact.gravite-arret {
+  border-left-color: var(--rouge);
+}
+
+.avant-contact.gravite-delai {
+  border-left-color: var(--orange);
+}
+
+.avant-contact.gravite-contexte {
+  border-left-color: var(--accent);
+}
