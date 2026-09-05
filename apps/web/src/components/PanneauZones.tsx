@@ -95,7 +95,7 @@ export function PanneauZones({ filiere, referentiel, onAllerVers }: Props): JSX.
  *
  * Exportee pour etre montee directement dans les tests : les trois etats — des zones, aucune zone
  * sur un territoire ingere, aucune donnee du tout — sont le coeur de ce composant, et les tenir
- * derriere un  reviendrait a ne pas les tenir.
+ * derriere un `useQuery` reviendrait a ne pas les tenir.
  */
 export function Resultats({
   donnees,
