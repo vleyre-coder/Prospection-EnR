@@ -56,7 +56,7 @@ export function Connexion({
             <strong>Session expiree</strong>
             <p style={{ margin: '4px 0 0' }}>
               Votre session a depasse sa durée de validite. Reconnectez-vous : votre travail
-              enregistre est intact, seul l&rsquo;affichage a été interrompu.
+              enregistré est intact, seul l&rsquo;affichage a été interrompu.
             </p>
           </div>
         )}

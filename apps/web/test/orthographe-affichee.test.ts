@@ -108,6 +108,9 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/bornes.ts', mot: 'normalise', raison: 'verbe : « le calcul normalise dans [0, 360[ »' },
   { module: 'packages/core/src/reglementation.ts', mot: 'norme', raison: 'le NOM norme (« conformite a une norme »), pas le participe « normé »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'prive', raison: 'verbe priver : « prive le projet du portage politique »' },
+  { module: 'packages/core/src/bornes.ts', mot: 'foret', raison: 'chemin de champ `occupationSol.foret.partBoisee`' },
+  { module: 'packages/core/src/reglementation.ts', mot: 'publie', raison: 'verbe publier : « aucune API nationale ne publie ces documents »' },
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'majore', raison: 'verbe majorer : « qui majore la pente moyenne réelle »' },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -280,7 +283,13 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
   // Une exception porte sur (module, mot). Si le meme mot apparait plusieurs fois dans le meme
   // module, l'exception les couvre TOUTES — ce qui n'est acceptable que si elles ont le meme sens.
   // Les URL de tuiles de `Carte.tsx` en sont le cas legitime : cinq fois le meme `?filiere=`.
-  const CONNUS: Record<string, number> = { 'apps/web/src/components/Carte.tsx|filiere': 5 };
+  const CONNUS: Record<string, number> = {
+    'apps/web/src/components/Carte.tsx|filiere': 5,
+    // Les trois occurrences sont le MEME verbe, relues une par une : « le RPG ne publie pas
+    // l'identité de l'exploitant », « aucune API nationale ne publie ces documents »,
+    // « aucune donnée nationale ne publie les périmètres ». Aucune n'est le participe.
+    'packages/core/src/reglementation.ts|publie': 3,
+  };
   const compte = new Map<string, number>();
   for (const o of reelles.filter(excepte)) {
     const clef = `${o.module}|${o.mot}`;

@@ -287,6 +287,11 @@ button:focus-visible,
   color: var(--texte);
 }
 
+/* Un libelle de bouton ne se coupe jamais en deux : la rangee se replie, le mot non. */
+.bouton {
+  white-space: nowrap;
+}
+
 .bouton:hover:not(:disabled) {
   background: var(--fond-survol);
   border-color: var(--bordure-forte);
@@ -1520,6 +1525,17 @@ button:focus-visible,
 .tableau tbody tr:hover {
   background: var(--fond-survol);
   cursor: pointer;
+}
+
+.tableau tbody tr.ligne-selectionnee,
+.tableau tbody tr.ligne-selectionnee:hover {
+  /*
+   * LA LIGNE RETENUE SE VOIT SANS LA CASE. Un tableau de trois cents lignes se parcourt en
+   * defilant : la case cochee sort du champ des qu'on regarde une autre colonne. Le liseré
+   * d'accent porte l'information sur toute la hauteur de la ligne.
+   */
+  background: var(--fond-selection, rgba(37, 99, 235, 0.08));
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .tableau .num {

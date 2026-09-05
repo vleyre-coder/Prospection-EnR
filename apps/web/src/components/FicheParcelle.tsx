@@ -200,7 +200,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
               {fiche.connecteursEnEchec.join(', ')}) : les critères correspondants sont grises.{' '}
             </>
           )}
-          Moteur de scoring version {score.versionMoteur}. Référentiel réglementaire verifie le{' '}
+          Moteur de scoring version {score.versionMoteur}. Référentiel réglementaire vérifié le{' '}
           {formatDate(referentiel.referentielDerniereVerification)}. Le contour cadastral est
           indicatif et sans valeur juridique.
         </div>
@@ -1178,7 +1178,7 @@ function BlocProspection({
       return api.creerLead({ idu: fiche.parcelle.idu, filiere, statut, notes });
     },
     onSuccess: () => {
-      setMessage('Statut enregistre.');
+      setMessage('Statut enregistré.');
       invalider();
     },
     onError: (e: ErreurApi) => setMessage(`Échec : ${e.message}`),

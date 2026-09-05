@@ -737,7 +737,7 @@ export const api = {
     `/api/exports/parcelle/${encodeURIComponent(idu)}.pdf?filiere=${filiere}`,
 
   exporter: async (
-    format: 'geojson' | 'shapefile' | 'csv',
+    format: 'geojson' | 'shapefile' | 'csv' | 'dossier',
     corps: unknown,
     nomFichier: string,
   ): Promise<void> => {

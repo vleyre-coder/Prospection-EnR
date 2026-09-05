@@ -211,7 +211,7 @@ export const LIBELLES_REGIME: Record<string, string> = {
 export const RESERVE_REGIME =
   "Régime PRÉSUMÉ, déduit de la nature du sol observée. Le classement en terrain dégradé au " +
   "sens du décret du 29 décembre 2023 suppose d'établir l'historique du site (ancienne " +
-  "carrière, décharge, friche, pollution), et le caractère agricole exploité s'apprecie sur " +
+  "carrière, décharge, friche, pollution), et le caractère agricole exploité s'apprécie sur " +
   "l'activité réelle. A confirmer avant tout dépôt.";
 
 /**
@@ -269,7 +269,7 @@ function evaluerLimitesViabilite(
   const reserveModele =
     partDeduite > 0.4
       ? ` ATTENTION : la déduction atteint ${Math.round(partDeduite * 100)} % de la surface` +
-        ` cadastrale. Le modèle d'érosion perimetrale suppose une emprise dont le contour est` +
+        ` cadastrale. Le modèle d'érosion périmétrale suppose une emprise dont le contour est` +
         ` petit devant l'aire ; il quitte ce régime sous environ 1 ha et la surface implantable` +
         ` annoncée n'y est plus qu'un ordre de grandeur pessimiste. À trancher sur plan de masse.`
       : '';
@@ -368,7 +368,7 @@ export function calculerScore(
           note: null,
           valeurAffichee: 'non evalue - source en échec',
           commentaire:
-            `La source ${brutEvalue.sourceKey} n'a pas repondu lors de la qualification de cette parcelle. ` +
+            `La source ${brutEvalue.sourceKey} n'a pas répondu lors de la qualification de cette parcelle. ` +
             `La valeur qui figurait dans le relevé n'est pas retenue : une donnée par défaut notée ` +
             `comme une mesure serait pire qu'une absence de note. Relancer la qualification lorsque ` +
             `la source est de nouveau disponible.` +
@@ -753,7 +753,7 @@ export function calculerScoreSite(
       libelle: 'Contiguïté des parcelles non vérifiée',
       motif:
         `La disposition géométrique des parcelles n'a pas été vérifiée. La surface implantable ` +
-        `est donc deduite parcelle par parcelle (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
+        `est donc déduite parcelle par parcelle (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
         `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre), hypothese prudente : si les parcelles ` +
         `sont jointives, la surface réelle est supérieure.`,
       statutMaximal: 'orange',
@@ -776,7 +776,7 @@ export function calculerScoreSite(
       motif:
         `La couverture moyenne des parcelles retenues, pondérée par leur surface, atteint ` +
         `${Math.round(couvertureDonnees * 100)} %. Agreger des parcelles mal documentees ne ` +
-        `produit pas un site documente : le site ne peut pas être déclaré propice tant que la ` +
+        `produit pas un site documenté : le site ne peut pas être déclaré propice tant que la ` +
         `couverture n'atteint pas ${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
       statutMaximal: 'orange',
     });
@@ -817,6 +817,7 @@ export function calculerScoreSite(
 }
 
 export { EVALUATEURS, LIBELLES_TYPE_SOL } from './criteres-eval.js';
+export { puissanceEstimee, type PuissanceEstimee } from './puissance.js';
 export {
   verificationsAvantContact,
   type VerificationAvantContact,

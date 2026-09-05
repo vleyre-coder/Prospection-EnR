@@ -46,6 +46,25 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
     retry: 1,
   });
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LA SELECTION : elle existait dans l'etat, elle n'existait nulle part a l'ecran
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `idusSelectionnes` et `basculerSelection` vivaient dans le magasin depuis l'origine, et seule
+   * la CARTE savait les alimenter — par un clic modifie, non decouvrable. La vue liste, qui est
+   * pourtant l'endroit ou l'on compare et choisit, n'avait aucune case a cocher.
+   *
+   * PLAFOND A 25, ET IL EST DIT AVANT L'APPEL. La route refuse au-dela ; laisser le bouton actif
+   * pour recevoir un 400 apprendrait la limite a l'utilisateur par un message d'erreur. Le
+   * compteur et l'infobulle la donnent avant.
+   */
+  const selection = etat.idusSelectionnes;
+  const MAX_DOSSIER = 25;
+  const idusAffiches = requete.data?.resultats.map((r) => r.idu) ?? [];
+  const tousSelectionnes =
+    idusAffiches.length > 0 && idusAffiches.every((idu) => selection.includes(idu));
+
   const colonnes: Array<[string, Tri | null, boolean]> = [
     ['Commune', null, false],
     ['Section / n°', null, false],
@@ -60,7 +79,23 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
 
   return (
     <div className="vue-plein">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      {/*
+        L'EN-TETE SE REPLIE, LES BOUTONS NON — corrige sur capture, pas sur intuition.
+        Mesure a 1 600 px de large : quatre des cinq commandes coupaient leur libelle en deux
+        (« Exporter en / CSV », « Retour a la / carte »), et le compteur de selection passait sous
+        son propre bouton. La rangee etait rigide et les mots pliaient ; c'est l'inverse qu'il
+        faut. `flexWrap` autorise une seconde rangee quand la place manque, `nowrap` sur les
+        boutons interdit qu'un libelle se casse.
+      */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <h2 style={{ margin: 0, fontSize: 16 }}>
           Parcelles qualifiées
           {requete.data && (
@@ -75,10 +110,38 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
             </span>
           )}
         </h2>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+        {/*
+          LE COMPTEUR DE SELECTION, avec de quoi la defaire.
+          La selection survit au changement de filtre et de vue : sans compteur, un dossier
+          demande plus tard porterait des parcelles cochees dix minutes plus tot sur une autre
+          emprise, sans que rien ne le rappelle.
+        */}
+        {selection.length > 0 && (
+          <span style={{ fontSize: 13, color: 'var(--texte-faible)', whiteSpace: 'nowrap' }}>
+            {selection.length} retenue{selection.length > 1 ? 's' : ''}
+            <button
+              type="button"
+              className="bouton-discret"
+              onClick={() => etat.viderSelection()}
+              title="Décocher toutes les parcelles retenues"
+            >
+              vider
+            </button>
+          </span>
+        )}
+        <div
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            gap: 6,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}
+        >
           <label
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
-            title="Limite la liste et les exports aux parcelles visibles sur la carte."
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, whiteSpace: 'nowrap' }}
+            title="Restreint la liste et les exports aux parcelles visibles sur la carte."
           >
             <input
               type="checkbox"
@@ -115,9 +178,42 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
           >
             Shapefile
           </button>
-          <button type="button" className="bouton" onClick={() => etat.definirVue('carte')}>
-            Retour à la carte
+          {/*
+            LE DOSSIER DE SITE. Bouton toujours VISIBLE et desactive sans selection, plutot
+            qu'apparaissant avec elle : une commande qui n'existe pas tant qu'on n'a pas devine
+            comment la faire apparaitre ne se decouvre jamais. L'infobulle dit quoi faire.
+          */}
+          <button
+            type="button"
+            className="bouton bouton-principal"
+            disabled={selection.length === 0 || selection.length > MAX_DOSSIER}
+            title={
+              selection.length === 0
+                ? 'Cochez les parcelles retenues (colonne de gauche) pour constituer un dossier de site.'
+                : selection.length > MAX_DOSSIER
+                  ? `${selection.length} parcelles sélectionnées : le dossier est limité à ${MAX_DOSSIER}.`
+                  : `Dossier complet des ${selection.length} parcelles retenues, à remettre à un développeur.`
+            }
+            onClick={() => {
+              setErreurExport(null);
+              void api
+                .exporter(
+                  'dossier',
+                  { idus: selection, filiere },
+                  `dossier-site-${filiere}.pdf`,
+                )
+                .catch((e: ErreurApi) => setErreurExport(e.message));
+            }}
+          >
+            Dossier développeur
+            {selection.length > 0 ? ` (${selection.length})` : ''}
           </button>
+          {/*
+            « Retour a la carte » RETIRE, et ce n'est pas une perte de fonction : le groupe « Vue »
+            de la barre superieure porte deja Carte / Liste / Tableau de bord, il est visible en
+            permanence et a trois metres de la. Deux commandes pour un meme geste, dans le meme
+            champ de vision, encombrent la rangee qui en avait le moins besoin.
+          */}
         </div>
       </div>
 
@@ -153,6 +249,30 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
         <table className="tableau">
           <thead>
             <tr>
+              <th style={{ width: 28 }}>
+                <input
+                  type="checkbox"
+                  checked={tousSelectionnes}
+                  aria-label={
+                    tousSelectionnes
+                      ? 'Désélectionner les parcelles affichées'
+                      : 'Sélectionner les parcelles affichées'
+                  }
+                  title={
+                    tousSelectionnes
+                      ? 'Désélectionner les parcelles affichées'
+                      : 'Sélectionner les parcelles affichées'
+                  }
+                  onChange={() => {
+                    // Bascule sur les parcelles AFFICHEES seulement : la selection peut contenir
+                    // des parcelles venues de la carte ou d'un autre filtre, et les effacer sans
+                    // que l'utilisateur les voie serait une perte silencieuse.
+                    for (const idu of idusAffiches) {
+                      if (selection.includes(idu) === tousSelectionnes) etat.basculerSelection(idu);
+                    }
+                  }}
+                />
+              </th>
               {colonnes.map(([libelle, triCle, numerique]) => (
                 <th
                   key={libelle}
@@ -188,7 +308,24 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
                 referentiel.palette,
               );
               return (
-                <tr key={l.idu} onClick={() => onOuvrir(l)}>
+                <tr
+                  key={l.idu}
+                  onClick={() => onOuvrir(l)}
+                  className={selection.includes(l.idu) ? 'ligne-selectionnee' : undefined}
+                >
+                  {/*
+                    `stopPropagation` sur la CELLULE et pas seulement sur la case : sans cela, un
+                    clic a cote de la case — dans la meme cellule — ouvrirait la fiche alors que
+                    l'utilisateur visait la selection.
+                  */}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selection.includes(l.idu)}
+                      aria-label={`Retenir la parcelle ${l.section} ${l.numero}`}
+                      onChange={() => etat.basculerSelection(l.idu)}
+                    />
+                  </td>
                   <td>{l.nomCommune ?? '—'}</td>
                   <td style={{ fontFamily: 'var(--police-mono)', fontSize: 11.5 }}>
                     {l.section} {l.numero}

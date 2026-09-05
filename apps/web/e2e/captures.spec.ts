@@ -101,6 +101,21 @@ test('@revue captures des vues principales', async ({ page }) => {
   await ouvrirListe(page);
   await page.screenshot({ path: `${SORTIE}/04-liste.png` });
 
+  /*
+   * 4 bis. La liste AVEC une selection.
+   *
+   * L'etat par defaut ne montre ni le liseré des lignes retenues, ni le compteur, ni le bouton
+   * « Dossier développeur » actif : trois choses de mise en page qui n'existent qu'une fois des
+   * cases cochees, et qu'aucune capture ne donnait donc a relire.
+   */
+  const cases = page.locator('.tableau tbody input[type="checkbox"]');
+  const aCocher = Math.min(2, await cases.count());
+  for (let i = 0; i < aCocher; i += 1) await cases.nth(i).check();
+  if (aCocher > 0) {
+    await laisserPeindre(page);
+    await page.screenshot({ path: `${SORTIE}/10-liste-selection.png` });
+  }
+
   // 5. Tableau de bord.
   await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: /tableau/i }).click();
   await laisserPeindre(page);

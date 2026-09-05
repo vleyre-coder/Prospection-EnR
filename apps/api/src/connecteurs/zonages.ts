@@ -12,6 +12,7 @@ import { journal } from '../journal.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { bboxEnPolygone, type Bbox } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
+import { reparerDoubleEncodage } from '../texte.js';
 import type { DefinitionCalque } from '../calques.js';
 
 /**
@@ -63,7 +64,11 @@ export interface EntiteZonage {
  * qu'un « sans nom » explicite — d'ou l'ordre, et d'ou le test qui le verrouille.
  */
 function nomDe(p: ProprietesZonage): string {
-  return p.sitename || p.nom || p.nomsuplitt || p.nomass || p.sitecode || 'sans nom';
+  // Repare un eventuel double encodage venu de la source (voir `texte.ts`) : ces noms partent dans
+  // la fiche PDF et dans le dossier de site.
+  return (
+    reparerDoubleEncodage(p.sitename || p.nom || p.nomsuplitt || p.nomass || p.sitecode) || 'sans nom'
+  );
 }
 
 async function moduleNature(chemin: string, bbox: Bbox): Promise<FeatureCollection<ProprietesZonage>> {

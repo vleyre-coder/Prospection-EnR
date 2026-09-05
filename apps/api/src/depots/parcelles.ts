@@ -163,6 +163,40 @@ export async function snapshotParIdu(
   };
 }
 
+/**
+ * Snapshots d'un lot de parcelles, indexes par IDU.
+ *
+ * UNE SEULE REQUETE, et non une boucle d'appels a `snapshotParIdu` : le dossier de site en
+ * demande jusqu'a vingt-cinq d'un coup, et le meme defaut avait deja ete corrige sur les scores
+ * (audit 8, C9). Les parcelles sans snapshot sont simplement absentes du resultat — c'est a
+ * l'appelant de decider ce que signifie leur absence, et non a ce depot de la masquer.
+ */
+export async function snapshotsParIdus(
+  idus: string[],
+): Promise<Record<string, { snapshot: ParcelleSnapshot; connecteursEnEchec: string[]; dateSnapshot: string }>> {
+  if (idus.length === 0) return {};
+  const lignes = await requete<{
+    idu: string;
+    snapshot: ParcelleSnapshot;
+    connecteurs_en_echec: string[];
+    date_snapshot: Date;
+  }>(
+    `SELECT idu, snapshot, connecteurs_en_echec, date_snapshot
+       FROM parcelle_snapshot WHERE idu = ANY($1)`,
+    [idus],
+  );
+  return Object.fromEntries(
+    lignes.map((l) => [
+      l.idu,
+      {
+        snapshot: l.snapshot,
+        connecteursEnEchec: l.connecteurs_en_echec,
+        dateSnapshot: l.date_snapshot.toISOString(),
+      },
+    ]),
+  );
+}
+
 export async function enregistrerSnapshot(
   idu: string,
   snapshot: ParcelleSnapshot,

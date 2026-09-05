@@ -25,10 +25,11 @@ import { entierRequete, ErreurValidation, lecteur, ponderationValide } from '../
 
 /** Roles applicatifs. Liste fermee : une valeur invalide est refusee, et non ramenee a `lecture`. */
 const ROLES = ['admin', 'prospection', 'lecture'] as const;
-import { csvResultats, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
+import { csvResultats, dossierSitePdf, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
+import * as depotProspection from '../depots/prospection.js';
 import {
   enregistrerIngestion,
   journaliser,
@@ -244,6 +245,106 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       .header('Content-Type', 'text/csv; charset=utf-8')
       .header('Content-Disposition', `attachment; filename="parcelles-${filtres.filiere}.csv"`)
       .send(csvResultats(resultats));
+  });
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * DOSSIER DE SITE — le document qu'on remet a un developpeur
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * POURQUOI UN PLAFOND BEAUCOUP PLUS BAS QUE LES AUTRES EXPORTS (25 contre 20 000). Un CSV de
+   * 20 000 lignes est un fichier ; un PDF de 20 000 parcelles est une panne. Chaque parcelle ajoute
+   * huit rangees de tableau mesurees une a une par pdfkit, et le document se construit EN MEMOIRE
+   * avant d'etre servi. Le plafond n'est donc pas une precaution de forme : c'est la limite au-dela
+   * de laquelle la requete cesse d'etre servie et devient un deni de service sur soi-meme.
+   *
+   * Vingt-cinq, et pas cent : un dossier de site remis a un developpeur porte sur une emprise
+   * negociee, pas sur un departement. Au-dela, ce n'est plus un site.
+   */
+  const MAX_PARCELLES_DOSSIER = 25;
+
+  app.post('/api/exports/dossier', debitExport, async (req, rep) => {
+    const c = lecteur(req.body);
+    const filiere: Filiere = c.parmi('filiere', FILIERES) ?? 'solaire_sol';
+    c.valideAilleurs('idus');
+    c.refuserInconnus();
+
+    let idus: string[];
+    try {
+      idus = idusValides((req.body as { idus?: unknown }).idus, MAX_PARCELLES_DOSSIER);
+    } catch (err) {
+      if (err instanceof ErreurValidation) {
+        return erreur(rep, 400, 'selection_invalide', err.message, { champ: err.champ });
+      }
+      throw err;
+    }
+
+    const [parcelles, snapshots, scores, statuts] = await Promise.all([
+      depotParcelles.parcellesParIdus(idus),
+      depotParcelles.snapshotsParIdus(idus),
+      depotScores.scoresParIdus(idus, filiere),
+      depotProspection.statutsProspectionParIdus(idus, filiere),
+    ]);
+
+    /**
+     * UNE PARCELLE NON QUALIFIEE EST NOMMEE, PAS IGNOREE.
+     *
+     * Les exports GeoJSON et Shapefile laissent tomber en silence les parcelles sans score : le
+     * fichier s'ouvre, il a l'air complet, et il manque trois parcelles. Sur un dossier remis a un
+     * developpeur, ce silence-la se paie plus cher qu'un refus — l'ensemble du raisonnement porte
+     * sur des surfaces et une puissance CUMULEES, qui seraient fausses sans que rien ne le montre.
+     */
+    const retenues = parcelles
+      .map((parcelle) => ({
+        parcelle,
+        snapshot: snapshots[parcelle.idu],
+        score: scores[parcelle.idu],
+        statutProspection: statuts[parcelle.idu] ?? null,
+      }))
+      .filter(
+        (l): l is typeof l & { snapshot: NonNullable<typeof l.snapshot>; score: NonNullable<typeof l.score> } =>
+          l.snapshot != null && l.score != null,
+      );
+    const manquantes = idus.filter((idu) => !retenues.some((l) => l.parcelle.idu === idu));
+    if (manquantes.length > 0) {
+      return erreur(
+        rep,
+        409,
+        'parcelles_non_qualifiees',
+        `${manquantes.length} parcelle(s) de la sélection ne sont pas qualifiées pour cette filière : ` +
+          'le dossier raisonne sur des surfaces et une puissance cumulées, il ne peut pas en omettre ' +
+          'une sans se tromper. Qualifiez-les, ou retirez-les de la sélection.',
+        { idus: manquantes },
+      );
+    }
+
+    // La contiguite reelle, mesuree en base : elle decide de la methode de surface utile, donc du
+    // chiffre de puissance. La deduire du nombre de parcelles serait une supposition.
+    const nbGroupesContigus = await depotProspection.nbGroupesContigus(
+      retenues.map((l) => l.parcelle.idu),
+    );
+
+    await journaliser('export_dossier', {
+      utilisateurId: req.utilisateur?.id,
+      email: req.utilisateur?.email,
+      details: { nb: retenues.length, filiere, nbGroupesContigus },
+    });
+
+    return rep
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="dossier-site-${filiere}.pdf"`)
+      .send(
+        dossierSitePdf(
+          retenues.map((l) => ({
+            parcelle: l.parcelle,
+            snapshot: l.snapshot.snapshot,
+            score: l.score,
+            connecteursEnEchec: l.snapshot.connecteursEnEchec,
+            statutProspection: l.statutProspection,
+          })),
+          { filiere, nbGroupesContigus },
+        ),
+      );
   });
 
   // --- Ponderations sauvegardees ------------------------------------------

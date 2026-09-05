@@ -59,7 +59,7 @@ export const DESCRIPTIONS_SCORE: Record<Feu, string> = {
 };
 
 export const DESCRIPTION_REDHIBITOIRE =
-  "Au moins un critère éliminatoire est declenche (recul réglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est écartée en l'état du droit, et non simplement mal classée.";
+  "Au moins un critère éliminatoire est déclenché (recul réglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est écartée en l'état du droit, et non simplement mal classée.";
 
 export const COULEURS_SATURATION: Record<string, string> = {
   disponible: '#15803d',

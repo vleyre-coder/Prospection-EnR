@@ -22,6 +22,7 @@ import { avecParams, jsonExterne } from '../http.js';
 import { bboxDe, bboxEnPolygone, elargirBbox, type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
 import { recouvrement } from './distances.js';
+import { reparerDoubleEncodage } from '../texte.js';
 
 const CONNECTEUR = 'apicarto_gpu';
 
@@ -79,7 +80,10 @@ export async function servitudes(
       const { recouvre, distanceM } = recouvrement(parcelle, [f.geometry as GeoJsonGeometry]);
       liste.push({
         categorie,
-        libelle: f.properties.nomsuplitt?.trim() || null,
+        // Le GPU republie certains libelles doublement encodes (voir `texte.ts`) : ils partent
+        // dans la fiche et dans le dossier de site, ou « ChÃ¢teau de VilleprÃ©vost » fait douter
+        // du reste du document.
+        libelle: reparerDoubleEncodage(f.properties.nomsuplitt)?.trim() || null,
         recouvre: recouvre === true,
         distanceM,
       });

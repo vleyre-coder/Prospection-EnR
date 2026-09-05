@@ -51,7 +51,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: "Le contour cadastral n'a pas de valeur juridique",
     texte:
-      "Les contours parcellaires proviennent du Plan Cadastral Informatise. Ils sont fournis à titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi. Les surfaces calculées sur ces contours peuvent différer de la contenance cadastrale.",
+      "Les contours parcellaires proviennent du Plan Cadastral Informatisé. Ils sont fournis à titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi. Les surfaces calculées sur ces contours peuvent différer de la contenance cadastrale.",
     // `parcelles` retire : ce n'est ni un critere, ni une rubrique de la fiche.
     cible: ['identite', 'surf_utile', 'surf_un_seul_tenant'],
   },
@@ -79,7 +79,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'attention',
     titre: 'Zone humide : pre-repérage à confirmer sur le terrain',
     texte:
-      "La cartographie des zones humides est un pre-repérage. Le caractère humide d'une parcelle se determine par sondages pédologiques et relevés floristiques, selon l'arrêté du 24 juin 2008 modifie. Une parcelle non cartographiée peut être humide, et inversement.",
+      "La cartographie des zones humides est un pré-repérage. Le caractère humide d'une parcelle se détermine par sondages pédologiques et relevés floristiques, selon l'arrêté du 24 juin 2008 modifié. Une parcelle non cartographiée peut être humide, et inversement.",
     // `zones_humides` retire : la rubrique cible directement le critere.
     cible: ['env_zone_humide'],
   },

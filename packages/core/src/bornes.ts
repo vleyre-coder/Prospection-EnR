@@ -51,7 +51,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: '%',
     motif:
       "100 % vaut 45 degrés. Aucune parcelle cadastrale exploitable n'à une pente MOYENNE de " +
-      "45 degrés : au-delà on decrit une falaise, pas un terrain. C'est la borne qui aurait " +
+      "45 degrés : au-delà on décrit une falaise, pas un terrain. C'est la borne qui aurait " +
       'arrêté les 1 666 % constates.',
   },
   {
@@ -195,7 +195,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     motif:
       'Vitesse MOYENNE annuelle à 100 m. Elle va d’environ 3 m/s en fond de vallée abritée à 9 ou ' +
       '10 m/s sur les cotes les plus exposées. 20 m/s serait une moyenne de tempête permanente : ' +
-      'la valeur decrit alors une rafale ou une autre grandeur.',
+      'la valeur décrit alors une rafale ou une autre grandeur.',
   },
   { chemin: 'gisement.intrantsMethaTonnesMsAn', min: 0, max: 1_000_000, unite: 't MS/an', motif: 'Tonnage mobilisable dans un rayon de 10 km. Borne large : un bassin très agricole reste très en dessous.' },
   {

@@ -92,7 +92,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     commentaire:
       "La rubrique 30 de l'annexe à l'article R.122-2 a été remaniée plusieurs fois depuis 2020 " +
       "et les bornes de puissance declenchant l'examen au cas par cas ont bouge à chaque " +
-      "révision. La décision relève en outre de l'autorité environnementale, qui apprecie la " +
+      "révision. La décision relève en outre de l'autorité environnementale, qui apprécie la " +
       "sensibilité du milieu au-delà du seul seuil de puissance : deux projets de même puissance " +
       "peuvent recevoir des réponses différentes. À confirmer auprès de la DREAL avant tout dépôt.",
   },
@@ -109,7 +109,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
   },
   date_reference_inculte: {
     id: 'pv_date_inculte',
-    libelle: 'Terrain repute inculte ou non exploité depuis le 10 mars 2013',
+    libelle: 'Terrain réputé inculte ou non exploité depuis le 10 mars 2013',
     reference: "Code de l'urbanisme, art. L.111-29 (loi APER du 10 mars 2023)",
     dateEntreeEnVigueur: '2023-03-11',
     commentaire:
@@ -155,7 +155,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     id: 'pv_compensation_agricole',
     libelle: 'Étude préalable de compensation agricole collective',
     reference:
-      'Code rural et de la pêche maritime, art. L.112-1-3 ; décret n°2016-1190 du 31 aout 2016 ; art. ' +
+      'Code rural et de la pêche maritime, art. L.112-1-3 ; décret n°2016-1190 du 31 août 2016 ; art. ' +
       'D.112-1-18 et suivants',
     dateEntreeEnVigueur: '2016-12-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031104466`,
@@ -191,7 +191,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
       "Code rural et de la pêche maritime, art. L.641-5 et s. ; doctrines INAO relatives aux installations photovoltaïques",
     dateEntreeEnVigueur: '2023-03-11',
     commentaire:
-      "L'INAO est consulte et s'oppose en principe à l'artificialisation des aires parcellaires délimitées AOP, en particulier viticoles. Traite comme rédhibitoire par défaut, paramétrable.",
+      "L'INAO est consulté et s'oppose en principe à l'artificialisation des aires parcellaires délimitées AOP, en particulier viticoles. Traite comme rédhibitoire par défaut, paramétrable.",
     instable: true,
   },
 };
@@ -249,7 +249,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     id: 'eol_radar',
     libelle: 'Distances minimales aux radars météorologiques et de l\'aviation civile',
     reference:
-      "Arrêté du 26 aout 2011 modifie relatif aux installations de production d'électricité utilisant l'énergie mécanique du vent, art. 4",
+      "Arrêté du 26 août 2011 modifié relatif aux installations de production d'électricité utilisant l'énergie mécanique du vent, art. 4",
     dateEntreeEnVigueur: '2011-08-27',
     commentaire:
       "Ordres de grandeur : 30 km (radar météo bande C), 20 km (bande S), 10 km (radar de l'aviation civile), 5 km (radar portuaire), avec avis possible en deçà. Consultation obligatoire de Météo-France, la DGAC et l'armée.",
@@ -431,7 +431,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     valeur: 200,
     unite: 'm',
     reference:
-      "Arrêté ministériel du 12 aout 2010 (rubrique 2781-1, enregistrement) et arrêté du 10 novembre 2009, art. relatif aux distances d'éloignement",
+      "Arrêté ministériel du 12 août 2010 (rubrique 2781-1, enregistrement) et arrêté du 10 novembre 2009, art. relatif aux distances d'éloignement",
     dateEntreeEnVigueur: '2010-08-13',
     commentaire:
       "Distance mesurée depuis les ouvrages de stockage et de traitement. Des aménagements sont possibles pour les installations en déclaration ; l'acceptabilité locale reste le facteur limitant.",
@@ -443,7 +443,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     valeur: 35,
     unite: 'm',
     reference:
-      "Arrêté du 12 aout 2010 (rubrique 2781) ; programme d'actions national nitrates, arrêté du 19 décembre 2011",
+      "Arrêté du 12 août 2010 (rubrique 2781) ; programme d'actions national nitrates, arrêté du 19 décembre 2011",
     dateEntreeEnVigueur: '2010-08-13',
     commentaire:
       "S'applique aux ouvrages de stockage et aux épandages. Interdiction totale dans les périmètres de protection immédiate et rapprochée des captages AEP.",
@@ -482,7 +482,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
       "Des qu'un intrant contient des sous-produits animaux — lisier, fumier, contenus stomacaux, déchets " +
       "de découpe — l'unité relève du règlement sanitaire européen, en plus de l'ICPE. Conséquences " +
       'concrètes : agrément sanitaire delivre par la DDPP, hygiénisation ou pasteurisation selon la ' +
-      "catégorie des matières, et traçabilité. Le rappel est declenche ici par la présence d'élevages dans " +
+      "catégorie des matières, et traçabilité. Le rappel est déclenché ici par la présence d'élevages dans " +
       "le rayon d'approvisionnement, qui rend ces intrants probables ; la nature réelle du plan " +
       "d'approvisionnement seule permet de conclure.",
     aValiderParJuriste: true,
@@ -491,7 +491,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     id: 'metha_acces_engins',
     libelle: 'Accès poids lourds : trafic quotidien d’approvisionnement',
     reference:
-      "Arrêté ministériel du 12 aout 2010 (rubrique 2781, voies d'accès et de circulation) ; règlement " +
+      "Arrêté ministériel du 12 août 2010 (rubrique 2781, voies d'accès et de circulation) ; règlement " +
       'départemental de défense extérieure contre l’incendie (art. R.2225-7 du code général des ' +
       'collectivités territoriales)',
     dateEntreeEnVigueur: '2010-08-13',
@@ -582,7 +582,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
       'La préemption vise les ALIENATIONS a titre onéreux de biens agricoles. Un bail emphytéotique ' +
       "ou a construction — la forme habituelle d'un projet ENR — n'est pas une aliénation et y " +
       'échappe en principe, mais une vente, oui. Aucune donnée nationale ne publie les périmètres ' +
-      "d'intervention : la SAFER compétente se consulte, elle ne se déduit pas.",
+      "d'intervention : la SAFER compétente doit être interrogée, elle ne se déduit pas.",
     aValiderParJuriste: true,
   },
   parcelle_enclavee: {
@@ -679,7 +679,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     libelle: 'Zone rouge d’un plan de prévention des risques naturels',
     reference:
       "Code de l'environnement, art. L.562-1 et R.562-1 et suivants (plans de prévention des risques " +
-      'naturels prévisibles : inondation, incendie de foret, mouvement de terrain)',
+      'naturels prévisibles : inondation, incendie de forêt, mouvement de terrain)',
     dateEntreeEnVigueur: '1995-02-03',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033034238`,
     commentaire:
@@ -776,7 +776,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
       "Le défrichement est le changement de destination d'un terrain boisé, même sans coupe : poser des " +
       'panneaux sous couvert suffit à le constituer. L\'autorisation est instruite par la DDT, et la ' +
       'compensation — jusqu\'a plusieurs fois la surface défrichée, ou son équivalent financier — pese ' +
-      'lourdement sur le bilan. Un terrain boisé à plus de 5 % declenche ici le rappel, sur la base de la ' +
+      'lourdement sur le bilan. Un terrain boisé à plus de 5 % déclenche ici le rappel, sur la base de la ' +
       'couverture forestière mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient ' +
       'd\'un département à l\'autre.',
     instable: true,

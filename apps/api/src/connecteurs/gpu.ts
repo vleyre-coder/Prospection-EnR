@@ -11,6 +11,7 @@ import { avecParams, jsonExterne } from '../http.js';
 import { journal } from '../journal.js';
 import { type GeoJsonGeometry } from '../geo.js';
 import { geomParam, type FeatureCollection } from './base.js';
+import { reparerProprietes } from '../texte.js';
 import { partsCouvertesExactes } from './distances.js';
 
 const CONNECTEUR = 'apicarto_gpu';
@@ -87,7 +88,26 @@ const TYPES_DOCUMENT: Record<string, Urbanisme['typeDocument']> = {
 
 async function interroger<P>(chemin: string, geom: GeoJsonGeometry): Promise<FeatureCollection<P>> {
   const url = avecParams(`${config.sources.apicarto}/gpu/${chemin}`, { geom: geomParam(geom) });
-  return jsonExterne<FeatureCollection<P>>(url, { connecteur: CONNECTEUR });
+  const collection = await jsonExterne<FeatureCollection<P>>(url, { connecteur: CONNECTEUR });
+  /*
+   * REPARATION D'UN DOUBLE ENCODAGE VENU DE LA SOURCE, faite ici et pas au cas par cas.
+   *
+   * Le GPU republie certains libelles encodes deux fois en UTF-8 : `nomsuplitt` valait
+   * « ChÃ¢teau de VilleprÃ©vost », verifie octet par octet sur le service (voir `texte.ts`). Ces
+   * libelles partent dans le dossier de site remis a un developpeur.
+   *
+   * Au niveau du POINT D'ENTREE et non des trois ou quatre champs concernes : rien ne garantit que
+   * `nomsuplitt` soit le seul touche, et un champ ajoute demain heriterait de la reparation sans
+   * qu'il faille y penser. Le cout est nul quand il n'y a rien a reparer — la fonction sort sur un
+   * test de presence de « Ã » ou « Â ».
+   */
+  return {
+    ...collection,
+    features: (collection.features ?? []).map((f) => ({
+      ...f,
+      properties: reparerProprietes(f.properties),
+    })),
+  };
 }
 
 /**

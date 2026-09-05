@@ -247,7 +247,7 @@ export function App(): JSX.Element {
         <div className="bandeau erreur">
           <Icone nom="alerte" />
           <p>
-            L&apos;API ne repond plus. Les données affichees peuvent être obsoletes et les
+            L&apos;API ne repond plus. Les données affichées peuvent être obsoletes et les
             enregistrements ne seront pas conserves.
           </p>
         </div>

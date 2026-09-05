@@ -6,7 +6,14 @@
  */
 
 import PDFDocument from 'pdfkit';
-import type { EvaluationCritere, Feu, ParcelleSnapshot, ResultatScore } from '@enr/core';
+import type {
+  EvaluationCritere,
+  Feu,
+  Filiere,
+  ParcelleSnapshot,
+  ResultatScore,
+  StatutProspection,
+} from '@enr/core';
 import {
   AVERTISSEMENTS,
   FAMILLES_LIBELLES,
@@ -23,8 +30,11 @@ import {
   LIBELLES_REGIME,
   LIBELLES_TYPE_SOL,
   lineaireRaccordementKm,
+  puissanceEstimee,
+  surfaceUtileSiteHa,
   verificationsAvantContact,
 } from '@enr/scoring';
+import { reparerDoubleEncodage } from '../texte.js';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
 import type { LigneResultatFiltre } from './recherche.js';
 
@@ -78,7 +88,19 @@ const BAS = 58;
  */
 function net(s: string | null | undefined): string {
   if (s == null) return '';
-  return String(s)
+  /*
+   * LA DERNIERE LIGNE DE DEFENSE CONTRE UN DOUBLE ENCODAGE, et elle est necessaire MEME si la
+   * reparation est faite a l'ingestion.
+   *
+   * Le correctif de fond vit dans le connecteur GPU : les libelles y sont repares en arrivant. Mais
+   * les instantanes DEJA EN BASE portent le texte casse jusqu'a leur prochain enrichissement, qui
+   * peut etre a trente jours. Entre-temps, ces libelles partent dans des documents remis a des
+   * tiers, ou « ChÃ¢teau de VilleprÃ©vost » fait douter du reste du document.
+   *
+   * Reparer AVANT le nettoyage Latin-1, et non apres : `net` retire tout ce qui sort de Latin-1, ce
+   * qui ne casserait rien ici mais empecherait la reparation de reconnaitre sa propre trace.
+   */
+  return reparerDoubleEncodage(String(s))
     .replace(/[‘’‛]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/[–—−]/g, '-')
@@ -97,15 +119,15 @@ function net(s: string | null | undefined): string {
 }
 
 /**
- * Etat de l'arrete de protection de biotope, pour le rapport.
+ * Etat d'un zonage naturel (APPB, Natura 2000, ZNIEFF...), pour les documents remis.
  *
  * Trois etats a distinguer, et la nuance porte : « aucun dans le rayon analyse » est un CONSTAT,
  * « non renseigne » signale que la source n'a pas repondu. Confondre les deux ferait passer une
  * panne de connecteur pour une absence de contrainte.
  */
-function libelleAppb(a: { recouvre: boolean | null; distanceM: number | null; nom: string | null }): string {
+function libelleZonage(a: { recouvre: boolean | null; distanceM: number | null; nom: string | null }): string {
   if (a.recouvre === true) return `recouvrement${a.nom ? ` - ${a.nom}` : ''}`;
-  if (a.recouvre == null) return 'non renseigne';
+  if (a.recouvre == null) return 'non renseigné';
   if (a.distanceM == null) return 'aucun dans le rayon analyse';
   return `${Math.round(a.distanceM)} m${a.nom ? ` - ${a.nom}` : ''}`;
 }
@@ -332,7 +354,7 @@ const nb = (v: number | null | undefined, unite = '', decimales = 0): string =>
   v == null ? '-' : `${v.toFixed(decimales).replace('.', ',')}${unite ? ` ${unite}` : ''}`;
 
 const ouiNon = (v: boolean | null | undefined): string =>
-  v == null ? 'non renseigne' : v ? 'oui' : 'non';
+  v == null ? 'non renseigné' : v ? 'oui' : 'non';
 
 /**
  * Culture RPG, en distinguant l'absence de declaration de l'absence de donnee.
@@ -344,7 +366,7 @@ const ouiNon = (v: boolean | null | undefined): string =>
  */
 export const libelleRpg = (rpg: ParcelleSnapshot['occupationSol']['rpg']): string => {
   if (rpg.libelleCulture) return rpg.libelleCulture;
-  if (rpg.anneesDeclareesConsecutives == null) return 'non renseigne (RPG non consulte)';
+  if (rpg.anneesDeclareesConsecutives == null) return 'non renseigné (RPG non consulté)';
   return 'aucune déclaration PAC';
 };
 
@@ -399,7 +421,7 @@ export function ficheParcellePdf(
     `Couverture des données : ${Math.round(score.couvertureDonnees * 100)} %`,
     score.regimeImplantation
       ? `Régime : ${LIBELLES_REGIME[score.regimeImplantation] ?? score.regimeImplantation}`
-      : "Régime d'implantation non determine",
+      : "Régime d'implantation non déterminé",
     `Calcul du ${dateFr(score.dateCalcul)} - moteur ${score.versionMoteur}`,
   ];
   const largeurInfos = total * 0.34 - 16;
@@ -424,7 +446,7 @@ export function ficheParcellePdf(
   doc.fontSize(8.6).font('Helvetica').text(
     net(
       score.knockOuts.length > 0
-        ? `${score.knockOuts.length} critère(s) rédhibitoire(s) declenche(s)`
+        ? `${score.knockOuts.length} critère(s) rédhibitoire(s) déclenché(s)`
         : `Critère déterminant : ${meta.critereRoi}`,
     ),
     MARGE + 100,
@@ -486,7 +508,7 @@ export function ficheParcellePdf(
     tableau(
       doc,
       [
-        { titre: 'Limite', part: 0.4 },
+        { titre: 'Facteur limitant', part: 0.4 },
         { titre: 'Constat', part: 0.6 },
       ],
       score.limitesViabilite.map((l) => ({
@@ -540,8 +562,8 @@ export function ficheParcellePdf(
         ? `${snapshot.identite.centroide[1].toFixed(5)} N, ${snapshot.identite.centroide[0].toFixed(5)} E`
         : '-',
     ],
-    ['Document d\'urbanisme', urba.typeDocument ?? (urba.couvertParGpu === false ? 'non publie au GPU' : 'non renseigne')],
-    ['Zonage dominant', zonagePrincipal ? `${zonagePrincipal.libelle ?? '-'} (${zonagePrincipal.typeZone ?? '?'})` : 'non renseigne'],
+    ['Document d\'urbanisme', urba.typeDocument ?? (urba.couvertParGpu === false ? 'non publié au GPU' : 'non renseigné')],
+    ['Zonage dominant', zonagePrincipal ? `${zonagePrincipal.libelle ?? '-'} (${zonagePrincipal.typeZone ?? '?'})` : 'non renseigné'],
     // Le libelle, pas la cle : le rapport ecrivait « agricole_exploite » quand la fiche affichait
     // « Terrain agricole exploite ». Meme table pour les deux, desormais.
     [
@@ -555,13 +577,13 @@ export function ficheParcellePdf(
     ['Altitude', nb(snapshot.topographie.altitudeM, 'm')],
     ['Dénivelé', nb(snapshot.topographie.deniveleM, 'm')],
     ['Habitation la plus proche', nb(snapshot.bati.distanceHabitationM, 'm')],
-    ['Zone d\'accélération ENR', urba.zaer.present == null ? 'non renseigne' : ouiNon(urba.zaer.present)],
+    ['Zone d\'accélération ENR', urba.zaer.present == null ? 'non renseigné' : ouiNon(urba.zaer.present)],
     // L'arrete de protection de biotope figurait dans l'interface et PAS dans le rapport : un
     // APPB a 200 m etait visible a l'ecran et absent du document transmis. Or c'est une
     // protection absolue (art. R.411-15 du code de l'environnement), non derogeable par une
     // modification du document d'urbanisme : elle ne peut pas manquer au livrable. Un
     // recouvrement, lui, declenche un knock-out et apparait deja en tete de rapport.
-    ['Protection de biotope (APPB)', libelleAppb(snapshot.milieux.appb)],
+    ['Protection de biotope (APPB)', libelleZonage(snapshot.milieux.appb)],
   ]);
   if (zonagePrincipal?.urlReglement) {
     doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(net(`Règlement applicable : ${zonagePrincipal.urlReglement}`), MARGE, doc.y, { width: total });
@@ -599,12 +621,12 @@ export function ficheParcellePdf(
             nb(p.distanceKm, 'km', 1),
             p.distanceKm == null ? '-' : nb(lineaireRaccordementKm(p.distanceKm), 'km', 1),
             p.capaciteResiduelleMw != null ? nb(p.capaciteResiduelleMw, 'MW', 1) : 'inconnue',
-            p.etatSaturation ?? 'non renseigne',
+            p.etatSaturation ?? 'non renseigné',
             p.renforcement.prevu
               ? `prevu ${p.renforcement.horizon ?? ''} ${p.renforcement.capaciteAttendueMw != null ? `(+${nb(p.renforcement.capaciteAttendueMw, 'MW', 0)})` : ''}`.trim()
               : p.renforcement.prevu === false
                 ? 'aucun'
-                : 'non renseigne',
+                : 'non renseigné',
           ],
           pastille:
             p.etatSaturation === 'disponible'
@@ -623,7 +645,7 @@ export function ficheParcellePdf(
         .fillColor(ENCRE_FAIBLE)
         .text(
           net(
-            `Tracé estimé = vol d'oiseau majore de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
+            `Tracé estimé = vol d'oiseau majoré de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
               '(contournement du parcellaire et de la voirie). C\'est cette valeur qui est notée ' +
               'dans la synthèse ; elle ne remplace pas une étude de tracé.',
           ),
@@ -651,7 +673,7 @@ export function ficheParcellePdf(
             ? `${nb(racc.reseauGaz.distanceSiteInjectionKm, 'km', 1)} (indicateur de filière, non une distance de raccordement)`
             : 'aucun recense',
         ],
-        ['Gestionnaire', racc.reseauGaz.gestionnaire ?? 'non renseigne'],
+        ['Gestionnaire', racc.reseauGaz.gestionnaire ?? 'non renseigné'],
         ['Rebours nécessaire', ouiNon(racc.reseauGaz.reboursNecessaire)],
         [
           'Capacité d\'injection',
@@ -782,7 +804,7 @@ export function ficheParcellePdf(
   );
   if (connecteursEnEchec.length > 0) {
     encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
-      `${connecteursEnEchec.join(', ')}. Les critères qui en dependent sont restes non évalués. ` +
+      `${connecteursEnEchec.join(', ')}. Les critères qui en dépendent sont restés non évalués. ` +
         'Relancer la qualification de la parcelle permettra de les compléter.',
     ]);
   }
@@ -839,8 +861,8 @@ export function ficheParcellePdf(
   assurerPlace(doc, 30);
   doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(
     net(
-      `Référentiel réglementaire verifie le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
-        'Le contour cadastral est issu du Plan Cadastral Informatise : il est indicatif et sans valeur juridique. ' +
+      `Référentiel réglementaire vérifié le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${score.versionMoteur}. ` +
+        'Le contour cadastral est issu du Plan Cadastral Informatisé : il est indicatif et sans valeur juridique. ' +
         'Seul un document d\'arpentage établi par un géomètre-expert fait foi.',
     ),
     MARGE,
@@ -848,7 +870,23 @@ export function ficheParcellePdf(
     { width: total, align: 'justify' },
   );
 
-  // ==================================================== pieds de page
+  piedsDePage(doc, `Prospection EnR - aide à la décision, pas une garantie de faisabilité - parcelle ${parcelle.idu}`);
+
+  doc.end();
+  return doc;
+}
+
+/**
+ * Pied de page sur chaque page : mention permanente a gauche, pagination a droite.
+ *
+ * Exige `bufferPages: true` a la creation du document — le nombre total de pages n'est connu
+ * qu'a la fin. Sorti de `ficheParcellePdf` le jour ou un second document a eu besoin du meme
+ * pied : la mention « aide a la decision, pas une garantie de faisabilite » est la seule qui
+ * suive le lecteur d'un bout a l'autre d'un livrable imprime, elle ne doit pas exister en deux
+ * exemplaires susceptibles de diverger.
+ */
+function piedsDePage(doc: Doc, mention: string): void {
+  const total = largeurUtile(doc);
   const pages = doc.bufferedPageRange();
   for (let i = 0; i < pages.count; i += 1) {
     doc.switchToPage(pages.start + i);
@@ -864,18 +902,764 @@ export function ficheParcellePdf(
       .strokeColor(FILET)
       .stroke();
     doc.fontSize(7).font('Helvetica').fillColor(ENCRE_FAIBLE);
-    doc.text(
-      net(`Prospection EnR - aide à la décision, pas une garantie de faisabilité - parcelle ${parcelle.idu}`),
-      MARGE,
-      y,
-      { width: total * 0.75, lineBreak: false },
-    );
+    doc.text(net(mention), MARGE, y, { width: total * 0.75, lineBreak: false });
     doc.text(`${i + 1} / ${pages.count}`, MARGE + total * 0.75, y, {
       width: total * 0.25,
       align: 'right',
       lineBreak: false,
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// PDF : dossier de site (plusieurs parcelles)
+//
+// CE QUE CE DOCUMENT EST, ET POURQUOI IL N'EST PAS UNE CONCATENATION DE FICHES.
+//
+// La fiche parcelle repond a « ce terrain vaut-il un appel ». Le dossier de site repond a une
+// question posee plus tard, et par quelqu'un d'autre : le proprietaire a dit oui, et il faut
+// remettre a un DEVELOPPEUR de quoi instruire un projet. Trois differences en decoulent, et
+// aucune ne s'obtient en agrafant des fiches :
+//
+//   1. LES GRANDEURS SONT CELLES DU SITE, pas celles d'une parcelle. Une surface utile de site
+//      n'est pas la somme des surfaces utiles : si les parcelles sont jointives, les limites
+//      interieures ne portent pas de cloture. `surfaceUtileSiteHa` tranche selon la contiguite
+//      REELLE, mesuree en base, et le dossier ecrit laquelle des deux methodes il a appliquee ;
+//   2. LA LECTURE EST PAR THEME, pas par parcelle. Un developpeur lit « le raccordement du
+//      site », « l'urbanisme du site » — il compare les parcelles entre elles sur un meme
+//      critere. Douze fiches obligeraient a reconstruire ces tableaux a la main ;
+//   3. LES RESERVES SONT AGREGEES ET REMONTEES EN TETE. Un knock-out bloquant sur une seule
+//      parcelle d'un ensemble condamne souvent l'ensemble : noye en page 40 d'une concatenation,
+//      il se decouvre apres la promesse faite au proprietaire.
+// ---------------------------------------------------------------------------
+
+export interface ParcelleDuDossier {
+  parcelle: ParcelleEnBase;
+  snapshot: ParcelleSnapshot;
+  score: ResultatScore;
+  connecteursEnEchec: string[];
+  /** Statut de prospection, s'il existe un lead pour cette parcelle et cette filiere. */
+  statutProspection: StatutProspection | null;
+}
+
+export interface ContexteDossier {
+  filiere: Filiere;
+  /**
+   * Nombre de groupes de parcelles contigus, mesure en base (`nbGroupesContigus`).
+   * `null` = indeterminable : traite comme disperse, ce qui est le sens prudent.
+   */
+  nbGroupesContigus: number | null;
+}
+
+/** Rose des vents a huit branches, pour rendre une orientation lisible sans calcul mental. */
+function cardinal(deg: number | null): string {
+  if (deg == null || !Number.isFinite(deg)) return '-';
+  const points = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+  const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  // Le degre en toutes lettres serait plus sur, mais « ° » est dans Latin-1 : `net` le conserve.
+  return `${points[i]} (${Math.round(deg)}°)`;
+}
+
+/** Severite d'un plan de prevention, en clair. */
+const LIBELLES_SEVERITE_PLAN: Record<string, string> = {
+  interdiction_stricte: 'interdiction stricte',
+  interdiction: 'interdiction',
+  prescriptions: 'prescriptions',
+  precaution: 'précaution',
+};
+
+export function dossierSitePdf(
+  parcelles: ParcelleDuDossier[],
+  contexte: ContexteDossier,
+): NodeJS.ReadableStream {
+  const meta = FILIERES_META[contexte.filiere];
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: HAUT, bottom: BAS, left: MARGE, right: MARGE },
+    bufferPages: true,
+    info: {
+      Title: `Dossier de site - ${parcelles.length} parcelle(s) - ${meta.libelleCourt}`,
+      Author: 'Prospection EnR',
+      Subject: `Dossier de site, filière ${meta.libelle}`,
+    },
+  });
+  const total = largeurUtile(doc);
+
+  const surfaceHa = (p: ParcelleEnBase): number | null => {
+    const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
+    return m2 == null ? null : m2 / 10000;
+  };
+
+  const communes = [
+    ...new Set(parcelles.map((p) => p.parcelle.nomCommune ?? p.parcelle.codeInsee)),
+  ].sort();
+  const multiCommune = communes.length > 1;
+  /**
+   * Reference courte d'une parcelle dans les tableaux thematiques.
+   *
+   * La commune n'est ajoutee que lorsqu'il y en a plusieurs : sur un site d'une seule commune,
+   * la repeter douze fois occupe une colonne pour rien ; sur un site a cheval, « AB 12 » sans
+   * commune designe potentiellement deux parcelles differentes.
+   */
+  const ref = (p: ParcelleEnBase): string =>
+    multiCommune
+      ? `${p.nomCommune ?? p.codeInsee} ${p.section} ${p.numero}`
+      : `${p.section} ${p.numero}`;
+
+  // ===================================================================== tete
+  doc.fontSize(7.8).font('Helvetica-Bold').fillColor(ENCRE_FAIBLE);
+  doc.text('PROSPECTION ENR - DOSSIER DE SITE', MARGE, HAUT, { characterSpacing: 0.8 });
+  doc.fontSize(19).font('Helvetica-Bold').fillColor('#0f172a');
+  doc.text(
+    net(communes.length <= 3 ? communes.join(', ') : `${communes.slice(0, 3).join(', ')} et ${communes.length - 3} autre${communes.length - 3 > 1 ? 's' : ''} commune${communes.length - 3 > 1 ? 's' : ''}`),
+    MARGE,
+    doc.y + 4,
+    { width: total },
+  );
+  doc.fontSize(10).font('Helvetica').fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      `${parcelles.length} parcelle${parcelles.length > 1 ? 's' : ''}  -  filière ${meta.libelle}  -  dossier du ${dateFr(new Date())}`,
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total },
+  );
+  doc.y += 12;
+  doc.fillColor(ENCRE);
+
+  // ============================================================ chiffres du site
+  const surface = surfaceUtileSiteHa(
+    parcelles.map((p) => surfaceHa(p.parcelle)),
+    parcelles.map((p) => p.snapshot.foncier.morcellementIndice),
+    contexte.filiere,
+    contexte.nbGroupesContigus,
+  );
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE REGIME D'IMPLANTATION DU SITE N'EXISTE QUE S'IL EST UNANIME — ET SINON, ON PREND LE BAS
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le regime (agrivoltaisme, terrain degrade...) change la densite de puissance du SIMPLE AU
+   * DOUBLE : 1 MWc par hectare en centrale au sol, 0,5 en agrivoltaisme ou la couverture est
+   * plafonnee. Le deduire d'une parcelle sur douze, ou prendre le plus frequent, produirait un
+   * chiffre de projet fonde sur une majorite silencieuse.
+   *
+   * CE QUE LA PREMIERE VERSION FAISAIT, ET POURQUOI C'ETAIT LE MAUVAIS DEFAUT. Faute d'unanimite,
+   * elle passait `null` — c'est-a-dire qu'elle retombait sur la densite de REFERENCE, la plus
+   * haute. Mesure sur les deux parcelles de fixtures, dont les regimes different : le dossier
+   * annoncait 19,08 MWc en ecrivant deux lignes plus haut « regime heterogene selon les
+   * parcelles ». Un site partiellement agrivoltaique etait donc chiffre comme s'il ne l'etait
+   * pas, et l'ecart va jusqu'au double.
+   *
+   * Entre plusieurs regimes possibles, le dossier retient donc la densite LA PLUS BASSE. Un site
+   * sous-estime coute une etude ; un site surestime coute une promesse faite a un proprietaire et
+   * un modele economique refait.
+   */
+  const regimes = new Set(parcelles.map((p) => p.score.regimeImplantation ?? null));
+  const regimeUnanime = regimes.size === 1 ? [...regimes][0] : undefined;
+  const candidates = [...regimes].map((r) => puissanceEstimee(contexte.filiere, surface.netteHa, r));
+  const puissance =
+    regimes.size === 1
+      ? candidates[0]!
+      : (candidates
+          .filter((p) => p.mwc != null)
+          .sort((a, b) => a.mwc! - b.mwc!)[0] ?? candidates[0]!);
+
+  const emprise =
+    contexte.nbGroupesContigus == null
+      ? 'contiguïté indéterminée (traitée comme dispersée)'
+      : contexte.nbGroupesContigus === 1
+        ? "un seul tenant"
+        : `${contexte.nbGroupesContigus} emprises séparées`;
+
+  titreSection(doc, 'Le site en chiffres');
+  grilleCles(doc, [
+    ['Filière étudiée', meta.libelle],
+    ['Parcelles', `${parcelles.length}`],
+    ['Emprise', emprise],
+    ['Communes', `${communes.length}`],
+    ['Surface cadastrale cumulée', nb(surface.bruteHa, 'ha', 2)],
+    ['Surface utile estimée', nb(surface.netteHa, 'ha', 2)],
+    [
+      'Puissance estimée',
+      puissance.mwc != null ? nb(puissance.mwc, 'MWc', 2) : 'non déductible d’une surface',
+    ],
+    [
+      'Régime d’implantation',
+      regimeUnanime == null
+        ? regimes.size > 1
+          ? 'hétérogène selon les parcelles'
+          : 'non déterminé'
+        : (LIBELLES_REGIME[regimeUnanime] ?? regimeUnanime),
+    ],
+  ]);
+
+  /*
+   * LA METHODE SOUS LES DEUX CHIFFRES QUI SERONT REPRIS AILLEURS.
+   *
+   * La surface utile et la puissance sont les deux lignes qu'un developpeur recopie dans son
+   * propre modele. Elles quittent donc ce document, et la phrase qui les qualifie doit voyager
+   * avec elles — sans quoi une estimation d'ordre de grandeur devient, deux tableurs plus loin,
+   * une donnee d'entree.
+   */
+  doc.fontSize(7.8).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      `Surface utile : ${
+        surface.methode === 'emprise_unique'
+          ? "les parcelles forment une emprise unique, la bande périmétrale est déduite du contour d'ensemble."
+          : "les parcelles ne forment pas une emprise unique (ou la contiguïté est inconnue) : la bande périmétrale est déduite parcelle par parcelle, puis sommée. C'est le calcul prudent."
+      }`,
+    ),
+    MARGE,
+    doc.y,
+    { width: total, align: 'justify' },
+  );
+  doc.text(
+    net(
+      `Puissance : ${puissance.methode}` +
+        (regimes.size > 1 && puissance.mwc != null
+          ? " Les parcelles ne relèvent pas toutes du même régime d'implantation : c'est la densité " +
+            'la plus basse des régimes présents qui est retenue, soit le chiffrage prudent.'
+          : ''),
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.4);
+
+  // ================================================================ reserves
+  /*
+   * LES RESERVES AVANT TOUT LE RESTE.
+   *
+   * Un dossier se constitue apres un accord de principe du proprietaire : le risque propre a ce
+   * moment-la n'est plus de rater un terrain, c'est d'engager une negociation sur un terrain
+   * deja disqualifie. Ce bloc est donc en page une, avant les tableaux thematiques.
+   */
+  const bloquantes = parcelles.filter((p) => p.score.knockOuts.some((k) => !k.derogeable));
+  const derogeables = parcelles.filter(
+    (p) => p.score.knockOuts.length > 0 && !p.score.knockOuts.some((k) => !k.derogeable),
+  );
+  if (bloquantes.length > 0 || derogeables.length > 0) {
+    titreSection(doc, 'Réserves sur les parcelles du dossier');
+    for (const p of bloquantes) {
+      encadre(
+        doc,
+        'rouge',
+        `${ref(p.parcelle)} - ${LIBELLE_REDHIBITOIRE}`,
+        p.score.knockOuts.filter((k) => !k.derogeable).map((k) => `${k.libelle} : ${k.motif}`),
+      );
+    }
+    for (const p of derogeables) {
+      encadre(
+        doc,
+        'orange',
+        `${ref(p.parcelle)} - sous condition de dérogation`,
+        p.score.knockOuts.map((k) => `${k.libelle} : ${k.motif}`),
+      );
+    }
+  }
+
+  // ============================================================ liste des parcelles
+  titreSection(doc, 'Parcelles du dossier', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.14 },
+      { titre: 'Commune', part: 0.2 },
+      { titre: 'Identifiant (IDU)', part: 0.22 },
+      { titre: 'Surface', part: 0.12, align: 'right' },
+      { titre: 'Score', part: 0.1, align: 'right' },
+      { titre: 'Prospection', part: 0.22 },
+    ],
+    parcelles.map((p) => ({
+      cellules: [
+        `${p.parcelle.section} ${p.parcelle.numero}`,
+        p.parcelle.nomCommune ?? p.parcelle.codeInsee,
+        p.parcelle.idu,
+        nb(surfaceHa(p.parcelle), 'ha', 2),
+        p.score.scoreGlobal != null ? p.score.scoreGlobal.toFixed(0) : 'écartée',
+        p.statutProspection
+          ? STATUTS_PROSPECTION_META[p.statutProspection].libelle
+          : 'aucun suivi enregistré',
+      ],
+      pastille: p.score.statut,
+    })),
+  );
+
+  // ======================================================== acces et transports
+  titreSection(doc, 'Accès et transports', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.22 },
+      { titre: 'Voirie carrossable', part: 0.18, align: 'right' },
+      { titre: 'Accès poids lourds', part: 0.2 },
+      { titre: 'Habitation la plus proche', part: 0.2, align: 'right' },
+      { titre: 'Bâtiments dans 500 m', part: 0.2, align: 'right' },
+    ],
+    parcelles.map((p) => ({
+      cellules: [
+        ref(p.parcelle),
+        p.snapshot.acces.distanceVoirieM == null
+          ? 'non renseigné'
+          : p.snapshot.acces.distanceVoirieM <= 0
+            ? 'parcelle riveraine'
+            : nb(p.snapshot.acces.distanceVoirieM, 'm'),
+        ouiNon(p.snapshot.acces.accesPoidsLourds),
+        nb(p.snapshot.bati.distanceHabitationM, 'm'),
+        nb(p.snapshot.bati.nbHabitationsRayon500m),
+      ],
+      pastille:
+        p.snapshot.acces.distanceVoirieM == null
+          ? 'gris'
+          : p.snapshot.acces.distanceVoirieM <= 0
+            ? 'vert'
+            : 'orange',
+    })),
+  );
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      'La voirie mesurée est le réseau routier carrossable de la BD TOPO. Le dossier ne couvre ni ' +
+        "le fer, ni la voie d'eau, ni le gabarit réel des ouvrages d'art sur l'itinéraire : un " +
+        'convoi exceptionnel (pales, transformateurs, conteneurs) se vérifie auprès du ' +
+        'gestionnaire de voirie, pas sur une carte.',
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.3);
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * RACCORDEMENT — LA SECTION EST TOUJOURS ECRITE, MEME VIDE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * LE DEFAUT TROUVE EN RELISANT LE DOCUMENT PRODUIT, et non en relisant le code. Sur les fixtures,
+   * le connecteur des postes sources est en echec : `posteLePlusProche` vaut `null` partout, et la
+   * section entiere disparaissait. Le dossier passait donc d'« Accès et transports » a « Urbanisme
+   * applicable » sans un mot.
+   *
+   * Pour un lecteur, une section absente d'un sommaire thematique ne se lit pas « donnee
+   * manquante » : elle se lit « sans objet ». Or le raccordement est LE critere dimensionnant d'un
+   * projet ENR — c'est lui qui decide du budget et souvent du calendrier. Le taire est la faute que
+   * ce depot traque depuis dix audits, appliquee a la donnee la plus chere du dossier.
+   *
+   * La fiche parcelle a la meme construction conditionnelle, et c'est defendable la-bas : elle est
+   * lue a l'ecran, a cote d'une interface qui affiche l'etat des connecteurs. Le dossier, lui, part
+   * seul chez un tiers.
+   */
+  const avecPoste = parcelles.filter((p) => p.snapshot.raccordement.posteLePlusProche != null);
+  titreSection(doc, 'Raccordement électrique', 90);
+  if (avecPoste.length === 0) {
+    encadre(doc, 'gris', 'Aucun poste source renseigné pour ce site', [
+      "Le raccordement n'a pas pu être documenté : la couche des postes sources n'est pas ingérée, " +
+        "ou elle n'a pas répondu au moment du calcul. Ce n'est PAS un constat d'absence de " +
+        'contrainte — le raccordement reste le poste de coût dimensionnant du projet.',
+      'À obtenir avant toute décision : la capacité résiduelle et la file d’attente du poste ' +
+        'envisagé (Capareseau), et le schéma régional de raccordement (S3REnR) applicable.',
+    ]);
+  } else {
+    if (avecPoste.length < parcelles.length) {
+      encadre(doc, 'gris', 'Raccordement documenté sur une partie du site seulement', [
+        `${avecPoste.length} parcelle(s) sur ${parcelles.length} portent un poste source renseigné. ` +
+          "Les autres ne figurent pas dans le tableau ci-dessous : leur raccordement n'est pas " +
+          'documenté, il n’est pas réputé plus simple.',
+      ]);
+    }
+    tableau(
+      doc,
+      [
+        { titre: 'Parcelle', part: 0.16 },
+        { titre: 'Poste source', part: 0.2 },
+        { titre: 'Gestionnaire', part: 0.12 },
+        { titre: 'Vol d\'oiseau', part: 0.12, align: 'right' },
+        { titre: 'Tracé estimé', part: 0.12, align: 'right' },
+        { titre: 'Capacité', part: 0.13, align: 'right' },
+        { titre: 'Saturation', part: 0.15 },
+      ],
+      avecPoste.map((p) => {
+        const poste = p.snapshot.raccordement.posteLePlusProche!;
+        return {
+          cellules: [
+            ref(p.parcelle),
+            poste.nom,
+            poste.gestionnaire,
+            nb(poste.distanceKm, 'km', 1),
+            nb(lineaireRaccordementKm(poste.distanceKm), 'km', 1),
+            poste.capaciteResiduelleMw != null ? nb(poste.capaciteResiduelleMw, 'MW', 1) : 'inconnue',
+            poste.etatSaturation ?? 'non renseigné',
+          ],
+          pastille:
+            poste.etatSaturation === 'disponible'
+              ? ('vert' as Feu)
+              : poste.etatSaturation === 'tendu'
+                ? ('orange' as Feu)
+                : poste.etatSaturation === 'sature'
+                  ? ('rouge' as Feu)
+                  : ('gris' as Feu),
+        };
+      }),
+    );
+    doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+    doc.text(
+      net(
+        `Tracé estimé = vol d'oiseau majoré de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % ` +
+          '(contournement du parcellaire et de la voirie). La capacité résiduelle est une valeur ' +
+          "indicative publiée par Capareseau : elle n'est pas une réservation, et la file d'attente " +
+          'peut la consommer avant le dépôt de la demande.',
+      ),
+      MARGE,
+      doc.y + 2,
+      { width: total, align: 'justify' },
+    );
+    doc.fillColor(ENCRE).moveDown(0.3);
+  }
+
+  // =============================================================== urbanisme
+  titreSection(doc, 'Urbanisme applicable', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.16 },
+      { titre: 'Document', part: 0.12 },
+      { titre: 'Zonage dominant', part: 0.28 },
+      { titre: 'Part', part: 0.1, align: 'right' },
+      { titre: 'Zone d\'accélération ENR', part: 0.16 },
+      { titre: 'Servitudes (SUP)', part: 0.18 },
+    ],
+    parcelles.map((p) => {
+      const u = p.snapshot.urbanisme;
+      const zone = [...u.zonages].sort(
+        (a, b) => (b.partRecouvrement ?? 0) - (a.partRecouvrement ?? 0),
+      )[0];
+      return {
+        cellules: [
+          ref(p.parcelle),
+          u.typeDocument ?? (u.couvertParGpu === false ? 'non publié' : 'non renseigné'),
+          zone ? `${zone.libelle ?? '-'} (${zone.typeZone ?? '?'})` : 'non renseigné',
+          zone?.partRecouvrement != null ? `${Math.round(zone.partRecouvrement * 100)} %` : '-',
+          u.zaer.present == null ? 'non renseigné' : ouiNon(u.zaer.present),
+          u.servitudes.length > 0 ? u.servitudes.join(', ') : 'aucune relevée',
+        ],
+        pastille: (u.typeDocument == null ? 'gris' : 'vert') as Feu,
+      };
+    }),
+  );
+  const reglements = [
+    ...new Set(
+      parcelles
+        .flatMap((p) => p.snapshot.urbanisme.zonages.map((z) => z.urlReglement))
+        .filter((u): u is string => u != null && u !== ''),
+    ),
+  ];
+  if (reglements.length > 0) {
+    doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+    doc.text(net('Règlements applicables :'), MARGE, doc.y + 2, { width: total });
+    for (const url of reglements) doc.text(net(url), MARGE, doc.y, { width: total });
+    doc.fillColor(ENCRE).moveDown(0.3);
+  }
+
+  // ============================================================ eau et inondation
+  titreSection(doc, 'Eau et inondation', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.16 },
+      { titre: 'PPRI sur la commune', part: 0.14 },
+      { titre: 'Sévérité maximale du plan', part: 0.2 },
+      { titre: 'Aléa', part: 0.1 },
+      { titre: 'TRI', part: 0.1 },
+      { titre: 'Cours d\'eau', part: 0.14, align: 'right' },
+      { titre: 'Zone humide', part: 0.16 },
+    ],
+    parcelles.map((p) => {
+      const e = p.snapshot.eau;
+      const ppri = p.snapshot.risques.ppri;
+      return {
+        cellules: [
+          ref(p.parcelle),
+          ppri.present == null ? 'non renseigné' : ouiNon(ppri.present),
+          ppri.severitePlan
+            ? (LIBELLES_SEVERITE_PLAN[ppri.severitePlan] ?? ppri.severitePlan)
+            : ppri.present === false
+              ? 'sans objet'
+              : 'non renseignée',
+          e.inondation.alea ?? 'non renseigné',
+          e.inondation.dansTri == null ? 'non renseigné' : ouiNon(e.inondation.dansTri),
+          nb(e.distanceCoursEauM, 'm'),
+          e.zoneHumide === 'a_confirmer' ? 'à confirmer' : (e.zoneHumide ?? 'non renseigné'),
+        ],
+        pastille: (ppri.present == null
+          ? 'gris'
+          : ppri.present === false
+            ? 'vert'
+            : 'orange') as Feu,
+      };
+    }),
+  );
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      "L'API Géorisques expose la liste des zones réglementaires d'un plan, pas leur géométrie : " +
+        'la colonne « sévérité maximale » décrit ce que le PLAN contient, et non la zone applicable ' +
+        'à la parcelle. Cette dernière se lit sur le règlement graphique, en mairie ou en ' +
+        'préfecture — elle conditionne la constructibilité et doit être obtenue avant tout ' +
+        'engagement. Le repérage des zones humides est cartographique : il ne remplace pas un ' +
+        'sondage pédologique.',
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.3);
+
+  // ============================================================= milieux et foret
+  titreSection(doc, 'Milieux naturels et boisement', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.16 },
+      { titre: 'Boisement (BD Forêt)', part: 0.18 },
+      { titre: 'Part boisée', part: 0.1, align: 'right' },
+      { titre: 'Enjeu défrichement', part: 0.14 },
+      { titre: 'Natura 2000', part: 0.22 },
+      { titre: 'ZNIEFF de type 1', part: 0.2 },
+    ],
+    parcelles.map((p) => {
+      const m = p.snapshot.milieux;
+      const f = p.snapshot.occupationSol.foret;
+      return {
+        cellules: [
+          ref(p.parcelle),
+          f.recouvre == null
+            ? 'non renseigné'
+            : f.recouvre
+              ? `boisée${f.type ? ` - ${f.type}` : ''}`
+              : 'non boisée',
+          f.partBoisee != null ? `${Math.round(f.partBoisee * 100)} %` : '-',
+          ouiNon(m.enjeuDefrichement),
+          `Habitats : ${libelleZonage(m.natura2000Habitats)}\nOiseaux : ${libelleZonage(m.natura2000Oiseaux)}`,
+          libelleZonage(m.znieff1),
+        ],
+        pastille: (f.recouvre == null
+          ? 'gris'
+          : f.recouvre
+            ? 'orange'
+            : 'vert') as Feu,
+      };
+    }),
+  );
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      'Un boisement déclenche une autorisation de défrichement (art. L.341-3 du code forestier) et, ' +
+        "le plus souvent, une compensation. Le caractère boisé s'apprécie sur l'état RÉEL du terrain, " +
+        "pas sur la BD Forêt, dont le millésime peut avoir plusieurs années : une friche reboisée " +
+        'depuis relève du défrichement même si la couche l’ignore.',
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.3);
+
+  // ============================================================== topographie
+  titreSection(doc, 'Topographie et sous-sol', 90);
+  const penteEstimee = parcelles.some((p) => p.snapshot.topographie.penteEstimeeParPaires === true);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.17 },
+      { titre: 'Pente moyenne', part: 0.14, align: 'right' },
+      { titre: 'Pente max', part: 0.11, align: 'right' },
+      { titre: 'Altitude', part: 0.11, align: 'right' },
+      { titre: 'Dénivelé', part: 0.11, align: 'right' },
+      { titre: 'Orientation', part: 0.14 },
+      { titre: 'Aléa argiles', part: 0.11 },
+      { titre: 'Cavités < 1 km', part: 0.11, align: 'right' },
+    ],
+    parcelles.map((p) => {
+      const t = p.snapshot.topographie;
+      return {
+        cellules: [
+          ref(p.parcelle),
+          t.pentePct == null
+            ? '-'
+            : `${nb(t.pentePct, '%', 1)}${t.penteEstimeeParPaires === true ? ' *' : ''}`,
+          nb(t.penteMaxPct, '%', 1),
+          nb(t.altitudeM, 'm'),
+          nb(t.deniveleM, 'm'),
+          cardinal(t.orientationDeg),
+          t.aleaArgiles ?? 'non renseigné',
+          nb(t.cavitesProches),
+        ],
+        pastille: (t.pentePct == null ? 'gris' : t.pentePct <= 5 ? 'vert' : t.pentePct <= 10 ? 'orange' : 'rouge') as Feu,
+      };
+    }),
+  );
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      (penteEstimee
+        ? '* Pente obtenue par différences entre paires de points et non par régression du plan des ' +
+          'altitudes : cette méthode retient la plus forte pente locale, elle SURÉVALUE donc la pente ' +
+          'moyenne. '
+        : '') +
+        'Les valeurs sont dérivées du modèle numérique de terrain : elles situent le site, elles ne ' +
+        'remplacent pas un levé topographique, qui reste nécessaire au plan de masse et au calcul ' +
+        'des terrassements.',
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.3);
+
+  // ================================================= avant de contacter le proprietaire
+  /*
+   * AGREGE ET DEDUPLIQUE, avec la liste des parcelles concernees.
+   *
+   * Repeter douze fois le meme paragraphe sur le bail rural ferait perdre l'information au lieu de
+   * la porter : ce qui compte ici, c'est QUELLES parcelles sont concernees par chaque point.
+   */
+  const points = new Map<string, { texte: string; question: string; titre: string; gravite: string; refs: string[] }>();
+  for (const p of parcelles) {
+    for (const v of verificationsAvantContact(p.snapshot, contexte.filiere, {
+      regimeImplantation: p.score.regimeImplantation ?? null,
+    })) {
+      const existant = points.get(v.id);
+      if (existant) existant.refs.push(ref(p.parcelle));
+      else
+        points.set(v.id, {
+          titre: v.titre,
+          texte: v.texte,
+          question: v.question,
+          gravite: v.gravite,
+          refs: [ref(p.parcelle)],
+        });
+    }
+  }
+  if (points.size > 0) {
+    titreSection(doc, 'Points à lever avec le propriétaire');
+    for (const v of points.values()) {
+      assurerPlace(doc, 40);
+      doc.fontSize(8.4).font('Helvetica-Bold').fillColor('#0f172a');
+      doc.text(net(v.titre), MARGE, doc.y, { width: total });
+      doc.fontSize(7.6).font('Helvetica').fillColor(ENCRE_FAIBLE);
+      doc.text(
+        net(
+          `${v.refs.length === parcelles.length ? 'Toutes les parcelles' : `Parcelle${v.refs.length > 1 ? 's' : ''} ${v.refs.join(', ')}`} - ${
+            v.gravite === 'arret'
+              ? 'peut arrêter la négociation'
+              : v.gravite === 'delai'
+                ? 'déplace le calendrier'
+                : 'change l’interlocuteur ou la démarche'
+          }`,
+        ),
+        MARGE,
+        doc.y + 1,
+        { width: total },
+      );
+      doc.fontSize(8).font('Helvetica').fillColor('#334155');
+      doc.text(net(v.texte), MARGE, doc.y + 1, { width: total, align: 'justify' });
+      doc.fontSize(8).font('Helvetica-Oblique').fillColor('#0f172a');
+      doc.text(net(`À demander : ${v.question}`), MARGE, doc.y + 1, { width: total });
+      doc.moveDown(0.35);
+    }
+    doc.fillColor(ENCRE).moveDown(0.2);
+  }
+
+  // ===================================================================== sources
+  /*
+   * UNE SOURCE INTERROGEE A DOUZE DATES DIFFERENTES N'A QU'UNE FRAICHEUR : LA PLUS ANCIENNE.
+   *
+   * Afficher la plus recente laisserait croire que tout le dossier a ete constitue ce jour-la,
+   * alors qu'une parcelle qualifiee il y a trois mois porte des donnees de trois mois.
+   */
+  const sources = new Map<string, { nom: string; millesime: string | null; date: string; valeurJuridique: string }>();
+  for (const p of parcelles) {
+    for (const [cle, s] of Object.entries(p.snapshot.sources)) {
+      const existant = sources.get(cle);
+      if (!existant || new Date(s.dateInterrogation) < new Date(existant.date)) {
+        sources.set(cle, {
+          nom: s.nom,
+          millesime: s.millesime ?? null,
+          date: s.dateInterrogation,
+          valeurJuridique: s.valeurJuridique,
+        });
+      }
+    }
+  }
+  titreSection(doc, 'Sources et fraîcheur des données', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Source', part: 0.42 },
+      { titre: 'Millésime', part: 0.14 },
+      { titre: 'Interrogée le (au plus tôt)', part: 0.2 },
+      { titre: 'Valeur juridique', part: 0.24 },
+    ],
+    [...sources.values()].map((s) => ({
+      cellules: [
+        s.nom,
+        s.millesime ?? '-',
+        dateFr(s.date),
+        s.valeurJuridique === 'opposable'
+          ? 'opposable'
+          : s.valeurJuridique === 'pre_reperage'
+            ? 'pré-repérage, à confirmer'
+            : 'indicative',
+      ],
+      pastille: (s.valeurJuridique === 'opposable'
+        ? 'vert'
+        : s.valeurJuridique === 'indicative'
+          ? 'orange'
+          : 'gris') as Feu,
+    })),
+  );
+  const echecs = [...new Set(parcelles.flatMap((p) => p.connecteursEnEchec))];
+  if (echecs.length > 0) {
+    encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
+      `${echecs.join(', ')}. Les critères qui en dépendent sont restés non évalués sur au moins ` +
+        'une parcelle du dossier : les cases correspondantes ne signifient pas « aucune contrainte ».',
+    ]);
+  }
+
+  // ============================================================= avertissements
+  titreSection(doc, 'Avertissements - à lire avant tout usage');
+  for (const a of AVERTISSEMENTS.filter((x) => x.portee === 'global')) {
+    assurerPlace(doc, 26);
+    doc.fontSize(8.4).font('Helvetica-Bold').fillColor('#0f172a').text(net(a.titre), MARGE, doc.y, { width: total });
+    doc.fontSize(8).font('Helvetica').fillColor('#334155').text(net(a.texte), MARGE, doc.y + 1, {
+      width: total,
+      align: 'justify',
+    });
+    doc.moveDown(0.35);
+  }
+  assurerPlace(doc, 34);
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(
+    net(
+      `Référentiel réglementaire vérifié le ${dateFr(REFERENTIEL_DERNIERE_VERIFICATION)}. Moteur de scoring version ${parcelles[0]?.score.versionMoteur ?? '-'}. ` +
+        "Ce dossier rassemble des données publiques pré-analysées pour préparer l'instruction d'un " +
+        "projet ; il ne constitue ni une étude de faisabilité, ni une étude d'impact, ni un avis " +
+        "juridique. Le contour cadastral est issu du Plan Cadastral Informatisé : il est indicatif " +
+        "et sans valeur juridique. Seul un document d'arpentage établi par un géomètre-expert fait foi.",
+    ),
+    MARGE,
+    doc.y,
+    { width: total, align: 'justify' },
+  );
+
+  piedsDePage(
+    doc,
+    `Prospection EnR - dossier de site - aide à la décision, pas une garantie de faisabilité`,
+  );
 
   doc.end();
   return doc;
@@ -890,7 +1674,7 @@ export function ficheParcellePdf(
  *
  * SIX, et le chiffre se justifie : a la latitude de la France metropolitaine, la sixieme decimale de
  * longitude vaut environ 7 cm, la sixieme de latitude environ 11 cm. C'est deja bien plus fin que la
- * precision du Plan Cadastral Informatise dont ces centroides sont issus, et que l'application
+ * precision du Plan Cadastral Informatisé dont ces centroides sont issus, et que l'application
  * qualifie d'indicatif dans chacun de ses avertissements.
  *
  * Ce qui etait ecrit avant : `1.7455783348199738` — dix-sept chiffres significatifs, soit une
@@ -1008,7 +1792,7 @@ export function geojsonParcelles(
       producteur: 'Prospection EnR',
       dateExport: new Date().toISOString(),
       avertissement:
-        "Contours issus du Plan Cadastral Informatise : indicatifs, sans valeur juridique. Scores fournis à titre d'aide à la décision.",
+        "Contours issus du Plan Cadastral Informatisé : indicatifs, sans valeur juridique. Scores fournis à titre d'aide à la décision.",
     },
     features: parcelles.map(({ parcelle, score }) => ({
       type: 'Feature',

@@ -580,7 +580,7 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
                   seuilOrange: etat.seuils[filiere]?.seuilOrange ?? defaut.seuilOrange,
                 })
                 .then(() => {
-                  setMessage(`Profil « ${nomProfil} » enregistre.`);
+                  setMessage(`Profil « ${nomProfil} » enregistré.`);
                   setNomProfil('');
                 })
                 .catch((e: Error) => setMessage(`Échec : ${e.message}`))
@@ -803,7 +803,7 @@ function Calques({ referentiel }: { referentiel: Referentiel }): JSX.Element | n
       </summary>
       <div className="section-corps">
         <p className="legende-note">
-          Contraintes de référence affichees en superposition. Chaque calque indique sa source et
+          Contraintes de référence affichées en superposition. Chaque calque indique sa source et
           son millésime : une contrainte sans provenance datee n&apos;est pas opposable dans un
           dossier.
         </p>

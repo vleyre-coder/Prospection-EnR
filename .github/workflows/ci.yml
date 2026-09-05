@@ -205,7 +205,7 @@ jobs:
           test/ingestion-exclusive.test.ts test/rapport-pdf.test.ts
           test/effacement-cycle.test.ts test/recherche-parcelle-inconnue.test.ts
           test/serialisation-base.test.ts
-          test/zones.test.ts test/zaer-implantation.test.ts
+          test/zones.test.ts test/zaer-implantation.test.ts test/dossier-site.test.ts
         working-directory: apps/api
 
       # Ce fichier modifie le schema (il supprime la table de suivi, renomme `parcelle`) :

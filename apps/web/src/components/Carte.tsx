@@ -440,7 +440,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
      * a pas de parcelle ici » de « cette parcelle n'a pas encore ete regardee ». Un prospecteur pouvait
      * balayer un secteur en croyant l'avoir vu en entier.
      *
-     * Le Plan Cadastral Informatise de l'IGN, relaye par l'API, couvre la France entiere. Dessine SOUS
+     * Le Plan Cadastral Informatisé de l'IGN, relaye par l'API, couvre la France entiere. Dessine SOUS
      * la couche qualifiee, il rend visible chaque parcelle : celles que nous avons etudiees gardent leur
      * couleur de score, les autres apparaissent en contour neutre. La difference entre « etudie » et
      * « pas encore etudie » devient lisible d'un coup d'oeil.
@@ -450,7 +450,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       tiles: [`${RACINE_ABSOLUE}/api/carte/cadastre/{z}/{x}/{y}.pbf`],
       minzoom: ZOOM_MIN_PARCELLES,
       maxzoom: 16,
-      attribution: '© IGN — Plan Cadastral Informatise',
+      attribution: '© IGN — Plan Cadastral Informatisé',
     });
 
     /**

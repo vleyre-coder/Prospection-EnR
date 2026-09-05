@@ -83,7 +83,7 @@ const koZoneHumide: RegleKo = (s) => {
     return ko(
       'ko_zone_humide',
       'Zone humide cartographiée',
-      "La parcelle est identifiée comme zone humide dans les inventaires. La séquence éviter-réduire-compenser impose l'évitement en priorité ; une compensation de 100 à 200 % de la surface est rarement mobilisable. À confirmer par sondages pédologiques : une infirmation de terrain leve ce critère.",
+      "La parcelle est identifiée comme zone humide dans les inventaires. La séquence éviter-réduire-compenser impose l'évitement en priorité ; une compensation de 100 à 200 % de la surface est rarement mobilisable. À confirmer par sondages pédologiques : une infirmation de terrain lève ce critère.",
       'environnement',
       'commun_zone_humide',
     );
@@ -129,7 +129,7 @@ const koPlanRisqueRouge: RegleKo = (s) => {
       id: 'ko_pprif_rouge',
       plan: s.risques.pprif,
       libelle: 'PPRIF zone rouge',
-      quoi: "plan de prévention du risque d'incendie de foret",
+      quoi: "plan de prévention du risque d'incendie de forêt",
       regle: 'commun_ppr_zone_rouge',
     },
     {
@@ -455,7 +455,7 @@ const koMethaCaptage: RegleKo = (s) => {
     return ko(
       'ko_metha_captage',
       'Périmètre de protection de captage',
-      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-perimetre — immédiat, rapproche ou éloigné — n'est pas publie par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproche l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre depense.",
+      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-perimetre — immédiat, rapproche ou éloigné — n'est pas publié par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproche l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre depense.",
       // Meme famille que les deux autres reculs de la methanisation : c'est bien une distance
       // reglementaire, meme lorsque le sous-perimetre reste a etablir.
       'distances_reglementaires',

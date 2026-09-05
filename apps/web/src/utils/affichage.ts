@@ -83,7 +83,7 @@ export function libelleCultureRpg(rpg: {
   const culture = rpg.libelleCulture ?? rpg.libelleGroupeCulture;
   if (culture) return { texte: culture, absent: false };
   if (rpg.anneesDeclareesConsecutives == null) {
-    return { texte: 'donnée indisponible (RPG non consulte)', absent: true };
+    return { texte: 'donnée indisponible (RPG non consulté)', absent: true };
   }
   return { texte: 'aucune déclaration PAC', absent: false };
 }

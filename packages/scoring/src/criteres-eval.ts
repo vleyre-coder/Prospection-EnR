@@ -448,7 +448,7 @@ const urb_zonage: Evaluateur = (s, ctx) => {
     return {
       note: 45,
       valeurBrute: 'RNU',
-      valeurAffichee: "Aucun document d'urbanisme publie (RNU probable)",
+      valeurAffichee: "Aucun document d'urbanisme publié (RNU probable)",
       commentaire:
         "En l'absence de PLU, le règlement national d'urbanisme s'applique : le principe de constructibilité limitée rend l'instruction plus incertaine. À vérifier en mairie et en DDT.",
       sourceKey: SRC.gpu,
@@ -750,7 +750,7 @@ const sol_foret: Evaluateur = (s) => {
       part === 0 ? 'Aucun boisement' : `${Math.round(part * 100)} % boisé${f.type ? ` (${f.type})` : ''}`,
     commentaire:
       part > 0
-        ? "Un défrichement declenche une autorisation, une compensation (souvent 1 à 5 fois la surface) et une forte sensibilité locale."
+        ? "Un défrichement déclenche une autorisation, une compensation (souvent 1 à 5 fois la surface) et une forte sensibilité locale."
         : "Aucun enjeu de défrichement identifie.",
     sourceKey: SRC.bdforet,
   };
@@ -1069,7 +1069,7 @@ const env_proximite_natura2000: Evaluateur = (s) => {
           ? `${formatDistance(plusProche.distanceM)}${plusProche.nom ? ` - ${plusProche.nom}` : ''}`
           : `Aucun site trouve dans un rayon de ${RAYON_ANALYSE_ZONAGES_M / 1000} km`,
     commentaire:
-      "Toute proximité declenche une évaluation des incidences Natura 2000, même sans recouvrement. Un recouvrement rend le projet très difficile à autoriser.",
+      "Toute proximité déclenche une évaluation des incidences Natura 2000, même sans recouvrement. Un recouvrement rend le projet très difficile à autoriser.",
     sourceKey: SRC.nature,
   };
 };
@@ -1112,7 +1112,7 @@ const env_zone_humide: Evaluateur = (s) => {
     valeurAffichee:
       zh === 'oui' ? 'Zone humide cartographiée' : zh === 'a_confirmer' ? 'A confirmer (pre-reperage)' : 'Hors zone humide cartographiée',
     commentaire:
-      "Pre-repérage cartographique uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie).",
+      "Pre-repérage cartographique uniquement. Le caractère humide se détermine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifié).",
     sourceKey: SRC.zonesHumides,
   };
 };
@@ -1402,7 +1402,7 @@ const risq_incendie: Evaluateur = (s) => {
         ? 'Obligation légale de débroussaillement'
         : 'Aucun risque incendie identifie',
     commentaire:
-      "Le risque feux de foret impose des obligations de débroussaillement, des accès engins et un avis du SDIS, particulièrement structurant pour un BESS.",
+      "Le risque feux de forêt impose des obligations de débroussaillement, des accès engins et un avis du SDIS, particulièrement structurant pour un BESS.",
     sourceKey: SRC.georisques,
   };
 };

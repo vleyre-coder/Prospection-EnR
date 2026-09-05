@@ -50,7 +50,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'racc_distance_reseau_gaz',
       'raccordement',
       'Distance au réseau gaz / point d\'injection',
-      "Determine la faisabilité économique de l'injection de biométhane. Au-delà de 5 à 10 km, la cogénération redevient l'option de référence.",
+      "Détermine la faisabilité économique de l'injection de biométhane. Au-delà de 5 à 10 km, la cogénération redevient l'option de référence.",
       'km',
     ),
 
@@ -103,7 +103,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'sol_type',
       'sol',
       'Statut et nature du sol',
-      'Terrain artificialisé ou dégradé, agricole exploité, inculte, ou naturel/forestier. Determine le régime juridique applicable et le niveau d\'opposition prévisible.',
+      'Terrain artificialisé ou dégradé, agricole exploité, inculte, ou naturel/forestier. Détermine le régime juridique applicable et le niveau d\'opposition prévisible.',
     ),
     def(
       'sol_culture_compatible',
@@ -128,7 +128,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'sol_foret',
       'sol',
       'Enjeu défrichement',
-      "Toute surface boisée à défricher declenche une autorisation de défrichement, des mesures compensatoires et une forte sensibilité locale.",
+      "Toute surface boisée à défricher déclenche une autorisation de défrichement, des mesures compensatoires et une forte sensibilité locale.",
     ),
 
     // -- Topographie -------------------------------------------------------
@@ -140,10 +140,10 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     // -- Surface -----------------------------------------------------------
     def('surf_utile', 'surface', 'Surface utile', "Surface réellement exploitable après déduction des contraintes. Conditionne la puissance installable et donc l'atteinte du seuil de rentabilité.", 'ha'),
     def('surf_un_seul_tenant', 'surface', "Surface d'un seul tenant", "Un bloc continu evite les servitudes de passage, simplifie le raccordement interne et la maîtrise foncière.", 'ha'),
-    def('surf_compacite', 'surface', 'Compacité de la parcelle', "Une forme compacte limite les linéaires de clôtures et de câblage. Les parcelles en lanières sont pénalisantes.", ),
+    def('surf_compacite', 'surface', 'Compacité de la parcelle', "Une forme compacte réduit les linéaires de clôtures et de câblage. Les parcelles en lanières sont pénalisantes.", ),
 
     // -- Environnement -----------------------------------------------------
-    def('env_proximite_natura2000', 'environnement', 'Proximité Natura 2000', "La proximité (sans recouvrement) declenche une évaluation des incidences Natura 2000 et allonge l'instruction.", 'm'),
+    def('env_proximite_natura2000', 'environnement', 'Proximité Natura 2000', "La proximité (sans recouvrement) déclenche une évaluation des incidences Natura 2000 et allonge l'instruction.", 'm'),
     def('env_znieff', 'environnement', 'ZNIEFF de type I / II', "Inventaire scientifique sans portée réglementaire directe, mais qui pese lourdement dans l'instruction et le contentieux.", 'm'),
     def('env_zone_humide', 'environnement', 'Zone humide', "Pre-repérage cartographique. Une zone humide avereee impose évitement, ou compensation à 100-200 % ; à confirmer impérativement par sondages pédologiques.", ),
     def('env_tvb', 'environnement', 'Trame verte et bleue', "Réservoir de biodiversité ou corridor écologique identifie au SRADDET : opposabilité indirecte via le PLU.", ),
@@ -156,7 +156,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
 
     // -- Risques -----------------------------------------------------------
     def('risq_inondation', 'risques', 'Risque inondation (PPRI)', "Un zonage rouge de PPRI interdit en principe les constructions ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher).", ),
-    def('risq_incendie', 'risques', 'Risque incendie (PPRif / DFCI)', "Aléas feux de foret, obligations légales de débroussaillement, accès des engins de secours.", ),
+    def('risq_incendie', 'risques', 'Risque incendie (PPRif / DFCI)', "Aléas feux de forêt, obligations légales de débroussaillement, accès des engins de secours.", ),
     def('risq_technologique', 'risques', 'Risque technologique (PPRT)', "Périmètre de PPRT autour d'un site Seveso : maîtrise de l'urbanisation, incompatible avec certaines installations.", ),
     def('risq_argiles_cavites', 'risques', 'Géotechnique (argiles, cavités, mouvements)', "Aléa retrait-gonflement des argiles, cavités souterraines et mouvements de terrain : surcoûts de fondations et de sondages.", ),
     def('risq_sites_pollues', 'risques', 'Sites et sols pollues', "Un ancien site industriel (CASIAS) peut être une opportunité - terrain déjà dégradé - mais impose une étude de sols et un plan de gestion.", ),

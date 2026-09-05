@@ -110,7 +110,7 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
             <h3>Activité sur 12 mois</h3>
             {d.evolution.length === 0 ? (
               <p style={{ fontSize: 12, color: 'var(--texte-faible)', margin: 0 }}>
-                Aucun événement enregistre sur la période.
+                Aucun événement enregistré sur la période.
               </p>
             ) : (
               <Courbes donnees={d.evolution} />

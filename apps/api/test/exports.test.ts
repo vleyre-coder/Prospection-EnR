@@ -324,7 +324,7 @@ test("« aucune declaration » n'est ecrit que si le RPG a effectivement repondu
   const base = snapshot().occupationSol.rpg;
 
   // RPG injoignable : aucune affirmation possible sur l'usage agricole.
-  assert.equal(libelleRpg({ ...base, anneesDeclareesConsecutives: null }), 'non renseigne (RPG non consulte)');
+  assert.equal(libelleRpg({ ...base, anneesDeclareesConsecutives: null }), 'non renseigné (RPG non consulté)');
 
   // RPG joignable, aucun ilot recouvrant : l'absence de declaration est un CONSTAT, et
   // c'est meme un argument favorable en solaire au sol. Elle doit donc etre affirmee.
