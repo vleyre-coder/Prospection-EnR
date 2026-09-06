@@ -160,6 +160,24 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     avertissement:
       "Capacités indicatives et non engageantes, evolutives au fil des demandes de raccordement. Seule une étude de raccordement puis une proposition technique et financiere du gestionnaire engagent une capacité.",
   },
+  /**
+   * SECOND CHEMIN VERS LES POSTES SOURCES, quand Capareseau n'est pas joignable.
+   *
+   * Il ne porte QUE la geometrie : la BD TOPO ne publie ni capacite d'accueil, ni file d'attente,
+   * ni quote-part. La distance devient donc connue — c'est le terme dominant du cout de
+   * raccordement — et la saturation reste grise, ce qui est la reponse juste.
+   */
+  postes_geopf: {
+    connecteur: 'postes_geopf',
+    nom: 'IGN BD TOPO - postes de transformation raccordes au reseau HTB',
+    url: 'https://data.geopf.fr/wfs/ows',
+    modeAcces: 'ingestion',
+    valeurJuridique: 'indicative',
+    couverture: 'nationale',
+    periodiciteJours: 180,
+    avertissement:
+      "Position seulement : la BD TOPO ne publie AUCUNE capacite d'accueil. Un poste retenu ici est un poste de transformation en contact avec une ligne de 150 kV ou moins ; sa capacite reste inconnue et doit etre demandee au gestionnaire de reseau (Capareseau, puis etude de raccordement).",
+  },
   reseau_gaz: {
     connecteur: 'reseau_gaz',
     nom: 'GRDF / GRTgaz / Terega - réseau gaz et injection biomethane',

@@ -37,6 +37,7 @@ export const TYPE_COUVERTURE_INJECTION = 'point_injection_gaz';
 
 interface LignePoste {
   id: string;
+  connecteur: string | null;
   nom: string;
   gestionnaire: 'RTE' | 'Enedis' | 'autre_grd';
   tension: string | null;
@@ -84,9 +85,12 @@ function versPosteRef(l: LignePoste): PosteSourceRef {
  * `postes_sources` dans les connecteurs en echec, et tous les criteres de raccordement au gris —
  * ce qui est la reponse juste, la ou une distance inventee virait la parcelle au rouge.
  */
-export async function postesLesPlusProches(pt: Position, nombre = 4): Promise<PosteSourceRef[]> {
+export async function postesLesPlusProches(
+  pt: Position,
+  nombre = 4,
+): Promise<{ postes: PosteSourceRef[]; connecteurs: string[] }> {
   const lignes = await requete<LignePoste>(
-    `SELECT id, nom, gestionnaire, tension,
+    `SELECT id, nom, gestionnaire, tension, connecteur,
             ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_m,
             capacite_residuelle_mw, etat_saturation, file_attente_mw, quote_part_eur_par_kw,
             renforcement_prevu, renforcement_horizon, renforcement_capacite_mw, en_projet
@@ -98,14 +102,26 @@ export async function postesLesPlusProches(pt: Position, nombre = 4): Promise<Po
     [pt[0], pt[1], nombre],
   );
   const plusProche = lignes[0];
-  if (!plusProche) return [];
+  if (!plusProche) return { postes: [], connecteurs: [] };
 
   // Le disque a verifier est celui de la distance RETENUE, et non un rayon fixe : c'est exactement
   // l'etendue sur laquelle la reponse « c'est le plus proche » engage la donnee.
   if (!(await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, pt, plusProche.distance_m))) {
-    return [];
+    return { postes: [], connecteurs: [] };
   }
-  return lignes.map(versPosteRef);
+  /*
+   * LE CONNECTEUR D'ORIGINE REMONTE AVEC LES POSTES, et ce n'est pas un detail de tracabilite.
+   *
+   * Deux sources alimentent desormais cette table : CAPARESEAU, qui publie la capacite d'accueil,
+   * et la BD TOPO, qui n'a que la position. La fiche et le dossier citent leurs sources ; attribuer
+   * a Capareseau une position venue de la BD TOPO ferait porter a Capareseau une donnee qu'elle n'a
+   * pas fournie — et son avertissement, qui parle de capacites, n'aurait aucun sens sous un poste
+   * dont la capacite est justement inconnue.
+   */
+  return {
+    postes: lignes.map(versPosteRef),
+    connecteurs: [...new Set(lignes.map((l) => l.connecteur).filter((c): c is string => c != null))],
+  };
 }
 
 // ---------------------------------------------------------------------------

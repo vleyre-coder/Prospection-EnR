@@ -276,10 +276,16 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
   }
 
   // --- Raccordement --------------------------------------------------------
-  if (rPostes && rPostes.length > 0) {
-    snapshot.raccordement.posteLePlusProche = rPostes[0]!;
-    snapshot.raccordement.postesAlternatifs = rPostes.slice(1);
-    sources.postes_sources = sourceRef('postes_sources');
+  if (rPostes && rPostes.postes.length > 0) {
+    snapshot.raccordement.posteLePlusProche = rPostes.postes[0]!;
+    snapshot.raccordement.postesAlternatifs = rPostes.postes.slice(1);
+    /*
+     * CHAQUE SOURCE QUI A REELLEMENT FOURNI UN POSTE EST CITEE, et elle seule. Capareseau porte la
+     * capacite d'accueil ; la BD TOPO ne porte que la position. Les confondre ferait apparaitre
+     * sous un poste sans capacite l'avertissement de Capareseau, qui ne parle que de capacites.
+     */
+    for (const c of rPostes.connecteurs) sources[c] = sourceRef(c);
+    if (rPostes.connecteurs.length === 0) sources.postes_sources = sourceRef('postes_sources');
   } else {
     echecs.add('postes_sources');
   }

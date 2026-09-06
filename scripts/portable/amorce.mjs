@@ -85,6 +85,12 @@ export const TABLES_ECARTEES = {
   parcelle_snapshot: "releves de qualification — le travail de l'utilisateur",
   score_parcelle_filiere: 'scores calcules sur les parcelles qualifiees',
   commune_score_filiere: 'agregats communaux derives des parcelles qualifiees',
+  // Tables de TRAVAIL de l'ingestion des postes deduits de la BD TOPO : elles ne sont remplies
+  // que le temps d'un croisement geometrique, et vidées de part et d'autre. Les embarquer
+  // ajouterait 18 000 objets de couches publiques a une archive qui n'en a aucun usage — les
+  // postes retenus, eux, partent dans `poste_source`, qui est embarquee.
+  ing_poste_geopf: "table de travail de l'ingestion, vide hors ingestion",
+  ing_ligne_geopf: "table de travail de l'ingestion, vide hors ingestion",
 };
 
 /**

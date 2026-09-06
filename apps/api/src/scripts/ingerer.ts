@@ -15,6 +15,7 @@
 import { pool } from '../bdd.js';
 import { journal } from '../journal.js';
 import { JOBS, lancerIngestion } from '../ingestion/index.js';
+import { synchroniserReferentiel } from '../depots/sources.js';
 
 async function main(): Promise<void> {
   const demandes = process.argv.slice(2);
@@ -43,6 +44,21 @@ async function main(): Promise<void> {
     await pool.end();
     return;
   }
+
+  /**
+   * LE REFERENTIEL DES SOURCES EST SYNCHRONISE AVANT TOUTE INGESTION.
+   *
+   * POURQUOI, et c'est un defaut rencontre a la premiere execution d'un connecteur neuf.
+   * `poste_source.connecteur` (et ses equivalents) reference `source_donnee`. Un connecteur ajoute
+   * au code mais pas encore inscrit en base fait donc echouer l'insertion sur une violation de cle
+   * etrangere — « Key (connecteur)=(postes_geopf) is not present in table source_donnee » — alors
+   * que la donnee etait deja telechargee et correcte.
+   *
+   * La synchronisation vivait dans le demarrage du serveur et dans les migrations. Elle est
+   * idempotente et coute quelques millisecondes : la refaire ici evite qu'une ingestion depende de
+   * l'ordre dans lequel on a lance les commandes, ce qui n'est une regle nulle part.
+   */
+  await synchroniserReferentiel();
 
   let echecs = 0;
   for (const c of connecteurs) {

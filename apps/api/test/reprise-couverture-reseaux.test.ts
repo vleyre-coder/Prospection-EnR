@@ -122,7 +122,7 @@ test('LE SCENARIO DE MISE A NIVEAU : un poste ingere sans couverture redevient e
 
   // 2. Le comportement introduit par l'audit 9 sans reprise : la distance n'est pas rendue.
   assert.deepEqual(
-    await postesLesPlusProches(PT, 4),
+    (await postesLesPlusProches(PT, 4)).postes,
     [],
     "sans couverture, la distance n'est pas une mesure — c'est le comportement de l'audit 9",
   );
@@ -143,7 +143,7 @@ test('LE SCENARIO DE MISE A NIVEAU : un poste ingere sans couverture redevient e
   );
 
   // 5. Et la distance redevient une mesure, sans qu'aucune ingestion n'ait ete relancee.
-  const postes = await postesLesPlusProches(PT, 4);
+  const postes = (await postesLesPlusProches(PT, 4)).postes;
   assert.equal(postes.length, 1, 'apres reprise, le poste doit etre rendu');
   assert.ok(
     postes[0]!.distanceKm > 1.4 && postes[0]!.distanceKm < 1.6,

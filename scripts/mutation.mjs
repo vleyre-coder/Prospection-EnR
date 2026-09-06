@@ -197,7 +197,7 @@ const MUTATIONS = [
     audit: 'audit 9',
     quoi: 'une distance au plus proche est de nouveau rendue sur un disque partiellement ingere',
     fichier: 'apps/api/src/connecteurs/locales.ts',
-    de: '  if (!(await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, pt, plusProche.distance_m))) {\n    return [];\n  }',
+    de: '  if (!(await disqueEntierementCouvert(TYPE_COUVERTURE_POSTES, pt, plusProche.distance_m))) {\n    return { postes: [], connecteurs: [] };\n  }',
     vers: '  void plusProche;',
     tests: ['apps/api/test/couverture-disque.test.ts'],
   },
@@ -1439,6 +1439,51 @@ const MUTATIONS = [
     tests: ['apps/web/test/plafond-dossier.test.ts'],
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/plafond-dossier.test.ts'],
+  },
+  // ─── audit 16 : les postes sources deduits de la BD TOPO ───────────────────────────────────
+  {
+    audit: 'audit 16',
+    // Le CONTACT devient une PROXIMITE de 500 m. C'est la derive plausible — « elargissons un peu,
+    // les geometries sont approximatives » — et elle fait entrer les 920 postes sans ligne, c'est-a-dire
+    // les transformateurs de distribution. Muter le JOIN en LEFT JOIN, ma premiere idee, ne retablit
+    // AUCUN defaut : le `HAVING min(...) <= seuil` ecarte deja les lignes nulles.
+    quoi: 'le contact avec une ligne HTB devient une proximite de 500 m : un transformateur de rue devient un poste source',
+    fichier: 'apps/api/src/ingestion/postes-geopf.ts',
+    de: '         JOIN ing_ligne_geopf l ON ST_Intersects(p.g2154, l.g2154)\n        GROUP BY p.cleabs, p.geom',
+    vers: '         JOIN ing_ligne_geopf l ON ST_DWithin(p.g2154, l.g2154, 500)\n        GROUP BY p.cleabs, p.geom',
+    tests: ['apps/api/test/postes-geopf.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/postes-geopf.test.ts'],
+  },
+  {
+    audit: 'audit 16',
+    quoi: 'le seuil de tension monte au 400 kV : le reseau de transport passe pour un point d’injection',
+    fichier: 'apps/api/src/ingestion/postes-geopf.ts',
+    de: 'const KV_MAX_POSTE_SOURCE = 150;',
+    vers: 'const KV_MAX_POSTE_SOURCE = 400;',
+    tests: ['apps/api/test/postes-geopf.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/postes-geopf.test.ts'],
+  },
+  {
+    audit: 'audit 16',
+    quoi: 'une capacite d’accueil est inventee pour les postes deduits de la BD TOPO',
+    fichier: 'apps/api/src/ingestion/postes-geopf.ts',
+    de: '              NULL, NULL, false, $2, current_date',
+    vers: '              50, \'disponible\', false, $2, current_date',
+    tests: ['apps/api/test/postes-geopf.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/postes-geopf.test.ts'],
+  },
+  {
+    audit: 'audit 16',
+    quoi: 'le connecteur d’origine cesse de remonter avec les postes : la fiche citerait Capareseau pour une donnee BD TOPO',
+    fichier: 'apps/api/src/connecteurs/locales.ts',
+    de: "    connecteurs: [...new Set(lignes.map((l) => l.connecteur).filter((c): c is string => c != null))],",
+    vers: '    connecteurs: [],',
+    tests: ['apps/api/test/postes-geopf.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/postes-geopf.test.ts'],
   },
   /*
    * BOUT EN BOUT : la chaine case a cocher -> bouton -> fichier. Ecartees de l'execution par

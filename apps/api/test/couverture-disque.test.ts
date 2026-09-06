@@ -164,7 +164,7 @@ test('un poste proche dans un departement couvert est rendu', async () => {
   await supprimerPostes();
   await declarer(DEP_LOCAL);
   await posteA(1500, 'proche');
-  const postes = await postesLesPlusProches(PT, 4);
+  const postes = (await postesLesPlusProches(PT, 4)).postes;
   assert.equal(postes.length, 1, 'le poste declare et couvert doit etre rendu');
   assert.ok(
     postes[0]!.distanceKm > 1.4 && postes[0]!.distanceKm < 1.6,
@@ -182,7 +182,7 @@ test('LE CAS DU FAUX ROUGE : un poste lointain hors des departements ingeres n e
   // raccordement virait la parcelle au rouge sur une donnee absente.
   await posteA(30000, 'lointain');
   assert.deepEqual(
-    await postesLesPlusProches(PT, 4),
+    (await postesLesPlusProches(PT, 4)).postes,
     [],
     'une distance mesuree sur un disque partiellement ingere ne doit pas etre rendue',
   );
@@ -190,7 +190,7 @@ test('LE CAS DU FAUX ROUGE : un poste lointain hors des departements ingeres n e
   // Et la meme distance redevient exploitable des que tout le disque est declare : le mecanisme
   // n'est pas un refus des grandes distances, mais un controle de la donnee.
   await declarer(DEP_VOISIN);
-  const apres = await postesLesPlusProches(PT, 4);
+  const apres = (await postesLesPlusProches(PT, 4)).postes;
   assert.equal(apres.length, 1, 'disque entierement couvert : la distance est une mesure');
   assert.ok(
     apres[0]!.distanceKm > 29 && apres[0]!.distanceKm < 31,
@@ -205,7 +205,7 @@ test('un poste dans un departement non couvert reste invisible meme proche', asy
   // Aucun departement declare : meme un poste a 1,5 km ne suffit pas, car on ne sait pas si la
   // couche a ete ingeree ici. C'est la difference entre « pas de poste » et « pas regarde ».
   await posteA(1500, 'proche');
-  assert.deepEqual(await postesLesPlusProches(PT, 4), []);
+  assert.deepEqual((await postesLesPlusProches(PT, 4)).postes, []);
 });
 
 /**
@@ -236,6 +236,6 @@ test('une couverture a comptage nul vaut « regarde », pas « inconnu »', asyn
 
   // Et la distance mesuree redevient exploitable, alors qu'elle traverse ce departement.
   await posteA(1500, 'proche');
-  const postes = await postesLesPlusProches(PT, 4);
+  const postes = (await postesLesPlusProches(PT, 4)).postes;
   assert.equal(postes.length, 1, 'la distance doit etre rendue');
 });

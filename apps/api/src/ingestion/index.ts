@@ -24,6 +24,7 @@ import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 import { telechargerRaster } from '../connecteurs/vent.js';
 export { ingererPostesSources } from './postes-sources.js';
 import { ingererPostesSources } from './postes-sources.js';
+import { ingererPostesGeoplateforme } from './postes-geopf.js';
 
 // ---------------------------------------------------------------------------
 // Communes : socle de la vue nationale agregee
@@ -471,6 +472,7 @@ export async function ingererVent(): Promise<{ connecteur: string; octets: numbe
 export const JOBS: Record<string, (departements?: readonly string[]) => Promise<Record<string, unknown>>> = {
   communes: ingererCommunes,
   postes_sources: ingererPostesSources,
+  postes_geopf: ingererPostesGeoplateforme,
   reseau_gaz: ingererReseauGaz,
   patrimoine_culture: ingererPatrimoine,
   vent_100m: ingererVent,
