@@ -30,6 +30,9 @@
  */
 
 import { test, before, after } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { construireServeur } from '../src/serveur.js';
 import { pool } from '../src/bdd.js';
@@ -139,6 +142,17 @@ const sansEspaces = (s: string): string => s.replace(/\s+/g, '').toLowerCase();
 const contient = (texte: string, phrase: string): boolean =>
   sansEspaces(texte).includes(sansEspaces(phrase));
 
+/** Le plafond REEL, lu dans la route : jamais recopie ici. */
+function plafondDeLaSource(): number {
+  const source = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../src/routes/divers.ts'),
+    'utf8',
+  );
+  const m = /const MAX_PARCELLES_DOSSIER = (\d+);/.exec(source);
+  assert.ok(m, 'plafond `MAX_PARCELLES_DOSSIER` introuvable dans la route');
+  return Number(m![1]);
+}
+
 test('LA PORTEE EST EXIGEE : au moins deux parcelles solaires semees', () => {
   /*
    * Un dossier d'UNE parcelle ne teste rien de ce qui distingue ce document d'une fiche : ni la
@@ -225,11 +239,32 @@ test('UNE PARCELLE NON QUALIFIEE FAIT ECHOUER LA DEMANDE, elle n’est pas ignor
 test('la selection est plafonnee : un dossier n’est pas un departement', async () => {
   if (ignorer()) return;
   const premier = SOLAIRE[0]!;
-  // 26 identifiants distincts et syntaxiquement valides : le plafond doit tomber sur le NOMBRE,
-  // avant toute requete, et non sur l'existence des parcelles.
-  const trop = Array.from({ length: 26 }, (_, i) => `${premier.idu.slice(0, 10)}${String(i).padStart(4, '0')}`);
+  /*
+   * LE PLAFOND EST LU DANS LA SOURCE, plus ecrit en dur ici. La premiere version fabriquait
+   * 26 identifiants pour un plafond de 25 : le jour ou le plafond a change — mesure a l'appui —
+   * ce test a commence a envoyer 26 identifiants sous une limite de 100, donc a verifier que la
+   * route accepte, en croyant verifier qu'elle refuse. Un test qui vieillit dans ce sens-la ne
+   * fait aucun bruit.
+   */
+  const plafond = plafondDeLaSource();
+  const trop = Array.from(
+    { length: plafond + 1 },
+    (_, i) => `${premier.idu.slice(0, 10)}${String(i).padStart(4, '0')}`,
+  );
   const { code, corps } = await dossier(trop);
-  assert.equal(code, 400, `plafond non applique : ${code} ${corps}`);
+  assert.equal(code, 400, `plafond de ${plafond} non applique : ${code} ${corps}`);
+
+  // Et EXACTEMENT au plafond, la route ne refuse pas sur le nombre : elle va chercher les
+  // parcelles, n'en trouve pas, et repond 409. Sans cette moitie, un plafond tombe a zero
+  // passerait le test ci-dessus.
+  const pile = trop.slice(0, plafond);
+  const { code: codePile } = await dossier(pile);
+  assert.equal(
+    codePile,
+    409,
+    `a ${plafond} identifiants exactement, la route doit passer le controle de nombre (409 sur ` +
+      `l'absence des parcelles), et non refuser sur le plafond`,
+  );
 });
 
 test('EN EOLIEN, AUCUN NOMBRE DE MW N’EST ANNONCE', async () => {

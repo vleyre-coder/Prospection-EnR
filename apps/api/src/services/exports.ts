@@ -1074,10 +1074,59 @@ export function dossierSitePdf(
         ? "un seul tenant"
         : `${contexte.nbGroupesContigus} emprises séparées`;
 
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE CHIFFRE EXPLOITABLE, A COTE DU CHIFFRE TOTAL — le defaut trouve en mesurant la charge
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUE FAISAIT LA PREMIERE VERSION. `surfaceUtileSiteHa` recevait TOUTES les parcelles de la
+   * selection, y compris celles portant un critere redhibitoire BLOQUANT. Le dossier annoncait
+   * donc en page une une surface et une puissance qui comptaient du foncier juridiquement hors
+   * d'atteinte — pendant que, dix centimetres plus bas, la section « Reserves » disait que cette
+   * parcelle-la etait ecartee. Deux affirmations contradictoires dans le meme document, et c'est
+   * la premiere, la plus visible, qui est fausse.
+   *
+   * POURQUOI ON NE RETIRE PAS SIMPLEMENT LES PARCELLES ECARTEES. Parce que ce serait la faute
+   * symetrique : la selection est celle de l'operateur, et un total qui ne correspond pas a ce
+   * qu'il a coche lui ferait croire a une erreur de saisie. Le dossier rend donc les DEUX
+   * chiffres, cote a cote dans la meme grille et au meme poids visuel. Un chiffre exploitable
+   * relegue en note de bas de page n'est pas rendu, il est cache.
+   *
+   * Le second calcul refait entierement le chemin — surface utile ET puissance — au lieu de
+   * proratiser : l'erosion perimetrale n'est pas lineaire en surface, et la contiguite du
+   * sous-ensemble n'est pas celle de l'ensemble. On la traite donc comme inconnue, ce qui est le
+   * sens prudent que `surfaceUtileSiteHa` applique deja.
+   */
+  const exploitables = parcelles.filter((p) => !p.score.knockOuts.some((k) => !k.derogeable));
+  const partiel = exploitables.length < parcelles.length;
+  const surfaceExploitable = partiel
+    ? surfaceUtileSiteHa(
+        exploitables.map((p) => surfaceHa(p.parcelle)),
+        exploitables.map((p) => p.snapshot.foncier.morcellementIndice),
+        contexte.filiere,
+        // La contiguite mesuree porte sur l'ENSEMBLE : retirer une parcelle peut couper une
+        // emprise en deux. On ne la reutilise donc pas, on retombe sur le calcul prudent.
+        exploitables.length <= 1 ? 1 : null,
+      )
+    : null;
+  const puissanceExploitable =
+    surfaceExploitable != null
+      ? puissanceEstimee(
+          contexte.filiere,
+          surfaceExploitable.netteHa,
+          regimes.size === 1 ? (regimeUnanime ?? null) : null,
+        )
+      : null;
+
   titreSection(doc, 'Le site en chiffres');
   grilleCles(doc, [
     ['Filière étudiée', meta.libelle],
-    ['Parcelles', `${parcelles.length}`],
+    [
+      'Parcelles',
+      partiel
+        ? `${parcelles.length} dont ${parcelles.length - exploitables.length} écartée${parcelles.length - exploitables.length > 1 ? 's' : ''}`
+        : `${parcelles.length}`,
+    ],
     ['Emprise', emprise],
     ['Communes', `${communes.length}`],
     ['Surface cadastrale cumulée', nb(surface.bruteHa, 'ha', 2)],
@@ -1094,7 +1143,30 @@ export function dossierSitePdf(
           : 'non déterminé'
         : (LIBELLES_REGIME[regimeUnanime] ?? regimeUnanime),
     ],
+    ...(surfaceExploitable != null
+      ? ([
+          [
+            'Surface utile HORS parcelles écartées',
+            nb(surfaceExploitable.netteHa, 'ha', 2),
+          ],
+          [
+            'Puissance HORS parcelles écartées',
+            puissanceExploitable?.mwc != null
+              ? nb(puissanceExploitable.mwc, 'MWc', 2)
+              : 'non déductible d’une surface',
+          ],
+        ] as Array<[string, string]>)
+      : []),
   ]);
+  if (partiel) {
+    encadre(doc, 'rouge', 'Les deux chiffres ci-dessus ne disent pas la même chose', [
+      `${parcelles.length - exploitables.length} parcelle${parcelles.length - exploitables.length > 1 ? 's' : ''} ` +
+        `de la sélection porte${parcelles.length - exploitables.length > 1 ? 'nt' : ''} un critère ` +
+        'rédhibitoire bloquant, détaillé dans « Réserves » ci-dessous. La surface et la puissance ' +
+        'TOTALES le comptent, parce que la sélection est celle de l’opérateur ; ce sont les lignes ' +
+        '« hors parcelles écartées » qui décrivent le projet instruisible.',
+    ]);
+  }
 
   /*
    * LA METHODE SOUS LES DEUX CHIFFRES QUI SERONT REPRIS AILLEURS.

@@ -55,12 +55,15 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
    * la CARTE savait les alimenter — par un clic modifie, non decouvrable. La vue liste, qui est
    * pourtant l'endroit ou l'on compare et choisit, n'avait aucune case a cocher.
    *
-   * PLAFOND A 25, ET IL EST DIT AVANT L'APPEL. La route refuse au-dela ; laisser le bouton actif
-   * pour recevoir un 400 apprendrait la limite a l'utilisateur par un message d'erreur. Le
-   * compteur et l'infobulle la donnent avant.
+   * LE PLAFOND EST DIT AVANT L'APPEL. La route refuse au-dela ; laisser le bouton actif pour
+   * recevoir un 400 apprendrait la limite a l'utilisateur par un message d'erreur. Le compteur et
+   * l'infobulle la donnent avant.
+   *
+   * CENT, et le chiffre doit rester egal a `MAX_PARCELLES_DOSSIER` cote API (`routes/divers.ts`),
+   * ou est ecrite la mesure qui le justifie. Les deux valeurs sont tenues ensemble par un test.
    */
   const selection = etat.idusSelectionnes;
-  const MAX_DOSSIER = 25;
+  const MAX_DOSSIER = 100;
   const idusAffiches = requete.data?.resultats.map((r) => r.idu) ?? [];
   const tousSelectionnes =
     idusAffiches.length > 0 && idusAffiches.every((idu) => selection.includes(idu));

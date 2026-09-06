@@ -252,16 +252,32 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
    * DOSSIER DE SITE — le document qu'on remet a un developpeur
    * ═══════════════════════════════════════════════════════════════════════════════════════════
    *
-   * POURQUOI UN PLAFOND BEAUCOUP PLUS BAS QUE LES AUTRES EXPORTS (25 contre 20 000). Un CSV de
-   * 20 000 lignes est un fichier ; un PDF de 20 000 parcelles est une panne. Chaque parcelle ajoute
-   * huit rangees de tableau mesurees une a une par pdfkit, et le document se construit EN MEMOIRE
-   * avant d'etre servi. Le plafond n'est donc pas une precaution de forme : c'est la limite au-dela
-   * de laquelle la requete cesse d'etre servie et devient un deni de service sur soi-meme.
+   * CE QUE J'AVAIS ECRIT ICI, ET QUI ETAIT FAUX. Le plafond valait 25, au motif qu'« un PDF de
+   * 20 000 parcelles est une panne » et que 25 serait « la limite au-dela de laquelle la requete
+   * devient un deni de service sur soi-meme ». Cette phrase avait l'air mesuree. Elle ne l'etait
+   * pas. Mesure faite depuis, sur des parcelles reelles dupliquees, generation comprise :
    *
-   * Vingt-cinq, et pas cent : un dossier de site remis a un developpeur porte sur une emprise
-   * negociee, pas sur un departement. Au-dela, ce n'est plus un site.
+   *      25 parcelles :  211 ms,   36 ko,  +3,0 Mo de tas
+   *      50 parcelles :  127 ms,   58 ko,  +3,8 Mo
+   *     100 parcelles :  186 ms,  101 ko,  +5,1 Mo
+   *     200 parcelles :  295 ms,  187 ko, +13,5 Mo
+   *     400 parcelles :  711 ms,  359 ko, +25,3 Mo
+   *
+   * La montee en charge est LINEAIRE et sans falaise. Le cout technique reel du plafond de 25
+   * etait donc nul, et deux ordres de grandeur separaient ma justification de la mesure. C'est
+   * exactement la faute que ce depot traque : une affirmation qui a la forme d'une mesure.
+   *
+   * CENT, ET LE CHIFFRE A UNE RAISON QUI TIENT. Ce n'est pas une limite machine, c'est une limite
+   * de LISIBILITE et de terrain. Un site solaire de 100 ha en parcellaire morcele — la Beauce, la
+   * Bretagne — compte couramment trente a soixante parcelles cadastrales, et un parc eolien
+   * s'etale sur plusieurs communes : 25 aurait bloque des cas ordinaires pour rien. Au-dela de
+   * cent, le document depasse la trentaine de pages et cesse d'etre lu ; et une selection de cette
+   * taille n'est plus une emprise negociee, c'est un departement.
+   *
+   * Le vrai garde-fou de charge est ailleurs, et il existe deja : `debitExport` borne a
+   * 30 exports par tranche de dix minutes.
    */
-  const MAX_PARCELLES_DOSSIER = 25;
+  const MAX_PARCELLES_DOSSIER = 100;
 
   app.post('/api/exports/dossier', debitExport, async (req, rep) => {
     const c = lecteur(req.body);
