@@ -180,6 +180,20 @@ function Zone({
         <span className="zone-mesures">
           <strong>{formatNombre(zone.surfaceUtileHa, 'ha', 1)}</strong> utiles sur{' '}
           {formatNombre(zone.surfaceHa, 'ha', 1)}
+          {/*
+            LA DISTANCE AU POSTE SOURCE, sur la ligne des mesures et non dans une etiquette.
+            Sur une zone d'acceleration, l'argument reglementaire est deja acquis : ce qui reste a
+            decider est economique, et c'est le raccordement qui le decide. Cette distance
+            n'existait pas avant l'ingestion des postes deduits de la BD TOPO.
+          */}
+          {zone.distancePosteKm != null && (
+            <>
+              {' · '}
+              <span title="Distance à vol d’oiseau du poste source le plus proche. La capacité d’accueil, elle, reste inconnue : elle se demande au gestionnaire de réseau.">
+                poste à <strong>{formatNombre(zone.distancePosteKm, 'km', 1)}</strong>
+              </span>
+            </>
+          )}
         </span>
         <span className="zone-notes">
           {/*
@@ -191,6 +205,20 @@ function Zone({
           {!zone.implantationPrecisee && (
             <span className="zone-etiquette" title="La délibération ne dit pas si la zone vise le sol ou des toitures. La zone est proposée, mais n’ouvre aucun argument réglementaire.">
               implantation non précisée
+            </span>
+          )}
+          {/*
+            UNE DESIGNATION A L'ECHELLE DE LA COMMUNE N'EST PAS UN SITE, et le dire evite un
+            aller-retour inutile. Mesure sur un departement reel : 24 zones sur 7 664 couvrent plus
+            de la moitie de leur commune, dont 14 plus de 80 %. Le tri les place desormais apres les
+            sites — mais celui qui les rencontre doit savoir ce qu'il regarde.
+          */}
+          {zone.designationCommunale === true && (
+            <span
+              className="zone-etiquette"
+              title="La délibération couvre plus de la moitié du territoire communal : c’est une désignation d’échelle communale, pas une emprise de projet. Le signal politique est favorable, le site reste à trouver."
+            >
+              désignation à l’échelle de la commune
             </span>
           )}
           {zone.nbParcellesQualifiees > 0 && (

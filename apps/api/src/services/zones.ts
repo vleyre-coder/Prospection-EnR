@@ -77,6 +77,23 @@ export interface ZoneProposee {
    * moteur de scoring n'en tire aucun argument reglementaire.
    */
   implantationPrecisee: boolean;
+  /**
+   * La zone couvre-t-elle plus de la moitie de sa commune ?
+   *
+   * `true` : ce n'est pas une emprise de projet, c'est une deliberation prise a l'echelle du
+   * territoire. Mesure sur un departement reel : 24 zones sur 7 664, dont 14 au-dela de 80 %. Le
+   * signal politique est excellent, mais l'objet n'est pas un site — l'interface doit le dire, et
+   * le tri les place apres. `null` si la surface de la commune est inconnue.
+   */
+  designationCommunale: boolean | null;
+  /**
+   * Distance de la zone au poste source le plus proche, en km. `null` si aucun poste n'est ingere.
+   *
+   * Elle n'existait pas avant l'ingestion des postes deduits de la BD TOPO. C'est desormais le
+   * chiffre qui decide de l'economie d'un projet sur une zone dont l'argument reglementaire est
+   * deja acquis.
+   */
+  distancePosteKm: number | null;
 }
 
 export interface ReponseZones {
@@ -124,6 +141,8 @@ interface LigneZone {
   nord: number | null;
   nb_parcelles: string | null;
   nb_propices: string | null;
+  part_commune: string | null;
+  distance_poste_km: string | null;
   date_deliberation: Date | string | null;
 }
 
@@ -203,8 +222,29 @@ export async function zonesAProspecter(o: OptionsZones): Promise<ReponseZones> {
         -- LA SURFACE EST CALCULEE EN GEOGRAPHIE, pas en degres carres. ST_Area sur du 4326 rend
         -- une aire en degres, sans signification physique, qui varie du simple au double entre
         -- Dunkerque et Perpignan. Le transtypage en geography rend des metres carres.
-        ST_Area(z.geom::geography) AS surface_m2
+        ST_Area(z.geom::geography) AS surface_m2,
+        /*
+         * PART DE LA COMMUNE COUVERTE — pour distinguer un SITE d'une DESIGNATION TERRITORIALE.
+         *
+         * CE QUE LE TRI PAR SURFACE PRODUISAIT. Mesure sur les 7 664 zones d'un departement reel :
+         *
+         *     < 1 ha            5 683 zones      50 - 200 ha    118
+         *     1 - 10 ha         1 460            200 - 1000 ha   51
+         *     10 - 50 ha          337            > 1000 ha       15
+         *
+         * et surtout : 24 zones couvrent PLUS DE LA MOITIE de leur commune, dont 14 plus de 80 %.
+         * Ce sont des deliberations prises a l'echelle du territoire, pas des emprises de projet.
+         * Le tri « les plus grandes d'abord » les mettait donc en tete et elles monopolisaient les
+         * quarante lignes du panneau : l'operateur ne voyait JAMAIS un site de 10 a 100 ha, qui est
+         * exactement ce qu'il cherche.
+         *
+         * Elles ne sont pas ecartees pour autant — une commune qui designe 80 % de son territoire
+         * est un signal politique tres favorable. Elles sont MARQUEES, et passent apres.
+         */
+        CASE WHEN cm.surface_ha IS NULL OR cm.surface_ha <= 0 THEN NULL
+             ELSE ST_Area(z.geom::geography) / 10000.0 / cm.surface_ha END AS part_commune
       FROM zaer z
+      LEFT JOIN commune cm ON cm.code_insee = z.code_insee
       WHERE $1 = ANY(z.filieres)
         AND z.est_demonstration = false
         ${filtreEmprise}
@@ -216,11 +256,23 @@ export async function zonesAProspecter(o: OptionsZones): Promise<ReponseZones> {
        -- surface — cas frequent, les deliberations decoupent souvent des rectangles identiques —
        -- s'ordonneraient sinon au gre du plan d'execution. La troncature ferait alors apparaitre et
        -- disparaitre des zones d'un appel a l'autre, sans qu'aucune donnee ait change.
-       ORDER BY surface_m2 DESC, id
+       -- Les designations a l'echelle de la commune passent APRES : elles ne sont pas des sites,
+       -- et sans cela elles occupent la tete de liste (voir le commentaire de part_commune).
+       -- COALESCE a zero : une part INCONNUE n'est pas une designation territoriale, elle reste
+       -- donc dans le premier groupe plutot que d'etre reléguée sur un doute.
+       ORDER BY (COALESCE(part_commune, 0) > 0.5), surface_m2 DESC, id
        LIMIT $${posLimite}
     )
     SELECT r.id::text, r.nom, r.code_insee, c.nom AS nom_commune, r.code_departement, r.filieres,
-           r.implantation_precisee, r.date_deliberation, r.surface_m2,
+           r.implantation_precisee, r.date_deliberation, r.surface_m2, r.part_commune,
+           -- Le poste source le plus proche du centre de la zone : depuis l'ingestion BD TOPO,
+           -- cette distance existe partout, et c'est elle qui decide de l'economie du projet.
+           -- Departage par identifiant, comme partout ailleurs : un tri tronque sans ordre total
+           -- rendrait un resultat non reproductible.
+           (SELECT round((ST_Distance(ST_PointOnSurface(r.geom)::geography, ps.geom::geography)
+                          / 1000.0)::numeric, 1)
+              FROM poste_source ps
+             ORDER BY ST_PointOnSurface(r.geom) <-> ps.geom, ps.id LIMIT 1) AS distance_poste_km,
            ST_X(ST_PointOnSurface(r.geom)) AS centre_lon,
            ST_Y(ST_PointOnSurface(r.geom)) AS centre_lat,
            ST_XMin(r.geom) AS ouest, ST_YMin(r.geom) AS sud,
@@ -239,7 +291,7 @@ export async function zonesAProspecter(o: OptionsZones): Promise<ReponseZones> {
             ON s.idu = pa.idu AND s.filiere = $1 AND s.profil_ponderation = 'defaut'
          WHERE ST_Intersects(pa.centroide, r.geom)
       ) p ON true
-     ORDER BY r.surface_m2 DESC, r.id`;
+     ORDER BY (COALESCE(r.part_commune, 0) > 0.5), r.surface_m2 DESC, r.id`;
 
   const lignes = await requete<LigneZone>(sql, params);
 
@@ -276,6 +328,11 @@ export async function zonesAProspecter(o: OptionsZones): Promise<ReponseZones> {
       nbParcellesQualifiees: Number(l.nb_parcelles ?? 0),
       nbPropices: Number(l.nb_propices ?? 0),
       implantationPrecisee: l.implantation_precisee !== false,
+      // `numeric` traverse `pg` en chaine : la conversion est explicite, sinon la comparaison
+      // porterait sur du texte et « 0.9 » > « 0.5 » serait vrai par accident lexicographique.
+      designationCommunale:
+        l.part_commune == null ? null : Number(l.part_commune) > 0.5,
+      distancePosteKm: l.distance_poste_km == null ? null : Number(l.distance_poste_km),
     });
   }
 

@@ -34,6 +34,11 @@ const ZONE: ZoneProposee = {
   nbParcellesQualifiees: 0,
   nbPropices: 0,
   implantationPrecisee: true,
+  // Ajoutes le jour ou le tri des zones a change. Ils manquaient : le fixture ne compilait plus
+  // contre `ZoneProposee`, et personne ne l'a vu parce que `apps/web/tsconfig.json` n'inclut que
+  // `src/**/*` — les tests ne sont PAS types. Voir le rapport de livraison.
+  designationCommunale: false,
+  distancePosteKm: 3.4,
 };
 
 function rendu(donnees: ReponseZones): string {
@@ -105,4 +110,73 @@ test('la couverture est rappelee MEME quand la liste n’est pas vide', () => {
     nbTropPetites: 0,
   });
   assert.ok(/Départements chargés/.test(t), 'la couverture doit etre rappelee sous la liste');
+});
+
+test('LA DISTANCE AU POSTE EST AFFICHEE, et son absence n’est pas un zero', () => {
+  /*
+   * ═══ POURQUOI CE CHIFFRE, ET POURQUOI CE TEST
+   *
+   * Sur une zone d'acceleration, l'argument reglementaire est DEJA acquis par la deliberation : ce
+   * qui reste a decider est economique, et c'est la distance de raccordement qui le decide. Ce
+   * chiffre n'existait pas avant l'ingestion des postes deduits de la BD TOPO — le panneau
+   * proposait donc des zones sans le seul element qui separe un site finançable d'un site mort.
+   *
+   * L'ABSENCE DOIT SE VOIR COMME UNE ABSENCE. Un `null` rendu « 0 km » designerait un site
+   * parfait ; c'est la faute que ce depot traque. Le test verifie donc les deux sens.
+   */
+  const avec = rendu({
+    zones: [{ ...ZONE, distancePosteKm: 3.4 }],
+    couverture: { departementsIngeres: ['28'], donneePresente: true },
+    surfaceUtileMinHa: 1,
+    nbTropPetites: 0,
+  });
+  assert.ok(/poste à 3,4\s*km/.test(avec), `la distance au poste doit etre affichee — obtenu : ${avec}`);
+
+  const sans = rendu({
+    zones: [{ ...ZONE, distancePosteKm: null }],
+    couverture: { departementsIngeres: ['28'], donneePresente: true },
+    surfaceUtileMinHa: 1,
+    nbTropPetites: 0,
+  });
+  assert.ok(
+    !/poste à/.test(sans),
+    `sans poste ingere, rien ne doit etre affiche plutot qu’un zero — obtenu : ${sans}`,
+  );
+  assert.ok(!/poste à 0/.test(sans), 'un `null` rendu « 0 km » designerait un site parfait');
+});
+
+test('UNE DESIGNATION D’ECHELLE COMMUNALE EST DITE TELLE QUELLE', () => {
+  /*
+   * Mesure sur un departement reel : 24 zones sur 7 664 couvrent plus de la moitie de leur commune,
+   * dont 14 plus de 80 %. Le service les place desormais APRES les sites (voir
+   * `apps/api/test/zones.test.ts`), mais celui qui en rencontre une doit savoir ce qu'il regarde :
+   * une deliberation d'echelle territoriale, pas une emprise de projet. Sans cette etiquette,
+   * l'operateur part chercher un proprietaire pour 576 ha qui n'ont jamais ete un site.
+   */
+  const t = rendu({
+    zones: [{ ...ZONE, designationCommunale: true, surfaceHa: 576, surfaceUtileHa: 540 }],
+    couverture: { departementsIngeres: ['28'], donneePresente: true },
+    surfaceUtileMinHa: 1,
+    nbTropPetites: 0,
+  });
+  assert.ok(
+    /désignation à l’échelle de la commune/.test(t),
+    `l’etiquette doit etre visible — obtenu : ${t.slice(0, 400)}`,
+  );
+
+  // Et elle ne doit PAS apparaitre sur un site ordinaire : une etiquette toujours presente ne
+  // distingue rien.
+  for (const valeur of [false, null] as const) {
+    const ordinaire = rendu({
+      zones: [{ ...ZONE, designationCommunale: valeur }],
+      couverture: { departementsIngeres: ['28'], donneePresente: true },
+      surfaceUtileMinHa: 1,
+      nbTropPetites: 0,
+    });
+    assert.ok(
+      !/désignation à l’échelle de la commune/.test(ordinaire),
+      `designationCommunale=${valeur} ne doit pas porter l’etiquette — une part INCONNUE ne se ` +
+        'devine pas en designation territoriale',
+    );
+  }
 });

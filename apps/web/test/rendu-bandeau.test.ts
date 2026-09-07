@@ -52,14 +52,83 @@ function bandeau(
 
 const GLOBAUX = referentiel.avertissements.filter((a) => a.portee === 'global');
 
-test('LA CLAUSE NON NEGOCIABLE : les avertissements de la section 12 sont affiches', () => {
+/** Le HTML brut, balises comprises — la version `texte()` ne dit rien de la STRUCTURE. */
+function html(
+  options: Parameters<typeof bandeau>[0] = {},
+): string {
+  return rendre(
+    h(BandeauAvertissements, {
+      referentiel: referentiel as never,
+      sourcesPerimees: options.sourcesPerimees ?? [],
+      parcellesARafraichir: options.parcellesARafraichir ?? null,
+      role: options.role ?? 'prospection',
+    }),
+    [],
+    { avertissementsMasques: options.avertissementsMasques ?? [] },
+  );
+}
+
+test('LA CLAUSE NON NEGOCIABLE : le §12 est dans le document, TITRES VISIBLES, textes a un clic', () => {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * CE TEST A CHANGE DE CONTRAT, ET IL FAUT LE DIRE PLUTOT QUE DE LAISSER CROIRE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Il s'appelait « les avertissements de la section 12 sont affiches » et verifiait la presence des
+   * titres ET des textes dans le HTML. Depuis la revue d'ergonomie, le bandeau est un `<details>` :
+   * les titres sont dans le `<summary>`, donc visibles en permanence ; les textes complets sont dans
+   * le corps replie, donc dans le document mais PAS a l'ecran avant un clic.
+   *
+   * L'ancienne assertion aurait continue a passer sans broncher. Elle aurait donc affirme
+   * « affiches » pour deux textes que personne ne voit — exactement l'assertion decorative que la
+   * verification par mutation existe pour debusquer. Le rendu serveur ne calcule aucun style et ne
+   * peut pas dire ce qui est VISIBLE : le contrat verifiable ici est donc STRUCTUREL, et la
+   * visibilite reelle est mesuree dans `e2e/ergonomie.spec.ts`, dans un vrai navigateur.
+   *
+   * CE QUI EST EXIGE ICI, et qui suffit a interdire les regressions qui comptent :
+   *
+   *   1. les TITRES sont dans le `<summary>` — donc hors du repliement, donc lisibles sans agir ;
+   *   2. les TEXTES complets sont dans le corps du meme `<details>` — donc a un clic, atteignables
+   *      par la recherche du navigateur et par un lecteur d'ecran, et deplies sans JavaScript ;
+   *   3. le repliement est fait par l'ELEMENT HTML, pas par un etat React. Un `{ouvert && …}`
+   *      rendrait la protection dependante du bon fonctionnement du script, pour un texte dont
+   *      l'audit 8 dit qu'il est « la seule protection du lecteur ».
+   */
   assert.ok(GLOBAUX.length > 0, 'le referentiel doit porter des avertissements de portee globale');
-  const t = bandeau();
+  const brut = html();
+
+  const bloc = /<details[^>]*class="[^"]*bandeau-garde[^"]*"[^>]*>([\s\S]*?)<\/details>/.exec(brut);
+  assert.ok(
+    bloc,
+    'le §12 doit etre un `<details class="… bandeau-garde">` : c’est ce qui rend le texte ' +
+      'depliable SANS JavaScript',
+  );
+  assert.ok(
+    !/<details[^>]*\bopen\b[^>]*class="[^"]*bandeau-garde/.test(brut),
+    'le §12 doit s’ouvrir replie — sinon la mesure d’encombrement n’a plus d’objet',
+  );
+
+  const resume = /<summary[^>]*>([\s\S]*?)<\/summary>/.exec(bloc[1]!);
+  assert.ok(resume, 'le bloc du §12 doit porter un `<summary>`');
+  const detail = /<div[^>]*class="bandeau-detail"[^>]*>([\s\S]*?)<\/div>\s*<\/details>/.exec(brut);
+  assert.ok(detail, 'le bloc du §12 doit porter un corps `.bandeau-detail`');
+
+  const sansBalises = (s: string): string => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+  const titresVisibles = sansBalises(resume[1]!);
+  const corpsReplie = sansBalises(detail[1]!);
+
   for (const a of GLOBAUX) {
-    assert.ok(t.includes(a.titre), `titre de l’avertissement §12 « ${a.id} » absent`);
+    // 1. Le titre, hors du repliement.
     assert.ok(
-      t.includes(a.texte.slice(0, 60)),
-      `texte de l’avertissement §12 « ${a.id} » absent — c’est la clause que dix audits ont refuse de retirer`,
+      titresVisibles.includes(a.titre),
+      `titre de l’avertissement §12 « ${a.id} » absent du <summary> : il ne serait donc PAS ` +
+        'visible sans deplier, alors que c’est lui qui porte la mise en garde',
+    );
+    // 2. Le texte complet, dans le corps replie du meme element.
+    assert.ok(
+      corpsReplie.includes(a.texte.slice(0, 60)),
+      `texte de l’avertissement §12 « ${a.id} » absent du corps depliable — c’est la clause que ` +
+        'dix audits ont refuse de retirer',
     );
   }
 });

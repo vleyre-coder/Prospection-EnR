@@ -430,92 +430,26 @@ button:focus-visible,
  * navigateur dans le commentaire de la regle `@media` ci-dessous. Le texte n'est ni tronque ni
  * masque, et le bouton « Masquer » ne vaut que pour la session en cours.
  */
-.bandeaux-cadre {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-  border-bottom: 1px solid #f0d999;
-  flex-shrink: 0;
-}
-
 /*
- * DEUX COLONNES, ET SEULEMENT AU-DESSUS DE 1 200 px. Le seuil est mesure, pas suppose.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LA GRILLE DES DEUX AVERTISSEMENTS A DISPARU — et il faut dire pourquoi, pas seulement l'effacer
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
  *
- * Premiere version : `repeat(auto-fit, minmax(340px, 1fr))`. Elle parait raisonnable et elle
- * est mauvaise — `auto-fit` decoupe AUTANT de pistes que la largeur le permet : quatre pistes
- * de 400 px sur un ecran de 1 600, alors qu'il n'y a que deux avertissements. Chacun n'obtenait
- * donc que 400 px de large, se repliait sur cinq lignes, et le gain fondait.
+ * Ces regles mettaient les deux avertissements du §12 cote a cote, avec une campagne de mesures
+ * a l'appui (auto-fit contre deux colonnes contre empilement, de 900 a 1 600 px de large). Elles
+ * concluaient : « ce bloc ne peut pas maigrir beaucoup, le texte doit rester ENTIER, donc la seule
+ * variable est le nombre de lignes. On gagne des dizaines de pixels, pas des centaines. »
  *
- * Hauteurs MESUREES au navigateur (`offsetHeight`), et non estimees a l'oeil :
+ * La conclusion etait juste SOUS SA PREMISSE. Le proprietaire a leve la premisse : les textes ne
+ * s'affichent plus entiers d'emblee, ils se deplient. Le bloc tient donc sur une ligne, et la
+ * grille n'a plus d'objet. Mesure avant / apres a la connexion :
  *
- *     largeur   auto-fit   deux colonnes   empile
- *      1600       88 px        88 px       102 px
- *      1440         —          88 px       102 px
- *      1280      106 px       106 px       102 px
- *      1200         —         106 px       138 px
- *      1100         —         138 px       138 px
- *       900      160 px       138 px       138 px
+ *     1600 x 1000 : 217 px de chrome  ->  voir le commentaire de BandeauAvertissements.tsx
+ *     1280 x  800 : 235 px, soit 29 % de la fenetre
  *
- * Ce que ces chiffres disent, sans complaisance : `auto-fit` etait PIRE que l'empilement sous
- * 1 280 px — jusqu'a 22 px de plus a 900 px. Deux colonnes franches gagnent 14 px au-dela de
- * 1 400 px et 32 px entre 1 200 et 1 280, et perdent 4 px dans la bande 1 280-1 400, ou
- * l'empilement tient encore chaque texte sur deux lignes. Ce solde-la est accepte.
- *
- * Et la conclusion honnete : ce bloc ne peut pas maigrir beaucoup. Le texte doit rester
- * ENTIER, donc la seule variable est le nombre de lignes. On gagne des dizaines de pixels,
- * pas des centaines.
+ * Ce bloc de commentaire reste : sans lui, la campagne de mesures serait perdue, et quelqu'un
+ * refera la grille en croyant l'inventer.
  */
-@media (min-width: 1200px) {
-  .bandeaux-cadre {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-:root[data-theme='sombre'] .bandeaux-cadre {
-  border-bottom-color: #574616;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='clair']) .bandeaux-cadre {
-    border-bottom-color: #574616;
-  }
-}
-
-.bandeau {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 7px 12px;
-  font-size: 12.5px;
-  background: #fff8e6;
-  border-bottom: 1px solid #f0d999;
-  color: #6b4e07;
-  flex-shrink: 0;
-}
-
-/*
- * Dans la grille, la bordure basse de chaque avertissement est portee par le cadre : la garder
- * sur chaque cellule dessinerait un trait au milieu de la rangee. Un filet vertical separe les
- * colonnes a la place, et disparait sur la premiere.
- */
-.bandeaux-cadre .bandeau-garde {
-  border-bottom: none;
-  border-left: 1px solid #f0d999;
-}
-
-.bandeaux-cadre .bandeau-garde:first-child {
-  border-left: none;
-}
-
-:root[data-theme='sombre'] .bandeaux-cadre .bandeau-garde {
-  border-left-color: #574616;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='clair']) .bandeaux-cadre .bandeau-garde {
-    border-left-color: #574616;
-  }
-}
 
 :root[data-theme='sombre'] .bandeau {
   background: #2a2109;
@@ -555,11 +489,20 @@ button:focus-visible,
  * enfant de la boite au lieu d'etre gouverne par l'element. La mise en ligne se fait donc dans le
  * `<summary>`, qui porte le flex a sa place.
  */
+/*
+ * STYLE DE BANDEAU DEPLIABLE, PARTAGE.
+ *
+ * Deux bandeaux s'en servent : l'etat des donnees, et depuis la revue d'ergonomie les
+ * avertissements du §12. Il vivait sous le seul nom `.bandeau-etat` ; le dupliquer aurait laisse
+ * deux chevrons divergents sur le meme ecran.
+ */
+.bandeau-repliable,
 .bandeau-etat {
   display: block;
   padding: 0;
 }
 
+.bandeau-repliable > summary,
 .bandeau-etat > summary {
   display: flex;
   align-items: center;
@@ -570,11 +513,13 @@ button:focus-visible,
   font-size: 12.5px;
 }
 
+.bandeau-repliable > summary::-webkit-details-marker,
 .bandeau-etat > summary::-webkit-details-marker {
   display: none;
 }
 
 /* Un chevron, pour que l'element se signale comme depliable sans texte supplementaire. */
+.bandeau-repliable > summary::after,
 .bandeau-etat > summary::after {
   content: '⌄';
   margin-left: auto;
@@ -582,8 +527,25 @@ button:focus-visible,
   transition: transform 0.15s ease;
 }
 
+.bandeau-repliable[open] > summary::after,
 .bandeau-etat[open] > summary::after {
   transform: rotate(180deg);
+}
+
+/*
+ * LES TITRES DU §12 NE SONT JAMAIS TRONQUES — et ma premiere version les tronquait.
+ *
+ * J'avais ecrit `white-space: nowrap; text-overflow: ellipsis` pour garantir une seule ligne. C'est
+ * exactement la faute que ce depot traque : les titres sont ce qui RESTE visible du §12 apres le
+ * repliement, donc les couper aux trois points est une protection qui disparait sans le dire.
+ *
+ * Mesure au navigateur, apres correction : les deux titres occupent 608 px sur une ligne, et le
+ * bandeau mesure 30 px de 1600 a 820 px de large. A 640 px et moins ils passent a deux lignes —
+ * 48 px, ce qui reste la moitie des 106 px du texte entier, et rien n'est perdu. Le garde
+ * `e2e/ergonomie.spec.ts` verifie que scrollWidth n'excede jamais clientWidth, a six largeurs.
+ */
+.titres-avertissements {
+  min-width: 0;
 }
 
 .bandeau-detail {

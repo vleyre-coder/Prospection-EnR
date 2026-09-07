@@ -1165,8 +1165,9 @@ const MUTATIONS = [
     audit: 'audit 13',
     quoi: 'le bouton promet de nouveau un masquage limite a la session',
     fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
-    de: '                Retirer\n              </button>',
-    vers: '                Masquer\n              </button>',
+    // Reindente avec le repliement du §12 : le bouton est descendu d'un niveau dans le JSX.
+    de: '                  Retirer\n                </button>',
+    vers: '                  Masquer\n                </button>',
     tests: ['apps/web/test/rendu-bandeau.test.ts'],
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-bandeau.test.ts'],
@@ -1530,6 +1531,113 @@ const MUTATIONS = [
     cwd: 'packages/scoring',
     commande: ['npm', 'test'],
   },
+  // ─── audit 18 : le tri des zones, et le repliement du §12 ──────────────────────────────────
+  {
+    audit: 'audit 18',
+    // LA DERIVE LA PLUS NATURELLE : « les plus grandes d'abord », qui parait evidemment juste.
+    // Mesure sur un departement reel : 24 zones sur 7 664 couvrent plus de la moitie de leur
+    // commune, et elles monopolisaient les quarante lignes du panneau.
+    quoi: 'le tri redevient « les plus grandes d’abord » : les designations communales reprennent la tete de liste',
+    fichier: 'apps/api/src/services/zones.ts',
+    de: '     ORDER BY (COALESCE(r.part_commune, 0) > 0.5), r.surface_m2 DESC, r.id',
+    vers: '     ORDER BY r.surface_m2 DESC, r.id',
+    tests: ['apps/api/test/zones.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // Le sens du doute s'inverse : une part de commune INCONNUE devient une designation
+    // territoriale presumee, et un site parfaitement valide est relegue en fin de liste parce que
+    // sa commune manque en base. C'est l'erreur qui coute une occasion sans rien signaler.
+    quoi: 'une part de commune inconnue est traitee comme une designation territoriale : le site disparait sur un doute',
+    fichier: 'apps/api/src/services/zones.ts',
+    de: '     ORDER BY (COALESCE(r.part_commune, 0) > 0.5), r.surface_m2 DESC, r.id',
+    vers: '     ORDER BY (COALESCE(r.part_commune, 1) > 0.5), r.surface_m2 DESC, r.id',
+    tests: ['apps/api/test/zones.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    quoi: 'le seuil de designation territoriale monte a 95 % : une zone couvrant 58 % de sa commune passe pour un site',
+    fichier: 'apps/api/src/services/zones.ts',
+    de: '        l.part_commune == null ? null : Number(l.part_commune) > 0.5,',
+    vers: '        l.part_commune == null ? null : Number(l.part_commune) > 0.95,',
+    tests: ['apps/api/test/zones.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    quoi: 'la distance au poste source disparait du panneau : on propose une zone sans le chiffre qui decide de son economie',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: "          {zone.distancePosteKm != null && (\n            <>\n              {' \u00b7 '}",
+    vers: "          {false && (\n            <>\n              {' \u00b7 '}",
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // `formatNombre(null)` rend un tiret ; avec `?? 0` il rend « 0 km ». Une zone sans poste ingere
+    // se presenterait donc comme la mieux raccordee de la liste — le faux positif confiant.
+    quoi: 'une distance de poste inconnue s’affiche « 0 km » : la zone la moins renseignee parait la mieux raccordee',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: "          {zone.distancePosteKm != null && (\n            <>\n              {' \u00b7 '}\n              <span title=\"Distance \u00e0 vol d\u2019oiseau du poste source le plus proche. La capacit\u00e9 d\u2019accueil, elle, reste inconnue : elle se demande au gestionnaire de r\u00e9seau.\">\n                poste \u00e0 <strong>{formatNombre(zone.distancePosteKm, 'km', 1)}</strong>",
+    vers: "          {true && (\n            <>\n              {' \u00b7 '}\n              <span title=\"Distance \u00e0 vol d\u2019oiseau du poste source le plus proche. La capacit\u00e9 d\u2019accueil, elle, reste inconnue : elle se demande au gestionnaire de r\u00e9seau.\">\n                poste \u00e0 <strong>{formatNombre(zone.distancePosteKm ?? 0, 'km', 1)}</strong>",
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    quoi: 'l’etiquette de designation communale disparait : l’operateur part chercher un proprietaire pour 576 ha qui n’ont jamais ete un site',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '          {zone.designationCommunale === true && (',
+    vers: '          {false && (',
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // L'etiquette devient permanente : elle ne distingue plus rien, et elle qualifie de
+    // « designation territoriale » un site de 40 ha. Une etiquette toujours vraie est un bruit.
+    quoi: 'l’etiquette de designation communale s’affiche sur toutes les zones : elle ne distingue plus rien',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '          {zone.designationCommunale === true && (',
+    vers: '          {zone.designationCommunale !== undefined && (',
+    tests: ['apps/web/test/rendu-zones.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // LE DEFAUT QUE LE REPLIEMENT POUVAIT INTRODUIRE, et la forme sous laquelle il serait arrive :
+    // un libelle generique dans le `<summary>`, parce qu'il est plus court et plus joli. Il ne reste
+    // alors RIEN de la mise en garde a l'ecran — le §12 devient un tiroir qu'on n'ouvre jamais.
+    quoi: 'les titres du §12 sont remplaces par un libelle generique : plus rien de la mise en garde n’est lisible sans deplier',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: '                  <strong>{a.titre}</strong>',
+    vers: '                  <strong>Avertissements</strong>',
+    tests: ['apps/web/test/rendu-bandeau.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-bandeau.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // LA DERIVE QUI SUIT UN REPLIEMENT : « le texte est long, abregeons-le puisqu'il est deplie ».
+    // Le §12 perd alors la moitie de sa phrase, y compris la partie qui engage — « re-verifiee au
+    // moment du depot du dossier et a l'echelon departemental » — et personne ne s'en apercoit.
+    quoi: 'le texte du §12 est abrege dans le corps deplie : la clause perd la partie qui engage',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: '                <strong>{a.titre}.</strong> {a.texte}{\' \'}',
+    vers: '                <strong>{a.titre}.</strong> {a.texte.slice(0, 40)}{\' \'}',
+    tests: ['apps/web/test/rendu-bandeau.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-bandeau.test.ts'],
+  },
   /*
    * BOUT EN BOUT : la chaine case a cocher -> bouton -> fichier. Ecartees de l'execution par
    * defaut (navigateur requis) ; leur motif est confronte au code a chaque campagne.
@@ -1565,6 +1673,40 @@ const MUTATIONS = [
     tests: ['apps/api/test/double-encodage.test.ts'],
     cwd: 'apps/api',
     commande: ['tsx', '--test', 'test/double-encodage.test.ts'],
+  },
+  {
+    audit: 'audit 18',
+    /*
+     * LE DEFAUT QUE J'AVAIS REELLEMENT ECRIT, remis a l'identique.
+     *
+     * Ma premiere version du bandeau replie portait `white-space: nowrap; text-overflow: ellipsis`
+     * sur les titres, pour garantir une ligne unique. Les titres sont ce qui RESTE visible du §12
+     * apres repliement : les couper aux trois points fait disparaitre la protection sans le dire.
+     * Le defaut etait invisible aux largeurs ou j'avais mesure — les titres occupent 608 px et
+     * tiennent jusqu'a 820 px — et aurait attendu la premiere fenetre etroite. Seul un navigateur
+     * peut le voir : `scrollWidth > clientWidth` est le seul signe observable d'une troncature.
+     */
+    quoi: 'les titres du §12 se tronquent aux trois points sur une fenetre etroite : la protection disparait sans le dire',
+    fichier: 'apps/web/src/styles/global.css',
+    de: '.titres-avertissements {\n  min-width: 0;\n}',
+    vers: '.titres-avertissements {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}',
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/ergonomie.spec.ts'],
+    tests: ['e2e/ergonomie.spec.ts'],
+  },
+  {
+    audit: 'audit 18',
+    // Le §12 s'ouvre deplie : mesure d'avant, 235 px de chrome a 1280 x 800, soit 29 % de la
+    // fenetre avant la moindre parcelle. C'est l'etat que le proprietaire a signale trois fois.
+    quoi: 'le §12 s’ouvre deplie : le chrome reprend 235 px, soit 29 % de la fenetre a 1280 x 800',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: '        <details className="bandeau bandeau-repliable bandeau-garde">',
+    vers: '        <details className="bandeau bandeau-repliable bandeau-garde" open>',
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/ergonomie.spec.ts'],
+    tests: ['e2e/ergonomie.spec.ts'],
   },
 ];
 

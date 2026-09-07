@@ -31,8 +31,11 @@ import {
   creerCommunesFictives,
   supprimerCommunesFictives,
   DEP_LOCAL,
+  DEP_VOISIN,
   INSEE_LOCAL,
+  INSEE_VOISIN,
   PT,
+  versEst,
 } from './aides/communes-fictives.js';
 
 const SANS_BASE = !process.env['DATABASE_URL'];
@@ -51,6 +54,14 @@ async function creerZone(
   filieres: string[],
   implantationPrecisee: boolean,
   decalageM = 0,
+  /**
+   * Commune et departement de rattachement. Par defaut le territoire fictif principal.
+   *
+   * Le parametre existe pour le test du tri : il faut y rattacher des zones a une commune dont on
+   * connait la surface, et une a une commune INCONNUE — `zaer.code_insee` ne porte aucune cle
+   * etrangere, donc le cas se produit reellement en base.
+   */
+  rattachement: { insee: string | null; dep: string } = { insee: INSEE_LOCAL, dep: DEP_LOCAL },
 ): Promise<void> {
   const mParDegLon = 111320 * Math.cos((PT[1] * Math.PI) / 180);
   const dLon = cotesM / mParDegLon;
@@ -64,11 +75,12 @@ async function creerZone(
              false, $9, 'essai')
      ON CONFLICT (identifiant_source) WHERE identifiant_source IS NOT NULL DO UPDATE
        SET geom = EXCLUDED.geom, filieres = EXCLUDED.filieres,
+           code_insee = EXCLUDED.code_insee,
            implantation_precisee = EXCLUDED.implantation_precisee`,
     [
       `${MARQUE}${suffixe}`,
-      INSEE_LOCAL,
-      DEP_LOCAL,
+      rattachement.insee,
+      rattachement.dep,
       filieres,
       ouest,
       PT[1],
@@ -110,9 +122,33 @@ after(async () => {
   await pool.end();
 });
 
-/** Les zones d'essai rendues, dans l'ordre du service. */
+/**
+ * Les zones d'essai rendues, dans l'ordre du service.
+ *
+ * ═══ L'EMPRISE EST BORNEE, ET CE N'EST PAS COSMETIQUE
+ *
+ * CE QUI NE MARCHAIT PLUS. Cette fonction appelait `zonesAProspecter({ limite: 200 })` sans
+ * emprise, puis filtrait le departement fictif dans le resultat. Or le service trie PUIS tronque :
+ * sur une base portant des zones REELLES, les zones fictives — 16 ha et 9 ha — tombent hors de la
+ * fenetre des 200 plus grandes, et deux tests de ce fichier echouent pour une raison etrangere a
+ * ce qu'ils verifient.
+ *
+ * MESURE dans cet environnement, sur la base des tests de bout en bout (Eure-et-Loir ingere) :
+ * 174 zones solaires de plus de 16 ha, et les deux tests en question echouent — code de production
+ * INCHANGE, verifie en remisant la modification en cours. Ils ne passaient donc que sur une base
+ * fraiche, et rien ne le disait.
+ *
+ * Ce n'est pas un defaut d'apparat : un test dont la reussite depend de ce que la base contient ce
+ * jour-la n'a pas de valeur de preuve, et le premier a en payer le prix est celui qui le voit
+ * echouer sans comprendre pourquoi. L'emprise du territoire fictif — 25 km d'ouest en est autour
+ * du point d'essai — rend le resultat independant du contenu de la base.
+ */
 async function zonesDEssai(filiere: 'solaire_sol' | 'eolien_terrestre' | 'methanisation') {
-  const r = await zonesAProspecter({ filiere, limite: 200 });
+  const r = await zonesAProspecter({
+    filiere,
+    bbox: [PT[0] + versEst(-2000), PT[1] - 0.05, PT[0] + versEst(20000), PT[1] + 0.1],
+    limite: 200,
+  });
   return {
     ...r,
     zones: r.zones.filter((z) => z.codeDepartement === DEP_LOCAL),
@@ -218,6 +254,119 @@ test('l’emprise restreint la proposition', { skip: SANS_BASE }, async () => {
     'une emprise eloignee ne doit proposer aucune zone du territoire fictif',
   );
 });
+
+test(
+  'UNE DESIGNATION A L’ECHELLE DE LA COMMUNE PASSE APRES LES SITES, et elle est marquee',
+  { skip: SANS_BASE },
+  async () => {
+    /*
+     * ═══════════════════════════════════════════════════════════════════════════════════════════
+     * LE DEFAUT MESURE : les quarante lignes du panneau, monopolisees par ce qui n'est pas un site
+     * ═══════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Le tri etait « la plus grande d'abord ». Distribution des 7 664 zones d'un departement reel :
+     *
+     *     < 1 ha            5 683 zones      50 - 200 ha    118
+     *     1 - 10 ha         1 460            200 - 1000 ha   51
+     *     10 - 50 ha          337            > 1000 ha       15
+     *
+     * et 24 de ces zones couvrent PLUS DE LA MOITIE de leur commune, dont 14 plus de 80 %. Une
+     * commune qui designe 80 % de son territoire n'a pas designe un site : elle a pris une
+     * deliberation d'echelle communale. Le tri par surface les mettait en tete, elles remplissaient
+     * la liste, et l'operateur ne voyait jamais un site de 10 a 100 ha — le seul objet qu'il cherche.
+     *
+     * CE TEST EST LE GARDE DE CE TRI. Trois zones sur la commune voisine, dont la surface declaree
+     * est de 1 000 ha :
+     *
+     *   - « territoriale » : 2 400 m de cote, soit environ 576 ha, donc 58 % de la commune ;
+     *   - « site » : 700 m de cote, environ 49 ha — bien plus PETIT, et pourtant attendu AVANT ;
+     *   - « sans-commune » : 300 m, rattachee a un code INSEE absent de `commune`. Sa part est donc
+     *     inconnue, et elle doit rester dans le premier groupe : releguer sur un DOUTE reviendrait a
+     *     cacher un site chaque fois que la commune manque.
+     */
+    const AILLEURS = { insee: INSEE_VOISIN, dep: DEP_VOISIN };
+    await creerZone('tri-territoriale', 2400, ['solaire_sol'], true, 20000, AILLEURS);
+    await creerZone('tri-site', 700, ['solaire_sol'], true, 30000, AILLEURS);
+    await creerZone('tri-sans-commune', 300, ['solaire_sol'], true, 36000, {
+      insee: '99999',
+      dep: DEP_VOISIN,
+    });
+
+    /*
+     * L'EMPRISE EST DONNEE, et ce n'est pas un detail de commodite.
+     *
+     * `zonesAProspecter` trie PUIS tronque a `limite`. Sur une base qui porte des zones reelles —
+     * mesure sur celle de cet environnement : 174 zones solaires de plus de 16 ha — les zones
+     * fictives tombent hors de la fenetre et le test echoue pour une raison etrangere a ce qu'il
+     * verifie. Deux tests plus haut dans ce fichier ont ce defaut et ne passent que sur une base
+     * fraiche ; celui-ci borne l'emprise au territoire fictif, et devient vrai sur n'importe quelle
+     * base.
+     */
+    const bbox: [number, number, number, number] = [
+      PT[0] + versEst(15000),
+      PT[1] - 0.05,
+      PT[0] + versEst(45000),
+      PT[1] + 0.1,
+    ];
+    const r = await zonesAProspecter({ filiere: 'solaire_sol', bbox, limite: 500 });
+    const nos = r.zones.filter((z) => z.codeDepartement === DEP_VOISIN);
+    assert.equal(nos.length, 3, `trois zones attendues sur le territoire voisin, obtenu ${nos.length}`);
+
+    const territoriale = nos.find((z) => z.designationCommunale === true);
+    assert.ok(
+      territoriale,
+      'la zone de 576 ha sur une commune de 1 000 ha doit etre marquee « designation communale »',
+    );
+    assert.ok(
+      territoriale.surfaceHa > 400,
+      `surface attendue autour de 576 ha, obtenue ${territoriale.surfaceHa}`,
+    );
+
+    const site = nos.find((z) => z.surfaceHa > 30 && z.surfaceHa < 100);
+    assert.ok(site, 'la zone de 49 ha doit etre proposee');
+    assert.equal(
+      site.designationCommunale,
+      false,
+      '49 ha sur 1 000 ha ne fait pas une designation d’echelle communale',
+    );
+
+    const sansCommune = nos.find((z) => z.codeInsee === '99999');
+    assert.ok(sansCommune, 'la zone rattachee a une commune inconnue doit etre proposee');
+    assert.equal(
+      sansCommune.designationCommunale,
+      null,
+      'une part de commune INCONNUE doit se dire `null`, et non se deviner en `false`',
+    );
+
+    /*
+     * L'ASSERTION QUI PORTE LE TRI. Sans elle, tout ce qui precede se contenterait de verifier une
+     * etiquette — la mutation du `ORDER BY` passerait sans bruit.
+     */
+    const iTerritoriale = nos.indexOf(territoriale);
+    const iSite = nos.indexOf(site);
+    const iSansCommune = nos.indexOf(sansCommune);
+    assert.ok(
+      iSite < iTerritoriale,
+      `le site de ${site.surfaceHa} ha doit passer AVANT la designation de ` +
+        `${territoriale.surfaceHa} ha (rangs ${iSite} et ${iTerritoriale})`,
+    );
+    assert.ok(
+      iSansCommune < iTerritoriale,
+      'une zone dont la part de commune est inconnue ne doit pas etre releguee : ' +
+        `rangs ${iSansCommune} et ${iTerritoriale}`,
+    );
+
+    // Et la distance au poste source est rendue, ou franchement absente — jamais un zero trompeur.
+    for (const z of nos) {
+      assert.ok(
+        z.distancePosteKm === null || (Number.isFinite(z.distancePosteKm) && z.distancePosteKm > 0),
+        `distancePosteKm doit etre un nombre positif ou null, obtenu ${z.distancePosteKm}`,
+      );
+    }
+
+    await requete(`DELETE FROM zaer WHERE identifiant_source LIKE $1`, [`${MARQUE}tri-%`]);
+  },
+);
 
 test('chaque zone porte de quoi y aller et de quoi decider', { skip: SANS_BASE }, async () => {
   const r = await zonesDEssai('solaire_sol');

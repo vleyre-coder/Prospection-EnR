@@ -470,6 +470,10 @@ export interface ZoneProposee {
   nbPropices: number;
   /** La deliberation precise-t-elle le type d'implantation ? Voir la migration 016. */
   implantationPrecisee: boolean;
+  /** La zone couvre plus de la moitie de sa commune : designation territoriale, pas un site. */
+  designationCommunale: boolean | null;
+  /** Distance au poste source le plus proche, en km. `null` si aucun poste n'est ingere. */
+  distancePosteKm: number | null;
 }
 
 export interface ReponseZones {

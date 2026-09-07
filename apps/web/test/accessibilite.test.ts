@@ -71,7 +71,10 @@ test('chaque champ de saisie est associe a un libelle', () => {
   const orphelins: string[] = [];
   for (const { nom, source } of composants()) {
     for (const m of source.matchAll(/<(input|select|textarea)\b[^>]*/g)) {
-      const balise = m.group ? m[0] : m[0];
+      // `m.group` n'existe pas sur un RegExpExecArray (c'est `groups`) : les deux branches du
+      // ternaire rendaient donc la meme chose. Ligne sans effet, retiree — TypeScript l'aurait
+      // refusee si les tests etaient types, ce qu'ils ne sont pas.
+      const balise = m[0];
       if (/aria-label|aria-labelledby|\sid=/.test(balise)) continue;
       // Enveloppement : on cherche un `<label` ouvert et non ferme avant le champ.
       const avant = source.slice(0, m.index ?? 0);
