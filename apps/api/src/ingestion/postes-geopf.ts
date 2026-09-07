@@ -69,6 +69,7 @@ import { avecParams } from '../http.js';
 import { journal } from '../journal.js';
 import { requete } from '../bdd.js';
 import { enregistrerCouverture } from '../depots/sources.js';
+import { calculerPotentielCommunal } from '../services/potentiel-communal.js';
 
 const CONNECTEUR = 'postes_geopf';
 
@@ -372,6 +373,24 @@ export async function ingererPostesGeoplateforme(): Promise<ResultatPostesGeopf>
   }
 
   await requete(`TRUNCATE ing_poste_geopf, ing_ligne_geopf`);
+
+  /*
+   * LE POTENTIEL COMMUNAL EST RECALCULE DANS LA FOULEE, et ce n'est pas une commodite.
+   *
+   * Il repose sur la distance de chaque commune au poste le plus proche : cette ingestion la CHANGE.
+   * Sans recalcul, la carte nationale continuerait d'afficher l'etat d'avant sans rien en dire —
+   * exactement le defaut « le snapshot vieillit par l'arrivee de la donnee » corrige a l'audit 9,
+   * transpose a l'echelle communale. Vingt secondes sur les huit de l'ingestion.
+   *
+   * L'echec n'interrompt pas l'ingestion : les postes, eux, sont ecrits et valides.
+   */
+  await calculerPotentielCommunal().catch((err: unknown) =>
+    journal.warn(
+      { err, connecteur: CONNECTEUR },
+      'Potentiel communal non recalcule : la carte nationale reste sur son etat precedent. ' +
+        'Relancez `npm run potentiel -w @enr/api`.',
+    ),
+  );
 
   const resultat: ResultatPostesGeopf = {
     postesLus,

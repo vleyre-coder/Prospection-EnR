@@ -819,6 +819,13 @@ export function calculerScoreSite(
 export { EVALUATEURS, LIBELLES_TYPE_SOL } from './criteres-eval.js';
 export { puissanceEstimee, type PuissanceEstimee } from './puissance.js';
 export {
+  potentielCommunal,
+  COURBE_DENSITE,
+  type PotentielCommunal,
+  type EntreePotentiel,
+  type AxePotentiel,
+} from './potentiel-commune.js';
+export {
   verificationsAvantContact,
   type VerificationAvantContact,
   type GraviteVerification,

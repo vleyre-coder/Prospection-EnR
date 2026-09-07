@@ -59,7 +59,15 @@ function ignorer(): boolean {
  * AUCUN test. Trois gardes decoratifs, dans le fichier meme qui pretendait les tenir.
  */
 async function deduire(kvMax?: number): Promise<Array<{ id: string; tension: string | null; capacite: number | null }>> {
-  await requete(`DELETE FROM poste_source WHERE connecteur = $1`, [CONNECTEUR]);
+  /*
+   * SEULS LES POSTES DE CE FICHIER SONT EFFACES, jamais tout le connecteur.
+   *
+   * Ma premiere version faisait `DELETE ... WHERE connecteur = 'postes_geopf'`, ce qui detruisait
+   * les 2 847 postes REELS d'une base de developpement a chaque execution de ce test. Constate
+   * apres un redemarrage : la table etait retombee a deux lignes. Un test n'a pas a effacer le
+   * travail d'une ingestion pour verifier son propre raisonnement.
+   */
+  await requete(`DELETE FROM poste_source WHERE id LIKE 'geopf:P_%'`);
   /*
    * SANS ARGUMENT, LE SEUIL PAR DEFAUT DU CONNECTEUR S'APPLIQUE — et c'est indispensable.
    * Ma premiere version donnait a cette aide son PROPRE defaut de 150 : le seuil du code de

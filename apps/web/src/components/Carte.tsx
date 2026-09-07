@@ -380,36 +380,37 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       maxzoom: ZOOM_MAX_COMMUNES,
       paint: {
         /**
-         * Une commune n'est coloree QUE si elle contient des parcelles qualifiees.
+         * ═══════════════════════════════════════════════════════════════════════════════════════
+         * LA COMMUNE EST COLOREE PAR SON POTENTIEL, ET NON PLUS PAR CE QU'ON Y A DEJA QUALIFIE
+         * ═══════════════════════════════════════════════════════════════════════════════════════
          *
-         * Le piege corrige ici : `ST_AsMVT` omet purement et simplement les attributs nuls,
-         * si bien qu'une commune sans score n'a pas d'attribut `nb_parcelles_qualifiees`.
-         * Un test `== 0` est alors faux (null n'est pas 0), la conversion `to-number` donne
-         * 0, le ratio vaut 0 et la commune se peignait en ROUGE. Resultat : la France
-         * entiere apparaissait redhibitoire au lancement, alors que rien n'avait ete
-         * analyse. `has` distingue l'attribut absent de la valeur zero.
+         * CE QUE CETTE COUCHE MONTRAIT, ET CE QUE SA LEGENDE ANNONCAIT. La legende disait
+         * « potentiel par commune ». La couche, elle, colorait par la part de VERT parmi les
+         * parcelles DEJA QUALIFIEES, et laissait transparentes celles qui n'en ont aucune. Comme
+         * presque aucune commune n'en a, la vue nationale etait VIDE — et la colonne `potentiel`,
+         * prevue pour cela dans le schema, n'etait ecrite par aucun code.
+         *
+         * Elle l'est desormais (`calculerPotentielCommunal`), pour les 34 875 communes et les
+         * quatre filieres. La couche lit donc le STATUT deja calcule plutot que de refaire un
+         * bareme ici : les seuils dependent de la filiere, et une echelle de couleurs propre a la
+         * carte ferait qu'une commune « verte » n'aurait pas le meme sens qu'une parcelle verte.
+         *
+         * LE PIEGE, INCHANGE ET TOUJOURS VRAI : `ST_AsMVT` omet purement et simplement les
+         * attributs nuls. Une commune non notee n'a donc PAS d'attribut `statut`, et `has` est le
+         * seul test qui distingue l'absence de la valeur. Sans lui, la France entiere se peignait
+         * en rouge au lancement, faute d'analyse.
          */
         'fill-color': [
           'case',
-          ['!', ['has', 'nb_parcelles_qualifiees']],
+          ['!', ['has', 'statut']],
           'rgba(0,0,0,0)',
-          ['<=', ['to-number', ['get', 'nb_parcelles_qualifiees'], 0], 0],
+          ['==', ['get', 'statut'], 'vert'],
+          couleurs.vert,
+          ['==', ['get', 'statut'], 'orange'],
+          couleurs.orange,
+          ['==', ['get', 'statut'], 'rouge'],
+          couleurs.rouge,
           'rgba(0,0,0,0)',
-          [
-            'interpolate',
-            ['linear'],
-            [
-              '/',
-              ['to-number', ['get', 'nb_vert'], 0],
-              ['max', ['to-number', ['get', 'nb_parcelles_qualifiees'], 1], 1],
-            ],
-            0,
-            couleurs.rouge,
-            0.35,
-            couleurs.orange,
-            0.7,
-            couleurs.vert,
-          ],
         ] as ExpressionSpecification,
         'fill-opacity': 0.5,
       },
@@ -742,6 +743,22 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       },
     });
 
+    /*
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     * LES POSTES N'APPARAISSENT QU'A PARTIR DE L'ECHELLE DEPARTEMENTALE
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * CE QUE L'INGESTION A REVELE. Ces deux couches n'avaient aucun `minzoom`, ce qui n'a jamais
+     * gene tant que `poste_source` etait VIDE. Elle porte desormais 2 847 postes : a l'ouverture,
+     * en vue nationale, la France disparaissait sous une masse de pastilles sombres qui masquait
+     * entierement le choroplethe communal. Constate sur capture, pas en relisant le code.
+     *
+     * NEUF, et le chiffre se justifie : c'est l'echelle a laquelle on voit environ un departement,
+     * soit une trentaine de postes en moyenne (2 847 pour 101 departements) — un semis lisible. En
+     * dessous, le marqueur ne designe plus rien d'actionnable, il fait du bruit.
+     */
+    const ZOOM_MIN_POSTES = 9;
+
     // --- Postes sources : symbole distinct par gestionnaire, couleur = saturation ---
     m.addSource('postes', { type: 'geojson', data: vide() });
     const couleurSaturation: ExpressionSpecification = [
@@ -757,6 +774,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       id: 'postes-rte',
       type: 'symbol',
       source: 'postes',
+      minzoom: ZOOM_MIN_POSTES,
       filter: ['==', ['get', 'gestionnaire'], 'RTE'],
       layout: { 'icon-image': 'carre', 'icon-allow-overlap': true, 'icon-size': 1 },
       paint: {},
@@ -765,6 +783,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       id: 'postes-grd',
       type: 'circle',
       source: 'postes',
+      minzoom: ZOOM_MIN_POSTES,
       filter: ['!=', ['get', 'gestionnaire'], 'RTE'],
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 12, 7] as ExpressionSpecification,
@@ -1355,8 +1374,10 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
 
         {enVueNationale && (
           <div className="indice-zoom">
-            Vue nationale : potentiel par commune. Zoomez jusqu&apos;au niveau{' '}
-            {ZOOM_MIN_PARCELLES} pour afficher les parcelles.
+            Vue nationale : <strong>où commencer à regarder</strong> — chaque commune est colorée
+            par le plus faible de deux facteurs, la distance au poste source le plus proche et la
+            disponibilité foncière présumée (densité). Ce n&apos;est pas une qualification de
+            terrain. Zoomez jusqu&apos;au niveau {ZOOM_MIN_PARCELLES} pour afficher les parcelles.
           </div>
         )}
       </div>
