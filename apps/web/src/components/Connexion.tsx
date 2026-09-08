@@ -55,7 +55,7 @@ export function Connexion({
           <div className="erreur-encart" role="status" style={{ marginBottom: 12 }}>
             <strong>Session expiree</strong>
             <p style={{ margin: '4px 0 0' }}>
-              Votre session a depasse sa durée de validite. Reconnectez-vous : votre travail
+              Votre session a dépassé sa durée de validité. Reconnectez-vous : votre travail
               enregistré est intact, seul l&rsquo;affichage a été interrompu.
             </p>
           </div>

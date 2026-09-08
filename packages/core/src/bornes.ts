@@ -82,7 +82,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     motif:
       'Le point le plus bas de France métropolitaine est dans le delta du Rhône, à environ -2 m ; ' +
       '-20 laisse la marge d’une donnée altimétrique bruitée en zone de polder. Le plafond est le ' +
-      'sommet du Mont-Blanc. Une altitude hors de cet intervalle designe une erreur de source ou ' +
+      'sommet du Mont-Blanc. Une altitude hors de cet intervalle désigne une erreur de source ou ' +
       "une confusion d'unité, pas un terrain français.",
   },
   {
@@ -95,8 +95,8 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
       'suppose une parcelle de montagne de plusieurs centaines d’hectares. Au-delà, la géométrie ' +
       'ou le semis altimétrique est en cause.',
   },
-  { chemin: 'topographie.cavitesProches', min: 0, max: 100_000, unite: 'cavites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
-  { chemin: 'topographie.mouvementsTerrain', min: 0, max: 100_000, unite: 'evenements', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'topographie.cavitesProches', min: 0, max: 100_000, unite: 'cavites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'topographie.mouvementsTerrain', min: 0, max: 100_000, unite: 'evenements', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
 
   // -- Eau -----------------------------------------------------------------
   {
@@ -151,8 +151,8 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   { chemin: 'patrimoine.covisibiliteIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
 
   // -- Risques -------------------------------------------------------------
-  { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
-  { chemin: 'risques.icpeProches', min: 0, max: 100_000, unite: 'installations', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne designe pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  { chemin: 'risques.icpeProches', min: 0, max: 100_000, unite: 'installations', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
 
   // -- Raccordement --------------------------------------------------------
   {
@@ -162,7 +162,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: 'km',
     motif:
       'Le réseau public de distribution maille tout le territoire : la distance au poste source ' +
-      'le plus proche depasse rarement 30 km. 500 km rejette une confusion mètre / kilomètre.',
+      'le plus proche dépasse rarement 30 km. 500 km rejette une confusion mètre / kilomètre.',
   },
   { chemin: 'raccordement.posteLePlusProche.capaciteResiduelleMw', min: 0, max: 10_000, unite: 'MW', motif: 'Capacité d’accueil d’un poste source. Le plus gros poste français reste très en dessous de 10 GW.' },
   { chemin: 'raccordement.posteLePlusProche.fileAttenteMw', min: 0, max: 100_000, unite: 'MW', motif: 'Puissance des projets en file d’attente, cumulable : borne large.' },
@@ -205,7 +205,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: 'elevages',
     motif:
       "Dénombrement des élevages dans un rayon de 10 km. Le département le plus dense de France en " +
-      "compte quelques milliers au total : un compte de cet ordre designe une requête spatiale qui " +
+      "compte quelques milliers au total : un compte de cet ordre désigne une requête spatiale qui " +
       "a perdu son filtre d'emprise, pas un bassin d'élevage.",
   },
   {

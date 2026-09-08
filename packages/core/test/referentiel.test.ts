@@ -168,7 +168,27 @@ test('une regle chiffree porte son unite', () => {
   }
 });
 
-test('les URL de reference pointent vers une source officielle', () => {
+test('les URL de reference pointent vers une source officielle — RIEN DE PLUS', () => {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * CE TEST A LAISSE PASSER 25 LIENS FAUX SUR 26, ET SON INTITULE EXPLIQUE POURQUOI
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Il verifie que l'URL est en HTTPS et sur un domaine public. C'est utile — et parfaitement
+   * insuffisant : un identifiant Legifrance INVENTE est sur `legifrance.gouv.fr` comme un vrai.
+   * Releve du 7 septembre 2026, en ouvrant les 26 URL une par une : 1 ouvrait le texte cite,
+   * 5 ouvraient un texte sans rapport, 20 renvoyaient une 404. Ce test les declarait toutes
+   * conformes.
+   *
+   * La lecon n'est pas qu'il fallait le supprimer, c'est qu'il ne faut pas lui faire dire plus
+   * qu'il ne dit. Son ancien intitule — « les URL de reference pointent vers une source
+   * officielle » — se lisait comme une garantie sur la DESTINATION. « RIEN DE PLUS » est ajoute
+   * pour que personne ne s'y trompe une seconde fois.
+   *
+   * CE QUI VERIFIE LA DESTINATION vit dans `references-legifrance.test.ts` : le releve de ce qui a
+   * ete reellement lu au bout de chaque lien, et le garde qui interdit de changer une URL sans la
+   * rouvrir.
+   */
   for (const [id, r] of Object.entries(REGLES_PAR_ID)) {
     if (r.url) {
       assert.match(r.url, /^https:\/\//, `${id} : URL non securisee`);
@@ -178,6 +198,29 @@ test('les URL de reference pointent vers une source officielle', () => {
         `${id} : ${r.url} n'est pas un domaine public francais ou europeen`,
       );
     }
+  }
+});
+
+test('TOUTE REGLE EN ATTENTE DE REVUE JURIDIQUE PORTE UN LIEN VERS SON TEXTE', () => {
+  /*
+   * POURQUOI CETTE EXIGENCE VISE D'ABORD LES REGLES « A VALIDER ». Ce sont celles dont la reference
+   * a ete PROPOSEE et non relue : le juriste qui les reprendra doit pouvoir ouvrir le texte d'un
+   * clic, sans le rechercher. Six d'entre elles n'avaient aucune URL avant le releve du
+   * 7 septembre 2026 — dont `bess_raccordement_s3renr`, qui justifie a lui seul que le
+   * raccordement pese 42 % du score du stockage.
+   *
+   * LES 20 AUTRES REGLES SANS URL NE SONT PAS COUVERTES ICI, et c'est un manque assume, pas un
+   * oubli : elles n'ont pas encore ete relevees, et exiger un lien sans l'avoir ouvert reviendrait
+   * a fabriquer le defaut que ce releve vient de corriger. Elles sont listees dans le rapport de
+   * livraison.
+   */
+  for (const [id, r] of Object.entries(REGLES_PAR_ID)) {
+    if (r.aValiderParJuriste !== true) continue;
+    assert.ok(
+      r.url && r.url.length > 0,
+      `${id} attend une revue juridique sans donner le lien vers son texte : celui qui doit la ` +
+        'valider devrait chercher l’article lui-meme',
+    );
   }
 });
 

@@ -146,7 +146,7 @@ export function construireSeuilsProcedure(
         'compensation_agricole',
         solAgricole == null ? null : solAgricole === 'agricole_exploite',
         solAgricole === 'agricole_exploite'
-          ? `Sol agricole exploité${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'étude préalable est probablement due. Le seuil de surface est fixe par arrêté préfectoral — le vérifier auprès de la DDT${regimeImplantation === 'agrivoltaisme' ? '. Une configuration agrivoltaïque maintenant une production significative peut en dispenser' : ''}.`
+          ? `Sol agricole exploité${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'étude préalable est probablement due. Le seuil de surface est fixé par arrêté préfectoral — le vérifier auprès de la DDT${regimeImplantation === 'agrivoltaisme' ? '. L’étude est due même en agrivoltaïsme : l’article L.112-1-3 y soumet expressément ces projets' : ''}.`
           : null,
       ),
       seuil(filiere, 'demantelement', true),
@@ -215,7 +215,7 @@ export function construireSeuilsProcedure(
         'icpe_2925_2',
         p == null ? true : p * 1000 > 600,
         p == null
-          ? "Tout projet de taille industrielle depasse le seuil de 600 kW : régime de déclaration a minima."
+          ? "Tout projet de taille industrielle dépasse le seuil de 600 kW : régime de déclaration a minima."
           : `Puissance envisagee ${p} MW : ${p * 1000 > 600 ? 'déclaration ICPE 2925-2 requise' : 'sous le seuil de déclaration'}.`,
       ),
       seuil(filiere, 'securite_incendie', true),

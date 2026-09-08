@@ -648,8 +648,10 @@ const MUTATIONS = [
     audit: 'couverture',
     quoi: 'une reference proposee se presente comme verifiee par un juriste',
     fichier: 'packages/core/src/reglementation.ts',
-    de: "      'de l’environnement, qui a recodifie la loi du 2 mai 1930.',\n    aValiderParJuriste: true,",
-    vers: "      'de l’environnement, qui a recodifie la loi du 2 mai 1930.',",
+    // Reancrage apres le releve Legifrance du 7 septembre 2026 : le commentaire de cette regle a
+    // ete corrige, et l'ancien motif portait sa derniere phrase.
+    de: "      'noter aussi, lu au même endroit : pour un projet relevant de l’article L.181-1, l’autorisation ' +\n      'environnementale tient lieu de cette autorisation spéciale.',\n    aValiderParJuriste: true,",
+    vers: "      'noter aussi, lu au même endroit : pour un projet relevant de l’article L.181-1, l’autorisation ' +\n      'environnementale tient lieu de cette autorisation spéciale.',",
     construire: '@enr/core',
     tests: ['packages/scoring/test/fondement-knockouts.test.ts'],
   },
@@ -1637,6 +1639,67 @@ const MUTATIONS = [
     tests: ['apps/web/test/rendu-bandeau.test.ts'],
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-bandeau.test.ts'],
+  },
+  // ─── audit 18 : le releve des references Legifrance ────────────────────────────────────────
+  {
+    audit: 'audit 18',
+    /*
+     * LE DEFAUT REEL, REMIS A L'IDENTIQUE. C'est l'URL que le referentiel portait avant le releve
+     * du 7 septembre 2026 pour `commun_site_classe` : elle ouvrait l'article L.415-1 du code de
+     * l'environnement — l'habilitation des agents a constater les infractions — sous une regle qui
+     * annonce L.341-10. Vingt-cinq des vingt-six URL etaient dans ce cas, et le seul test qui les
+     * regardait verifiait leur DOMAINE.
+     */
+    quoi: 'l’URL du site classe revient a celle qui ouvrait l’habilitation des agents au lieu de l’autorisation spéciale',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: 'url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033036041`,',
+    vers: 'url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006833752`,',
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 18',
+    // Le lien reste juste, c'est la REFERENCE qui derive : la regle annoncerait R.151-23 alors que
+    // le lien ouvre R.151-24. C'est le rapprochement lien/reference qui doit l'attraper, et lui
+    // seul — aucun autre test du depot ne compare ces deux champs.
+    quoi: 'la reference de la zone N derive d’un article : le lien n’ouvre plus ce que la regle annonce',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: '"Code de l\'urbanisme, art. R.151-24 et R.151-25 (zones naturelles et forestières) ; art. L.151-13 "',
+    vers: '"Code de l\'urbanisme, art. R.151-23 et R.151-25 (zones naturelles et forestières) ; art. L.151-13 "',
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 18',
+    // « On a verifie les references, retirons le marquage » : la derive exacte que le releve rend
+    // tentante. Le releve etablit que les textes existent et traitent du sujet, PAS qu'ils sont le
+    // bon fondement d'un refus opposable — cela ne se verifie pas, cela se signe.
+    quoi: 'le releve Legifrance est pris pour une revue juridique : une regle perd son marquage « a valider »',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: "      'urgence, prolongation d’une autorisation existante.',\n    aValiderParJuriste: true,",
+    vers: "      'urgence, prolongation d’une autorisation existante.',",
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 18',
+    // Une regle en attente de revue juridique sans lien vers son texte : six l'etaient avant le
+    // releve, dont `bess_raccordement_s3renr`, qui justifie a lui seul que le raccordement pese
+    // 42 % du score du stockage.
+    quoi: 'une regle a valider perd le lien vers son texte : le juriste devrait chercher l’article lui-meme',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: '    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000036436150`,',
+    vers: '    // mutation : lien retire',
+    tests: ['packages/core/test/referentiel.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
   },
   /*
    * BOUT EN BOUT : la chaine case a cocher -> bouton -> fichier. Ecartees de l'execution par

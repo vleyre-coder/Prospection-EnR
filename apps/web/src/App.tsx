@@ -509,7 +509,7 @@ function OutilsCarte({
         }
         if (est.plafonne) {
           reserves.push(
-            'Le secteur depasse le plafond par campagne : il ne sera PAS couvert en entier. ' +
+            'Le secteur dépasse le plafond par campagne : il ne sera PAS couvert en entier. ' +
               'Decoupez-le en plusieurs campagnes pour le couvrir.',
           );
         }

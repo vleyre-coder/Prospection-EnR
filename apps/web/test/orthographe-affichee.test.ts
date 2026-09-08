@@ -111,6 +111,14 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/bornes.ts', mot: 'foret', raison: 'chemin de champ `occupationSol.foret.partBoisee`' },
   { module: 'packages/core/src/reglementation.ts', mot: 'publie', raison: 'verbe publier : « aucune API nationale ne publie ces documents »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'majore', raison: 'verbe majorer : « qui majore la pente moyenne réelle »' },
+  /*
+   * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
+   * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
+   * fait ecrire « le seuil de surface est fixé par arrete » a cote de « le reglement du plan
+   * approuve fixe la portee exacte ». Relues une par une, occurrence par occurrence.
+   */
+  { module: 'packages/scoring/src/knockouts.ts', mot: 'fixe', raison: "verbe fixer : « le reglement du plan approuve fixe la portee exacte », « l'arrete fixe les interdictions »" },
+  { module: 'packages/core/src/reglementation.ts', mot: 'fixe', raison: 'verbe fixer : « il fixe les surfaces ouvertes aux projets », « R.181-13 fixe le contenu commun du dossier », « l’acte de classement fixe le detail »' },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -289,6 +297,13 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // l'identité de l'exploitant », « aucune API nationale ne publie ces documents »,
     // « aucune donnée nationale ne publie les périmètres ». Aucune n'est le participe.
     'packages/core/src/reglementation.ts|publie': 3,
+    // Les trois sont le MEME verbe fixer, relues une par une : « il fixe les surfaces ouvertes aux
+    // projets », « R.181-13 fixe le contenu commun du dossier », « l'acte de classement fixe le
+    // detail ». Aucune n'est le participe « fixé ».
+    'packages/core/src/reglementation.ts|fixe': 3,
+    // Idem, deux occurrences : « le reglement du plan approuve fixe la portee exacte » et
+    // « en perimetre rapproche l'arrete fixe les interdictions ».
+    'packages/scoring/src/knockouts.ts|fixe': 2,
   };
   const compte = new Map<string, number>();
   for (const o of reelles.filter(excepte)) {

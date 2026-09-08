@@ -327,7 +327,7 @@ const koMonumentSiteClasse: RegleKo = (s) => {
     return ko(
       'ko_eol_site_classe',
       'Site classe',
-      `La parcelle est en site classe${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc éolien y est incompatible avec l'objectif de conservation du site : tout travail y suppose une autorisation spéciale délivrée au niveau ministériel.`,
+      `La parcelle est en site classe${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc éolien y est incompatible avec l'objectif de conservation du site : tout travail y suppose une autorisation spéciale.`,
       'patrimoine',
       'commun_site_classe',
     );
