@@ -156,7 +156,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
             <span>
               <strong>Non analysée</strong>
               <span className="desc">
-                Aucun score calcule : la parcelle n&apos;est pas colorée, seul son contour
+                Aucun score calculé : la parcelle n&apos;est pas colorée, seul son contour
                 apparaît. Lancez « Qualifier l&apos;emprise » sur votre secteur.
               </span>
             </span>
@@ -192,7 +192,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
           <div className="legende-titre">Ou en est votre démarchage</div>
           <p className="legende-note">
             Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien à voir
-            avec le score : une parcelle peut être excellente et jamais contactee, ou médiocre et
+            avec le score : une parcelle peut être excellente et jamais contactée, ou médiocre et
             déjà sous promesse. Le statut se change dans la fiche de la parcelle, onglet
             prospection.
           </p>
@@ -234,7 +234,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
             <span>
               Poste en projet ou en renforcement
               <span className="desc">
-                Un poste sature peut redevenir intéressant à l&apos;horizon du projet.
+                Un poste saturé peut redevenir intéressant à l&apos;horizon du projet.
               </span>
             </span>
           </div>
@@ -455,7 +455,7 @@ function Filtres({
             className="bouton bouton-principal"
             onClick={() => useEtat.getState().definirVue('liste')}
           >
-            Voir les resultats
+            Voir les résultats
           </button>
           <button type="button" className="bouton" onClick={etat.reinitialiserFiltres}>
             Réinitialiser
@@ -494,7 +494,7 @@ function Ponderations({ referentiel }: { referentiel: Referentiel }): JSX.Elemen
       </summary>
       <div className="section-corps">
         <p style={{ fontSize: 11.5, color: 'var(--texte-faible)', margin: '0 0 8px' }}>
-          Les poids sont normalisés à 100 % sur les critères réellement evaluables. Déplacer un
+          Les poids sont normalisés à 100 % sur les critères réellement évaluables. Déplacer un
           curseur recolore immédiatement la carte.
         </p>
 
@@ -727,7 +727,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
                     title={
                       disponible
                         ? `${c.nbObjets?.toLocaleString('fr-FR') ?? ''} objet(s) en base`
-                        : "Couche non ingérée : rien à afficher sur la carte. Le critère correspondant est néanmoins evalue parcelle par parcelle, en interrogeant la source au moment de la qualification."
+                        : "Couche non ingérée : rien à afficher sur la carte. Le critère correspondant est néanmoins évalué parcelle par parcelle, en interrogeant la source au moment de la qualification."
                     }
                   >
                     <input
@@ -750,7 +750,7 @@ function Couches({ referentiel }: { referentiel: Referentiel }): JSX.Element {
 
         {couchesIndisponibles > 0 && (
           <p className="legende-note" style={{ marginTop: 8 }}>
-            <strong>{couchesIndisponibles} couche(s) grisee(s) :</strong> l&apos;ingestion
+            <strong>{couchesIndisponibles} couche(s) grisée(s) :</strong> l&apos;ingestion
             correspondante n&apos;a pas encore été lancée sur cette installation. Voir la section
             « Calques cartographiques » ci-dessous, qui interroge les services officiels en direct
             et ne dépend pas de l&apos;ingestion.
@@ -804,7 +804,7 @@ function Calques({ referentiel }: { referentiel: Referentiel }): JSX.Element | n
       <div className="section-corps">
         <p className="legende-note">
           Contraintes de référence affichées en superposition. Chaque calque indique sa source et
-          son millésime : une contrainte sans provenance datee n&apos;est pas opposable dans un
+          son millésime : une contrainte sans provenance datée n&apos;est pas opposable dans un
           dossier.
         </p>
 

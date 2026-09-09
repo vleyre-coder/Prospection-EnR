@@ -194,7 +194,7 @@ export const LIBELLES_REGIME: Record<string, string> = {
   pv_sol_terrain_degrade: 'Photovoltaïque au sol sur terrain dégradé ou artificialisé (présumé)',
   agrivoltaisme: 'Agrivoltaïsme sur parcelle agricole exploitée (présumé)',
   pv_sol_document_cadre: 'Photovoltaïque au sol sur terrain inculte (document-cadre départemental)',
-  pv_sol_defrichement: 'Photovoltaïque au sol avec défrichement (fortement penalise)',
+  pv_sol_defrichement: 'Photovoltaïque au sol avec défrichement (fortement pénalisé)',
 };
 
 /**
@@ -281,8 +281,8 @@ function evaluerLimitesViabilite(
       motif:
         `La parcelle offre environ ${ha(surfaceHa)} ha implantables (${ha(surfaceCadastraleHa)} ha ` +
         `au cadastre), soit moins du quart de la surface minimale indicative de ${ha(min)} ha pour la ` +
-        `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne presente d'intérêt ` +
-        `qu'agregee à des parcelles voisines au sein d'un site.${reserveModele}`,
+        `filiere ${meta.libelleCourt}. Un projet autonome y est exclu ; elle ne présente d'intérêt ` +
+        `qu'agrégée à des parcelles voisines au sein d'un site.${reserveModele}`,
       statutMaximal: 'rouge',
     });
   } else if (surfaceHa < min * 0.6) {
@@ -366,7 +366,7 @@ export function calculerScore(
       ? {
           ...brutEvalue,
           note: null,
-          valeurAffichee: 'non evalue - source en échec',
+          valeurAffichee: 'non évalué - source en échec',
           commentaire:
             `La source ${brutEvalue.sourceKey} n'a pas répondu lors de la qualification de cette parcelle. ` +
             `La valeur qui figurait dans le relevé n'est pas retenue : une donnée par défaut notée ` +
@@ -481,7 +481,7 @@ export function calculerScore(
       motif:
         `Seuls ${Math.round(couvertureDonnees * 100)} % du poids des critères ont pu être évalués ` +
         `(${criteres.filter((c) => c.note == null).length} critère(s) sans donnée). Le score est ` +
-        `calcule sur les seuls critères renseignes : il est donc optimiste, car les données ` +
+        `calculé sur les seuls critères renseignés : il est donc optimiste, car les données ` +
         `manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut ` +
         `pas être classée propice tant que la couverture n'atteint pas ` +
         `${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
@@ -542,7 +542,7 @@ export function calculerScore(
   }
   if ((options.knockOutsDesactives?.length ?? 0) > 0) {
     avertissements.push(
-      `Mode scénario dérogatoire : ${options.knockOutsDesactives!.length} critère(s) rédhibitoire(s) ont été desactives manuellement. Le résultat ne reflete pas le cadre réglementaire en vigueur.`,
+      `Mode scénario dérogatoire : ${options.knockOutsDesactives!.length} critère(s) rédhibitoire(s) ont été désactivés manuellement. Le résultat ne reflète pas le cadre réglementaire en vigueur.`,
     );
   }
 
@@ -744,7 +744,7 @@ export function calculerScoreSite(
         `raccordement : le site n'est pas un projet mais plusieurs. La surface implantable est ` +
         `estimée groupe par groupe (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
         `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre) et non comme une emprise unique, qui ` +
-        `l'aurait surestimee. A rapprocher d'un regroupement effectivement jointif.`,
+        `l'aurait surestimée. A rapprocher d'un regroupement effectivement jointif.`,
       statutMaximal: 'orange',
     });
   } else if (nbGroupesContigus == null && snapshots.length > 1) {
@@ -754,7 +754,7 @@ export function calculerScoreSite(
       motif:
         `La disposition géométrique des parcelles n'a pas été vérifiée. La surface implantable ` +
         `est donc déduite parcelle par parcelle (${formatNombre(utileSite.netteHa, 'ha', 2)} sur ` +
-        `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre), hypothese prudente : si les parcelles ` +
+        `${formatNombre(utileSite.bruteHa, 'ha', 2)} au cadastre), hypothèse prudente : si les parcelles ` +
         `sont jointives, la surface réelle est supérieure.`,
       statutMaximal: 'orange',
     });
@@ -775,7 +775,7 @@ export function calculerScoreSite(
       libelle: 'Couverture de données insuffisante pour conclure',
       motif:
         `La couverture moyenne des parcelles retenues, pondérée par leur surface, atteint ` +
-        `${Math.round(couvertureDonnees * 100)} %. Agreger des parcelles mal documentees ne ` +
+        `${Math.round(couvertureDonnees * 100)} %. Agréger des parcelles mal documentées ne ` +
         `produit pas un site documenté : le site ne peut pas être déclaré propice tant que la ` +
         `couverture n'atteint pas ${Math.round(SEUIL_COUVERTURE_POUR_VERT * 100)} %.`,
       statutMaximal: 'orange',

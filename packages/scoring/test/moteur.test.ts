@@ -851,7 +851,7 @@ describe('reproductibilite et transparence', () => {
     const c = partiel.criteres.find((x) => x.id === 'fonc_maitrise');
     assert.ok(c, 'le critere doit etre evalue');
     assert.match(c!.valeurAffichee, /1\/3 indicateurs disponibles/);
-    assert.match(c!.commentaire ?? '', /moins assuree/);
+    assert.match(c!.commentaire ?? '', /moins assurée/);
   });
 
   it('un critere composite complet n’ajoute aucune mention inutile', () => {
@@ -884,7 +884,7 @@ describe('reproductibilite et transparence', () => {
       'solaire_sol',
     );
     const c = r.criteres.find((x) => x.id === 'urb_zonage')!;
-    assert.match(c.valeurAffichee, /dominant indetermine/);
+    assert.match(c.valeurAffichee, /dominant indéterminé/);
     assert.match(c.commentaire ?? '', /ordre de réponse du service/);
   });
 

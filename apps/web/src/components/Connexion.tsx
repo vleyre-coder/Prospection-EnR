@@ -12,11 +12,11 @@ import { api, definirJeton, ErreurApi, type Utilisateur } from '../api/client.js
 
 export function Connexion({
   onConnecte,
-  expiree = false,
+  expirée = false,
 }: {
   onConnecte: (u: Utilisateur) => void;
   /** La session a expire en cours d'utilisation, plutot qu'une premiere connexion. */
-  expiree?: boolean;
+  expirée?: boolean;
 }): JSX.Element {
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -36,7 +36,7 @@ export function Connexion({
       .catch((err: ErreurApi) =>
         setErreur(
           err.estReseau
-            ? "L'API est injoignable. Vérifiez que le serveur est demarre."
+            ? "L'API est injoignable. Vérifiez que le serveur est démarré."
             : err.message,
         ),
       )
@@ -51,9 +51,9 @@ export function Connexion({
           Identification et priorisation des parcelles à démarcher, filière par filière.
         </p>
 
-        {expiree && (
+        {expirée && (
           <div className="erreur-encart" role="status" style={{ marginBottom: 12 }}>
-            <strong>Session expiree</strong>
+            <strong>Session expirée</strong>
             <p style={{ margin: '4px 0 0' }}>
               Votre session a dépassé sa durée de validité. Reconnectez-vous : votre travail
               enregistré est intact, seul l&rsquo;affichage a été interrompu.
@@ -92,8 +92,8 @@ export function Connexion({
         </button>
 
         <p className="connexion-aide">
-          Au premier démarrage, les identifiants sont ceux definis par <code>ADMIN_EMAIL</code> et{' '}
-          <code>ADMIN_MOT_DE_PASSE</code>. Si vous ne les avez pas definis, le mot de passe genere
+          Au premier démarrage, les identifiants sont ceux définis par <code>ADMIN_EMAIL</code> et{' '}
+          <code>ADMIN_MOT_DE_PASSE</code>. Si vous ne les avez pas définis, le mot de passe généré
           est affiché dans les journaux du serveur (<code>docker compose logs api</code>).
         </p>
       </form>

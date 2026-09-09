@@ -54,12 +54,12 @@ export const DESCRIPTIONS_SCORE: Record<Feu, string> = {
   orange:
     "Aucun critère rédhibitoire, mais des points de vigilance abaissent le score : à étudier avant démarchage.",
   rouge:
-    "Aucun critère rédhibitoire, mais un score très bas : parcelle peu intéressante en l'état, sans obstacle de droit. Elle peut remonter si le contexte evolue (renforcement de poste, changement de pondération).",
+    "Aucun critère rédhibitoire, mais un score très bas : parcelle peu intéressante en l'état, sans obstacle de droit. Elle peut remonter si le contexte évolue (renforcement de poste, changement de pondération).",
   gris: "Couverture de données insuffisante pour conclure. L'absence de donnée ne vaut pas absence de contrainte.",
 };
 
 export const DESCRIPTION_REDHIBITOIRE =
-  "Au moins un critère éliminatoire est déclenché (recul réglementaire hors d'atteinte, protection forte, poste sature sans renforcement...). Aucun score n'est calcule : la parcelle est écartée en l'état du droit, et non simplement mal classée.";
+  "Au moins un critère éliminatoire est déclenché (recul réglementaire hors d'atteinte, protection forte, poste saturé sans renforcement...). Aucun score n'est calculé : la parcelle est écartée en l'état du droit, et non simplement mal classée.";
 
 export const COULEURS_SATURATION: Record<string, string> = {
   disponible: '#15803d',
@@ -71,6 +71,6 @@ export const COULEURS_SATURATION: Record<string, string> = {
 export const LIBELLES_SATURATION: Record<string, string> = {
   disponible: 'Capacité disponible',
   tendu: 'Capacité tendue',
-  sature: 'Poste sature',
+  sature: 'Poste saturé',
   inconnu: 'État inconnu',
 };

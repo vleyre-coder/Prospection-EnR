@@ -144,7 +144,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     instable: true,
     commentaire:
       "La rubrique 30 de l'annexe à l'article R.122-2 a été remaniée plusieurs fois depuis 2020 " +
-      "et les bornes de puissance declenchant l'examen au cas par cas ont bouge à chaque " +
+      "et les bornes de puissance déclenchant l'examen au cas par cas ont bouge à chaque " +
       "révision. La décision relève en outre de l'autorité environnementale, qui apprécie la " +
       "sensibilité du milieu au-delà du seul seuil de puissance : deux projets de même puissance " +
       "peuvent recevoir des réponses différentes. À confirmer auprès de la DREAL avant tout dépôt.",
@@ -309,7 +309,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     reference: 'Code du patrimoine, art. L.621-30 et L.632-1',
     dateEntreeEnVigueur: '2016-07-08',
     commentaire:
-      "Le périmètre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà.",
+      "Le périmètre délimité des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà.",
   },
   radar: {
     id: 'eol_radar',
@@ -334,7 +334,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2004-06-11',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000032443426`,
     commentaire:
-      "Ces servitudes protegent les liaisons hertziennes contre les obstacles : un aérogénérateur de plus " +
+      "Ces servitudes protègent les liaisons hertziennes contre les obstacles : un aérogénérateur de plus " +
       "de cent mètres en travers d'un faisceau est en principe incompatible. Elles sont annexées au " +
       "document d'urbanisme et publiées comme servitudes d'utilité publique. Un déplacement de machine " +
       "suffit parfois à dégager le faisceau, d'ou un caractère dérogeable plutôt que bloquant : c'est " +
@@ -375,7 +375,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2925, alinéa 2",
     dateEntreeEnVigueur: '2022-06-30',
     commentaire:
-      "Rubrique dédiée aux dispositifs de stockage d'énergie électrochimique. La doctrine des DREAL evolue : certains projets sont requalifies en autorisation selon la masse de matières dangereuses (rubriques 1450, 4801). À confirmer auprès de la DREAL.",
+      "Rubrique dédiée aux dispositifs de stockage d'énergie électrochimique. La doctrine des DREAL évolue : certains projets sont requalifiés en autorisation selon la masse de matières dangereuses (rubriques 1450, 4801). À confirmer auprès de la DREAL.",
     instable: true,
   },
   securite_incendie: {
@@ -390,7 +390,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
   },
   chimie_lfp: {
     id: 'bess_chimie_lfp',
-    libelle: 'Chimie LFP (lithium fer phosphate) recommandee',
+    libelle: 'Chimie LFP (lithium fer phosphate) recommandée',
     reference: 'Recommandation technique - non réglementaire',
     dateEntreeEnVigueur: '2024-01-01',
     commentaire:
@@ -419,7 +419,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2015-02-17',
     commentaire:
       "Deux exigences se cumulent et sont souvent sous-estimées en prospection. L’EXPLOITATION : les " +
-      'conteneurs arrivent par semi-remorque et pesent plusieurs dizaines de tonnes, ce qui suppose une ' +
+      'conteneurs arrivent par semi-remorque et pèsent plusieurs dizaines de tonnes, ce qui suppose une ' +
       'voie carrossable jusqu’à la parcelle. L’INTERVENTION : le SDIS exige une voie engins praticable et ' +
       'une ressource en eau dimensionnée, sans quoi son avis est défavorable. La date retenue est celle du ' +
       'décret du 27 février 2015 relatif à la défense extérieure contre l’incendie ; le règlement ' +
@@ -440,9 +440,9 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2017-03-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000049913528`,
     commentaire:
-      "Un stockage électrochimique implante pres d’une installation à risque est instruit sous l’angle des " +
+      "Un stockage électrochimique implanté près d’une installation à risque est instruit sous l’angle des " +
       'effets domino, dans les deux sens : ce que le site voisin peut déclencher sur les batteries, et ' +
-      'l’inverse. C’est un motif d’instruction longue plus qu’un refus, mais il se decide tôt — d’ou son ' +
+      'l’inverse. C’est un motif d’instruction longue plus qu’un refus, mais il se décide tôt — d’ou son ' +
       'intérêt en prospection. — Relevé du 7 septembre 2026 : l’article R.181-13, lu ce jour-là, fixe le ' +
       'contenu COMMUN du dossier de demande (identité, localisation, plans, droits sur le terrain, nature ' +
       'et volume de l’activité) et ne mentionne pas les effets domino. L’exigence relève de l’étude de ' +
@@ -459,7 +459,7 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
       'par le gestionnaire du réseau de transport)',
     dateEntreeEnVigueur: '2012-04-21',
     commentaire:
-      "Point de méthode propre à cette filière, et la raison pour laquelle le raccordement pese 42 % du " +
+      "Point de méthode propre à cette filière, et la raison pour laquelle le raccordement pèse 42 % du " +
       'score du stockage : les capacités réservées par un S3REnR sont destinées aux installations de ' +
       'PRODUCTION d’énergie renouvelable. Un stockage pur ne s’inscrit pas nécessairement dans cette ' +
       'réservation et peut se voir appliquer le régime de droit commun, avec un coût et un délai ' +
@@ -486,7 +486,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     unite: 't/j',
     reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
     dateEntreeEnVigueur: '2021-06-24',
-    commentaire: 'Matière végétale brute, effluents d\'élevage, matières stercoraires, lactoserum.',
+    commentaire: 'Matière végétale brute, effluents d\'élevage, matières stercoraires, lactosérum.',
   },
   icpe_2781_enregistrement: {
     id: 'metha_2781_e',
@@ -581,7 +581,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000030299536`,
     commentaire:
       "La différence avec les autres filières est le CARACTÈRE QUOTIDIEN du trafic : une unité de quelques " +
-      "dizaines de tonnes par jour represente plusieurs allers-retours de poids lourds chaque jour, sur " +
+      "dizaines de tonnes par jour représente plusieurs allers-retours de poids lourds chaque jour, sur " +
       "toute la durée d'exploitation. L'accès conditionne donc l'autorisation ET l'acceptabilité locale — " +
       "c'est l'un des premiers motifs d'opposition des riverains. S'y ajoute la voie engins exigée par le " +
       'SDIS. — Relevé du 7 septembre 2026 : comme pour le stockage, la référence citait R.2225-7 (mise à ' +
@@ -664,7 +664,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2014-10-14',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000042655873`,
     commentaire:
-      'La préemption vise les ALIENATIONS a titre onéreux de biens agricoles. Un bail emphytéotique ' +
+      'La préemption vise les ALIÉNATIONS a titre onéreux de biens agricoles. Un bail emphytéotique ' +
       "ou a construction — la forme habituelle d'un projet ENR — n'est pas une aliénation et y " +
       'échappe en principe, mais une vente, oui. Aucune donnée nationale ne publie les périmètres ' +
       "d'intervention : la SAFER compétente doit être interrogée, elle ne se déduit pas.",
@@ -672,7 +672,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   parcelle_enclavee: {
     id: 'commun_parcelle_enclavee',
-    libelle: 'Parcelle sans accès a la voie publique : servitude de passage a negocier',
+    libelle: 'Parcelle sans accès a la voie publique : servitude de passage a négocier',
     reference: 'Code civil, art. 682 a 685-1 (servitude de passage pour cause d’enclave)',
     // La redaction EN VIGUEUR de l'article 682 vient de la loi n°71-494 du 25 juin 1971, non du
     // Code civil de 1804 : c'est celle-la qui s'applique, et 1804 faisait echouer le garde des
@@ -742,7 +742,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     commentaire:
       "La portée dépend ENTIÈREMENT de l’arrêté préfectoral : certains interdisent toute activité, " +
       'd’autres seulement certaines pratiques à certaines périodes. Lire l’arrêté plutôt que conclure du ' +
-      'zonage. La date retenue est celle du décret du 25 novembre 1977 qui a cree le dispositif.',
+      'zonage. La date retenue est celle du décret du 25 novembre 1977 qui a créé le dispositif.',
     instable: true,
     aValiderParJuriste: true,
   },
@@ -755,9 +755,9 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2019-07-26',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000052084005`,
     commentaire:
-      "La date retenue est celle de la loi du 24 juillet 2019, qui a retabli le caractère ALTERNATIF des " +
+      "La date retenue est celle de la loi du 24 juillet 2019, qui a rétabli le caractère ALTERNATIF des " +
       'critères pédologique et floristique : un seul des deux suffit à caractériser la zone humide, ce qui ' +
-      'a elargi le champ. Un inventaire cartographique n’est pas opposable en lui-même — seul un sondage ' +
+      'a élargi le champ. Un inventaire cartographique n’est pas opposable en lui-même — seul un sondage ' +
       'pédologique conclut — mais il fonde la présomption et donc la charge de la preuve.',
     instable: true,
     aValiderParJuriste: true,
@@ -796,7 +796,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   ebc: {
     id: 'commun_ebc',
-    libelle: 'Espace boisé classe : défrichement rejete de plein droit',
+    libelle: 'Espace boisé classe : défrichement rejeté de plein droit',
     reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boisés classes)",
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031210299`,
@@ -863,7 +863,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     commentaire:
       "Le défrichement est le changement de destination d'un terrain boisé, même sans coupe : poser des " +
       'panneaux sous couvert suffit à le constituer. L\'autorisation est instruite par la DDT, et la ' +
-      'compensation — jusqu\'a plusieurs fois la surface défrichée, ou son équivalent financier — pese ' +
+      'compensation — jusqu\'a plusieurs fois la surface défrichée, ou son équivalent financier — pèse ' +
       'lourdement sur le bilan. Un terrain boisé à plus de 5 % déclenche ici le rappel, sur la base de la ' +
       'couverture forestière mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient ' +
       'd\'un département à l\'autre.',
@@ -880,7 +880,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033035411`,
     commentaire:
       "L'interdiction est de PRINCIPE : la dérogation n'est possible qu'à trois conditions cumulatives — " +
-      "absence de solution alternative, raison imperative d'intérêt public majeur, et maintien de l'état " +
+      "absence de solution alternative, raison impérative d'intérêt public majeur, et maintien de l'état " +
       'de conservation des populations. C\'est le motif de contentieux le plus fréquent contre les projets ' +
       'ENR. Aucune source nationale ne permet de le préjuger à la parcelle : l\'application ne l\'affirme ' +
       'donc jamais et laisse « à vérifier ». Seul un inventaire faune-flore sur quatre saisons conclut.',
@@ -904,7 +904,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   archeologie_preventive: {
     id: 'commun_archeologie_preventive',
-    libelle: 'Archéologie preventive : diagnostic et fouille eventuelle',
+    libelle: 'Archéologie préventive : diagnostic et fouille éventuelle',
     reference:
       'Code du patrimoine, art. L.522-1 et suivants ; art. R.523-1 et R.523-4 (zones de présomption de ' +
       'prescription archéologique)',

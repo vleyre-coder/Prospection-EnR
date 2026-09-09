@@ -344,7 +344,11 @@ test('le mot de passe du portail est exige, mesure, et propose', () => {
   for (let i = 0; i < 200; i += 1) {
     const propose = proposer();
     const v = evaluer(propose);
-    assert.equal(v.ok, true, `proposition refusee : ${propose} (${v.probleme})`);
+    // Le message de l'echec lit `probleme`, qui n'existe QUE dans la branche refusee : le typage
+    // des tests, active le 8 septembre 2026, l'a refuse a juste titre. Sans lui, cette lecture
+    // rendait `undefined` sur une proposition acceptee — sans consequence ici, mais c'est le meme
+    // relachement qui produit « (undefined) » dans un message d'echec le jour ou il compte.
+    assert.equal(v.ok, true, `proposition refusee : ${propose} (${v.ok ? '' : v.probleme})`);
   }
 });
 

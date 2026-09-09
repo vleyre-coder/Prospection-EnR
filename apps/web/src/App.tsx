@@ -106,7 +106,7 @@ export function App(): JSX.Element {
   if ((moi.error as ErreurApi | undefined)?.estNonAuthentifie || sessionExpiree) {
     return (
       <Connexion
-        expiree={sessionExpiree}
+        expirée={sessionExpiree}
         onConnecte={() => {
           reinitialiserDetectionSession();
           setSessionExpiree(false);
@@ -156,11 +156,11 @@ export function App(): JSX.Element {
           <h2 style={{ fontSize: 16 }}>Application indisponible</h2>
           <p>
             {err?.estReseau
-              ? "L'API est injoignable. Demarrez le serveur (npm run dev:api) et vérifiez la base de données."
+              ? "L'API est injoignable. Démarrez le serveur (npm run dev:api) et vérifiez la base de données."
               : (err?.message ?? 'Erreur inconnue.')}
           </p>
           <button type="button" className="bouton" onClick={() => void referentiel.refetch()}>
-            Reessayer
+            Réessayer
           </button>
         </div>
       </div>
@@ -247,7 +247,7 @@ export function App(): JSX.Element {
         <div className="bandeau erreur">
           <Icone nom="alerte" />
           <p>
-            L&apos;API ne repond plus. Les données affichées peuvent être obsoletes et les
+            L&apos;API ne répond plus. Les données affichées peuvent être obsolètes et les
             enregistrements ne seront pas conserves.
           </p>
         </div>
@@ -515,7 +515,7 @@ function OutilsCarte({
         }
         if (reserves.length > 0) {
           reserves.push(
-            'Une parcelle precise peut toujours être qualifiée en la cliquant sur le cadastre, ' +
+            'Une parcelle précise peut toujours être qualifiée en la cliquant sur le cadastre, ' +
               'ou par sa référence dans la recherche.',
           );
         }
@@ -541,7 +541,7 @@ function OutilsCarte({
             setQualification(
               r.position != null && r.position > 0
                 ? `Demande enregistrée en position ${r.position} : une campagne occupe déjà les ` +
-                    `sources, limitées à une requête par seconde. La votre demarrera seule.`
+                    `sources, limitées à une requête par seconde. La votre démarrera seule.`
                 : (r.etat?.message ?? 'Campagne lancée en arrière-plan…'),
             );
           } else {
@@ -649,15 +649,15 @@ function OutilsCarte({
                 .creerSite({ nom, filiere: etat.filiere, idus: etat.idusSelectionnes })
                 .then((s) => {
                   window.alert(
-                    `Site « ${s.nom} » cree : ${s.idus.length} parcelle(s), ${s.surfaceHa ?? 0} ha, ` +
-                      `score consolide ${s.scoreGlobal ?? 'non calcule'} (${s.statutScore ?? 'indetermine'}).`,
+                    `Site « ${s.nom} » créé : ${s.idus.length} parcelle(s), ${s.surfaceHa ?? 0} ha, ` +
+                      `score consolidé ${s.scoreGlobal ?? 'non calculé'} (${s.statutScore ?? 'indéterminé'}).`,
                   );
                   etat.viderSelection();
                 })
                 .catch((e: ErreurApi) => window.alert(`Création impossible : ${e.message}`));
             }}
           >
-            Agreger en site
+            Agréger en site
           </button>
           <button
             type="button"
@@ -704,10 +704,10 @@ function BandeauAmorcage({ amorcage }: { amorcage: Amorcage }): JSX.Element | nu
         <p>
           <strong>Premier démarrage : chargement des données nationales.</strong>{' '}
           {enCours
-            ? `Etape en cours : ${enCours.libelle} (environ ${enCours.duree}).`
-            : 'Preparation…'}{' '}
-          {faites.length}/{amorcage.etapes.length} terminees. L&apos;application est utilisable
-          pendant ce temps ; les couches concernees apparaitront au fur et à mesure.
+            ? `Étape en cours : ${enCours.libelle} (environ ${enCours.duree}).`
+            : 'Préparation…'}{' '}
+          {faites.length}/{amorcage.etapes.length} terminées. L&apos;application est utilisable
+          pendant ce temps ; les couches concernées apparaitront au fur et à mesure.
         </p>
       </div>
     );

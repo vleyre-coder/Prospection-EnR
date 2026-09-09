@@ -61,7 +61,12 @@ const RACINE = resolve(ICI, '..', '..', '..');
  * Le glob des composants web se met a jour tout seul ; les modules de `core` sont nommes un par un
  * parce que ce paquet melange du texte (libelles, reglementation) et des structures (types, sources).
  */
-const MODULES: readonly string[] = [
+/**
+ * Exporte sous ce nom pour `orthographe-dictionnaire.test.ts`, qui doit balayer EXACTEMENT le meme
+ * perimetre : deux listes de modules a maintenir en parallele finiraient par diverger, et le second
+ * garde protegerait alors un sous-ensemble sans que rien ne le dise.
+ */
+export const MODULES_TEXTE: readonly string[] = [
   'packages/scoring/src/criteres-eval.ts',
   'packages/scoring/src/implantation.ts',
   'packages/scoring/src/index.ts',
@@ -118,6 +123,13 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
    * approuve fixe la portee exacte ». Relues une par une, occurrence par occurrence.
    */
   { module: 'packages/scoring/src/knockouts.ts', mot: 'fixe', raison: "verbe fixer : « le reglement du plan approuve fixe la portee exacte », « l'arrete fixe les interdictions »" },
+  /*
+   * « bati » est le nom d'un CHAMP dans les bornes (`bati.distanceHabitationM`), pas du texte. Le
+   * mot lui-meme a ete accentue partout ou il est lu — « mesurée sur le bâti IGN », « Gisement,
+   * bâti et accès » — releve du 8 septembre 2026 contre le dictionnaire francais.
+   */
+  { module: 'packages/core/src/reglementation.ts', mot: 'programme', raison: 'le NOM programme (« programme d’actions national nitrates »), pas le participe « programmé »' },
+  { module: 'packages/core/src/bornes.ts', mot: 'bati', raison: 'chemins de champ `bati.distanceHabitationM`, `bati.densiteBati1km`, etc.' },
   { module: 'packages/core/src/reglementation.ts', mot: 'fixe', raison: 'verbe fixer : « il fixe les surfaces ouvertes aux projets », « R.181-13 fixe le contenu commun du dossier », « l’acte de classement fixe le detail »' },
 ];
 
@@ -254,7 +266,7 @@ const excepte = (o: Occurrence): boolean =>
   EXCEPTIONS.some((e) => e.module === o.module && e.mot === o.mot);
 
 test('aucun mot du texte affiche ne s’ecrit a la fois avec et sans accent', () => {
-  const releve = relever(MODULES, RACINE);
+  const releve = relever(MODULES_TEXTE, RACINE);
   const restantes = incoherences(releve).filter((o) => !excepte(o));
   const rapport = restantes
     .map((o) => {
@@ -272,7 +284,7 @@ test('aucun mot du texte affiche ne s’ecrit a la fois avec et sans accent', ()
 });
 
 test('chaque exception couvre un cas qui existe encore', () => {
-  const releve = relever(MODULES, RACINE);
+  const releve = relever(MODULES_TEXTE, RACINE);
   const reelles = incoherences(releve);
   const mortes = EXCEPTIONS.filter(
     (e) => !reelles.some((o) => o.module === e.module && o.mot === e.mot),
@@ -286,7 +298,7 @@ test('chaque exception couvre un cas qui existe encore', () => {
 });
 
 test('une exception ne couvre jamais deux occurrences de sens different', () => {
-  const releve = relever(MODULES, RACINE);
+  const releve = relever(MODULES_TEXTE, RACINE);
   const reelles = incoherences(releve);
   // Une exception porte sur (module, mot). Si le meme mot apparait plusieurs fois dans le meme
   // module, l'exception les couvre TOUTES — ce qui n'est acceptable que si elles ont le meme sens.
@@ -304,6 +316,8 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // Idem, deux occurrences : « le reglement du plan approuve fixe la portee exacte » et
     // « en perimetre rapproche l'arrete fixe les interdictions ».
     'packages/scoring/src/knockouts.ts|fixe': 2,
+    // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
+    'packages/core/src/bornes.ts|bati': 4,
   };
   const compte = new Map<string, number>();
   for (const o of reelles.filter(excepte)) {
@@ -347,7 +361,7 @@ const CHERCHEURS: ReadonlySet<string> = new Set([
 ]);
 
 test('aucun selecteur ne cherche un texte que l’interface n’ecrit plus', () => {
-  const { accentues } = relever(MODULES, RACINE);
+  const { accentues } = relever(MODULES_TEXTE, RACINE);
   const fichiers = readdirSync(resolve(RACINE, 'apps/web/e2e'))
     .filter((f) => f.endsWith('.ts'))
     .map((f) => `apps/web/e2e/${f}`);
@@ -415,13 +429,13 @@ test('les quatre regles mecaniques ecartent bien le code du texte', () => {
 });
 
 test('la mesure porte sur des modules qui existent et contiennent du texte', () => {
-  const releve = relever(MODULES, RACINE);
+  const releve = relever(MODULES_TEXTE, RACINE);
   assert.ok(
     releve.accentues.size > 300,
     `seulement ${releve.accentues.size} mots accentues releves : la mesure ne lit plus le texte`,
   );
   assert.ok(releve.nus.length > 100, `seulement ${releve.nus.length} mots nus releves`);
-  for (const m of MODULES) {
+  for (const m of MODULES_TEXTE) {
     assert.equal(relative(RACINE, resolve(RACINE, m)), m, `${m} doit etre un chemin du depot`);
   }
 });

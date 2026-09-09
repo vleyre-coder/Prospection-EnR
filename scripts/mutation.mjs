@@ -1701,6 +1701,64 @@ const MUTATIONS = [
     cwd: 'packages/core',
     commande: ['npm', 'test'],
   },
+  // ─── audit 19 : l'orthographe du francais affiche, et le typage des tests ──────────────────
+  {
+    audit: 'audit 19',
+    /*
+     * LE DEFAUT REEL, REMIS A L'IDENTIQUE. « lactoserum » figurait ainsi dans le referentiel, dans
+     * la liste des intrants d'origine animale d'une regle de methanisation. Le garde de COHERENCE
+     * ne pouvait pas le voir : le mot n'etait ecrit qu'une fois, donc il paraissait coherent. Il a
+     * fallu confronter le texte affiche au dictionnaire francais pour le trouver, avec 85 autres.
+     */
+    quoi: 'un mot du referentiel reperd son accent : « lactoserum » revient dans une regle de methanisation',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: 'matières stercoraires, lactosérum.',
+    vers: 'matières stercoraires, lactoserum.',
+    tests: ['apps/web/test/orthographe-dictionnaire.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/orthographe-dictionnaire.test.ts'],
+  },
+  {
+    audit: 'audit 19',
+    // Un LIBELLE DE BOUTON, celui qu'on lit apres une erreur d'API. C'est la categorie la plus
+    // visible des 161 occurrences corrigees, et celle qu'un relecteur presse laisse passer.
+    quoi: 'le bouton de reprise se reecrit « Reessayer », sans accent, sur l’ecran d’erreur',
+    fichier: 'apps/web/src/App.tsx',
+    de: 'Réessayer',
+    vers: 'Reessayer',
+    tests: ['apps/web/test/orthographe-dictionnaire.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/orthographe-dictionnaire.test.ts'],
+  },
+  {
+    audit: 'audit 19',
+    /*
+     * LA DERIVE QUI A LAISSE LE TROU OUVERT DIX-SEPT AUDITS, et elle ne fait echouer AUCUN autre
+     * test : retirer `test/**` de l'`include` rend `npm run typecheck` VERT en cessant de regarder.
+     * Six erreurs de typage vivaient ainsi dans les tests, dont trois modules types `any` en
+     * silence — l'un decide si un mot de passe de portail est acceptable.
+     */
+    quoi: 'le perimetre du typage cesse de couvrir les tests : `typecheck` redevient vert en cessant de regarder',
+    fichier: 'apps/web/tsconfig.json',
+    de: '"include": ["src/**/*", "test/**/*", "e2e/**/*"]',
+    vers: '"include": ["src/**/*"]',
+    tests: ['apps/web/test/typage-des-tests.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
+  },
+  {
+    audit: 'audit 19',
+    // `allowImportingTsExtensions` n'est licite qu'avec `noEmit`. Retirer le second rend la
+    // configuration entiere refusee par TypeScript, avec un message qui n'explique pas le lien.
+    quoi: '`noEmit` disparait alors que `allowImportingTsExtensions` reste : la configuration devient illicite',
+    fichier: 'apps/web/tsconfig.json',
+    de: '    "noEmit": true,\n',
+    vers: '',
+    tests: ['apps/web/test/typage-des-tests.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
+  },
   /*
    * BOUT EN BOUT : la chaine case a cocher -> bouton -> fichier. Ecartees de l'execution par
    * defaut (navigateur requis) ; leur motif est confronte au code a chaque campagne.

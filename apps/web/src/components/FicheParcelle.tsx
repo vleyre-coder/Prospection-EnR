@@ -121,7 +121,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
             style={{ marginTop: 9 }}
             onClick={() => void requete.refetch()}
           >
-            Reessayer
+            Réessayer
           </button>
         </div>
       </aside>
@@ -278,7 +278,7 @@ function Synthese({
           <div className="jauge-legende">
             Couverture de données : {Math.round(score.couvertureDonnees * 100)} %
             {score.couvertureDonnees < 0.8 &&
-              ` — ${score.criteres.filter((c) => c.note == null).length} critère(s) non evalue(s)`}
+              ` — ${score.criteres.filter((c) => c.note == null).length} critère(s) non évalué(s)`}
           </div>
         </div>
       </div>
@@ -345,7 +345,7 @@ function Synthese({
             ))}
             <p style={{ fontSize: 10.5, color: 'var(--texte-faible)', marginTop: 9 }}>
               Les seuils réglementaires évoluent : la date d&apos;entrée en vigueur de chaque
-              règle appliquée est indiquee. Vérifiez la version en vigueur à la date de votre
+              règle appliquée est indiquée. Vérifiez la version en vigueur à la date de votre
               dépôt.
             </p>
           </div>
@@ -372,7 +372,7 @@ function CarteKnockOut({ ko, referentiel }: { ko: KnockOut; referentiel: Referen
       {regle && (
         <div className="regle">
           {regle.reference} &middot; en vigueur depuis le {formatDate(regle.dateEntreeEnVigueur)}
-          {regle.instable && ' · seuil susceptible d’avoir evolue'}
+          {regle.instable && ' · seuil susceptible d’avoir évolué'}
           {/* Une reference redigee sans relecture juridique le dit : voir REGLES_COMMUNES. */}
           {regle.aValiderParJuriste && ' · référence à faire valider par un juriste'}
         </div>
@@ -508,7 +508,7 @@ function SectionCriteres({
         Détail des critères
         <span className="compteur-section">
           {score.criteres.length} dont {score.criteres.filter((c) => c.note == null).length} non
-          evalue(s)
+          évalué(s)
         </span>
       </summary>
       <div className="section-corps">
@@ -833,7 +833,7 @@ function RubriquesDonnees({
             // ce qui est le cas de la majorite d'entre eux. Les confondre affichait « departement
             // non ingere » sur un fait vrai.
             s.urbanisme.documentCadrePvSol.departementCouvert == null ? (
-              <span className="absent">département non ingere</span>
+              <span className="absent">département non ingéré</span>
             ) : s.urbanisme.documentCadrePvSol.departementCouvert === false ? (
               <>aucun document-cadre départemental</>
             ) : (
@@ -873,7 +873,7 @@ function RubriquesDonnees({
           ],
           ['Code culture', val(s.occupationSol.rpg.codeCulture)],
           ['Millésime RPG', val(s.occupationSol.rpg.millesime)],
-          ['Millésimes declares', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],
+          ['Millésimes déclarés', val(s.occupationSol.rpg.anneesDeclareesConsecutives)],
           ['Inculte depuis le 10/03/2013', s.occupationSol.inculteDepuis2013 == null ? <span className="absent">à démontrer (historique RPG et photo-interprétation)</span> : val(s.occupationSol.inculteDepuis2013)],
           [
             'AOP / AOC',
@@ -940,7 +940,7 @@ function RubriquesDonnees({
             s.eau.captageAep.dansPerimetre == null
               ? val(null)
               : s.eau.captageAep.dansPerimetre
-                ? val(`perimetre ${s.eau.captageAep.type ?? 'non precise'}`)
+                ? val(`perimetre ${s.eau.captageAep.type ?? 'non précisé'}`)
                 : val(s.eau.captageAep.distanceM, 'm'),
           ],
           ['Aléa inondation', val(s.eau.inondation.alea)],
@@ -1013,7 +1013,7 @@ function RubriquesDonnees({
           [
             'Indice de covisibilité',
             s.patrimoine.covisibiliteIndice == null
-              ? val('non evalue - relevé d’une étude paysagere')
+              ? val('non évalué - relevé d’une étude paysagère')
               : val(s.patrimoine.covisibiliteIndice, '/100'),
           ],
           ['Sensibilité archéologique', val(s.patrimoine.sensibiliteArcheologique)],
@@ -1065,7 +1065,7 @@ function RubriquesDonnees({
           ['File d’attente', val(poste?.fileAttenteMw, 'MW')],
           ['Quote-part S3REnR', val(poste?.quotePartEurParKw, 'EUR/kW')],
           [
-            'Renforcement programme',
+            'Renforcement programmé',
             poste?.renforcement.prevu == null
               ? val(null)
               : val(
@@ -1097,7 +1097,7 @@ function RubriquesDonnees({
             s.raccordement.reseauGaz.distanceCanalisationKm != null ? (
               val(s.raccordement.reseauGaz.distanceCanalisationKm, 'km')
             ) : (
-              <span className="absent">tracé non ingere</span>
+              <span className="absent">tracé non ingéré</span>
             ),
           ],
           [
@@ -1111,7 +1111,7 @@ function RubriquesDonnees({
       />
 
       <Rubrique
-        titre="Gisement, bati et accès"
+        titre="Gisement, bâti et accès"
         referentiel={referentiel}
         enfants={[
           ['Irradiation', val(s.gisement.irradiationKwhM2An, 'kWh/m²/an')],
@@ -1241,7 +1241,7 @@ function BlocProspection({
             Score à la prise en prospection : {fiche.lead.scoreInitial} · score actuel :{' '}
             {score.scoreGlobal}
             {Math.abs(fiche.lead.scoreInitial - score.scoreGlobal) > 5 &&
-              ' — écart notable, les données sources ont evolue.'}
+              ' — écart notable, les données sources ont évolué.'}
           </p>
         )}
 

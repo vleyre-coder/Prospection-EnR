@@ -72,7 +72,7 @@ export function BandeauAvertissements({
         definitif reste offert pour chacun.
 
         POURQUOI CE N'EST PAS UN AFFAIBLISSEMENT. Deux pavés de cinq lignes qu'on ne lit jamais ne
-        protegent personne : ils sont du papier peint. Un titre lisible plus un texte accessible a
+        protègent personne : ils sont du papier peint. Un titre lisible plus un texte accessible a
         de meilleures chances d'etre reellement lu. Et la protection qui ENGAGE est ailleurs, elle
         n'a pas bouge : le rapport PDF porte une section entiere de ces memes textes et un pied de
         page sur chaque page — c'est le document qui sort de l'application et qu'on remet a un
@@ -134,9 +134,9 @@ export function BandeauAvertissements({
           <div className="bandeau-detail">
             {sourcesPerimees.length > 0 && (
               <p>
-                <strong>Sources à rafraîchir.</strong> {sourcesPerimees.length} source(s) depassent
+                <strong>Sources à rafraîchir.</strong> {sourcesPerimees.length} source(s) dépassent
                 leur périodicité de mise à jour ({sourcesPerimees.join(', ')}). Les critères
-                concernés peuvent être obsoletes ou indisponibles.
+                concernés peuvent être obsolètes ou indisponibles.
               </p>
             )}
             {enRetard && (

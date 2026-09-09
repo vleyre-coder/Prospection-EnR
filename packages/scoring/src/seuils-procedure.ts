@@ -216,7 +216,7 @@ export function construireSeuilsProcedure(
         p == null ? true : p * 1000 > 600,
         p == null
           ? "Tout projet de taille industrielle dépasse le seuil de 600 kW : régime de déclaration a minima."
-          : `Puissance envisagee ${p} MW : ${p * 1000 > 600 ? 'déclaration ICPE 2925-2 requise' : 'sous le seuil de déclaration'}.`,
+          : `Puissance envisagée ${p} MW : ${p * 1000 > 600 ? 'déclaration ICPE 2925-2 requise' : 'sous le seuil de déclaration'}.`,
       ),
       seuil(filiere, 'securite_incendie', true),
       seuil(filiere, 'chimie_lfp', true),

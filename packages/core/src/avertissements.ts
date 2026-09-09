@@ -105,7 +105,7 @@ export const AVERTISSEMENTS: Avertissement[] = [
     niveau: 'info',
     titre: 'Documents-cadres et ZAER : couverture partielle',
     texte:
-      "Les zones d'accélération des ENR et les documents-cadres departementaux relatifs au photovoltaïque au sol ne font pas l'objet d'une API nationale consolidée. Leur couverture dans l'application est départementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
+      "Les zones d'accélération des ENR et les documents-cadres départementaux relatifs au photovoltaïque au sol ne font pas l'objet d'une API nationale consolidée. Leur couverture dans l'application est départementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
     // `zaer` et `documentCadrePvSol` retires : le premier double le critere `urb_zaer`, le
     // second est un nom de champ du snapshot et non un identifiant d'affichage.
     cible: ['urb_zaer'],

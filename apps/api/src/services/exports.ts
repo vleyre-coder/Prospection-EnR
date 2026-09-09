@@ -665,7 +665,7 @@ export function ficheParcellePdf(
           'Canalisation de gaz la plus proche',
           racc.reseauGaz.distanceCanalisationKm != null
             ? nb(racc.reseauGaz.distanceCanalisationKm, 'km', 1)
-            : 'tracé non ingere - à demander à GRDF / GRTgaz',
+            : 'tracé non ingéré - à demander à GRDF / GRTgaz',
         ],
         [
           'Site d\'injection existant le plus proche',
@@ -743,7 +743,7 @@ export function ficheParcellePdf(
         cellules: [
           c.libelle,
           c.valeurAffichee || '-',
-          c.note != null ? c.note.toFixed(0) : 'non evalue',
+          c.note != null ? c.note.toFixed(0) : 'non évalué',
           // Separateur decimal francais : le rapport est destine a des lecteurs francophones,
           // et `toFixed` produit un point. `formatNombre` est la seule mise en forme du projet.
           formatNombre(c.poids * 100, '%'),
@@ -771,7 +771,7 @@ export function ficheParcellePdf(
       doc,
       [
         { titre: 'Critère', part: 0.3 },
-        { titre: 'Precision', part: 0.7 },
+        { titre: 'Précision', part: 0.7 },
       ],
       commentes.map((c) => ({ cellules: [c.libelle, c.commentaire ?? ''], pastille: c.feu })),
     );

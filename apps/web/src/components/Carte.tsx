@@ -874,7 +874,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
               etat: 'echec',
               message:
                 'La qualification n’a pas abouti : les sources officielles n’ont pas rendu cette ' +
-                'parcelle. Reessayez dans un moment.',
+                'parcelle. Réessayez dans un moment.',
             });
           }
         })
@@ -1314,7 +1314,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
           trois, d'ou `alert` plutot que `status`. */}
       {couchesEnEchec && (
         <div className="erreur-encart" style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 5 }} role="alert">
-          <strong>Couches cartographiques non installees</strong>
+          <strong>Couches cartographiques non installées</strong>
           <p style={{ margin: '4px 0 0' }}>
             Les parcelles, les scores et les contraintes ne peuvent pas s&apos;afficher :{' '}
             {couchesEnEchec}. Rechargez la page ; si le problème persiste, signalez ce message.
@@ -1420,7 +1420,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
                   })
                   .then((s) => {
                     window.alert(
-                      `Site « ${s.nom} » cree : ${s.idus.length} parcelle(s), ${s.surfaceHa ?? 0} ha, score ${s.scoreGlobal ?? 'non calcule'}.`,
+                      `Site « ${s.nom} » créé : ${s.idus.length} parcelle(s), ${s.surfaceHa ?? 0} ha, score ${s.scoreGlobal ?? 'non calculé'}.`,
                     );
                     useEtat.getState().definirOutil('aucun');
                   })

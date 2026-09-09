@@ -73,7 +73,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'gis_intrants',
       'gisement',
       'Densité d\'intrants méthanisables',
-      "Tonnage de matière seche mobilisable dans un rayon de 15 km : effluents d'élevage (RPG + cheptel), CIVE, coproduits d'industries agroalimentaires. C'est le critère déterminant de la filière.",
+      "Tonnage de matière sèche mobilisable dans un rayon de 15 km : effluents d'élevage (RPG + cheptel), CIVE, coproduits d'industries agroalimentaires. C'est le critère déterminant de la filière.",
       't MS/an',
     ),
     def(
@@ -95,7 +95,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'urb_zaer',
       'urbanisme',
       'Zone d\'accélération des ENR',
-      "L'inscription en ZAER pour la filière concernée traduit un portage politique local favorable et allege l'instruction. Absence de ZAER n'est pas bloquant.",
+      "L'inscription en ZAER pour la filière concernée traduit un portage politique local favorable et allège l'instruction. Absence de ZAER n'est pas bloquant.",
     ),
 
     // -- Sol ---------------------------------------------------------------
@@ -122,7 +122,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       // potentiel agronomique depend de la texture, de la profondeur, de la reserve utile et de
       // l'hydromorphologie du sol, qu'aucune source nationale n'expose a la parcelle.
       'Potentiel agronomique (d’après la culture déclarée)',
-      "Estimé d'après le GROUPE DE CULTURE déclaré au RPG, et non d'une mesure faite sur le sol : c'est un proxy, non une analyse pédologique. Un sol à faible potentiel réduit le conflit d'usage et l'opposition de la profession agricole. Critère inverse : un très bon sol penalise le projet. À confirmer par une étude de sol ou l'avis de la chambre d'agriculture.",
+      "Estimé d'après le GROUPE DE CULTURE déclaré au RPG, et non d'une mesure faite sur le sol : c'est un proxy, non une analyse pédologique. Un sol à faible potentiel réduit le conflit d'usage et l'opposition de la profession agricole. Critère inverse : un très bon sol pénalise le projet. À confirmer par une étude de sol ou l'avis de la chambre d'agriculture.",
     ),
     def(
       'sol_foret',
@@ -139,20 +139,20 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
 
     // -- Surface -----------------------------------------------------------
     def('surf_utile', 'surface', 'Surface utile', "Surface réellement exploitable après déduction des contraintes. Conditionne la puissance installable et donc l'atteinte du seuil de rentabilité.", 'ha'),
-    def('surf_un_seul_tenant', 'surface', "Surface d'un seul tenant", "Un bloc continu evite les servitudes de passage, simplifie le raccordement interne et la maîtrise foncière.", 'ha'),
+    def('surf_un_seul_tenant', 'surface', "Surface d'un seul tenant", "Un bloc continu évite les servitudes de passage, simplifie le raccordement interne et la maîtrise foncière.", 'ha'),
     def('surf_compacite', 'surface', 'Compacité de la parcelle', "Une forme compacte réduit les linéaires de clôtures et de câblage. Les parcelles en lanières sont pénalisantes.", ),
 
     // -- Environnement -----------------------------------------------------
     def('env_proximite_natura2000', 'environnement', 'Proximité Natura 2000', "La proximité (sans recouvrement) déclenche une évaluation des incidences Natura 2000 et allonge l'instruction.", 'm'),
-    def('env_znieff', 'environnement', 'ZNIEFF de type I / II', "Inventaire scientifique sans portée réglementaire directe, mais qui pese lourdement dans l'instruction et le contentieux.", 'm'),
+    def('env_znieff', 'environnement', 'ZNIEFF de type I / II', "Inventaire scientifique sans portée réglementaire directe, mais qui pèse lourdement dans l'instruction et le contentieux.", 'm'),
     def('env_zone_humide', 'environnement', 'Zone humide', "Pre-repérage cartographique. Une zone humide avereee impose évitement, ou compensation à 100-200 % ; à confirmer impérativement par sondages pédologiques.", ),
     def('env_tvb', 'environnement', 'Trame verte et bleue', "Réservoir de biodiversité ou corridor écologique identifie au SRADDET : opposabilité indirecte via le PLU.", ),
     def('env_especes_protegees', 'environnement', 'Pre-enjeu espèces protégées', "Probabilité de présence d'espèces protégées, estimée à partir des données d'occurrence. Conditionne le risque de dérogation espèces protégées.", ),
 
     // -- Patrimoine --------------------------------------------------------
-    def('pat_monuments', 'patrimoine', 'Monuments historiques', "Distance au monument le plus proche et présence dans un périmètre de protection ou un PDA, declenchant l'avis de l'ABF.", 'm'),
+    def('pat_monuments', 'patrimoine', 'Monuments historiques', "Distance au monument le plus proche et présence dans un périmètre de protection ou un PDA, déclenchant l'avis de l'ABF.", 'm'),
     def('pat_sites', 'patrimoine', 'Sites classes et inscrits', "Un site classe impose une autorisation ministérielle. Un site inscrit, un avis de l'ABF.", 'm'),
-    def('pat_archeologie', 'patrimoine', 'Sensibilité archéologique', "Zone de présomption de prescription archéologique : risque de diagnostic et de fouille preventive, impactant le calendrier.", ),
+    def('pat_archeologie', 'patrimoine', 'Sensibilité archéologique', "Zone de présomption de prescription archéologique : risque de diagnostic et de fouille préventive, impactant le calendrier.", ),
 
     // -- Risques -----------------------------------------------------------
     def('risq_inondation', 'risques', 'Risque inondation (PPRI)', "Un zonage rouge de PPRI interdit en principe les constructions ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher).", ),
@@ -164,7 +164,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     def('risq_karst', 'risques', 'Contexte karstique', "En contexte karstique, le risque de transfert direct de pollution vers la nappe rend une unité de méthanisation difficilement acceptable.", ),
 
     // -- Distances reglementaires ------------------------------------------
-    def('dist_habitation', 'distances_reglementaires', "Éloignement de l'habitat", "Distance à l'habitation la plus proche, mesurée sur le bati IGN. Au-delà du plancher réglementaire, chaque mètre gagne réduit le risque d'opposition.", 'm'),
+    def('dist_habitation', 'distances_reglementaires', "Éloignement de l'habitat", "Distance à l'habitation la plus proche, mesurée sur le bâti IGN. Au-delà du plancher réglementaire, chaque mètre gagne réduit le risque d'opposition.", 'm'),
     def('dist_eau', 'distances_reglementaires', "Éloignement des cours d'eau et points d'eau", "35 m minimum pour une unité de méthanisation et pour les épandages.", 'm'),
     def('dist_captage', 'distances_reglementaires', 'Périmètre de protection de captage', "Interdiction en périmètre immédiat et rapproche ; prescriptions renforcées en périmètre éloigné.", 'm'),
 

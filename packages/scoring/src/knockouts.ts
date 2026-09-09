@@ -174,7 +174,7 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
     return ko(
       'ko_emplacement_reserve',
       'Emplacement réserve',
-      `La parcelle est grevée d'un emplacement réserve (${er.libelle ?? 'objet non precise'}) au bénéfice d'une collectivité : le foncier est destine à un autre usage.`,
+      `La parcelle est grevée d'un emplacement réserve (${er.libelle ?? 'objet non précisé'}) au bénéfice d'une collectivité : le foncier est destine à un autre usage.`,
       'urbanisme',
       'commun_emplacement_reserve',
       true,
@@ -225,10 +225,10 @@ const koPosteSature: RegleKo = (s) => {
   const renfort = p.renforcement.prevu === true;
   return ko(
     'ko_poste_sature',
-    'Poste source sature',
+    'Poste source saturé',
     renfort
-      ? `Le poste source ${p.nom} est sature, mais un renforcement est inscrit au S3REnR${p.renforcement.horizon ? ` à l'horizon ${p.renforcement.horizon}` : ''}${p.renforcement.capaciteAttendueMw != null ? ` (+${formatNombre(p.renforcement.capaciteAttendueMw, 'MW')})` : ''}. La parcelle reste intéressante si le calendrier du projet s'aligne sur celui du renforcement.`
-      : `Le poste source ${p.nom} est sature et aucun renforcement n'est programme au S3REnR. Sans perspective de capacité à l'horizon du projet, le raccordement est bloquant. Un poste alternatif plus éloigné peut être etudie.`,
+      ? `Le poste source ${p.nom} est saturé, mais un renforcement est inscrit au S3REnR${p.renforcement.horizon ? ` à l'horizon ${p.renforcement.horizon}` : ''}${p.renforcement.capaciteAttendueMw != null ? ` (+${formatNombre(p.renforcement.capaciteAttendueMw, 'MW')})` : ''}. La parcelle reste intéressante si le calendrier du projet s'aligne sur celui du renforcement.`
+      : `Le poste source ${p.nom} est saturé et aucun renforcement n'est programmé au S3REnR. Sans perspective de capacité à l'horizon du projet, le raccordement est bloquant. Un poste alternatif plus éloigné peut être étudié.`,
     'raccordement',
     null,
     renfort,
@@ -250,7 +250,7 @@ const koDocumentCadre: RegleKo = (s) => {
     return ko(
       'ko_hors_document_cadre',
       'Hors document-cadre départemental',
-      `La parcelle est un terrain inculte ou non exploité en zone agricole, mais ne figure pas sur la liste des terrains eligibles du document-cadre départemental${dc.dateArrete ? ` (arrêté du ${dc.dateArrete})` : ''}. L'implantation d'une centrale photovoltaïque au sol y est donc interdite.`,
+      `La parcelle est un terrain inculte ou non exploité en zone agricole, mais ne figure pas sur la liste des terrains éligibles du document-cadre départemental${dc.dateArrete ? ` (arrêté du ${dc.dateArrete})` : ''}. L'implantation d'une centrale photovoltaïque au sol y est donc interdite.`,
       'urbanisme',
       'pv_document_cadre',
     );
@@ -300,11 +300,11 @@ const koDistanceHabitation500: RegleKo = (s, ctx) => {
   if (d != null && atteignable != null && atteignable < 500) {
     // Le deport est recalcule pour le message : il est la grandeur que l'utilisateur doit voir
     // pour comprendre pourquoi la parcelle est ecartee malgre une distance de bord acceptable.
-    const deport = deportPossibleM(ctx.surfaceHa);
+    const déport = deportPossibleM(ctx.surfaceHa);
     return ko(
       'ko_eol_habitation_500',
       "Recul de 500 m impossible sur cette parcelle",
-      `L'habitation la plus proche est à ${formatDistance(d)} du bord de la parcelle. Même en implantant l'aérogénérateur au point le plus éloigné (deport maximal estimé ${formatDistance(deport)} pour ${ctx.surfaceHa != null ? formatNombre(ctx.surfaceHa, 'ha') : 'surface inconnue'}), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas être atteint.`,
+      `L'habitation la plus proche est à ${formatDistance(d)} du bord de la parcelle. Même en implantant l'aérogénérateur au point le plus éloigné (déport maximal estimé ${formatDistance(déport)} pour ${ctx.surfaceHa != null ? formatNombre(ctx.surfaceHa, 'ha') : 'surface inconnue'}), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas être atteint.`,
       'distances_reglementaires',
       'eol_distance_habitation',
     );
@@ -314,7 +314,7 @@ const koDistanceHabitation500: RegleKo = (s, ctx) => {
     return ko(
       'ko_eol_zone_habitat_500',
       "Zone destinée à l'habitation à moins de 500 m",
-      `Une zone du document d'urbanisme destinée à l'habitation est à ${formatDistance(dz)}. Le seuil de 500 m s'applique aussi aux zones destinées à l'habitation, et non seulement au bati existant.`,
+      `Une zone du document d'urbanisme destinée à l'habitation est à ${formatDistance(dz)}. Le seuil de 500 m s'applique aussi aux zones destinées à l'habitation, et non seulement au bâti existant.`,
       'distances_reglementaires',
       'eol_distance_habitation',
     );
@@ -418,11 +418,11 @@ const koMethaHabitation200: RegleKo = (s, ctx) => {
   // l'installation, pas depuis la limite parcellaire.
   const atteignable = distanceAtteignableM(d, ctx.surfaceHa);
   if (atteignable < 200) {
-    const deport = deportPossibleM(ctx.surfaceHa);
+    const déport = deportPossibleM(ctx.surfaceHa);
     return ko(
       'ko_metha_habitation_200',
       "Recul de 200 m impossible sur cette parcelle",
-      `L'habitation la plus proche est à ${formatDistance(d)} du bord de la parcelle. Même en implantant l'unité au point le plus éloigné (deport maximal estimé ${formatDistance(deport)}), le recul de 200 m exige des installations soumises à enregistrement ou autorisation ne peut pas être atteint.`,
+      `L'habitation la plus proche est à ${formatDistance(d)} du bord de la parcelle. Même en implantant l'unité au point le plus éloigné (déport maximal estimé ${formatDistance(déport)}), le recul de 200 m exige des installations soumises à enregistrement ou autorisation ne peut pas être atteint.`,
       'distances_reglementaires',
       'metha_distance_habitation',
     );
@@ -455,7 +455,7 @@ const koMethaCaptage: RegleKo = (s) => {
     return ko(
       'ko_metha_captage',
       'Périmètre de protection de captage',
-      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-perimetre — immédiat, rapproche ou éloigné — n'est pas publié par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproche l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre depense.",
+      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-perimetre — immédiat, rapproche ou éloigné — n'est pas publié par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproche l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre dépense.",
       // Meme famille que les deux autres reculs de la methanisation : c'est bien une distance
       // reglementaire, meme lorsque le sous-perimetre reste a etablir.
       'distances_reglementaires',
@@ -512,7 +512,7 @@ const koMethaAccesEngins: RegleKo = (s) => {
     'Aucun accès poids lourds',
     `Aucun accès poids lourds n'a été identifie depuis le réseau routier${
       s.acces.distanceVoirieM != null ? ` (voirie la plus proche à ${formatDistance(s.acces.distanceVoirieM)})` : ''
-    }. Une unité de méthanisation genere plusieurs allers-retours de poids lourds par jour pendant toute son exploitation : l'accès conditionne l'autorisation, la voie engins exigée par le SDIS, et l'acceptabilité par les riverains. Un accès peut être cree, mais son coût et son tracé doivent être etablis avant tout engagement.`,
+    }. Une unité de méthanisation génère plusieurs allers-retours de poids lourds par jour pendant toute son exploitation : l'accès conditionne l'autorisation, la voie engins exigée par le SDIS, et l'acceptabilité par les riverains. Un accès peut être créé, mais son coût et son tracé doivent être établis avant tout engagement.`,
     'acces',
     'metha_acces_engins',
     true,
@@ -547,7 +547,7 @@ const koBessAccesEngins: RegleKo = (s) => {
     'Aucun accès poids lourds',
     `Aucun accès poids lourds n'a été identifie depuis le réseau routier${
       s.acces.distanceVoirieM != null ? ` (voirie la plus proche à ${formatDistance(s.acces.distanceVoirieM)})` : ''
-    }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un accès peut être cree — élargissement, convention de passage, renforcement de chaussee — mais le coût et le délai doivent être chiffres avant toute promesse au propriétaire.`,
+    }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un accès peut être créé — élargissement, convention de passage, renforcement de chaussée — mais le coût et le délai doivent être chiffres avant toute promesse au propriétaire.`,
     'acces',
     'bess_acces_engins',
     true,

@@ -96,8 +96,16 @@ test('la liste affiche reellement les parcelles renvoyees par l’API, avec leur
       `la parcelle ${l.section} ${l.numero} n’apparait pas dans la liste rendue`,
     );
   }
+  /*
+   * `nomCommune` est `string | null` dans le type de l'API — une parcelle dont la commune n'est pas
+   * jointe existe. L'assertion le passait a `includes` sans le verifier : avec `null` elle aurait
+   * cherche la chaine « null » et reussi ou echoue pour la mauvaise raison. Le typage des tests,
+   * active le 8 septembre 2026, l'a refuse.
+   */
+  const commune = echantillon[0]!.nomCommune;
+  assert.ok(commune != null, 'le fixture doit porter une commune nommee, sinon ce test ne prouve rien');
   assert.ok(
-    t.includes(echantillon[0]!.nomCommune),
+    t.includes(commune),
     'le nom de commune doit etre lisible : une section seule ne se situe pas',
   );
   // Le compte total, et non seulement les lignes affichees : sans lui, on ignore qu'on regarde 50

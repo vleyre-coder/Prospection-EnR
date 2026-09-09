@@ -120,7 +120,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   },
 
   // -- Occupation du sol ---------------------------------------------------
-  { chemin: 'occupationSol.rpg.partRecouvrement', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
+  { chemin: 'occupationSol.rpg.partRecouvrement', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calculé sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et réduisait le « zonage dominant » à l'ordre de réponse du service." },
   {
     chemin: 'occupationSol.rpg.anneesDeclareesConsecutives',
     min: 0,
@@ -130,25 +130,25 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
       'Le RPG existe depuis 2007 et le connecteur interroge sept millésimes. 30 laisse la marge ' +
       "d'un élargissement de la profondeur d'historique sans avoir à toucher cette borne.",
   },
-  { chemin: 'occupationSol.foret.partBoisee', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
-  { chemin: 'occupationSol.potentielAgronomique', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'occupationSol.foret.partBoisee', min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calculé sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et réduisait le « zonage dominant » à l'ordre de réponse du service." },
+  { chemin: 'occupationSol.potentielAgronomique', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
 
   // -- Milieux et patrimoine : parts et distances --------------------------
   ...['natura2000Habitats', 'natura2000Oiseaux', 'znieff1', 'znieff2', 'appb', 'reserveNaturelle', 'coeurParcNational', 'parcNaturelRegional'].flatMap(
     (z): BorneGrandeur[] => [
-      { chemin: `milieux.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
+      { chemin: `milieux.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calculé sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et réduisait le « zonage dominant » à l'ordre de réponse du service." },
       { chemin: `milieux.${z}.distanceM`, min: 0, max: 300_000, unite: 'm', motif: 'Distance au zonage le plus proche. Le point de France le plus éloigné d’un site Natura 2000 est à moins de 100 km ; 300 km ne rejette que l’absurde.' },
     ],
   ),
-  { chemin: 'milieux.preEnjeuEspeces', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
-  { chemin: 'milieux.sensibiliteAvifaune', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
-  { chemin: 'milieux.sensibiliteChiropteres', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.preEnjeuEspeces', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.sensibiliteAvifaune', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
+  { chemin: 'milieux.sensibiliteChiropteres', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
   ...['siteClasse', 'siteInscrit', 'spr'].flatMap((z): BorneGrandeur[] => [
-    { chemin: `patrimoine.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calcule sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et reduisait le « zonage dominant » à l'ordre de réponse du service." },
+    { chemin: `patrimoine.${z}.partRecouvrement`, min: 0, max: 1, unite: 'part', motif: "Part d'une surface : bornée entre 0 et 1 par définition. Une valeur supérieure à 1 trahit un rapport calculé sur deux surfaces de référence différentes — c'est exactement le défaut qui faisait valoir 1 à presque tous les zonages de PLU et réduisait le « zonage dominant » à l'ordre de réponse du service." },
     { chemin: `patrimoine.${z}.distanceM`, min: 0, max: 300_000, unite: 'm', motif: 'Distance au zonage patrimonial le plus proche.' },
   ]),
   { chemin: 'patrimoine.monumentHistorique.distanceM', min: 0, max: 300_000, unite: 'm', motif: 'Distance au monument le plus proche. La France en compte plus de 45 000 : aucun point n’en est éloigné de 300 km.' },
-  { chemin: 'patrimoine.covisibiliteIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'patrimoine.covisibiliteIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
 
   // -- Risques -------------------------------------------------------------
   { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
@@ -239,7 +239,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   // -- Foncier -------------------------------------------------------------
   { chemin: 'foncier.nbProprietairesEstime', min: 0, max: 10_000, unite: 'comptes', motif: 'Nombre de comptes cadastraux. Une indivision très large reste très en dessous.' },
   { chemin: 'foncier.surfaceDunSeulTenantHa', min: 0, max: 100_000, unite: 'ha', motif: 'La plus grande commune de France métropolitaine couvre environ 75 000 ha : une emprise d’un seul tenant ne peut pas la dépasser.' },
-  { chemin: 'foncier.morcellementIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calcule par l'application, aucune source ne le fournit." },
+  { chemin: 'foncier.morcellementIndice', min: 0, max: 100, unite: '/100', motif: "Indice normalisé 0-100 par construction. Hors de cet intervalle, c'est le barème de dérivation qui est en cause, pas la parcelle : l'indice est calculé par l'application, aucune source ne le fournit." },
 ];
 
 /** Grandeur trouvee hors de ses bornes. */
