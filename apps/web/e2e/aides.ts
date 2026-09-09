@@ -86,19 +86,82 @@ export async function seConnecter(
 
 /** Passe a la vue liste, en levant la restriction a l'emprise de la carte. */
 export async function ouvrirListe(page: Page): Promise<void> {
-  await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: 'Liste' }).click();
-
-  /**
-   * La liste se borne par defaut a l'emprise affichee — c'est une correction voulue (une liste qui
-   * presentait des parcelles a 200 km de la carte n'avait aucun sens). Un test qui demarre sur une
-   * carte centree ailleurs verrait donc une liste vide, pour une raison parfaitement legitime. On leve
-   * la borne explicitement plutot que de deplacer la carte, ce qui serait plus fragile.
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * L'ECOUTE EST PASSIVE, ET C'EST TOUT L'INTERET — releve le 9 septembre 2026
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUI S'EST PASSE, ET CE QUE J'AI CASSE EN VOULANT L'AMELIORER. Deux specifications ont
+   * echoue ici, une fois, juste apres un redemarrage de PostgreSQL ; le meme code a repasse 8/8
+   * ensuite — verifie en remisant puis en restaurant la modification en cours, donc l'echec etait
+   * INTERMITTENT et lie a l'environnement.
+   *
+   * Le probleme reel etait le MESSAGE : Playwright rendait « getByRole('table') / element(s) not
+   * found », la meme phrase pour trois causes differentes — API muette, liste VIDE, ou rendu en
+   * retard. Chercher une regression qui n'existe pas est le cout d'un message d'echec muet.
+   *
+   * MA PREMIERE CORRECTION A ETE PIRE QUE LE MAL. J'ai mis un `waitForResponse` APRES le clic et le
+   * decochage : or la vue liste lance sa requete en se montant, et decocher une case deja decochee
+   * n'en lance aucune. L'attente expirait donc sur un ecran parfaitement correct, et deux
+   * specifications qui passaient se sont mises a echouer. Un garde qui accuse a tort, encore.
+   *
+   * D'OU CETTE FORME. L'ecoute est posee AVANT les actions et n'attend RIEN : elle enregistre au
+   * vol ce que l'API a renvoye. Le chemin de succes est donc exactement celui d'avant — meme
+   * attente, meme duree, aucune requete supplementaire, ce qui importe a la specification qui
+   * verifie qu'aucune requete inattendue ne part. Seul le message d'ECHEC devient diagnosticable.
    */
-  const borne = page.getByLabel('Limiter à la zone affichée');
-  if (await borne.isChecked()) await borne.uncheck();
+  let vues = 0;
+  let dernierStatut: number | null = null;
+  let dernierNb: number | null = null;
+  const surReponse = (r: import('@playwright/test').Response): void => {
+    if (!r.url().includes('/api/recherche/parcelles')) return;
+    vues += 1;
+    dernierStatut = r.status();
+    void r
+      .json()
+      .then((corps: { resultats?: unknown[] }) => {
+        dernierNb = Array.isArray(corps?.resultats) ? corps.resultats.length : null;
+      })
+      .catch(() => undefined);
+  };
+  page.on('response', surReponse);
 
-  await expect(page.getByRole('table')).toBeVisible();
-  await expect(page.locator('tbody tr').first()).toBeVisible();
+  try {
+    await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: 'Liste' }).click();
+
+    /**
+     * La liste se borne par defaut a l'emprise affichee — c'est une correction voulue (une liste qui
+     * presentait des parcelles a 200 km de la carte n'avait aucun sens). Un test qui demarre sur une
+     * carte centree ailleurs verrait donc une liste vide, pour une raison parfaitement legitime. On leve
+     * la borne explicitement plutot que de deplacer la carte, ce qui serait plus fragile.
+     */
+    const borne = page.getByLabel('Limiter à la zone affichée');
+    if (await borne.isChecked()) await borne.uncheck();
+
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+  } catch (erreur) {
+    const diagnostic =
+      vues === 0
+        ? 'l’API n’a répondu AUCUNE recherche de parcelles : le serveur est probablement ' +
+          'injoignable — symptôme observé après un redémarrage de PostgreSQL'
+        : dernierStatut !== 200
+          ? `la dernière recherche a répondu ${dernierStatut} : le défaut est côté serveur`
+          : dernierNb === 0
+            ? 'l’API a répondu une liste VIDE : la base d’essai ne porte aucune parcelle ' +
+              'qualifiée (vérifiez `npx tsx scripts/semer-e2e.ts`), ce n’est pas un défaut de rendu'
+            : `l’API a répondu ${dernierNb ?? '?'} ligne(s) en 200 : la donnée est là, le défaut ` +
+              'est au rendu ou à la lenteur de peinture';
+    throw new Error(
+      `La vue liste n’a pas affiché son tableau, et voici pourquoi : ${diagnostic}.
+` +
+        `(${vues} réponse(s) de recherche observée(s))
+` +
+        `Erreur d’origine : ${(erreur as Error).message}`,
+    );
+  } finally {
+    page.off('response', surReponse);
+  }
 }
 
 /**

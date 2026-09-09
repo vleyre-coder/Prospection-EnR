@@ -92,6 +92,10 @@ const A_VALIDER = [
   'bess_acces_engins',
   'bess_effets_domino',
   'bess_raccordement_s3renr',
+  // Entree le 9 septembre 2026 : le second releve Legifrance a montre que l'arrete de la
+  // rubrique 2925 qu'elle cite ne peut pas etre identifie — les deux arretes publies sous cette
+  // rubrique visent les ateliers de charge, pas le stockage stationnaire.
+  'bess_securite_incendie',
   'commun_appb',
   'commun_archeologie_preventive',
   // Les quatre references du foncier, ajoutees a l'audit 14 : elles ne notent rien, elles disent a

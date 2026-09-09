@@ -1759,6 +1759,65 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
   },
+  // ─── audit 20 : le second releve Legifrance, et les absences de lien motivees ──────────────
+  {
+    audit: 'audit 20',
+    /*
+     * LE DEFAUT REEL, REMIS A L'IDENTIQUE. `metha_injection` citait L.446-1 du code de l'energie
+     * pour le « droit a l'injection ». Releve du 9 septembre 2026 : L.446-1 traite du BILAN CARBONE
+     * des appels d'offres biogaz. Le droit a l'injection est a L.453-9. La regle n'etait meme pas
+     * marquee « a valider » : elle se presentait comme verifiee.
+     */
+    quoi: 'le droit a l’injection se refonde sur L.446-1, qui traite du bilan carbone des appels d’offres',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: '      "Code de l\'énergie, art. L.453-9 (droit à l\'injection : les gestionnaires de réseaux " +',
+    vers: '      "Code de l\'énergie, art. L.446-1 (droit à l\'injection : les gestionnaires de réseaux " +',
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 20',
+    // LA DERIVE QUE LE SECOND RELEVE A REFUSE DE COMMETTRE : poser sur une regle de securite
+    // incendie du stockage l'arrete des ateliers de charge d'accumulateurs au plomb. Le lien serait
+    // sur legifrance.gouv.fr, ouvrirait un vrai texte, et parlerait d'autre chose.
+    quoi: 'la regle de securite incendie du stockage recoit l’arrete des ateliers de charge : un lien vrai, sur le mauvais texte',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: "      \"Arrêté ministériel de prescriptions générales applicables à la rubrique 2925 ; référentiels DREAL / SDIS ; guide FFB-ADEME stockage stationnaire\",\n    dateEntreeEnVigueur: '2022-06-30',",
+    vers: "      \"Arrêté ministériel de prescriptions générales applicables à la rubrique 2925 ; référentiels DREAL / SDIS ; guide FFB-ADEME stockage stationnaire\",\n    dateEntreeEnVigueur: '2022-06-30',\n    url: `${LEGIFRANCE}/loda/id/JORFTEXT000000584145`,",
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 20',
+    // Une regle « non reglementaire » a laquelle on prete l'autorite d'un lien Legifrance. C'est le
+    // faux positif de credibilite : le lecteur voit un lien officiel sous une simple recommandation.
+    quoi: 'une recommandation technique recoit un lien Legifrance, et parait ainsi reglementaire',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: "    reference: 'Recommandation technique - non réglementaire',\n    dateEntreeEnVigueur: '2024-01-01',",
+    vers: "    reference: 'Recommandation technique - non réglementaire',\n    dateEntreeEnVigueur: '2024-01-01',\n    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,",
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 20',
+    // Le lien reste juste, c'est la reference qui derive : la regle annoncerait la rubrique sans
+    // nommer l'article R.511-9 que le lien ouvre. C'est le rapprochement lien/reference qui doit
+    // l'attraper — celui-la meme qui aurait attrape les cinq liens trompeurs du premier releve.
+    quoi: 'une rubrique ICPE cesse de nommer l’article de nomenclature que son lien ouvre',
+    fichier: 'packages/core/src/reglementation.ts',
+    construire: '@enr/core',
+    de: '      "Code de l\'environnement, art. R.511-9 (nomenclature des installations classées), " +\n      \'rubrique 2980\',',
+    vers: "      \"Code de l'environnement, nomenclature ICPE rubrique 2980\",",
+    tests: ['packages/core/test/references-legifrance.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
   /*
    * BOUT EN BOUT : la chaine case a cocher -> bouton -> fichier. Ecartees de l'execution par
    * defaut (navigateur requis) ; leur motif est confronte au code a chaque campagne.

@@ -45,9 +45,41 @@
  * construire (celui de 2024 s'applique), et le reglement departemental de DECI rattache a R.2225-7
  * au lieu de R.2225-3.
  *
- * CE QUE CE RELEVE N'EST PAS. Il etablit que les textes cites existent, sont en vigueur et traitent
- * du sujet auquel la regle les rattache. Il n'etablit PAS qu'ils sont le bon fondement juridique
- * d'un refus opposable — cela ne se verifie pas, cela se signe. Les 27 regles marquees
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * SECOND RELEVE, LE 9 SEPTEMBRE 2026 : LES 20 REGLES QUI N'AVAIENT AUCUN LIEN
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Le premier releve avait laisse 20 regles sans lien, deliberement : aucune n'attendait de revue
+ * juridique, et leur en poser un sans l'avoir ouvert aurait refabrique le defaut qu'on venait de
+ * corriger. Elles ont ete ouvertes a leur tour. 18 recoivent un lien verifie ; DEUX N'EN RECOIVENT
+ * PAS, et c'est la partie qui compte :
+ *
+ *   - `bess_chimie_lfp` se declare « non reglementaire ». Aucun texte ne la fonde.
+ *   - `bess_securite_incendie` cite « l'arrete de prescriptions generales de la rubrique 2925 ».
+ *     Les deux arretes publies sous cette rubrique visent les ATELIERS DE CHARGE — accumulateurs au
+ *     plomb (29 mai 2000), depots d'au moins dix autobus electriques (3 aout 2018). Ni l'un ni
+ *     l'autre ne gouverne un stockage stationnaire raccorde au reseau. Elle est desormais marquee
+ *     « a valider par un juriste » : on ne sait pas quel texte la fonde, et c'est ce que ce
+ *     marquage existe pour dire.
+ *
+ * TROIS INEXACTITUDES DE FOND de plus, corrigees :
+ *
+ *   1. `metha_injection` citait « art. L.446-1 et s. ; decret n°2019-1043 du 11 octobre 2019
+ *      relatif au droit a l'injection ». Les DEUX etaient fausses : L.446-1 traite du BILAN CARBONE
+ *      des appels d'offres biogaz, et le decret du droit a l'injection est le n°2019-665 du 28 juin
+ *      2019. Le droit a l'injection lui-meme est a L.453-9.
+ *   2. `metha_plan_epandage` appelait l'arrete du 22 octobre 2020 « relatif au socle commun des
+ *      matieres fertilisantes ». Son intitule reel : « approuvant un cahier des charges pour la mise
+ *      sur le marche et l'utilisation de digestats de methanisation ».
+ *   3. Les quatre regles de rubrique ICPE citaient « nomenclature ICPE rubrique X » sans nommer
+ *      l'article. R.511-9 est desormais cite — il porte la phrase « la colonne A de l'annexe au
+ *      present article constitue la nomenclature des installations classees ».
+ *
+ * BILAN : 50 liens verifies sur 52 regles, et les deux absences sont motivees par un test.
+ *
+ * CE QUE CES RELEVES NE SONT PAS. Ils etablissent que les textes cites existent, sont en vigueur et
+ * traitent du sujet auquel la regle les rattache. Ils n'etablissent PAS qu'ils sont le bon fondement
+ * juridique d'un refus opposable — cela ne se verifie pas, cela se signe. Les 28 regles marquees
  * `aValiderParJuriste` le restent donc toutes, et `REFERENTIEL_DERNIERE_VERIFICATION` n'a pas
  * bouge : la faire avancer affirmerait une revue qui n'a pas eu lieu.
  */
@@ -141,6 +173,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     unite: 'MWc',
     reference: "Code de l'environnement, art. R.122-2, annexe, rubrique 30",
     dateEntreeEnVigueur: '2022-10-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000042369329`,
     instable: true,
     commentaire:
       "La rubrique 30 de l'annexe à l'article R.122-2 a été remaniée plusieurs fois depuis 2020 " +
@@ -165,6 +198,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     libelle: 'Terrain réputé inculte ou non exploité depuis le 10 mars 2013',
     reference: "Code de l'urbanisme, art. L.111-29 (loi APER du 10 mars 2023)",
     dateEntreeEnVigueur: '2023-03-11',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000047298109`,
     commentaire:
       "La période de référence est de 10 ans antérieurs à la promulgation de la loi APER, soit une non-exploitation continue depuis le 10 mars 2013. À justifier par photo-interprétation et historique RPG.",
   },
@@ -187,6 +221,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     unite: '%',
     reference: 'Décret n°2024-318 du 8 avril 2024',
     dateEntreeEnVigueur: '2024-04-09',
+    url: `${LEGIFRANCE}/jorf/id/JORFTEXT000049386027`,
     commentaire:
       "Zone témoin exigée pour le suivi agronomique. Dispense possible pour les installations de moins de 1 ha ou en cas de référentiel agronomique existant.",
   },
@@ -195,6 +230,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     libelle: 'Avis de la CDPENAF requis pour les projets agrivoltaïques',
     reference: "Code de l'urbanisme, art. L.111-30 ; décret n°2024-318 du 8 avril 2024",
     dateEntreeEnVigueur: '2024-04-09',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000047298111`,
   },
   /**
    * DEUX PROCEDURES QUI DECIDENT DU CALENDRIER, et qui manquaient au solaire.
@@ -256,6 +292,7 @@ export const REGLES_SOLAIRE: Record<string, RegleReglementaire> = {
     reference:
       "Code rural et de la pêche maritime, art. L.641-5 et s. ; doctrines INAO relatives aux installations photovoltaïques",
     dateEntreeEnVigueur: '2023-03-11',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000022190244`,
     commentaire:
       "L'INAO est consulté et s'oppose en principe à l'artificialisation des aires parcellaires délimitées AOP, en particulier viticoles. Traite comme rédhibitoire par défaut, paramétrable.",
     instable: true,
@@ -285,8 +322,11 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
       "ICPE rubrique 2980 : autorisation environnementale des que un aérogénérateur dépasse 50 m de hauteur de mat",
     valeur: 50,
     unite: 'm de mat',
-    reference: "Code de l'environnement, nomenclature ICPE rubrique 2980",
+    reference:
+      "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), " +
+      'rubrique 2980',
     dateEntreeEnVigueur: '2011-08-23',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,
     commentaire:
       "Déclaration pour les parcs dont les mâts sont < 50 m et la puissance totale >= 20 MW. En pratique, tout parc contemporain relève de l'autorisation environnementale unique.",
   },
@@ -297,6 +337,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     unite: 'km',
     reference: "Code de l'environnement, art. R.181-36 et annexe de l'art. R.511-9 (rubrique 2980)",
     dateEntreeEnVigueur: '2017-03-01',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000053432780`,
     commentaire:
       "Toutes les communes dont une partie du territoire est à moins de 6 km du projet sont consultées : indicateur d'acceptabilité à anticiper.",
   },
@@ -308,6 +349,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     unite: 'm',
     reference: 'Code du patrimoine, art. L.621-30 et L.632-1',
     dateEntreeEnVigueur: '2016-07-08',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000032860394`,
     commentaire:
       "Le périmètre délimité des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà.",
   },
@@ -317,6 +359,7 @@ export const REGLES_EOLIEN: Record<string, RegleReglementaire> = {
     reference:
       "Arrêté du 26 août 2011 modifié relatif aux installations de production d'électricité utilisant l'énergie mécanique du vent, art. 4",
     dateEntreeEnVigueur: '2011-08-27',
+    url: `${LEGIFRANCE}/loda/id/JORFTEXT000024507365`,
     commentaire:
       "Ordres de grandeur : 30 km (radar météo bande C), 20 km (bande S), 10 km (radar de l'aviation civile), 5 km (radar portuaire), avec avis possible en deçà. Consultation obligatoire de Météo-France, la DGAC et l'armée.",
     instable: true,
@@ -372,8 +415,11 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
       "ICPE rubrique 2925-2 : déclaration pour les installations de stockage d'électricité de puissance > 600 kW",
     valeur: 600,
     unite: 'kW',
-    reference: "Code de l'environnement, nomenclature ICPE rubrique 2925, alinéa 2",
+    reference:
+      "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), " +
+      'rubrique 2925, alinéa 2',
     dateEntreeEnVigueur: '2022-06-30',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,
     commentaire:
       "Rubrique dédiée aux dispositifs de stockage d'énergie électrochimique. La doctrine des DREAL évolue : certains projets sont requalifiés en autorisation selon la masse de matières dangereuses (rubriques 1450, 4801). À confirmer auprès de la DREAL.",
     instable: true,
@@ -385,14 +431,26 @@ export const REGLES_BESS: Record<string, RegleReglementaire> = {
       "Arrêté ministériel de prescriptions générales applicables à la rubrique 2925 ; référentiels DREAL / SDIS ; guide FFB-ADEME stockage stationnaire",
     dateEntreeEnVigueur: '2022-06-30',
     commentaire:
-      "Prévoir : PDI, besoins en eau d'extinction, rétention des eaux d'extinction, distances entre conteneurs, voie engins pompiers. Le SDIS départemental impose ses propres exigences.",
+      "Prévoir : PDI, besoins en eau d'extinction, rétention des eaux d'extinction, distances entre " +
+      "conteneurs, voie engins pompiers. Le SDIS départemental impose ses propres exigences. — " +
+      'AUCUN LIEN, ET C’EST DÉLIBÉRÉ. Relevé du 9 septembre 2026 : les deux arrêtés de prescriptions ' +
+      'générales que porte la rubrique 2925 sur Légifrance visent les ATELIERS DE CHARGE — celui du ' +
+      '29 mai 2000 pour les accumulateurs au plomb, celui du 3 août 2018 pour les dépôts d’au moins ' +
+      'dix autobus électriques. Ni l’un ni l’autre ne gouverne un stockage stationnaire raccordé au ' +
+      'réseau. Poser l’un des deux ici aurait produit un lien plausible et faux, exactement le défaut ' +
+      'que le relevé du 7 septembre a corrigé sur 25 règles. Les deux autres sources citées — ' +
+      'référentiels DREAL/SDIS et guide FFB-ADEME — ne sont pas des textes publiés sur Légifrance. ' +
+      'L’arrêté applicable au 2925-2 reste à identifier.',
     instable: true,
+    aValiderParJuriste: true,
   },
   chimie_lfp: {
     id: 'bess_chimie_lfp',
     libelle: 'Chimie LFP (lithium fer phosphate) recommandée',
     reference: 'Recommandation technique - non réglementaire',
     dateEntreeEnVigueur: '2024-01-01',
+    // AUCUN LIEN, et il ne peut pas y en avoir : cette regle se declare elle-meme « non
+    // reglementaire ». Lui coller une URL Legifrance lui donnerait une autorite qu'elle n'a pas.
     commentaire:
       "La chimie LFP réduit fortement le risque d'emballement thermique par rapport aux chimies NMC, et facilité l'instruction ICPE et l'avis du SDIS.",
   },
@@ -484,8 +542,11 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     libelle: 'ICPE 2781-1 : déclaration en dessous de 30 t/j de matières traitées',
     valeur: 30,
     unite: 't/j',
-    reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
+    reference:
+      "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), " +
+      'rubrique 2781-1',
     dateEntreeEnVigueur: '2021-06-24',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,
     commentaire: 'Matière végétale brute, effluents d\'élevage, matières stercoraires, lactosérum.',
   },
   icpe_2781_enregistrement: {
@@ -493,16 +554,22 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     libelle: 'ICPE 2781-1 : enregistrement de 30 à 100 t/j',
     valeur: 100,
     unite: 't/j',
-    reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
+    reference:
+      "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), " +
+      'rubrique 2781-1',
     dateEntreeEnVigueur: '2021-06-24',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,
   },
   icpe_2781_autorisation: {
     id: 'metha_2781_a',
     libelle: 'ICPE 2781-1 : autorisation environnementale au-delà de 100 t/j',
     valeur: 100,
     unite: 't/j',
-    reference: "Code de l'environnement, nomenclature ICPE rubrique 2781-1",
+    reference:
+      "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), " +
+      'rubrique 2781-1',
     dateEntreeEnVigueur: '2021-06-24',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000006838668`,
     commentaire:
       'La rubrique 2781-2 (autres déchets, notamment biodéchets et boues) relève de l\'autorisation quel que soit le tonnage au-delà de 100 t/j, avec un régime plus contraignant.',
   },
@@ -512,8 +579,12 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     valeur: 200,
     unite: 'm',
     reference:
-      "Arrêté ministériel du 12 août 2010 (rubrique 2781-1, enregistrement) et arrêté du 10 novembre 2009, art. relatif aux distances d'éloignement",
+      "Arrêté du 12 août 2010 relatif aux prescriptions générales applicables aux installations " +
+      'classées de méthanisation relevant du régime de l’enregistrement au titre de la rubrique ' +
+      'n° 2781 (art. 5) ; arrêté du 10 novembre 2009 pour les installations soumises à ' +
+      'autorisation',
     dateEntreeEnVigueur: '2010-08-13',
+    url: `${LEGIFRANCE}/loda/id/JORFTEXT000022727437`,
     commentaire:
       "Distance mesurée depuis les ouvrages de stockage et de traitement. Des aménagements sont possibles pour les installations en déclaration ; l'acceptabilité locale reste le facteur limitant.",
     instable: true,
@@ -524,8 +595,11 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     valeur: 35,
     unite: 'm',
     reference:
-      "Arrêté du 12 août 2010 (rubrique 2781) ; programme d'actions national nitrates, arrêté du 19 décembre 2011",
+      "Arrêté du 12 août 2010 relatif aux prescriptions générales applicables aux installations " +
+      'classées de méthanisation (rubrique n° 2781, art. 5) ; programme d’actions national ' +
+      'nitrates, arrêté du 19 décembre 2011',
     dateEntreeEnVigueur: '2010-08-13',
+    url: `${LEGIFRANCE}/loda/id/JORFTEXT000022727437`,
     commentaire:
       "S'applique aux ouvrages de stockage et aux épandages. Interdiction totale dans les périmètres de protection immédiate et rapprochée des captages AEP.",
   },
@@ -533,8 +607,11 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     id: 'metha_plan_epandage',
     libelle: "Plan d'épandage ou sortie du statut de déchet du digestat",
     reference:
-      "Arrêté du 22 octobre 2020 relatif au socle commun des matières fertilisantes ; art. R.211-25 et s. du Code de l'environnement",
+      "Arrêté du 22 octobre 2020 approuvant un cahier des charges pour la mise sur le marché et " +
+      'l’utilisation de digestats de méthanisation d’intrants agricoles et/ou agro-alimentaires ' +
+      'en tant que matières fertilisantes ; art. R.211-25 et s. du code de l’environnement',
     dateEntreeEnVigueur: '2020-10-23',
+    url: `${LEGIFRANCE}/jorf/id/JORFTEXT000042506471`,
     commentaire:
       "Deux voies : plan d'épandage (digestat = déchet, surfaces contractualisées nécessaires) ou homologation / conformité à une norme (digestat = produit, commercialisable).",
   },
@@ -543,6 +620,7 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     libelle: 'Déclaration ou autorisation IOTA au titre de la loi sur l\'eau',
     reference: "Code de l'environnement, art. R.214-1, rubriques 2.1.5.0 et 3.3.1.0",
     dateEntreeEnVigueur: '2006-12-30',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000048136763`,
     commentaire:
       "Rejet d'eaux pluviales (surface interceptée) et assèchement de zone humide : vérifier le franchissement des seuils IOTA.",
   },
@@ -593,8 +671,11 @@ export const REGLES_METHANISATION: Record<string, RegleReglementaire> = {
     id: 'metha_injection',
     libelle: 'Injection de biométhane : droit à l\'injection et rebours',
     reference:
-      "Code de l'énergie, art. L.446-1 et s. ; décret n°2019-1043 du 11 octobre 2019 relatif au droit à l'injection",
+      "Code de l'énergie, art. L.453-9 (droit à l'injection : les gestionnaires de réseaux " +
+      'réalisent les renforcements nécessaires) ; décret n°2019-665 du 28 juin 2019, codifié aux ' +
+      'art. D.453-20 à D.453-25',
     dateEntreeEnVigueur: '2019-10-13',
+    url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000047303711`,
     commentaire:
       "Le droit à l'injection permet de faire financer une partie des renforcements de réseau par le tarif. Vérifier le zonage de raccordement (GRDF/GRTgaz/Terega) et la capacité du réseau, y compris en rebours.",
   },

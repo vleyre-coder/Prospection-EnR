@@ -52,13 +52,27 @@
  * référence citée par la règle : c'est ce rapprochement, et lui seul, qui aurait attrapé les cinq
  * liens qui ouvraient autre chose.
  *
+ * ═══ UN SECOND RELEVÉ A SUIVI, LE 9 SEPTEMBRE 2026
+ *
+ * Le premier avait laissé 20 règles sans aucun lien — aucune en attente de revue juridique, et
+ * c'est pourquoi elles avaient été laissées : leur donner un lien sans l'avoir ouvert aurait
+ * refabriqué le défaut qui venait d'être corrigé. Elles ont été ouvertes à leur tour : **18 en
+ * reçoivent un, deux n'en reçoivent pas**, et le détail est au-dessus de leurs entrées.
+ *
+ * Le référentiel porte donc 50 liens vérifiés sur 52 règles. Les deux absences sont nommées et
+ * motivées par le dernier test de ce fichier ; en ajouter une troisième sans raison écrite échoue.
+ *
  * ═══ CE QUE LE RELEVÉ N'ÉTABLIT PAS, ET IL FAUT LE DIRE
  *
  * Que l'article existe, qu'il soit en vigueur et qu'il traite bien du sujet auquel la règle le
  * rattache : voilà ce qui a été vérifié. Que cet article soit LE BON FONDEMENT JURIDIQUE d'un refus
- * opposé à un propriétaire : cela ne se vérifie pas ici, cela se signe. Les 27 règles marquées
- * `aValiderParJuriste` le restent toutes — le relevé a corrigé leurs liens et quatre inexactitudes
- * de fond, il n'a pas remplacé la revue d'un juriste, et rien dans ce fichier ne le prétend.
+ * opposé à un propriétaire : cela ne se vérifie pas ici, cela se signe. Les 28 règles marquées
+ * `aValiderParJuriste` le restent toutes — les deux relevés ont corrigé leurs liens et sept
+ * inexactitudes de fond, ils n'ont pas remplacé la revue d'un juriste, et rien ici ne le prétend.
+ *
+ * Le compte a d'ailleurs MONTÉ de 27 à 28, ce qui est le bon sens de variation pour un travail de
+ * vérification : `bess_securite_incendie` a rejoint la liste parce qu'on a découvert qu'on ne
+ * savait pas quel texte la fonde.
  */
 
 import { test } from 'node:test';
@@ -323,6 +337,183 @@ const RELEVES: Record<string, Releve> = {
       'Code du patrimoine : rôle de l’État en archéologie préventive et maîtrise scientifique des ' +
       'opérations. L’ancien lien ouvrait le chapitre « Archives » (L.211-1 à L.211-6).',
   },
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * SECOND RELEVÉ, LE 9 SEPTEMBRE 2026 : les 20 règles qui n'avaient AUCUN lien
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le relevé du 7 septembre avait corrigé les 26 URL existantes et donné un lien aux six règles
+   * « à valider » qui n'en avaient pas. Restaient 20 règles sans lien — aucune en attente de revue
+   * juridique, et c'est pourquoi elles avaient été laissées : leur donner un lien sans l'avoir
+   * ouvert aurait refabriqué le défaut que ce même relevé venait de corriger.
+   *
+   * Elles ont donc été ouvertes à leur tour. Onze recherches distinctes ont suffi, plusieurs règles
+   * partageant leur fondement — les quatre rubriques ICPE s'ancrent toutes sur l'article R.511-9,
+   * qui institue la nomenclature, et les deux distances de méthanisation sur le même arrêté.
+   *
+   * RÉSULTAT : 18 des 20 reçoivent un lien vérifié. DEUX N'EN REÇOIVENT PAS, et c'est la partie
+   * qui compte :
+   *
+   *   - `bess_chimie_lfp` se déclare « non réglementaire ». Aucun texte ne la fonde, donc aucun
+   *     lien ne doit la faire paraître fondée.
+   *   - `bess_securite_incendie` cite « l'arrêté de prescriptions générales de la rubrique 2925 ».
+   *     Les deux arrêtés publiés sous cette rubrique visent les ATELIERS DE CHARGE — accumulateurs
+   *     au plomb (29 mai 2000), dépôts d'au moins dix autobus électriques (3 août 2018). Ni l'un ni
+   *     l'autre ne gouverne un stockage stationnaire raccordé au réseau. Poser l'un des deux aurait
+   *     produit un lien plausible et faux. Elle est désormais marquée « à valider ».
+   *
+   * TROIS INEXACTITUDES DE FOND trouvées au passage, corrigées dans le référentiel :
+   *
+   *   1. `metha_injection` citait « code de l'énergie, art. L.446-1 et s. ; décret n°2019-1043 du
+   *      11 octobre 2019 relatif au droit à l'injection ». Les DEUX sont fausses : L.446-1 traite du
+   *      BILAN CARBONE des appels d'offres biogaz, et le décret du droit à l'injection est le
+   *      n°2019-665 du 28 juin 2019. Le droit à l'injection lui-même est à L.453-9.
+   *   2. `metha_plan_epandage` appelait l'arrêté du 22 octobre 2020 « relatif au socle commun des
+   *      matières fertilisantes ». Son intitulé réel : « approuvant un cahier des charges pour la
+   *      mise sur le marché et l'utilisation de digestats de méthanisation ».
+   *   3. Les quatre règles de rubrique ICPE citaient « nomenclature ICPE rubrique X » sans nommer
+   *      l'article. R.511-9 est désormais cité, ce qui donne au lecteur un point d'entrée — et
+   *      permet au troisième test de ce fichier de rapprocher le lien de la référence.
+   */
+
+  // ─── Solaire et agrivoltaïsme ────────────────────────────────────────────────────────────────
+  pv_eval_env_cas_par_cas: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000042369329',
+    atteint: 'R.122-2',
+    note:
+      'Annexe à l’article R.122-2 du code de l’environnement, où vit la rubrique 30. Même page que ' +
+      '`pv_eval_env_systematique` : les deux règles sont les deux bornes d’une même rubrique.',
+  },
+  pv_date_inculte: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000047298109',
+    atteint: 'L.111-29',
+    note:
+      'Code de l’urbanisme : surfaces agricoles, naturelles et forestières ouvertes aux projets, et ' +
+      'document-cadre arrêté par le préfet. Même article que `pv_document_cadre`.',
+  },
+  agri_zone_temoin: {
+    url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000049386027',
+    atteint: 'Décret n°2024-318 du 8 avril 2024',
+    note:
+      'Décret relatif au développement de l’agrivoltaïsme et aux conditions d’implantation des ' +
+      'installations photovoltaïques sur des terrains agricoles, naturels ou forestiers. Même texte ' +
+      'que `agri_taux_couverture`.',
+  },
+  agri_avis_cdpenaf: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000047298111',
+    atteint: 'L.111-30',
+    note:
+      'Code de l’urbanisme : les installations des articles L.111-27 à L.111-29 sur terrain agricole, ' +
+      'naturel ou forestier sont autorisées sur AVIS CONFORME de la CDPENAF, certaines sur avis ' +
+      'simple. La lecture confirme le caractère conforme que la règle annonce.',
+  },
+  pv_aop_viticole: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000022190244',
+    atteint: 'L.641-5',
+    note:
+      'Code rural : appellation d’origine contrôlée. La lecture confirme le mécanisme de l’aire ' +
+      'parcellaire délimitée par l’INAO, sur lequel la règle s’appuie. Les doctrines INAO citées à ' +
+      'côté ne sont pas publiées sur Légifrance.',
+  },
+
+  // ─── Éolien terrestre ────────────────────────────────────────────────────────────────────────
+  eol_icpe_2980: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006838668',
+    atteint: 'R.511-9',
+    note:
+      'Code de l’environnement : « la colonne A de l’annexe au présent article constitue la ' +
+      'nomenclature des installations classées », lu ce jour-là. C’est le point d’entrée de toute ' +
+      'rubrique ICPE ; l’annexe elle-même est éclatée en plusieurs parties dont la numérotation bouge.',
+  },
+  eol_rayon_enquete: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053432780',
+    atteint: 'R.181-36',
+    note:
+      'Code de l’environnement : les communes où l’avis est affiché sont celles situées à une ' +
+      'distance inférieure au RAYON D’AFFICHAGE fixé dans la nomenclature ICPE pour la rubrique. La ' +
+      'lecture confirme exactement le mécanisme que la règle décrit.',
+  },
+  eol_monument_historique: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000032860394',
+    atteint: 'L.621-30',
+    note:
+      'Code du patrimoine : à défaut de périmètre délimité, la protection au titre des abords ' +
+      's’applique à tout immeuble visible du monument et situé à moins de CINQ CENTS MÈTRES. Les ' +
+      'deux branches annoncées par la règle — 500 m par défaut, ou PDA — y figurent.',
+  },
+  eol_radar: {
+    url: 'https://www.legifrance.gouv.fr/loda/id/JORFTEXT000024507365',
+    atteint: '26 août 2011',
+    note:
+      'Arrêté relatif aux installations de production d’électricité utilisant l’énergie mécanique du ' +
+      'vent soumises à autorisation au titre de la rubrique 2980, dans sa version modifiée. C’est son ' +
+      'article 4 que la règle cite pour les distances aux radars.',
+  },
+
+  // ─── Stockage par batteries ──────────────────────────────────────────────────────────────────
+  bess_icpe_2925_2: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006838668',
+    atteint: 'R.511-9',
+    note: 'Même point d’entrée que les autres rubriques ICPE : l’article qui institue la nomenclature.',
+  },
+
+  // ─── Méthanisation ───────────────────────────────────────────────────────────────────────────
+  metha_2781_d: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006838668',
+    atteint: 'R.511-9',
+    note: 'Rubrique 2781-1, seuil de déclaration. Même article de nomenclature que les deux suivantes.',
+  },
+  metha_2781_e: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006838668',
+    atteint: 'R.511-9',
+    note: 'Rubrique 2781-1, seuil d’enregistrement. Même article de nomenclature.',
+  },
+  metha_2781_a: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006838668',
+    atteint: 'R.511-9',
+    note: 'Rubrique 2781-1, seuil d’autorisation. Même article de nomenclature.',
+  },
+  metha_distance_habitation: {
+    url: 'https://www.legifrance.gouv.fr/loda/id/JORFTEXT000022727437',
+    atteint: '12 août 2010',
+    note:
+      'Arrêté de prescriptions générales pour la méthanisation en enregistrement, rubrique 2781. La ' +
+      'lecture porte la distance annoncée : l’installation est « implantée à plus de 200 mètres des ' +
+      'habitations occupées par des tiers ».',
+  },
+  metha_distance_eau: {
+    url: 'https://www.legifrance.gouv.fr/loda/id/JORFTEXT000022727437',
+    atteint: '12 août 2010',
+    note:
+      'Même arrêté, et il porte aussi la seconde distance : « distante d’au moins 35 mètres des ' +
+      'puits, forages, sources et berges des cours d’eau ». Le programme d’actions nitrates cité à ' +
+      'côté est un texte distinct.',
+  },
+  metha_plan_epandage: {
+    url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000042506471',
+    atteint: '22 octobre 2020',
+    note:
+      'Arrêté approuvant un cahier des charges pour la mise sur le marché et l’utilisation de ' +
+      'digestats de méthanisation en tant que matières fertilisantes — c’est la sortie du statut de ' +
+      'déchet que la règle décrit. Son intitulé était mal cité (« socle commun ») : corrigé.',
+  },
+  metha_iota: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000048136763',
+    atteint: 'R.214-1',
+    note:
+      'Code de l’environnement : nomenclature des installations, ouvrages, travaux et activités ' +
+      'relevant de la police de l’eau, annexée à cet article.',
+  },
+  metha_injection: {
+    url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000047303711',
+    atteint: 'L.453-9',
+    note:
+      'Code de l’énergie : « les gestionnaires des réseaux de gaz naturel effectuent les ' +
+      'renforcements nécessaires » pour permettre l’injection. C’est le droit à l’injection. La règle ' +
+      'citait L.446-1 (bilan carbone des appels d’offres) et le décret n°2019-1043 ; le décret ' +
+      'd’application est le n°2019-665 du 28 juin 2019.',
+  },
+
   commun_site_classe: {
     url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033036041',
     atteint: 'L.341-10',
@@ -419,9 +610,17 @@ test('LA REVUE JURIDIQUE N’EST PAS RÉPUTÉE FAITE : les 27 règles restent ma
    * bonne raison est la signature d'un juriste, avec sa date.
    */
   const aValider = Object.values(REGLES_PAR_ID).filter((r) => r.aValiderParJuriste === true);
+  /*
+   * 28 ET NON 27 DEPUIS LE 9 SEPTEMBRE 2026, et le compte a MONTE, ce qui est le bon sens de
+   * variation. `bess_securite_incendie` a rejoint la liste : le second relevé a montré que l'arrêté
+   * qu'elle cite — « de prescriptions générales applicables à la rubrique 2925 » — ne peut pas être
+   * identifié, les deux arrêtés publiés sous cette rubrique visant les ateliers de charge et non un
+   * stockage stationnaire. Une règle dont on ne sait pas quel texte la fonde est exactement ce que
+   * ce marquage existe pour dire.
+   */
   assert.equal(
     aValider.length,
-    27,
+    28,
     'le nombre de règles en attente de revue juridique a changé. Si un juriste a validé, remplacez ' +
       'le marquage par une date de validation et corrigez ce compte en expliquant pourquoi. Le ' +
       'relevé Légifrance du ' +
@@ -429,4 +628,65 @@ test('LA REVUE JURIDIQUE N’EST PAS RÉPUTÉE FAITE : les 27 règles restent ma
       ' n’est PAS une revue juridique : il établit que les textes cités existent et traitent du ' +
       'sujet, rien de plus.',
   );
+});
+
+test('LES SEULES RÈGLES SANS LIEN SONT CELLES DONT L’ABSENCE EST MOTIVÉE', () => {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * DEUX ABSENCES, DEUX RAISONS DIFFÉRENTES — et aucune n'est un oubli
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Ce test est la contrepartie du relevé : il empêche qu'une règle arrive sans lien par simple
+   * négligence, tout en laissant possible l'absence ASSUMÉE. Les deux cas présents montrent
+   * pourquoi la seconde doit rester possible.
+   *
+   * `bess_chimie_lfp` se déclare « recommandation technique - non réglementaire ». Aucun texte ne
+   * la fonde. Lui coller un lien Légifrance lui donnerait une autorité qu'elle n'a pas — ce serait
+   * un faux positif de crédibilité, la famille de fautes que ce dépôt traque.
+   *
+   * `bess_securite_incendie` cite « l'arrêté de prescriptions générales applicables à la rubrique
+   * 2925 ». Relevé du 9 septembre 2026 : les deux arrêtés publiés sous cette rubrique visent les
+   * ATELIERS DE CHARGE — accumulateurs au plomb (29 mai 2000), dépôts d'au moins dix autobus
+   * électriques (3 août 2018). Ni l'un ni l'autre ne gouverne un stockage stationnaire raccordé au
+   * réseau. Poser l'un des deux aurait produit un lien plausible et faux. Elle est donc marquée
+   * « à valider par un juriste », ce qui est l'aveu exact : on ne sait pas quel texte la fonde.
+   *
+   * AJOUTER UNE TROISIÈME ABSENCE demande d'écrire ici pourquoi. C'est peu de travail, et c'est
+   * précisément le travail qui manquait quand 20 règles circulaient sans lien sans que personne ne
+   * puisse dire si c'était voulu.
+   */
+  const MOTIVEES: ReadonlyArray<{ id: string; raison: string }> = [
+    {
+      id: 'bess_chimie_lfp',
+      raison:
+        'la règle se déclare « non réglementaire » : aucun texte ne la fonde, et un lien Légifrance ' +
+        'lui prêterait une autorité qu’elle n’a pas',
+    },
+    {
+      id: 'bess_securite_incendie',
+      raison:
+        'l’arrêté applicable à la rubrique 2925-2 n’est pas identifié — les deux arrêtés publiés ' +
+        'sous cette rubrique visent les ateliers de charge, pas le stockage stationnaire',
+    },
+  ];
+
+  const sansLien = Object.entries(REGLES_PAR_ID)
+    .filter(([, r]) => !r.url)
+    .map(([id]) => id)
+    .sort();
+
+  assert.deepEqual(
+    sansLien,
+    MOTIVEES.map((m) => m.id).sort(),
+    'une règle circule sans lien vers son texte sans que l’absence soit motivée. Ouvrez le texte ' +
+      'et ajoutez son relevé ; ou, si aucun texte ne la fonde ou qu’il n’est pas identifiable, ' +
+      'dites-le dans MOTIVEES — mais ne posez jamais un lien plausible sans l’avoir ouvert.',
+  );
+
+  for (const m of MOTIVEES) {
+    assert.ok(
+      m.raison.trim().length > 40,
+      `${m.id} : une absence de lien sans raison écrite est un oubli déguisé`,
+    );
+  }
 });

@@ -214,12 +214,40 @@ test('TOUTE REGLE EN ATTENTE DE REVUE JURIDIQUE PORTE UN LIEN VERS SON TEXTE', (
    * a fabriquer le defaut que ce releve vient de corriger. Elles sont listees dans le rapport de
    * livraison.
    */
+  /*
+   * L'EXCEPTION, ET ELLE PORTE SA RAISON. Une regle peut attendre une revue juridique PARCE QUE le
+   * texte applicable n'est pas identifie : lui poser un lien serait alors se contredire.
+   *
+   * `bess_securite_incendie` est le cas, releve le 9 septembre 2026 : les deux arretes de
+   * prescriptions generales que porte la rubrique 2925 sur Legifrance visent les ATELIERS DE CHARGE
+   * — accumulateurs au plomb (29 mai 2000), depots d'autobus electriques (3 aout 2018) — et non un
+   * stockage stationnaire raccorde au reseau. Poser l'un des deux aurait produit un lien plausible
+   * et faux, le defaut meme que le releve du 7 septembre a corrige sur 25 regles.
+   */
+  const SANS_LIEN_JUSTIFIE: ReadonlyArray<{ id: string; raison: string }> = [
+    {
+      id: 'bess_securite_incendie',
+      raison:
+        'l’arrete applicable a la rubrique 2925-2 n’est pas identifie : les deux arretes publies ' +
+        'sous cette rubrique visent les ateliers de charge, pas le stockage stationnaire',
+    },
+  ];
   for (const [id, r] of Object.entries(REGLES_PAR_ID)) {
     if (r.aValiderParJuriste !== true) continue;
+    const justifiee = SANS_LIEN_JUSTIFIE.find((e) => e.id === id);
+    if (justifiee) {
+      assert.ok(
+        !r.url,
+        `${id} figure parmi les absences de lien JUSTIFIEES (${justifiee.raison}) mais porte ` +
+          'desormais une URL : retirez-la de cette liste, la justification est perimee',
+      );
+      continue;
+    }
     assert.ok(
       r.url && r.url.length > 0,
       `${id} attend une revue juridique sans donner le lien vers son texte : celui qui doit la ` +
-        'valider devrait chercher l’article lui-meme',
+        'valider devrait chercher l’article lui-meme. Si le texte applicable n’est pas identifie, ' +
+        'dites-le dans SANS_LIEN_JUSTIFIE plutot que de poser un lien plausible.',
     );
   }
 });

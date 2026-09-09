@@ -166,7 +166,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   },
   { chemin: 'raccordement.posteLePlusProche.capaciteResiduelleMw', min: 0, max: 10_000, unite: 'MW', motif: 'Capacité d’accueil d’un poste source. Le plus gros poste français reste très en dessous de 10 GW.' },
   { chemin: 'raccordement.posteLePlusProche.fileAttenteMw', min: 0, max: 100_000, unite: 'MW', motif: 'Puissance des projets en file d’attente, cumulable : borne large.' },
-  { chemin: 'raccordement.posteLePlusProche.quotePartEurParKw', min: 0, max: 1_000, unite: 'EUR/kW', motif: 'Quote-part S3REnR. Les schémas publies se situent entre 10 et 150 EUR/kW.' },
+  { chemin: 'raccordement.posteLePlusProche.quotePartEurParKw', min: 0, max: 1_000, unite: 'EUR/kW', motif: 'Quote-part S3REnR. Les schémas publiés se situent entre 10 et 150 EUR/kW.' },
   // Les deux distances gaz sont bornees separement depuis l'audit 8 : la canalisation gouverne le
   // raccordement, le site d'injection existant n'est qu'un indicateur de territoire. C'est le controle
   // des bornes qui a rattrape l'oubli de cette ligne lors du renommage — la preuve qu'il sert.
