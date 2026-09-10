@@ -213,6 +213,45 @@ export class Lecteur {
     return v as T[];
   }
 
+  /**
+   * Liste de codes courts, verifies par un motif, normalises en majuscules et dedoublonnes.
+   *
+   * POURQUOI CETTE METHODE, ET PAS `listeParmi`. Les codes qu'elle valide viennent de nomenclatures
+   * EXTERIEURES a l'application : codes departement du Code officiel geographique, types de zone
+   * du PLU republies par le Geoportail de l'urbanisme. Un ensemble ferme code en dur ici finirait
+   * par refuser une valeur que la base contient reellement — le `typezone` du GPU n'est pas
+   * normalise a l'ingestion, et une commune peut publier `AUc` la ou une autre publie `AUC`. Une
+   * valeur presente dans les donnees mais rejetee par la validation rend une partie du foncier
+   * INATTEIGNABLE, ce qui est plus grave qu'une faute de saisie.
+   *
+   * Le sens d'erreur est d'ailleurs favorable : une valeur mal ecrite RESTREINT le resultat au lieu
+   * de l'elargir. C'est l'inverse d'un nom de champ mal ecrit, que `refuserInconnus` doit refuser
+   * parce qu'il elargit en silence.
+   *
+   * La normalisation en majuscules est necessaire des deux cotes : le SQL compare
+   * `upper(z ->> 'typeZone')`, sinon un `a` saisi ne trouverait jamais une zone `A`.
+   */
+  listeCodes(
+    champ: string,
+    options: { motif: RegExp; description: string; maxElements: number },
+  ): string[] | undefined {
+    const v = this.brut(champ);
+    if (v === undefined || v === null) return undefined;
+    if (!Array.isArray(v)) return refus(champ, 'tableau attendu', v);
+    if (v.length === 0) return undefined;
+    if (v.length > options.maxElements) {
+      return refus(champ, `au plus ${options.maxElements} elements`, v.length);
+    }
+    const vus = new Set<string>();
+    for (const e of v) {
+      if (typeof e !== 'string' || !options.motif.test(e.trim())) {
+        return refus(champ, options.description, e);
+      }
+      vus.add(e.trim().toUpperCase());
+    }
+    return [...vus].sort();
+  }
+
   /** Tableau de chaines libres, borne en nombre et en longueur. */
   listeTexte(champ: string, maxElements: number, maxLongueur: number): string[] | undefined {
     const v = this.brut(champ);

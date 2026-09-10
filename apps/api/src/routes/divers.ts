@@ -18,6 +18,7 @@ import {
   filtrerParcelles,
   filtresValides,
   rechercher,
+  territoiresInterrogeables,
   LIMITE_DEFAUT_EXPORT,
   LIMITE_MAX_EXPORT,
 } from '../services/recherche.js';
@@ -51,6 +52,28 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       entierRequete(q.limite, 'limite', { defaut: 10, min: 1, max: 50 }),
     );
     return { resultats };
+  });
+
+  /**
+   * --- Territoires interrogeables -----------------------------------------
+   *
+   * Alimente le selecteur de territoire de la recherche par criteres. `filiere` est FACULTATIVE :
+   * sans elle la route rend la nomenclature et le nombre de communes ingerees, avec elle chaque
+   * territoire porte en plus son nombre de parcelles qualifiees. Un code de filiere invalide est
+   * refuse plutot qu'ignore — sinon l'interface afficherait des comptes muets, sans savoir qu'ils
+   * ne repondent pas a la filiere choisie.
+   */
+  app.get('/api/territoires', async (req, rep) => {
+    const q = req.query as { filiere?: string };
+    if (q.filiere !== undefined && !estFiliere(q.filiere)) {
+      return erreur(
+        rep,
+        400,
+        'filiere_invalide',
+        `Paramètre \`filière\` invalide, parmi ${FILIERES.join(', ')}`,
+      );
+    }
+    return territoiresInterrogeables(q.filiere);
   });
 
   // --- Filtres parametrables ----------------------------------------------

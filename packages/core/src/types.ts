@@ -192,6 +192,70 @@ export function libelleTypeSol(
   return entree ? entree[longueur] : valeur;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * REGIME D'IMPLANTATION PHOTOVOLTAIQUE, DEDUIT DE LA NATURE DU SOL
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * POURQUOI CETTE TABLE VIT DANS `@enr/core` ET NON DANS LE MOTEUR. Le regime est le vocabulaire
+ * que le metier emploie — « agrivoltaisme », « PV sur terrain degrade » — la ou la donnee ne porte
+ * qu'une nature de sol. Trois composants ont besoin de la correspondance entre les deux :
+ *
+ *   - le moteur, pour deduire le regime d'une parcelle (`determinerRegimeImplantation`) ;
+ *   - les exports et la fiche, pour l'AFFICHER ;
+ *   - l'outil de recherche par criteres, pour le CHERCHER : « toutes les parcelles propices a de
+ *     l'agrivoltaisme » se traduit en une selection de natures de sol, et cette traduction ne peut
+ *     pas etre reecrite dans l'interface sans devenir une copie qui divergera.
+ *
+ * Le moteur n'est pas installe cote navigateur : la table devait donc descendre dans le paquet
+ * commun, seul endroit ou les trois la lisent a l'identique.
+ *
+ * CE QUE LE REGIME N'EST PAS. Il est PRESUME. Le classement en « terrain degrade » au sens du
+ * decret n° 2023-1408 suppose d'etablir l'historique du site, et « agricole exploite » s'apprecie
+ * sur l'activite reelle et non sur une couche d'occupation du sol. Chercher par regime oriente donc
+ * la prospection ; cela ne qualifie aucun terrain.
+ */
+export const REGIME_PAR_TYPE_SOL: Record<TypeSol, string> = {
+  artificialise: 'pv_sol_terrain_degrade',
+  degrade: 'pv_sol_terrain_degrade',
+  agricole_exploite: 'agrivoltaisme',
+  inculte: 'pv_sol_document_cadre',
+  naturel_forestier: 'pv_sol_defrichement',
+};
+
+/** Libelles des regimes d'implantation, tels qu'affiches et tels que cherches. */
+export const LIBELLES_REGIME: Record<string, string> = {
+  pv_sol_terrain_degrade: 'Photovoltaïque au sol sur terrain dégradé ou artificialisé (présumé)',
+  agrivoltaisme: 'Agrivoltaïsme sur parcelle agricole exploitée (présumé)',
+  pv_sol_document_cadre: 'Photovoltaïque au sol sur terrain inculte (document-cadre départemental)',
+  pv_sol_defrichement: 'Photovoltaïque au sol avec défrichement (fortement pénalisé)',
+};
+
+/**
+ * Ordre d'affichage des regimes, du plus defendable au plus penalise.
+ *
+ * L'ordre n'est pas cosmetique : il place en tete ce qu'un developpeur cherche d'abord, et en
+ * queue le defrichement, que la plupart des projets ecartent d'emblee.
+ */
+export const ORDRE_REGIMES: readonly string[] = [
+  'pv_sol_terrain_degrade',
+  'agrivoltaisme',
+  'pv_sol_document_cadre',
+  'pv_sol_defrichement',
+];
+
+/**
+ * Natures de sol conduisant a un regime donne — reciproque exacte de `REGIME_PAR_TYPE_SOL`.
+ *
+ * Calculee et non ecrite a la main : une reciproque recopiee cesse de l'etre au premier ajout de
+ * nature de sol, et le filtre de recherche renverrait alors moins que ce qu'il annonce.
+ */
+export function typesSolDuRegime(regime: string): TypeSol[] {
+  return (Object.keys(REGIME_PAR_TYPE_SOL) as TypeSol[]).filter(
+    (t) => REGIME_PAR_TYPE_SOL[t] === regime,
+  );
+}
+
 export interface OccupationSol {
   /** Classification synthetique retenue par le moteur pour determiner le regime PV. */
   typeSol: TypeSol | null;

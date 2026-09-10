@@ -379,3 +379,156 @@ résultat.
 pour le stockage. C'est le seul point qui n'avance pas sans vous : elles sont utiles en l'état, mais elles
 s'impriment dans un document remis à un propriétaire. La liste s'obtient par le test
 `fondement-knockouts` ou en filtrant le référentiel sur ce champ.
+
+---
+
+## 6. « Est-ce qu'au niveau de toutes les couches on est bon ? » — mesuré, et non
+
+> Deux questions du propriétaire, le 10 septembre 2026 : les **couches** sont-elles bonnes, et les
+> **règles** d'intégration juridique, foncière et urbanistique le sont-elles pour les quatre filières ?
+> Voici ce que la mesure dit. Elle ne dit pas « oui ».
+
+### 6.1 Les couches : 21 connecteurs déclarés, 2 réellement ingérés
+
+Relevé sur la base `enr_e2e` (`source_donnee` × `couverture_ingestion`) :
+
+| Connecteur `ingestion` | Départements ingérés | Objets |
+|---|---|---|
+| `postes_geopf` | **101** | 2 830 |
+| `zaer_local` | **1** | 7 664 |
+| `postes_sources` | 0 | 0 |
+| `patrimoine_culture` | 0 | 0 |
+| `patrimoine_sites` | 0 | 0 |
+| `reseau_gaz` | 0 | 0 |
+| `vent_100m` | 0 | 0 |
+
+**Cinq connecteurs d'ingestion sur sept n'ont jamais tourné.** Les 14 sources interrogées en temps
+réel (cadastre, GPU, RPG, INAO, INPN, Géorisques, RGE ALTI…) fonctionnent, elles, à chaque
+qualification — c'est pour cela que l'application est utilisable aujourd'hui. Mais une couche jamais
+ingérée n'est pas une couche vide : c'est une couche **inconnue**, et l'application le déclare
+critère par critère plutôt que de conclure à l'absence d'enjeu.
+
+### 6.2 Ce que cela coûte, critère par critère
+
+Moyenne des critères sans note (« gris ») sur les 301 parcelles qualifiées de la base de référence :
+
+| Filière | Critères pondérés | Gris en moyenne |
+|---|---|---|
+| Solaire au sol | 29 | **8,0** |
+| Éolien terrestre | 22 | **8,1** |
+| Méthanisation | 17 | **7,0** |
+| Stockage BESS | 19 | **4,0** |
+
+Les huit critères systématiquement gris en solaire, avec leur cause — et les trois causes sont de
+natures très différentes :
+
+| Critère | Cause |
+|---|---|
+| `fonc_maitrise`, `fonc_nb_proprietaires` | **gris par conception** : les données de propriété exigent une habilitation et un motif ; l'absence est honnêtement déclarée |
+| `env_especes_protegees` | **gris par conception** : aucune donnée nationale ne publie de périmètre d'espèces protégées à l'échelle parcellaire |
+| `env_tvb`, `pat_archeologie`, `pat_monuments`, `pat_sites` | **l'ingestion n'a jamais tourné** (`patrimoine_culture`, `patrimoine_sites`) |
+| `racc_capacite_residuelle` | **la source refuse le relais** : Capareseau répond 502 à travers ce réseau |
+
+### 6.3 Les règles : 52 déclarées, 50 avec lien vérifié, **28 sans signature de juriste**
+
+| Mesure | Valeur |
+|---|---|
+| Règles réglementaires déclarées | 52 |
+| Portant une URL Legifrance **ouverte et relue** | **50** (deux refusées avec motif écrit) |
+| Portant `aValiderParJuriste` | **28** |
+| `REFERENTIEL_DERNIERE_VERIFICATION` | `2026-07-30` — **volontairement non avancée** |
+
+Les deux relevés Legifrance (7 et 9 septembre 2026) ont ouvert les 52 liens un par un et corrigé
+**7 erreurs de fond** : un décret cité à la mauvaise date, un article de code voisin de celui visé,
+un intitulé d'arrêté faux, quatre rubriques ICPE ne nommant pas l'article de nomenclature.
+
+**Ce qui n'est pas bon, et ne peut pas l'être sans vous.** Les 28 règles `aValiderParJuriste` sont
+utiles en l'état — elles portent leur référence, leur date d'entrée en vigueur et leur lien — mais
+elles **s'impriment dans un document remis à un propriétaire foncier**. Aucun test ne peut lire le
+Journal officiel : la date de dernière vérification du référentiel n'a donc **pas** été avancée, et
+elle ne le sera que par une relecture juridique. C'est le seul point du projet qui n'avance pas par
+le code.
+
+### 6.4 Réponse courte
+
+- **Les couches : non.** Deux ingestions sur sept ont tourné ; quatre critères patrimoniaux et
+  environnementaux sont gris pour cette seule raison, et un cinquième parce que la source refuse le
+  relais. Ce qui est bon, c'est que **rien n'est présenté comme une absence d'enjeu** : le gris est
+  déclaré, compté et affiché.
+- **Les règles : structurellement oui, juridiquement non.** Les 52 règles sont câblées, datées,
+  liées et testées ; 28 attendent une signature. Le premier point est vérifiable et vérifié ; le
+  second n'est pas un problème d'informatique.
+
+---
+
+## 7. L'outil de recherche par critères
+
+> « Il faudrait qu'un développeur me donne des critères de recherche bien précis — tant d'hectares
+> minimum, dans telle zone, de telle typologie — que je puisse le rentrer dans un outil de recherche,
+> et là l'outil me scanne tout un département ou toute une région pour me sortir toutes les parcelles
+> propices selon ces critères. »
+
+Une quatrième vue, **Recherche**, part des critères et non de la carte. Quatre entrées, dans l'ordre
+où elles ont été demandées : surface minimale, territoire (un département, plusieurs, ou une région
+entière), typologie d'implantation, zone (ZAER et zonage du PLU).
+
+### Ce qui rend l'outil honnête plutôt qu'impressionnant
+
+**Il ne balaie pas le cadastre : il balaie ce qui a été qualifié.** Un département compte des
+centaines de milliers de parcelles cadastrales, une campagne de qualification en couvre quelques
+milliers. Sans précaution, une recherche sur un département jamais balayé répond « 0 résultat » et
+« Aucune parcelle ne correspond aux filtres » : deux phrases exactes, et une conclusion **fausse** —
+l'opérateur en déduit qu'il n'y a rien à prospecter, et passe au département suivant. Aucun message
+d'erreur ne l'aurait signalé, le serveur répondant 200.
+
+Trois dispositifs l'empêchent :
+
+| Où | Quoi |
+|---|---|
+| Sélecteur de territoire | chaque département porte son nombre de parcelles **déjà qualifiées**, et « jamais balayé » plutôt que « 0 » |
+| Bandeau de couverture | « 12 parcelles retenues sur 301 qualifiées — 40 communes sur 365 (11 %) », et sous 90 % : « ce résultat est un minimum, pas un inventaire » |
+| Territoire jamais qualifié | message distinct, qui invite à **qualifier** et non à revoir les critères |
+
+Les deux comptes de la couverture sont pris **sans les critères de l'utilisateur** — sinon le
+dénominateur vaudrait toujours le résultat, et le bandeau resterait affiché sans plus rien dire.
+
+### Trois décisions de conception, avec leur raison
+
+1. **Les critères sont cumulés, jamais additionnés.** « La région Centre-Val de Loire, mais seulement
+   l'Eure-et-Loir » rend le seul 28. Élargir en silence est le sens d'erreur inacceptable pour un
+   outil de tri : l'opérateur ne peut pas savoir que sa restriction n'a pas été appliquée.
+2. **La typologie se traduit en natures de sol**, parce que le régime d'implantation
+   (agrivoltaïsme, terrain dégradé…) est **déduit** de la nature du sol et n'est pas une donnée
+   cherchable en soi. La table `REGIME_PAR_TYPE_SOL` est descendue de `@enr/scoring` dans
+   `@enr/core` pour que l'interface et le moteur en donnent la même lecture.
+3. **La nomenclature des territoires est générée et datée**, pas écrite de mémoire :
+   `node scripts/territoires.mjs` la relève sur geo.api.gouv.fr — 18 régions, 101 départements — et
+   `packages/core/test/territoires.test.ts` la vérifie hors réseau.
+
+### Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run build`, `npm run typecheck` | 0 erreur |
+| `@enr/core` | 78/78 (dont 14 nouveaux) |
+| `@enr/scoring` | 91/91 |
+| `@enr/api` | 519/519 (dont 17 nouveaux) |
+| `@enr/web` | 172/172 (dont 13 nouveaux) |
+| `test:base`, base fraîchement migrée | 118/118, 4 ignorés |
+| Bout en bout | 27/27, 2 ignorés (`@revue`) |
+| Mutations du chantier (`--filtre "audit 21"`) | **19/19 attrapées** |
+
+### Ce que le chantier a trouvé au passage
+
+- **Un défaut que j'avais écrit** : le bandeau de couverture déstructurait `couverture` sans
+  précaution. Sur une réponse ne la portant pas — capture de référence antérieure, cache du
+  navigateur — la vue **entière** disparaissait. Attrapé par quatre tests de rendu existants.
+- **Un trou dans le garde d'orthographe** : son périmètre est une liste écrite à la main, et deux
+  composants y avaient échappé (`PanneauZones.tsx`, `FormulaireBalayage.tsx`) sans qu'aucun test ne
+  baisse. Un test structurel compare maintenant la liste au répertoire des composants.
+- **Une vraie faute d'orthographe** révélée par ce périmètre élargi : « 10 m/s sur les cotes les plus
+  exposées » dans `packages/core/src/bornes.ts`, où il s'agit bien du littoral.
+- **Un faux positif du même garde** : `getByRole('region', …)` faisait accuser le mot « region »
+  d'être une graphie périmée de « région », alors que c'est un identifiant ARIA. Un garde qui accuse
+  à tort finit désactivé : le premier argument de `getByRole` est désormais écarté de la mesure, et
+  une mutation vérifie que l'option `name` continue, elle, d'être relue.

@@ -105,16 +105,22 @@ export function BarreSuperieure({
       <div className="groupe-boutons" role="group" aria-label="Vue">
         {(
           [
-            ['carte', 'Carte'],
-            ['liste', 'Liste'],
-            ['tableau', 'Tableau de bord'],
+            ['carte', 'Carte', 'Navigation cartographique et qualification d’une emprise'],
+            ['liste', 'Liste', 'Les parcelles qualifiées, triables et exportables'],
+            [
+              'recherche',
+              'Recherche',
+              'Balayer un département ou une région entière à partir de critères : surface, typologie, zonage',
+            ],
+            ['tableau', 'Tableau de bord', 'Avancement de la prospection'],
           ] as const
-        ).map(([v, libelle]) => (
+        ).map(([v, libelle, aide]) => (
           <button
             key={v}
             type="button"
             className="bouton-groupe"
             aria-pressed={etat.vue === v}
+            title={aide}
             onClick={() => etat.definirVue(v)}
           >
             {libelle}

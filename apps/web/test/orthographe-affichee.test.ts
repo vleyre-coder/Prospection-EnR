@@ -80,6 +80,21 @@ export const MODULES_TEXTE: readonly string[] = [
   'packages/core/src/filieres.ts',
   'packages/core/src/palette.ts',
   'packages/core/src/reglementation.ts',
+  /*
+   * `packages/core/src/territoires.ts` est DELIBEREMENT absent, et il faut dire pourquoi puisque
+   * ses libelles sont bel et bien affiches. C'est une table de NOMS PROPRES generee — 18 regions,
+   * 101 departements — sans une phrase de prose. L'y inclure a produit trois conflits faux par
+   * construction : « Côte-d'Or » et « Provence-Alpes-Côte d'Azur » faisaient passer pour une faute
+   * la « cote de plancher » des prescriptions d'inondation, qui s'ecrit bien sans accent. Un garde
+   * qui accuse a tort finit desactive.
+   *
+   * Ces noms ne sont pas pour autant sans controle : `packages/core/test/territoires.test.ts`
+   * verifie leur accentuation exacte sur trois temoins (« Île-de-France », « Corse-du-Sud »,
+   * « La Réunion ») et refuse tout double encodage.
+   *
+   * MAIS LE PASSAGE N'A PAS ETE INUTILE : il a revele une VRAIE faute, « 10 m/s sur les cotes les
+   * plus exposées » dans `packages/core/src/bornes.ts`, ou il s'agit bien du littoral. Corrigee.
+   */
   'packages/core/src/types.ts',
   'apps/web/src/App.tsx',
   'apps/web/src/components/BandeauAvertissements.tsx',
@@ -88,7 +103,9 @@ export const MODULES_TEXTE: readonly string[] = [
   'apps/web/src/components/Connexion.tsx',
   'apps/web/src/components/Demarrage.tsx',
   'apps/web/src/components/FicheParcelle.tsx',
+  'apps/web/src/components/FormulaireBalayage.tsx',
   'apps/web/src/components/PanneauGauche.tsx',
+  'apps/web/src/components/PanneauZones.tsx',
   'apps/web/src/components/TableauDeBord.tsx',
   'apps/web/src/components/VueListe.tsx',
   'apps/web/src/utils/affichage.ts',
@@ -116,6 +133,23 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/bornes.ts', mot: 'foret', raison: 'chemin de champ `occupationSol.foret.partBoisee`' },
   { module: 'packages/core/src/reglementation.ts', mot: 'publie', raison: 'verbe publier : « aucune API nationale ne publie ces documents »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'majore', raison: 'verbe majorer : « qui majore la pente moyenne réelle »' },
+  /*
+   * « applique » (verbe) contre « appliqué » (participe) : les deux sont justes, et les deux sont
+   * necessaires. Le conflit est apparu avec l'outil de recherche par criteres, dont la note
+   * « Seuil appliqué à chaque parcelle cadastrale » a introduit le participe — les cinq verbes,
+   * eux, etaient la depuis l'origine. Relus un par un.
+   */
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'applique', raison: "verbe appliquer : « le reglement national d'urbanisme s'applique », « le critere ne s'applique qu'aux projets agrivoltaiques »" },
+  { module: 'packages/scoring/src/knockouts.ts', mot: 'applique', raison: "verbe appliquer : « le seuil de 500 m s'applique aussi aux zones destinees a l'habitation »" },
+  { module: 'packages/core/src/reglementation.ts', mot: 'applique', raison: "verbe appliquer : « S'applique aux ouvrages de stockage et aux epandages »" },
+  { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'applique', raison: "verbe appliquer : « le regime d'implantation ne s'applique qu'au solaire au sol »" },
+  // « charges » (le NOM, dans « cahier des charges ») contre « chargés » (participe, « departements
+  // chargés » du panneau des zones). Deux mots differents qui se confondent une fois desaccentues.
+  { module: 'packages/core/src/reglementation.ts', mot: 'charges', raison: "le NOM charges : « arrete approuvant un cahier des charges pour la mise sur le marche »" },
+  // « qualifie » (verbe) contre « qualifié » (participe, « base qualifiée »). Les deux dans le
+  // meme fichier, et c'est voulu : le formulaire dit a la fois ce qu'il balaie (« la base
+  // qualifiée ») et ce que le regime presume ne fait pas (« il ne qualifie aucun terrain »).
+  { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'qualifie', raison: "verbe qualifier : « il oriente la recherche, il ne qualifie aucun terrain »" },
   /*
    * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
    * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
@@ -318,6 +352,9 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/knockouts.ts|fixe': 2,
     // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
     'packages/core/src/bornes.ts|bati': 4,
+    // Les deux sont le MEME verbe appliquer, relues une par une : « le reglement national
+    // d'urbanisme s'applique » et « le critere ne s'applique qu'aux projets agrivoltaiques ».
+    'packages/scoring/src/criteres-eval.ts|applique': 2,
   };
   const compte = new Map<string, number>();
   for (const o of reelles.filter(excepte)) {
@@ -389,7 +426,26 @@ test('aucun selecteur ne cherche un texte que l’interface n’ecrit plus', () 
           }
           ts.forEachChild(x, collecte);
         };
-        for (const a of noeud.arguments) collecte(a);
+        /*
+         * LE PREMIER ARGUMENT DE `getByRole` EST UN ROLE ARIA, PAS DU TEXTE AFFICHE — et il a
+         * fallu un faux positif pour s'en apercevoir. `getByRole('region', { name: '...' })`
+         * faisait accuser le mot « region » d'etre une graphie perimee de « région », alors que
+         * c'est un identifiant du vocabulaire ARIA que le navigateur seul lit. Le meme piege
+         * attend `separator`, `presentation` ou `definition`.
+         *
+         * Un garde qui accuse a tort ne survit pas : on finit par contorsionner le code teste pour
+         * lui plaire — ici, renoncer a un selecteur par role, qui est la bonne pratique. Le premier
+         * argument positionnel de `getByRole` est donc ecarte ; tout le reste, `name` compris,
+         * continue d'etre relu.
+         */
+        const roleEnPremier =
+          noeud.expression.name.getText(src) === 'getByRole' &&
+          noeud.arguments.length > 0 &&
+          ts.isStringLiteral(noeud.arguments[0]!);
+        for (const [i, a] of noeud.arguments.entries()) {
+          if (i === 0 && roleEnPremier) continue;
+          collecte(a);
+        }
         for (const l of litteraux) {
           const brut = l.getText(src);
           for (const m of brut.matchAll(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ]{2,}/g)) {
@@ -438,4 +494,39 @@ test('la mesure porte sur des modules qui existent et contiennent du texte', () 
   for (const m of MODULES_TEXTE) {
     assert.equal(relative(RACINE, resolve(RACINE, m)), m, `${m} doit etre un chemin du depot`);
   }
+});
+
+test('AUCUN COMPOSANT DE L’INTERFACE N’ECHAPPE A LA MESURE', () => {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE PERIMETRE EST UNE LISTE ECRITE A LA MAIN, DONC IL PREND DU RETARD — MESURE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUE CE TEST A TROUVE EN NAISSANT. `MODULES_TEXTE` est une liste manuelle : tout composant
+   * ajoute apres elle sort du garde SANS QU'AUCUN TEST NE BAISSE. Le controle continue de passer,
+   * il mesure simplement moins de choses — c'est la pire forme de regression pour une garde, parce
+   * qu'elle se presente comme un succes.
+   *
+   * Deux fichiers y avaient effectivement echappe au moment d'ecrire ce test :
+   * `PanneauZones.tsx`, ajoute avec le panneau des zones a prospecter, et
+   * `FormulaireBalayage.tsx`, ajoute avec l'outil de recherche par criteres. Aucun des deux n'a
+   * jamais ete relu par le garde d'orthographe, alors que tous deux ecrivent du texte lu par
+   * l'operateur.
+   *
+   * D'OU CE TEST : le repertoire des composants est la SOURCE, la liste n'en est que la copie. La
+   * copie doit maintenant se justifier de ses manques, un par un.
+   */
+  const COMPOSANTS = resolve(RACINE, 'apps/web/src/components');
+  const presents = readdirSync(COMPOSANTS)
+    .filter((f) => f.endsWith('.tsx'))
+    .map((f) => `apps/web/src/components/${f}`)
+    .sort();
+
+  const manquants = presents.filter((f) => !MODULES_TEXTE.includes(f));
+  assert.deepEqual(
+    manquants,
+    [],
+    `${manquants.length} composant(s) de l'interface hors du perimetre de mesure : ils ecrivent du ` +
+      "texte que le garde d'orthographe ne relit pas. Ajoutez-les a MODULES_TEXTE.",
+  );
 });

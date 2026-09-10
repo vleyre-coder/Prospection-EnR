@@ -11,7 +11,13 @@ import type { Feu, Filiere, StatutProspection } from '@enr/core';
 import type { FiltresRecherche } from '../api/client.js';
 
 export type FondCarte = 'plan' | 'ortho';
-export type Vue = 'carte' | 'liste' | 'tableau';
+/**
+ * `recherche` est la vue « balayage par criteres » : la meme liste de resultats que `liste`, mais
+ * precedee du formulaire de criteres et destinee a couvrir un TERRITOIRE administratif plutot que
+ * l'emprise de la carte. Les deux partagent volontairement `etat.filtres` : un critere regle dans
+ * l'une vaut dans l'autre, faute de quoi un export pourrait ne pas correspondre a ce qu'on lit.
+ */
+export type Vue = 'carte' | 'liste' | 'recherche' | 'tableau';
 export type OutilDessin = 'aucun' | 'polygone' | 'mesure' | 'selection';
 
 export interface EtatApp {

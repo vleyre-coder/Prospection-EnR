@@ -285,8 +285,20 @@ export function App(): JSX.Element {
               et la position de navigation a chaque changement de vue. */}
           <CarteMontee referentiel={ref} carteRef={carteRef} visible={etat.vue === 'carte'} />
 
-          {etat.vue === 'liste' && (
-            <VueListe filiere={etat.filiere} referentiel={ref} onOuvrir={ouvrirDepuisListe} />
+          {/*
+            LA MEME VUE SERT LES DEUX DEMARCHES, et c'est un choix, non une economie. « Liste »
+            presente les parcelles qualifiees de l'emprise regardee ; « Recherche » ajoute au-dessus
+            le formulaire de criteres et porte sur un territoire administratif. Le tableau, les
+            tris, la selection et les exports sont IDENTIQUES parce que ce sont les memes objets :
+            deux tableaux distincts auraient divergé au premier ajout de colonne.
+          */}
+          {(etat.vue === 'liste' || etat.vue === 'recherche') && (
+            <VueListe
+              filiere={etat.filiere}
+              referentiel={ref}
+              onOuvrir={ouvrirDepuisListe}
+              mode={etat.vue}
+            />
           )}
           {etat.vue === 'tableau' && <TableauDeBord filiere={etat.filiere} referentiel={ref} />}
 

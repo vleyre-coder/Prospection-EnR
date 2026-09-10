@@ -8,7 +8,9 @@
 import {
   COEFFICIENT_TRACE,
   composerIdu,
+  DEPARTEMENTS,
   FILIERES,
+  REGIONS,
   lineaireRaccordementKm,
   STATUTS_PROSPECTION,
   type Feu,
@@ -321,6 +323,28 @@ export interface FiltresParcelles {
   filiere: Filiere;
   bbox?: Bbox;
   codeDepartement?: string;
+  /**
+   * PLUSIEURS departements a la fois.
+   *
+   * POURQUOI CE CHAMP S'AJOUTE A `codeDepartement` AU LIEU DE LE REMPLACER. Le champ singulier est
+   * utilise par l'interface existante et par les exports ; le renommer aurait casse les deux pour
+   * un gain nul. Les deux se cumulent, et l'un n'exclut pas l'autre.
+   *
+   * CE QU'IL PERMET, ET C'EST LA DEMANDE DU PROPRIETAIRE : « scanner tout un departement ou toute
+   * une region ». Une region se resout en une liste de departements (voir `codeRegion`), et c'est
+   * cette liste qui arrive ici.
+   */
+  codesDepartement?: string[];
+  /**
+   * UNE REGION ENTIERE, resolue en departements par la table `commune`.
+   *
+   * La resolution passe par `p.code_departement IN (SELECT ... FROM commune WHERE code_region = ?)`
+   * et NON par une jointure sur la commune de chaque parcelle : `parcelle.code_departement` porte
+   * un index, `commune.code_region` non. La sous-requete rend une douzaine de codes, le filtre
+   * reste donc indexable. Mesure de la table : 34 875 communes, 18 regions, `code_region` renseigne
+   * partout — la correspondance vient donc de la DONNEE et n'est codee en dur nulle part.
+   */
+  codeRegion?: string;
   codeInsee?: string;
   surfaceMinHa?: number;
   surfaceMaxHa?: number;
@@ -335,9 +359,214 @@ export interface FiltresParcelles {
   exclureZoneHumide?: boolean;
   exclureAop?: boolean;
   exclureKnockOuts?: boolean;
+  /**
+   * Ne retenir que les parcelles situees dans une zone d'acceleration des ENR.
+   *
+   * Sur une ZAER, l'argument reglementaire est deja acquis par la deliberation : c'est le premier
+   * filtre que demande un developpeur qui cherche du foncier defendable rapidement.
+   */
+  enZaerSeulement?: boolean;
+  /**
+   * Types de zone du PLU RECOUVRANT la parcelle, au moins en partie.
+   *
+   * CE N'EST PAS LE ZONAGE DOMINANT, et le libelle de l'interface le dit. Une parcelle a cheval sur
+   * une zone A et une zone N est retenue par `['A']` comme par `['N']` : le filtre repond a « cette
+   * parcelle touche-t-elle une zone de ce type », qui est la question qu'on se pose en prospection.
+   * Annoncer « zonage dominant » demanderait de comparer les parts de recouvrement, ce que le
+   * snapshot permet mais qui repond a une AUTRE question.
+   */
+  typesZonePlu?: string[];
   tri?: 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
   limite?: number;
   decalage?: number;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * CE QUE LA RECHERCHE SAIT DU TERRITOIRE QU'ON LUI A DEMANDE DE BALAYER
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * SANS CE BLOC, « 0 RESULTAT » MENT — et c'est le defaut le plus couteux qu'un outil de recherche
+ * puisse avoir. Le proprietaire demande de « scanner tout un departement ou toute une region » pour
+ * en sortir les parcelles propices. Or la recherche ne peut porter que sur ce qui a ete QUALIFIE :
+ * une campagne d'ingestion couvre quelques milliers de parcelles, un departement en compte des
+ * centaines de milliers.
+ *
+ * « Aucune parcelle ne correspond a vos criteres » et « ce departement n'a jamais ete balaye » sont
+ * donc deux phrases radicalement differentes, et l'ancienne reponse `{ total, resultats }` ne
+ * permettait pas de les distinguer. Un operateur qui lit la premiere alors que la seconde est vraie
+ * conclut qu'il n'y a rien a prospecter — et passe au departement suivant.
+ *
+ * C'est la meme discipline que `zonesAProspecter`, qui rend sa couverture depuis l'audit 13, pour
+ * la meme raison.
+ */
+export interface CouvertureRecherche {
+  /**
+   * Les departements sur lesquels la recherche a REELLEMENT porte, resolus depuis les criteres de
+   * territoire. Vide quand aucun territoire n'est demande : la recherche porte alors sur toute la
+   * base, et `communesDuTerritoire` vaut `null` parce que la question n'a pas de sens.
+   */
+  departementsDemandes: string[];
+  /** Parcelles qualifiees pour cette filiere dans le territoire, AVANT application des criteres. */
+  parcellesQualifiees: number;
+  /** Communes du territoire portant au moins une parcelle qualifiee. */
+  communesAvecParcelle: number;
+  /** Communes que compte le territoire. `null` si aucun territoire n'est demande. */
+  communesDuTerritoire: number | null;
+}
+
+/**
+ * Les departements sur lesquels la recherche porte reellement, resolus depuis les criteres.
+ *
+ * ORDRE DE RESOLUTION, et il compte : une region demandee est developpee en ses departements, puis
+ * l'intersection est prise avec les codes explicites s'il y en a. Demander « region Centre-Val de
+ * Loire » ET « departement 28 » doit rendre le seul 28, pas les six departements de la region — les
+ * criteres se CUMULENT, comme partout ailleurs dans ce filtre.
+ */
+async function departementsDuTerritoire(f: FiltresParcelles): Promise<string[]> {
+  const explicites = new Set<string>();
+  if (f.codeDepartement) explicites.add(f.codeDepartement);
+  for (const d of f.codesDepartement ?? []) explicites.add(d);
+
+  if (!f.codeRegion) return [...explicites].sort();
+
+  const deLaRegion = await requete<{ code_departement: string }>(
+    `SELECT DISTINCT code_departement FROM commune WHERE code_region = $1 ORDER BY 1`,
+    [f.codeRegion],
+  );
+  const codes = deLaRegion.map((d) => d.code_departement);
+  if (explicites.size === 0) return codes;
+  return codes.filter((c) => explicites.has(c)).sort();
+}
+
+/**
+ * Ce que la recherche sait du territoire demande — voir `CouvertureRecherche`.
+ *
+ * LES DEUX COMPTES SONT PRIS SANS LES CRITERES DE L'UTILISATEUR, et c'est tout leur interet : ils
+ * repondent a « qu'y a-t-il ici a regarder », pas a « qu'ai-je trouve ». C'est la comparaison des
+ * deux qui informe — 12 resultats sur 300 parcelles qualifiees se lit tout autrement que 12 sur
+ * 40 000.
+ *
+ * `codeInsee` et `bbox` ne sont deliberement PAS pris en compte dans le territoire : le premier est
+ * une commune precise, ou la question de la couverture ne se pose pas, et le second est l'emprise
+ * de la carte, qui n'est pas un territoire administratif. La couverture porte sur ce que
+ * l'utilisateur a nomme, pas sur ce qu'il regarde.
+ */
+async function couvertureDuTerritoire(f: FiltresParcelles): Promise<CouvertureRecherche> {
+  const departements = await departementsDuTerritoire(f);
+  const restreint = departements.length > 0;
+
+  const [comptes, communes] = await Promise.all([
+    requete<{ parcelles: number; communes: number }>(
+      `SELECT count(*)::int AS parcelles,
+              count(DISTINCT p.code_insee)::int AS communes
+         FROM score_parcelle_filiere s
+         JOIN parcelle p ON p.idu = s.idu
+        WHERE s.filiere = $1 AND s.profil_ponderation = 'defaut'
+          ${restreint ? 'AND p.code_departement = ANY($2)' : ''}`,
+      restreint ? [f.filiere, departements] : [f.filiere],
+    ),
+    restreint
+      ? requete<{ n: number }>(
+          `SELECT count(*)::int AS n FROM commune WHERE code_departement = ANY($1)`,
+          [departements],
+        )
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    departementsDemandes: departements,
+    parcellesQualifiees: comptes[0]?.parcelles ?? 0,
+    communesAvecParcelle: comptes[0]?.communes ?? 0,
+    communesDuTerritoire: restreint ? (communes[0]?.n ?? 0) : null,
+  };
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LES TERRITOIRES QU'ON PEUT REELLEMENT BALAYER, ET CE QU'ILS CONTIENNENT
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * A QUOI CELA SERT. La demande est de « scanner tout un departement ou toute une region ». Pour
+ * cela il faut un selecteur, et un selecteur a besoin de deux choses que deux sources distinctes
+ * detiennent :
+ *
+ *   - les NOMS et le rattachement region -> departement : nomenclature administrative, figee dans
+ *     `@enr/core` (`territoires.ts`, relevee sur geo.api.gouv.fr) ;
+ *   - ce que le territoire CONTIENT vraiment : communes ingerees et parcelles qualifiees pour la
+ *     filiere, que seule la base sait.
+ *
+ * POURQUOI LES COMPTES FIGURENT DANS LE SELECTEUR ET PAS SEULEMENT DANS LES RESULTATS. Un
+ * departement a des centaines de milliers de parcelles cadastrales ; une campagne de qualification
+ * en couvre quelques milliers. Proposer les 101 departements comme s'ils etaient equivalents
+ * enverrait l'operateur balayer un territoire vide, puis conclure qu'il n'y a rien a y prospecter.
+ * Le compte affiche a cote du nom evite ce contresens AVANT la recherche, pas apres.
+ */
+export interface TerritoireInterrogeable {
+  code: string;
+  nom: string;
+  /** Region de rattachement. `null` pour une region (elle est son propre niveau). */
+  codeRegion: string | null;
+  /** Communes presentes dans la base pour ce territoire. 0 signifie « jamais ingere ». */
+  communes: number;
+  /**
+   * Parcelles qualifiees pour la filiere demandee. `null` quand aucune filiere n'est precisee :
+   * le compte n'a alors pas de sens, et afficher 0 mentirait.
+   */
+  parcellesQualifiees: number | null;
+}
+
+/**
+ * Regions et departements interrogeables, avec ce que la base contient de chacun.
+ *
+ * DEUX REQUETES SEULEMENT, agregees par departement, puis les regions sont recomposees en
+ * memoire depuis la nomenclature. Une requete par territoire — 119 aller-retours — aurait ete
+ * l'ecriture naive ; le selecteur s'ouvre a chaque changement de filiere.
+ */
+export async function territoiresInterrogeables(
+  filiere?: Filiere,
+): Promise<{ regions: TerritoireInterrogeable[]; departements: TerritoireInterrogeable[] }> {
+  const [communes, parcelles] = await Promise.all([
+    requete<{ code_departement: string; n: number }>(
+      `SELECT code_departement, count(*)::int AS n FROM commune GROUP BY 1`,
+    ),
+    filiere
+      ? requete<{ code_departement: string; n: number }>(
+          `SELECT p.code_departement, count(*)::int AS n
+             FROM score_parcelle_filiere s
+             JOIN parcelle p ON p.idu = s.idu
+            WHERE s.filiere = $1 AND s.profil_ponderation = 'defaut'
+            GROUP BY 1`,
+          [filiere],
+        )
+      : Promise.resolve([]),
+  ]);
+
+  const parDep = new Map(communes.map((c) => [c.code_departement, c.n]));
+  const parcParDep = new Map(parcelles.map((p) => [p.code_departement, p.n]));
+
+  const departements: TerritoireInterrogeable[] = DEPARTEMENTS.map((d) => ({
+    code: d.code,
+    nom: d.nom,
+    codeRegion: d.codeRegion,
+    communes: parDep.get(d.code) ?? 0,
+    parcellesQualifiees: filiere ? (parcParDep.get(d.code) ?? 0) : null,
+  }));
+
+  const regions: TerritoireInterrogeable[] = REGIONS.map((r) => {
+    const siens = departements.filter((d) => d.codeRegion === r.code);
+    return {
+      code: r.code,
+      nom: r.nom,
+      codeRegion: null,
+      communes: siens.reduce((s, d) => s + d.communes, 0),
+      parcellesQualifiees: filiere
+        ? siens.reduce((s, d) => s + (d.parcellesQualifiees ?? 0), 0)
+        : null,
+    };
+  });
+
+  return { regions, departements };
 }
 
 export interface LigneResultatFiltre {
@@ -377,7 +606,7 @@ export async function filtrerParcelles(
    * la liste. Le defaut protege les appelants qui ne s'en preoccupent pas.
    */
   limiteMax: number = LIMITE_MAX,
-): Promise<{ total: number; resultats: LigneResultatFiltre[] }> {
+): Promise<{ total: number; resultats: LigneResultatFiltre[]; couverture: CouvertureRecherche }> {
   const conditions: string[] = ['s.filiere = $1', `s.profil_ponderation = 'defaut'`];
   const params: unknown[] = [f.filiere];
 
@@ -393,6 +622,20 @@ export async function filtrerParcelles(
     );
   }
   if (f.codeDepartement) ajouter('p.code_departement = $?', f.codeDepartement);
+  if (f.codesDepartement?.length) ajouter('p.code_departement = ANY($?)', f.codesDepartement);
+  if (f.codeRegion) {
+    /*
+     * La region se resout en departements par sous-requete, et non par jointure sur la commune de
+     * chaque parcelle : `parcelle.code_departement` porte un index, `commune.code_region` non. La
+     * sous-requete rend une douzaine de codes ; le filtre reste indexable.
+     */
+    ajouter(
+      `p.code_departement IN (
+         SELECT DISTINCT code_departement FROM commune WHERE code_region = $?
+       )`,
+      f.codeRegion,
+    );
+  }
   if (f.codeInsee) ajouter('p.code_insee = $?', f.codeInsee);
   if (f.surfaceMinHa != null) ajouter('COALESCE(p.surface_calculee_m2, p.contenance_m2) >= $? * 10000', f.surfaceMinHa);
   if (f.surfaceMaxHa != null) ajouter('COALESCE(p.surface_calculee_m2, p.contenance_m2) <= $? * 10000', f.surfaceMaxHa);
@@ -438,6 +681,33 @@ export async function filtrerParcelles(
        AND COALESCE((sn.snapshot -> 'milieux' -> 'natura2000Oiseaux' ->> 'recouvre')::boolean, false) = false`,
     );
   }
+  if (f.enZaerSeulement) {
+    /*
+     * `COALESCE` a `false` et non a `true` : une parcelle dont le snapshot ne porte pas
+     * l'information ZAER n'est PAS presumee en zone d'acceleration. Le sens d'erreur acceptable est
+     * de perdre une occasion, jamais d'en inventer une.
+     */
+    conditions.push(
+      `COALESCE((sn.snapshot -> 'urbanisme' -> 'zaer' ->> 'present')::boolean, false) = true`,
+    );
+  }
+  if (f.typesZonePlu?.length) {
+    /*
+     * « TOUCHE une zone de ce type », et non « a ce zonage pour dominante » : voir le champ.
+     *
+     * `upper()` des deux cotes, parce que `typezone` arrive du Geoportail de l'urbanisme SANS
+     * normalisation (`gpu.ts` recopie `f.properties.typezone` tel quel). Une commune publie `AUc`
+     * la ou une autre publie `AUC` : comparer les casses brutes ferait manquer la moitie du
+     * foncier concerne, sans rien signaler. La validation majuscule le critere saisi.
+     */
+    ajouter(
+      `EXISTS (
+         SELECT 1 FROM jsonb_array_elements(COALESCE(sn.snapshot -> 'urbanisme' -> 'zonages', '[]'::jsonb)) z
+          WHERE upper(z ->> 'typeZone') = ANY($?)
+       )`,
+      f.typesZonePlu,
+    );
+  }
 
   const where = conditions.join(' AND ');
   const base = `
@@ -448,6 +718,7 @@ export async function filtrerParcelles(
     WHERE ${where}`;
 
   const totalLignes = await requete<{ n: number }>(`SELECT count(*)::int AS n ${base}`, params);
+  const couverture = await couvertureDuTerritoire(f);
 
   /**
    * Critere de tri demande, TOUJOURS suivi d'un departage par l'IDU.
@@ -522,6 +793,7 @@ export async function filtrerParcelles(
 
   return {
     total: totalLignes[0]?.n ?? 0,
+    couverture,
     resultats: lignes.map((l) => ({
       idu: l.idu,
       nomCommune: l.nom_commune,
@@ -573,6 +845,21 @@ export function filtresValides(
       motif: /^(\d{2}|\d{3}|2A|2B)$/,
       description: 'code département a 2 ou 3 caractères (ex. 28, 971, 2A)',
     }),
+    /*
+     * PLAFOND A 101 : le nombre exact de departements francais, mesure et fige par
+     * `packages/core/test/territoires.test.ts`. Un plafond plus bas amputerait une selection
+     * legitime « toute la France » ; un plafond plus haut laisserait passer une liste absurde.
+     */
+    codesDepartement: l.listeCodes('codesDepartement', {
+      motif: /^(\d{2}|\d{3}|2A|2B)$/i,
+      description: 'codes département a 2 ou 3 caractères (ex. 28, 971, 2A)',
+      maxElements: 101,
+    }),
+    codeRegion: l.texte('codeRegion', {
+      max: 2,
+      motif: /^\d{2}$/,
+      description: 'code région INSEE a 2 chiffres (ex. 24 pour Centre-Val de Loire)',
+    }),
     codeInsee: l.texte('codeInsee', {
       max: 5,
       motif: /^\d{5}$|^\d[0-9AB]\d{3}$/,
@@ -591,6 +878,18 @@ export function filtresValides(
     exclureZoneHumide: l.booleen('exclureZoneHumide'),
     exclureAop: l.booleen('exclureAop'),
     exclureKnockOuts: l.booleen('exclureKnockOuts'),
+    enZaerSeulement: l.booleen('enZaerSeulement'),
+    /*
+     * Motif volontairement large — voir `listeCodes`. Le GPU publie des `typezone` non normalises
+     * (`A`, `N`, `U`, `AUc`, `AUs`, et pour les anciens POS `NA` a `ND`), auxquels s'ajoutent des
+     * variantes locales. La longueur est bornee a 10 : au-dela ce n'est plus un type de zone mais
+     * un libelle, qui ne se compare pas de la meme facon.
+     */
+    typesZonePlu: l.listeCodes('typesZonePlu', {
+      motif: /^[A-Za-z0-9]{1,10}$/,
+      description: 'types de zone du PLU, alphanumériques, de 1 a 10 caractères (ex. A, N, U, AUc)',
+      maxElements: 30,
+    }),
     tri: l.parmi('tri', TRIS_VALIDES),
     limite: l.nombre('limite', { min: 1, max: limiteMax, entier: true }),
     decalage: l.nombre('decalage', { min: 0, max: 1_000_000, entier: true }),

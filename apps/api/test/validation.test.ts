@@ -175,3 +175,69 @@ test('une liste vide est traitee comme absente, non comme « aucun statut »', (
   // `statut = ANY('{}')` ne correspond a rien : un filtre vide ne doit pas vider le resultat.
   assert.equal(filtresValides({ ...base, statutsScore: [] }).statutsScore, undefined);
 });
+
+// ---------------------------------------------------------------------------
+// Les criteres de l'outil de recherche par territoire
+// ---------------------------------------------------------------------------
+
+test('LES QUATRE CRITERES DE BALAYAGE SONT VALIDES, ET NON LAISSES PASSER', () => {
+  /*
+   * POURQUOI CE TEST EXISTE. Ajouter des champs a `FiltresParcelles` sans etendre `filtresValides`
+   * ne provoque aucune erreur de typage : le champ est simplement absent de l'objet rendu, et le
+   * filtre est IGNORE en silence. L'operateur qui coche « uniquement en ZAER » obtiendrait alors
+   * la liste entiere, presentee comme filtree. Pire encore, `refuserInconnus()` aurait refuse le
+   * corps en 400 — le formulaire aurait cesse de fonctionner.
+   */
+  const f = filtresValides({
+    ...base,
+    codesDepartement: ['28', '2a', '971'],
+    codeRegion: '24',
+    enZaerSeulement: true,
+    typesZonePlu: ['a', 'AUc'],
+  });
+  // Les codes sont normalises en MAJUSCULES et tries : le SQL compare `upper(...)` cote base.
+  assert.deepEqual(f.codesDepartement, ['28', '2A', '971']);
+  assert.equal(f.codeRegion, '24');
+  assert.equal(f.enZaerSeulement, true);
+  assert.deepEqual(f.typesZonePlu, ['A', 'AUC']);
+});
+
+test('un code region doit avoir la forme d’un code region', () => {
+  // La table `commune` porte `code_region` en varchar(2), et les 18 codes releves font 2 chiffres.
+  refuse({ ...base, codeRegion: '241' }, /codeRegion/);
+  refuse({ ...base, codeRegion: 'IDF' }, /codeRegion/);
+  refuse({ ...base, codeRegion: 24 }, /codeRegion.*chaine attendue/);
+});
+
+test('une liste de departements est dedoublonnee et bornee a 101', () => {
+  // 101, le nombre exact de departements francais, fige par le test de la nomenclature dans
+  // `@enr/core`. Un doublon n'est pas une erreur d'appel : il ne change pas le resultat.
+  assert.deepEqual(filtresValides({ ...base, codesDepartement: ['28', '28'] }).codesDepartement, ['28']);
+  refuse(
+    { ...base, codesDepartement: Array.from({ length: 102 }, (_, i) => String(i % 95).padStart(2, '0')) },
+    /codesDepartement.*au plus 101/,
+  );
+  refuse({ ...base, codesDepartement: ['28', 'Eure-et-Loir'] }, /codesDepartement/);
+  refuse({ ...base, codesDepartement: '28' }, /codesDepartement.*tableau attendu/);
+});
+
+test('un type de zone PLU reste libre dans sa forme, mais borne', () => {
+  /*
+   * PAS D'ENSEMBLE FERME ICI, et c'est un choix motive : `typezone` arrive du Geoportail de
+   * l'urbanisme sans normalisation, et une commune peut publier une variante locale. Refuser une
+   * valeur presente dans la base rendrait ce foncier INATTEIGNABLE, ce qui est plus grave qu'une
+   * faute de saisie — laquelle, elle, restreint le resultat au lieu de l'elargir.
+   */
+  assert.deepEqual(filtresValides({ ...base, typesZonePlu: ['Nzone1'] }).typesZonePlu, ['NZONE1']);
+  // Au-dela de 10 caracteres ce n'est plus un type de zone mais un libelle, qui ne se compare pas
+  // de la meme facon.
+  refuse({ ...base, typesZonePlu: ['zone agricole protegee'] }, /typesZonePlu/);
+  refuse({ ...base, typesZonePlu: ['A-1'] }, /typesZonePlu/);
+  refuse({ ...base, typesZonePlu: [42] }, /typesZonePlu/);
+});
+
+test('un critere de balayage mal orthographie est REFUSE, non ignore', () => {
+  // `enZaerSeulment` ignore en silence aurait rendu la liste entiere, presentee comme filtree.
+  refuse({ ...base, enZaerSeulment: true }, /inconnu/);
+  refuse({ ...base, codeDepartements: ['28'] }, /inconnu/);
+});

@@ -508,6 +508,20 @@ export interface FiltresRecherche {
   filiere: Filiere;
   bbox?: [number, number, number, number];
   codeDepartement?: string;
+  /**
+   * Plusieurs departements a la fois : c'est ce qui permet de balayer une selection libre, ou une
+   * region dont on a retire un departement. Cumule avec `codeDepartement` et `codeRegion`.
+   */
+  codesDepartement?: string[];
+  /** Une region entiere, resolue en departements cote serveur depuis la table `commune`. */
+  codeRegion?: string;
+  /** Ne retenir que le foncier situe en zone d'acceleration des ENR. */
+  enZaerSeulement?: boolean;
+  /**
+   * Types de zone du PLU TOUCHES par la parcelle, au moins en partie. Ce n'est pas le zonage
+   * dominant : une parcelle a cheval sur A et N repond a `['A']` comme a `['N']`.
+   */
+  typesZonePlu?: string[];
   surfaceMinHa?: number;
   surfaceMaxHa?: number;
   distancePosteMaxKm?: number;
@@ -524,6 +538,38 @@ export interface FiltresRecherche {
   tri?: 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
   limite?: number;
   decalage?: number;
+}
+
+/**
+ * Ce que la recherche sait du territoire qu'on lui a demande de balayer.
+ *
+ * SANS CE BLOC, « 0 RESULTAT » MENT. La recherche ne porte que sur les parcelles QUALIFIEES : un
+ * departement en compte des centaines de milliers, une campagne en couvre quelques milliers.
+ * « Aucune parcelle ne correspond a vos criteres » et « ce departement n'a jamais ete balaye » sont
+ * deux phrases radicalement differentes, et l'operateur qui lit la premiere alors que la seconde est
+ * vraie conclut qu'il n'y a rien a prospecter — puis passe au departement suivant.
+ */
+export interface CouvertureRecherche {
+  /** Departements sur lesquels la recherche a reellement porte. Vide = toute la base. */
+  departementsDemandes: string[];
+  /** Parcelles qualifiees pour la filiere dans ce territoire, AVANT les criteres. */
+  parcellesQualifiees: number;
+  /** Communes du territoire portant au moins une parcelle qualifiee. */
+  communesAvecParcelle: number;
+  /** Communes que compte le territoire. `null` si aucun territoire n'est demande. */
+  communesDuTerritoire: number | null;
+}
+
+/** Un territoire proposable dans le selecteur, avec ce que la base en contient. */
+export interface TerritoireInterrogeable {
+  code: string;
+  nom: string;
+  /** Region de rattachement, `null` pour une region. */
+  codeRegion: string | null;
+  /** Communes ingerees. 0 signifie « territoire jamais ingere ». */
+  communes: number;
+  /** Parcelles qualifiees pour la filiere demandee, `null` si aucune filiere n'a ete precisee. */
+  parcellesQualifiees: number | null;
 }
 
 export interface TableauDeBord {
@@ -682,10 +728,22 @@ export const api = {
     appeler<{ resultats: ResultatRecherche[] }>(`/api/recherche?q=${encodeURIComponent(q)}`),
 
   filtrer: (filtres: FiltresRecherche) =>
-    appeler<{ total: number; resultats: LigneListe[] }>('/api/recherche/parcelles', {
-      methode: 'POST',
-      corps: filtres,
-    }),
+    appeler<{ total: number; resultats: LigneListe[]; couverture: CouvertureRecherche }>(
+      '/api/recherche/parcelles',
+      { methode: 'POST', corps: filtres },
+    ),
+
+  /**
+   * Territoires proposables, avec ce que la base contient de chacun.
+   *
+   * `filiere` conditionne le nombre de parcelles qualifiees : sans elle, ce compte vaut `null` et
+   * l'interface ne doit pas afficher 0 — ce serait une absence CONSTATEE alors qu'elle n'a pas ete
+   * mesuree.
+   */
+  territoires: (filiere?: Filiere) =>
+    appeler<{ regions: TerritoireInterrogeable[]; departements: TerritoireInterrogeable[] }>(
+      `/api/territoires${filiere ? `?filiere=${filiere}` : ''}`,
+    ),
 
   tableauDeBord: (filiere: Filiere) =>
     appeler<TableauDeBord>(`/api/tableau-de-bord?filiere=${filiere}`),

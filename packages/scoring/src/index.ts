@@ -27,6 +27,7 @@ import {
   FILIERES_META,
   PONDERATIONS_DEFAUT,
   REFERENTIEL_DERNIERE_VERIFICATION,
+  REGIME_PAR_TYPE_SOL,
   REGLES_PAR_ID,
 } from '@enr/core';
 import {
@@ -172,30 +173,23 @@ function surfaceHectares(s: ParcelleSnapshot): number | null {
 /**
  * Regime d'implantation photovoltaique, determine a partir de la nature du sol.
  * Il conditionne le cadre juridique et les seuils rappeles dans la fiche.
+ *
+ * LA CORRESPONDANCE VIT DESORMAIS DANS `@enr/core` (`REGIME_PAR_TYPE_SOL`), et cette fonction n'en
+ * est plus que le point d'entree cote moteur. Elle etait ecrite ici en `switch`, ce qui convenait
+ * tant qu'un seul composant la lisait ; l'outil de recherche par criteres a besoin de la
+ * RECIPROQUE — « quelles natures de sol donnent de l'agrivoltaisme » — pour traduire un critere
+ * metier en filtre SQL, et le moteur n'est pas installe cote navigateur. Une table dans le paquet
+ * commun est le seul moyen que les deux lectures ne divergent pas.
  */
 export function determinerRegimeImplantation(s: ParcelleSnapshot, filiere: Filiere): string | null {
   if (filiere !== 'solaire_sol') return null;
-  switch (s.occupationSol.typeSol) {
-    case 'artificialise':
-    case 'degrade':
-      return 'pv_sol_terrain_degrade';
-    case 'agricole_exploite':
-      return 'agrivoltaisme';
-    case 'inculte':
-      return 'pv_sol_document_cadre';
-    case 'naturel_forestier':
-      return 'pv_sol_defrichement';
-    default:
-      return null;
-  }
+  const t = s.occupationSol.typeSol;
+  return t == null ? null : (REGIME_PAR_TYPE_SOL[t] ?? null);
 }
 
-export const LIBELLES_REGIME: Record<string, string> = {
-  pv_sol_terrain_degrade: 'Photovoltaïque au sol sur terrain dégradé ou artificialisé (présumé)',
-  agrivoltaisme: 'Agrivoltaïsme sur parcelle agricole exploitée (présumé)',
-  pv_sol_document_cadre: 'Photovoltaïque au sol sur terrain inculte (document-cadre départemental)',
-  pv_sol_defrichement: 'Photovoltaïque au sol avec défrichement (fortement pénalisé)',
-};
+// Reexporte pour ne pas casser les appelants du moteur (exports PDF, route referentiel), qui
+// l'importaient d'ici avant que la table ne descende dans `@enr/core`.
+export { LIBELLES_REGIME } from '@enr/core';
 
 /**
  * Reserve attachee au regime d'implantation, affichee avec lui.

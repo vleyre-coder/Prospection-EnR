@@ -38,6 +38,18 @@ export const INSEE_LOCAL = '99001';
 export const INSEE_VOISIN = '98001';
 
 /**
+ * Region fictive rattachant les deux departements imaginaires.
+ *
+ * POURQUOI ELLE EXISTE. L'outil de recherche par criteres resout « toute une region » par une
+ * sous-requete sur `commune.code_region`. Verifier cette resolution demandait donc une region, et
+ * les 18 codes reels du Code officiel geographique sont tous a 2 chiffres et tous pris — `99` n'en
+ * est pas un, exactement comme le departement `99` n'existe pas. Le test peut donc affirmer
+ * « la region 99 rend les departements 98 et 99 » sans qu'aucune donnee reelle n'entre dans la
+ * mesure.
+ */
+export const REGION_FICTIVE = '99';
+
+/**
  * ═════════════════════════════════════════════════════════════════════════════════════════════
  * LE TERRITOIRE FICTIF EST PARTAGE, DONC IL DOIT ETRE PARCOURU EN SERIE
  * ═════════════════════════════════════════════════════════════════════════════════════════════
@@ -117,12 +129,13 @@ export async function creerCommunesFictives(): Promise<void> {
   ];
   for (const [insee, dep, ouestM, estM] of bornes) {
     await requete(
-      `INSERT INTO commune (code_insee, nom, code_departement, geom, centroide, surface_ha)
-       VALUES ($1, $2, $3,
+      `INSERT INTO commune (code_insee, nom, code_departement, code_region, geom, centroide, surface_ha)
+       VALUES ($1, $2, $3, '${REGION_FICTIVE}',
                ST_Multi(ST_MakeEnvelope($4::float8, $5::float8, $6::float8, $7::float8, 4326)),
                ST_SetSRID(ST_MakePoint($4::float8, $5::float8), 4326), 1000)
        ON CONFLICT (code_insee) DO UPDATE SET geom = EXCLUDED.geom,
-                                             code_departement = EXCLUDED.code_departement`,
+                                             code_departement = EXCLUDED.code_departement,
+                                             code_region = EXCLUDED.code_region`,
       [
         insee,
         `Commune fictive ${insee}`,

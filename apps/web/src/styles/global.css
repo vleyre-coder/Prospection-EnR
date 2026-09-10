@@ -1644,6 +1644,147 @@ button:focus-visible,
   color: var(--texte-faible);
 }
 
+/* ------------------------------------------- recherche par criteres (balayage)
+
+   LA GRILLE EST AUTO-ADAPTATIVE, et c'est ce qui rend le formulaire utilisable partout.
+   `auto-fit` avec un `minmax(240px, 1fr)` place quatre blocs cote a cote sur un ecran large, deux
+   sur un portable, un seul sur un ecran de 640 px — sans point de rupture ecrit a la main, donc
+   sans largeur a laquelle la mise en page se casse. Les quatre blocs sont de meme rang : aucun
+   n'est prioritaire, et l'ordre de lecture suit l'ordre dans lequel les criteres ont ete demandes.
+
+   LA HAUTEUR EST BORNEE, parce que le formulaire partage l'ecran avec le TABLEAU DE RESULTATS.
+   Un formulaire qui pousse les resultats sous la ligne de flottaison ferait defiler pour verifier
+   ce que le critere vient de changer. La liste des departements est donc le seul element qui
+   defile, sur 132 px : de quoi voir six lignes, assez pour comparer sans chasser la suite. */
+
+.balayage {
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  background: var(--fond-panneau);
+  padding: 12px 13px 10px;
+  margin-bottom: 12px;
+}
+
+.balayage-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.balayage-bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.balayage-bloc h3 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--texte-faible);
+}
+
+.balayage-bloc label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.balayage-bloc input[type='number'],
+.balayage-bloc select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.balayage-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--texte-faible);
+}
+
+.balayage-departements {
+  max-height: 132px;
+  overflow-y: auto;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.balayage-dep {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  padding: 1px 0;
+}
+
+.balayage-dep-code {
+  min-width: 26px;
+  font-variant-numeric: tabular-nums;
+  color: var(--texte-faible);
+}
+
+.balayage-dep-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balayage-dep-nb {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+/* « jamais balaye » doit se distinguer d'un compte, sans crier : c'est une information, pas une
+   erreur. Le departement reste selectionnable — voir le commentaire du composant. */
+.balayage-dep-vide {
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--texte-faible);
+  opacity: 0.75;
+}
+
+.balayage-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--bordure);
+}
+
+/* ------------------------------------------------- bandeau de couverture
+
+   IL SE LIT AVANT LE TABLEAU et ne ressemble ni a une erreur ni a un avertissement : c'est un
+   CADRAGE du resultat. D'ou un liseré lateral plutot qu'un fond sature, et une variante distincte
+   pour le seul cas ou la conclusion serait fausse — un territoire jamais qualifie. */
+
+.couverture {
+  border-left: 3px solid var(--accent);
+  background: var(--fond-panneau-2);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 11px;
+  margin: 0 0 11px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.couverture em {
+  color: var(--texte-faible);
+}
+
+.couverture-vide {
+  border-left-color: var(--orange);
+}
+
 /* ------------------------------------------------------------------ divers */
 
 .vide {

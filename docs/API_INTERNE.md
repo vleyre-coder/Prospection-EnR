@@ -183,13 +183,71 @@ Filtres parametrables par filiere (§F7 du cahier des charges).
   "exclureAop": true,
   "typesSol": ["degrade", "inculte"],
   "codeDepartement": "28",
+  "codesDepartement": ["28", "45", "2A"],
+  "codeRegion": "24",
+  "enZaerSeulement": true,
+  "typesZonePlu": ["A", "AUc"],
   "tri": "score_desc",
   "limite": 200, "decalage": 0
 }
 ```
 Reponse : `{ "total": 137, "resultats": [ { "idu", "nomCommune", "section", "numero",
 "surfaceHa", "statutScore", "scoreGlobal", "statutProspection", "distancePosteKm",
-"pentePct", "typeSol", "centroide" } ] }`.
+"pentePct", "typeSol", "centroide" } ], "couverture": { ... } }`.
+
+**Liste blanche integrale.** Toute cle inconnue est REFUSEE en 400 (`filtre_invalide`), avec le
+champ fautif : un filtre mal orthographie qui passerait en silence rendrait PLUS de parcelles que
+demande, ce qui est la reponse la plus trompeuse possible pour un outil de tri.
+
+#### Criteres de territoire
+
+Les trois criteres de territoire se **CUMULENT** : `codeRegion: "24"` avec
+`codesDepartement: ["45"]` rend le seul 45, pas les six departements de la region. `codeRegion` est
+resolu en departements par sous-requete sur `commune.code_region` — la correspondance vient de la
+donnee et n'est codee en dur nulle part.
+
+`typesZonePlu` retient une parcelle qui **touche** une zone de ce type, au moins en partie : ce
+n'est pas le zonage dominant. La comparaison est insensible a la casse (`upper()` des deux cotes),
+parce que le Geoportail de l'urbanisme publie `typezone` sans normalisation.
+
+`enZaerSeulement` `COALESCE` a `false` : une parcelle dont le snapshot ne porte pas l'information
+ZAER n'est jamais presumee en zone d'acceleration.
+
+#### `couverture` — ce que la recherche a REELLEMENT balaye
+
+```json
+{ "departementsDemandes": ["28"], "parcellesQualifiees": 4021,
+  "communesAvecParcelle": 40, "communesDuTerritoire": 365 }
+```
+
+**Sans ce bloc, « 0 resultat » ment.** La recherche ne porte que sur les parcelles QUALIFIEES : un
+departement en compte des centaines de milliers, une campagne en couvre quelques milliers.
+« Aucune parcelle ne correspond a vos criteres » et « ce departement n'a jamais ete balaye » sont
+deux phrases radicalement differentes, et un operateur qui lit la premiere alors que la seconde est
+vraie conclut qu'il n'y a rien a prospecter.
+
+Les deux comptes sont pris **sans les criteres de l'utilisateur** : c'est leur comparaison avec
+`total` qui informe. `communesDuTerritoire` vaut `null` quand aucun territoire n'est demande — la
+question n'a alors pas de denominateur, et rendre 0 afficherait une couverture nulle sur une
+recherche parfaitement valide. `codeInsee` et `bbox` ne comptent pas comme un territoire : le
+premier est une commune precise, le second l'emprise de la carte.
+
+### `GET /api/territoires?filiere=`
+
+Alimente le selecteur de territoire de la recherche par criteres.
+
+```json
+{ "regions":      [ { "code": "24", "nom": "Centre-Val de Loire", "codeRegion": null,
+                      "communes": 1754, "parcellesQualifiees": 4021 } ],
+  "departements": [ { "code": "28", "nom": "Eure-et-Loir", "codeRegion": "24",
+                      "communes": 365, "parcellesQualifiees": 4021 } ] }
+```
+
+Les NOMS viennent de `@enr/core` (`territoires.ts`, table generee par
+`node scripts/territoires.mjs` depuis geo.api.gouv.fr et datee) ; les COMPTES viennent de la base,
+seule autorite sur ce qui est reellement interrogeable. `filiere` est facultative : sans elle
+`parcellesQualifiees` vaut `null` — et non 0, qui serait une absence CONSTATEE alors que rien n'a
+ete mesure. Une filiere invalide est refusee en 400 plutot qu'ignoree.
 
 ---
 

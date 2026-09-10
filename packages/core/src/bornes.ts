@@ -194,7 +194,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: 'm/s',
     motif:
       'Vitesse MOYENNE annuelle à 100 m. Elle va d’environ 3 m/s en fond de vallée abritée à 9 ou ' +
-      '10 m/s sur les cotes les plus exposées. 20 m/s serait une moyenne de tempête permanente : ' +
+      '10 m/s sur les côtes les plus exposées. 20 m/s serait une moyenne de tempête permanente : ' +
       'la valeur décrit alors une rafale ou une autre grandeur.',
   },
   { chemin: 'gisement.intrantsMethaTonnesMsAn', min: 0, max: 1_000_000, unite: 't MS/an', motif: 'Tonnage mobilisable dans un rayon de 10 km. Borne large : un bassin très agricole reste très en dessous.' },

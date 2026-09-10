@@ -1888,6 +1888,304 @@ const MUTATIONS = [
     commande: ['playwright', 'test', 'e2e/ergonomie.spec.ts'],
     tests: ['e2e/ergonomie.spec.ts'],
   },
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * AUDIT 21 — L'OUTIL DE RECHERCHE PAR CRITERES
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * TOUS LES DEFAUTS VISES ICI SONT MUETS. Aucun ne produit d'erreur, aucun ne change un type :
+   * un chemin JSONB faux rend `NULL` et la condition devient fausse, un COALESCE inverse invente
+   * une donnee, un filtre neutralise elargit le resultat, une couverture absente laisse
+   * « 0 resultat » se lire « rien a prospecter ». Ce sont exactement les fautes qu'une relecture
+   * ne voit pas et qu'un test doit donc attraper.
+   */
+  {
+    audit: 'audit 21',
+    /*
+     * LE SENS DU COALESCE. Une parcelle dont le snapshot ne porte pas l'information ZAER serait
+     * PRESUMEE en zone d'acceleration. Le prospecteur partirait defendre devant une commune un
+     * argument reglementaire qui n'existe pas. Le sens d'erreur acceptable est de perdre une
+     * occasion, jamais d'en inventer une.
+     */
+    quoi: 'une parcelle sans snapshot est presumee en ZAER : l’outil invente un argument reglementaire',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "      `COALESCE((sn.snapshot -> 'urbanisme' -> 'zaer' ->> 'present')::boolean, false) = true`,",
+    vers: "      `COALESCE((sn.snapshot -> 'urbanisme' -> 'zaer' ->> 'present')::boolean, true) = true`,",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // Le Geoportail de l'urbanisme ne normalise pas `typezone` : une commune publie `AUc`, une
+    // autre `AUC`. Comparer les casses brutes ferait manquer la moitie du foncier concerne, sans
+    // rien signaler — le filtre resterait annonce a l'ecran.
+    quoi: 'le zonage du PLU se compare a la casse : la moitie du foncier disparait en silence',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "          WHERE upper(z ->> 'typeZone') = ANY($?)",
+    vers: "          WHERE z ->> 'typeZone' = ANY($?)",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // Un filtre de territoire neutralise rend PLUS que ce qui est demande : l'operateur croit
+    // balayer un departement et lit la base entiere. C'est le sens d'erreur inacceptable pour un
+    // outil de tri, et il ne se voit sur aucun ecran.
+    quoi: 'la liste de departements ne filtre plus rien : on croit balayer un departement, on lit toute la base',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "  if (f.codesDepartement?.length) ajouter('p.code_departement = ANY($?)', f.codesDepartement);",
+    vers: "  if (f.codesDepartement?.length) ajouter('($? IS NOT NULL)', f.codesDepartement);",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * REGION ET DEPARTEMENTS S'ADDITIONNENT AU LIEU DE SE CUMULER. « La region 99, mais seulement
+     * le departement 98 » rendrait alors toute la region. Elargir en silence est plus grave que
+     * rendre trop peu : l'operateur ne peut pas savoir que sa restriction n'a pas ete appliquee.
+     */
+    quoi: 'region et departements s’additionnent : une restriction demandee est ignoree, le resultat s’elargit',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '  return codes.filter((c) => explicites.has(c)).sort();',
+    vers: '  return [...new Set([...codes, ...explicites])].sort();',
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LA COUVERTURE SUBIT LES CRITERES DE L'UTILISATEUR. Elle vaudrait alors toujours le nombre de
+     * resultats : « 1 parcelle retenue sur 1 qualifiee » se lit comme un territoire entierement
+     * exploite, et le bandeau cesse d'informer tout en restant affiche. Une garde qui parle encore
+     * mais ne dit plus rien est pire qu'une garde absente.
+     */
+    quoi: 'la couverture est mesuree APRES les criteres : le denominateur egale le resultat, le bandeau ne dit plus rien',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "  const departements = await departementsDuTerritoire(f);\n  const restreint = departements.length > 0;",
+    vers: "  const departements = await departementsDuTerritoire(f);\n  const restreint = false;",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // `communesDuTerritoire` a 0 au lieu de `null` : le bandeau afficherait « 0 commune sur 0 »,
+    // soit une couverture nulle sur une recherche parfaitement valide portant sur toute la base.
+    quoi: 'une recherche sans territoire annonce une couverture de 0 commune sur 0',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '    communesDuTerritoire: restreint ? (communes[0]?.n ?? 0) : null,',
+    vers: '    communesDuTerritoire: communes[0]?.n ?? 0,',
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // Le selecteur annonce 0 parcelle qualifiee sans qu'aucune filiere n'ait ete precisee : une
+    // absence CONSTATEE la ou rien n'a ete mesure. C'est le defaut de famille de tous les audits
+    // precedents, applique au selecteur de territoire.
+    quoi: 'le selecteur de territoires annonce 0 parcelle sans filiere : une absence constatee sans mesure',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '    parcellesQualifiees: filiere ? (parcParDep.get(d.code) ?? 0) : null,',
+    vers: '    parcellesQualifiees: parcParDep.get(d.code) ?? 0,',
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LE CHAMP DISPARAIT DE LA VALIDATION. Ajouter un filtre a `FiltresParcelles` sans l'ajouter a
+     * `filtresValides` ne provoque aucune erreur de typage : le champ est simplement absent de
+     * l'objet rendu. Deux consequences, toutes deux muettes — le filtre est ignore, et
+     * `refuserInconnus()` refuse le corps en 400, donc le formulaire cesse de fonctionner.
+     */
+    quoi: 'un critere de balayage n’est plus valide : il est ignore, et le corps entier devient refuse',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "    enZaerSeulement: l.booleen('enZaerSeulement'),",
+    vers: "    enZaerSeulement: undefined,",
+    tests: ['apps/api/test/validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/validation.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // Sans normalisation en majuscules, un `a` saisi ne trouverait jamais une zone `A` : le SQL
+    // compare `upper()` d'un cote, la valeur brute de l'autre.
+    quoi: 'les codes de territoire et de zonage ne sont plus mis en majuscules : la comparaison SQL devient bancale',
+    fichier: 'apps/api/src/validation.ts',
+    de: '      vus.add(e.trim().toUpperCase());\n    }\n    return [...vus].sort();',
+    vers: '      vus.add(e.trim());\n    }\n    return [...vus].sort();',
+    tests: ['apps/api/test/validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/validation.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LA RECIPROQUE RENVOIE TOUT. « Cherche-moi de l'agrivoltaisme » retiendrait alors toutes les
+     * natures de sol : le critere serait annonce sur une pastille enfoncee et ne filtrerait rien.
+     * Un critere qui ne s'applique pas est plus trompeur qu'un critere absent.
+     */
+    quoi: 'la typologie d’implantation ne filtre plus rien : la pastille est enfoncee, le critere ne s’applique pas',
+    fichier: 'packages/core/src/types.ts',
+    construire: '@enr/core',
+    de: '  return (Object.keys(REGIME_PAR_TYPE_SOL) as TypeSol[]).filter(\n    (t) => REGIME_PAR_TYPE_SOL[t] === regime,\n  );',
+    vers: '  return Object.keys(REGIME_PAR_TYPE_SOL) as TypeSol[];',
+    tests: ['packages/core/test/regimes-implantation.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 21',
+    // Un departement rattache a une region absente disparaitrait de tous les selecteurs, sans le
+    // moindre message : l'operateur croirait la region balayee alors qu'un de ses departements
+    // n'aurait jamais ete propose.
+    quoi: 'un departement pointe une region qui n’existe pas : il disparait de tous les selecteurs',
+    fichier: 'packages/core/src/territoires.ts',
+    construire: '@enr/core',
+    de: "  { code: '28', nom: 'Eure-et-Loir', codeRegion: '24' },",
+    vers: "  { code: '28', nom: 'Eure-et-Loir', codeRegion: '99' },",
+    tests: ['packages/core/test/territoires.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LE BANDEAU DE COUVERTURE DISPARAIT. C'est le defaut d'origine restaure : la vue rendrait a
+     * nouveau « 0 resultat » et « Aucune parcelle ne correspond aux filtres » sur un departement
+     * jamais qualifie — deux phrases exactes, et la conclusion la plus couteuse qu'un outil de
+     * prospection puisse faire tirer.
+     */
+    quoi: 'le bandeau de couverture ne s’affiche plus : « 0 resultat » redevient indistinguable de « jamais balaye »',
+    fichier: 'apps/web/src/components/VueListe.tsx',
+    de: '  if (!couverture || !Array.isArray(couverture.departementsDemandes)) return null;',
+    vers: '  if (true) return null;\n  // eslint-disable-next-line no-unreachable\n  if (!couverture || !Array.isArray(couverture.departementsDemandes)) return null;',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // La reserve « territoire partiellement qualifie » ne s'affiche plus jamais : le resultat
+    // passerait pour un inventaire alors qu'il n'est qu'un plancher.
+    quoi: 'la reserve « partiellement qualifie » disparait : un echantillon se lit comme un inventaire',
+    fichier: 'apps/web/src/components/VueListe.tsx',
+    de: '      {partCommunes != null && partCommunes < 90 && (',
+    vers: '      {partCommunes != null && partCommunes < 0 && (',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LE SEUIL DE SURFACE PASSE POUR UN SEUIL DE PROJET. Un projet de 20 ha s'assemble couramment
+     * avec huit parcelles de 2,5 ha : un operateur qui saisit « 20 ha » en croyant decrire son
+     * projet ferait disparaitre tout le foncier reellement mobilisable, et concluerait que le
+     * territoire n'a rien a offrir. La note est la seule chose qui l'en empeche.
+     */
+    quoi: 'le seuil de surface ne dit plus qu’il porte sur la parcelle et non sur le projet',
+    fichier: 'apps/web/src/components/FormulaireBalayage.tsx',
+    de: '            Seuil appliqué à chaque parcelle cadastrale, pas au projet',
+    vers: '            Seuil appliqué au projet',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // « jamais balaye » remplace par un 0 : l'operateur lirait une absence CONSTATEE de foncier
+    // propice la ou aucune parcelle n'a jamais ete evaluee.
+    quoi: 'un departement jamais balaye affiche « 0 » : une absence de mesure se lit comme une absence de foncier',
+    fichier: 'apps/web/src/components/FormulaireBalayage.tsx',
+    de: "        {n == null ? '' : n === 0 ? 'jamais balayé' : formatNombre(n, '', 0)}",
+    vers: "        {n == null ? '' : formatNombre(n, '', 0)}",
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+
+  /*
+   * BOUT EN BOUT POUR L'OUTIL DE RECHERCHE. Ces deux defauts ne sont visibles QUE dans un
+   * navigateur : le premier est une contradiction d'etat entre deux commandes, le second une
+   * rupture entre le client et une route. Ni le typage ni un test de rendu ne peuvent les voir.
+   * Ecartees de l'execution par defaut ; leur motif est confronte au code a chaque campagne.
+   */
+  {
+    audit: 'audit 21',
+    /*
+     * DEUX DEMANDES CONTRADICTOIRES, ET C'EST LA MAUVAISE QUI GAGNE. « Balaie le departement 28 »
+     * et « limite a la zone affichee » ne peuvent pas etre vraies ensemble ; en SQL la seconde
+     * gagne, et le balayage ne porte alors que sur l'ecran. Rien ne le signale : le bandeau annonce
+     * le departement, le tableau montre trois parcelles, et l'operateur conclut que le departement
+     * n'a que trois parcelles propices.
+     */
+    quoi: 'choisir un territoire ne leve plus la restriction a l’emprise : le balayage ne porte que sur l’ecran',
+    fichier: 'apps/web/src/components/FormulaireBalayage.tsx',
+    de: '    if (etat.limiterALEmprise) etat.basculerLimiteEmprise();',
+    vers: '    // mutation : la borne reste posee',
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/recherche-criteres.spec.ts'],
+    tests: ['e2e/recherche-criteres.spec.ts'],
+  },
+  {
+    audit: 'audit 21',
+    // Une rupture entre le client et la route : le selecteur de territoires resterait vide, et
+    // l'operateur ne pourrait plus balayer aucun departement. Aucun typage ne relie une chaine
+    // d'URL a une route Fastify — seul un navigateur contre un vrai serveur le voit.
+    quoi: 'le client interroge une route de territoires qui n’existe pas : le selecteur reste vide, sans message',
+    fichier: 'apps/web/src/api/client.ts',
+    de: "      `/api/territoires${filiere ? `?filiere=${filiere}` : ''}`,",
+    vers: "      `/api/territoire${filiere ? `?filiere=${filiere}` : ''}`,",
+    cwd: 'apps/web',
+    e2e: true,
+    commande: ['playwright', 'test', 'e2e/recherche-criteres.spec.ts'],
+    tests: ['e2e/recherche-criteres.spec.ts'],
+  },
+
+  {
+    audit: 'audit 21',
+    /*
+     * LE PERIMETRE DE MESURE PREND DU RETARD, ET LE CONTROLE CONTINUE DE PASSER. `MODULES_TEXTE`
+     * est une liste ecrite a la main : un composant ajoute apres elle sort du garde d'orthographe
+     * sans qu'aucun test ne baisse. Deux fichiers y avaient reellement echappe — `PanneauZones.tsx`
+     * et `FormulaireBalayage.tsx` — et rien ne l'avait signale. C'est la pire forme de regression
+     * pour une garde : elle se presente comme un succes.
+     */
+    quoi: 'un composant de l’interface sort du perimetre du garde d’orthographe, sans qu’aucun test ne baisse',
+    fichier: 'apps/web/test/orthographe-affichee.test.ts',
+    de: "  'apps/web/src/components/FormulaireBalayage.tsx',\n",
+    vers: '',
+    tests: ['apps/web/test/orthographe-affichee.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
+  },
+  {
+    audit: 'audit 21',
+    /*
+     * LE GARDE DES SELECTEURS LIT-IL ENCORE L'OPTION `name` ? La question n'est pas rhetorique :
+     * je viens d'ecarter le PREMIER argument de `getByRole` de la mesure, parce que c'est un role
+     * ARIA et non du texte (`getByRole('region', ...)` faisait accuser « region » d'etre une
+     * graphie perimee de « région »). Ecarter un argument de trop aurait aveugle le garde sans
+     * qu'aucun test ne le dise. Cette mutation de-accentue un selecteur reel : si elle survit,
+     * l'exclusion est allee trop loin.
+     */
+    quoi: 'un selecteur de bout en bout perd ses accents : le garde doit le voir malgre l’exclusion des roles ARIA',
+    fichier: 'apps/web/e2e/recherche-criteres.spec.ts',
+    de: "  await expect(page.getByRole('region', { name: 'Recherche de foncier par critères' })).toBeVisible();\n  const borne",
+    vers: "  await expect(page.getByRole('region', { name: 'Recherche de foncier par criteres' })).toBeVisible();\n  const borne",
+    tests: ['apps/web/test/orthographe-affichee.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
+  },
 ];
 
 /**

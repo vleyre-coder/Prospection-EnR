@@ -6,10 +6,17 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { libelleTypeSol, type Filiere } from '@enr/core';
-import { api, ErreurApi, type LigneListe, type Referentiel } from '../api/client.js';
+import {
+  api,
+  ErreurApi,
+  type CouvertureRecherche,
+  type LigneListe,
+  type Referentiel,
+} from '../api/client.js';
 import { useEtat } from '../store/etat.js';
 import { formatNombre } from '../utils/geometrie.js';
 import { etiquetteStatut } from '../utils/affichage.js';
+import { FormulaireBalayage } from './FormulaireBalayage.js';
 
 type Tri = 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
 
@@ -17,9 +24,16 @@ interface Props {
   filiere: Filiere;
   referentiel: Referentiel;
   onOuvrir: (ligne: LigneListe) => void;
+  /**
+   * `liste` : les parcelles qualifiees de l'emprise regardee.
+   * `recherche` : le meme tableau, precede du formulaire de balayage par criteres.
+   *
+   * Le defaut vaut `liste` pour que les appelants existants n'aient rien a changer.
+   */
+  mode?: 'liste' | 'recherche';
 }
 
-export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element {
+export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Props): JSX.Element {
   const etat = useEtat();
   const [tri, setTri] = useState<Tri>('score_desc');
   const [erreurExport, setErreurExport] = useState<string | null>(null);
@@ -82,6 +96,16 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
 
   return (
     <div className="vue-plein">
+      {mode === 'recherche' && (
+        <>
+          <h2 style={{ margin: '0 0 4px', fontSize: 16 }}>Recherche de foncier par critères</h2>
+          <p className="balayage-note" style={{ margin: '0 0 10px' }}>
+            Décrivez le projet cherché, choisissez le territoire, et l&apos;outil sort toutes les
+            parcelles déjà qualifiées qui répondent aux critères.
+          </p>
+          <FormulaireBalayage filiere={filiere} />
+        </>
+      )}
       {/*
         L'EN-TETE SE REPLIE, LES BOUTONS NON — corrige sur capture, pas sur intuition.
         Mesure a 1 600 px de large : quatre des cinq commandes coupaient leur libelle en deux
@@ -238,6 +262,8 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
           {(requete.error as ErreurApi).message}
         </div>
       )}
+
+      {requete.data && <BandeauCouverture couverture={requete.data.couverture} total={requete.data.total} />}
 
       {requete.data && requete.data.resultats.length === 0 && (
         <div className="vide">
@@ -414,6 +440,92 @@ export function VueListe({ filiere, referentiel, onOuvrir }: Props): JSX.Element
         Les scores sont une aide à la priorisation et non une garantie de faisabilité. Le contour
         cadastral est indicatif et sans valeur juridique.
       </p>
+    </div>
+  );
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * CE QUE LA RECHERCHE A REELLEMENT BALAYE — le bandeau qui empeche « 0 resultat » de mentir
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * LE DEFAUT QU'IL CORRIGE. La liste ne portait que deux nombres : le total trouve et le nombre
+ * affiche. Sur un departement jamais qualifie, elle rendait donc « 0 résultat » et « Aucune
+ * parcelle ne correspond aux filtres » — deux phrases exactes et une conclusion FAUSSE. Un
+ * operateur qui les lit conclut qu'il n'y a rien a prospecter dans ce departement, et passe au
+ * suivant. C'est le contresens le plus couteux qu'un outil de prospection puisse produire, et
+ * aucun message d'erreur ne l'aurait signale : le serveur repondait 200, correctement.
+ *
+ * TROIS SITUATIONS, TROIS MESSAGES DISTINCTS :
+ *   - le territoire n'a jamais ete balaye        -> il faut le qualifier, pas changer les criteres ;
+ *   - il est partiellement balaye                -> le resultat est un plancher, pas un inventaire ;
+ *   - il est balaye et les criteres ne rendent rien -> ce sont bien les criteres qu'il faut revoir.
+ *
+ * ET IL NE S'AFFICHE PAS QUAND IL N'A RIEN A DIRE : sans territoire demande, la couverture n'a pas
+ * de denominateur, donc pas de sens. Un bandeau qui parle toujours ne se lit plus.
+ */
+function BandeauCouverture({
+  couverture,
+  total,
+}: {
+  /**
+   * FACULTATIVE, ET LE TYPE DOIT LE DIRE. `couverture` est arrivee dans la reponse apres coup :
+   * une capture de reference enregistree avant, un cache de navigateur, ou un serveur plus ancien
+   * derriere le meme domaine la rendent absente. Ma premiere ecriture la destructurait sans
+   * precaution — mes propres tests de rendu ont echoue avec « Cannot destructure property
+   * departementsDemandes of undefined », et la liste ENTIERE disparaissait au profit d'un ecran
+   * blanc. Perdre le bandeau est benin ; perdre le tableau des resultats parce que le bandeau
+   * manque d'un champ ne l'est pas.
+   */
+  couverture: CouvertureRecherche | undefined;
+  total: number;
+}): JSX.Element | null {
+  if (!couverture || !Array.isArray(couverture.departementsDemandes)) return null;
+  const { departementsDemandes: deps, parcellesQualifiees, communesAvecParcelle } = couverture;
+  if (deps.length === 0) return null;
+
+  const territoire = `${deps.length} département${deps.length > 1 ? 's' : ''} (${deps.join(', ')})`;
+
+  if (parcellesQualifiees === 0) {
+    return (
+      <div className="couverture couverture-vide" role="status">
+        <strong>Ce territoire n&apos;a jamais été qualifié.</strong> {territoire} : aucune parcelle
+        n&apos;y a encore été évaluée pour cette filière. « 0 résultat » ne veut donc pas dire
+        « aucun foncier propice » — il n&apos;y a rien à comparer. Lancez une qualification sur la
+        carte avant de conclure.
+      </div>
+    );
+  }
+
+  const partCommunes =
+    couverture.communesDuTerritoire && couverture.communesDuTerritoire > 0
+      ? Math.round((communesAvecParcelle / couverture.communesDuTerritoire) * 100)
+      : null;
+
+  return (
+    <div className="couverture" role="status">
+      <strong>
+        {formatNombre(total, '', 0)} parcelle{total > 1 ? 's' : ''} retenue{total > 1 ? 's' : ''}
+      </strong>{' '}
+      sur {formatNombre(parcellesQualifiees, '', 0)} qualifiée
+      {parcellesQualifiees > 1 ? 's' : ''} dans {territoire}.{' '}
+      {partCommunes != null && (
+        <>
+          Le balayage couvre {communesAvecParcelle} commune{communesAvecParcelle > 1 ? 's' : ''} sur{' '}
+          {couverture.communesDuTerritoire} ({partCommunes} %).{' '}
+        </>
+      )}
+      {/*
+        LA PHRASE QUI COMPTE. Elle ne s'affiche que sous 90 % de communes couvertes, seuil au-dela
+        duquel « partiel » cesserait d'informer. Le resultat est un PLANCHER : dire l'inverse — ou
+        ne rien dire — laisserait croire a un inventaire.
+      */}
+      {partCommunes != null && partCommunes < 90 && (
+        <em>
+          Le territoire n&apos;est que partiellement qualifié : ce résultat est un minimum, pas un
+          inventaire.
+        </em>
+      )}
     </div>
   );
 }
