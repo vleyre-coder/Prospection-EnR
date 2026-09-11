@@ -18,6 +18,8 @@ import {
   AVERTISSEMENTS,
   FAMILLES_LIBELLES,
   FILIERES_META,
+  libelleGroupeCulture,
+  libelleTypeSol,
   LIBELLES_SCORE,
   LIBELLE_REDHIBITOIRE,
   REFERENTIEL_DERNIERE_VERIFICATION,
@@ -1436,6 +1438,82 @@ export function dossierSitePdf(
     for (const url of reglements) doc.text(net(url), MARGE, doc.y, { width: total });
     doc.fillColor(ENCRE).moveDown(0.3);
   }
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * OCCUPATION DU SOL ET AGRICULTURE — la section qui manquait au dossier
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUI MANQUAIT, ET C'EST UNE DEMANDE EXPLICITE. Le dossier remis au developpeur portait
+   * l'acces, le raccordement, l'urbanisme, l'eau, les milieux et la topographie — mais RIEN sur
+   * l'agriculture, alors que `occupationSol` n'y etait lu que pour la part boisee. Or c'est la
+   * premiere question d'un projet agrivoltaique : qu'est-ce qui est cultive, depuis quand, et par
+   * qui. Un developpeur qui recoit ce dossier doit pouvoir qualifier le terrain de son cote ;
+   * sans ce tableau il lui faut retourner au RPG lui-meme, parcelle par parcelle.
+   *
+   * QUATRE COLONNES, ET CHACUNE REPOND A UNE QUESTION QU'IL SE POSE :
+   *   - la CULTURE declaree, avec son groupe : elle decide du type de structure et de
+   *     l'interlocuteur — un eleveur, un cerealier, un vigneron ;
+   *   - les ANNEES consecutives de declaration : un proxy d'exploitation reelle. Zero annee sur une
+   *     parcelle en zone agricole est l'indice d'un terrain inculte, qui releve du document-cadre
+   *     departemental et non du regime agrivoltaique ;
+   *   - la PART de la parcelle couverte par l'ilot PAC : une parcelle a moitie declaree n'est pas
+   *     une parcelle exploitee ;
+   *   - l'AOP, qui change la nature de la discussion avant meme qu'elle commence.
+   *
+   * LE MILLESIME EST DIT, et il le faut : le RPG publie avec deux ans de retard. « Prairie
+   * permanente » releve de 2023 ne dit pas ce qui pousse aujourd'hui.
+   */
+  titreSection(doc, 'Occupation du sol et agriculture', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.16 },
+      { titre: 'Nature du sol', part: 0.17 },
+      { titre: 'Culture déclarée (RPG)', part: 0.29 },
+      { titre: 'Déclarée', part: 0.12 },
+      { titre: 'Part', part: 0.09, align: 'right' },
+      { titre: 'AOP', part: 0.17 },
+    ],
+    parcelles.map((p) => {
+      const o = p.snapshot.occupationSol;
+      const groupe = libelleGroupeCulture(o.rpg.codeGroupeCulture);
+      /*
+       * LE LIBELLE VIENT DU CODE, PAS DE L'INSTANTANE. `libelleGroupeCulture` est la table de
+       * `@enr/core` ; le champ `libelleGroupeCulture` stocke, lui, porte la nomenclature telle
+       * qu'elle etait a la qualification — six libelles y circulaient sans accent. Le repli sur le
+       * libelle stocke ne sert que si le code manque.
+       */
+      const culture = o.rpg.libelleCulture
+        ? `${o.rpg.libelleCulture}${groupe ? ` — ${groupe}` : ''}`
+        : (groupe ?? o.rpg.libelleGroupeCulture);
+      const annees = o.rpg.anneesDeclareesConsecutives;
+      return {
+        cellules: [
+          ref(p.parcelle),
+          libelleTypeSol(o.typeSol) ?? 'non renseigné',
+          // Trois etats distincts, et les confondre transforme une ignorance en constat :
+          // donnee absente, RPG consulte sans ilot, ou culture declaree.
+          culture ??
+            (annees == null ? 'donnée indisponible (RPG non consulté)' : 'aucune déclaration PAC'),
+          annees == null
+            ? '-'
+            : annees === 0
+              ? 'non'
+              : `${annees} an${annees > 1 ? 's' : ''}${o.rpg.millesime ? ` (→ ${o.rpg.millesime})` : ''}`,
+          o.rpg.partRecouvrement != null
+            ? `${Math.round(o.rpg.partRecouvrement * 100)} %`
+            : '-',
+          o.aop.presente
+            ? (o.aop.appellations.join(', ') || 'oui, dénomination non précisée')
+            : o.aop.presente === false
+              ? 'aucune'
+              : 'non renseigné',
+        ],
+        pastille: (o.typeSol == null ? 'gris' : 'vert') as Feu,
+      };
+    }),
+  );
 
   // ============================================================ eau et inondation
   titreSection(doc, 'Eau et inondation', 90);

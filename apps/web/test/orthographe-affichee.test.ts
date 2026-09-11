@@ -77,6 +77,7 @@ export const MODULES_TEXTE: readonly string[] = [
   'packages/core/src/avertissements.ts',
   'packages/core/src/bornes.ts',
   'packages/core/src/criteres.ts',
+  'packages/core/src/cultures.ts',
   'packages/core/src/filieres.ts',
   'packages/core/src/palette.ts',
   'packages/core/src/reglementation.ts',
@@ -296,8 +297,44 @@ export function incoherences(releve: Releve): Occurrence[] {
   return releve.nus.filter((o) => releve.accentues.has(sansAccent(o.mot)));
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * HOMOGRAPHES : les mots pour lesquels le POSTULAT DE CE GARDE EST FAUX
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce garde repose sur une hypothese : « un mot ecrit des deux facons est une faute quelque part ».
+ * Elle tient pour `depasse`/`depassé`, `designe`/`désigné`, `fixe`/`fixé` — tous des couples
+ * verbe / participe du MEME mot, ou l'exception se justifie module par module.
+ *
+ * ELLE NE TIENT PAS POUR DEUX MOTS DIFFERENTS qui deviennent identiques une fois les accents
+ * replies. « mais » (la conjonction) et « maïs » (la culture) n'ont aucun rapport ; le premier
+ * apparait dans presque toute prose francaise. La table des groupes de culture du RPG a introduit
+ * le second, et le garde a aussitot accuse **32 conjonctions** reparties sur six modules.
+ *
+ * TRAITER CELA PAR `EXCEPTIONS` AURAIT ETE PIRE QUE LE MAL : six entrees plus six compteurs
+ * `CONNUS` a tenir a jour, qui auraient dit « le verbe mais » — ce qui n'existe pas — et qu'il
+ * aurait fallu rouvrir a chaque phrase ajoutee. Une exception qu'on ne sait pas justifier est une
+ * exception qu'on finit par elargir sans lire.
+ *
+ * LA LISTE DOIT RESTER COURTE, et un test le verifie : chaque entree DESACTIVE le garde sur ce mot
+ * dans TOUS les modules. Elle n'accueille donc qu'un couple dont les deux membres sont des mots
+ * francais distincts et tous deux presents dans le texte affiche.
+ */
+const HOMOGRAPHES: ReadonlyArray<{ nu: string; accentue: string; raison: string }> = [
+  {
+    nu: 'mais',
+    accentue: 'maïs',
+    raison:
+      'la conjonction « mais » et la cereale « maïs » sont deux mots sans rapport. « maïs » est ' +
+      'entre avec les groupes de culture du RPG (packages/core/src/cultures.ts).',
+  },
+];
+
+const estHomographe = (mot: string): boolean =>
+  HOMOGRAPHES.some((h) => h.nu === mot.toLowerCase());
+
 const excepte = (o: Occurrence): boolean =>
-  EXCEPTIONS.some((e) => e.module === o.module && e.mot === o.mot);
+  estHomographe(o.mot) || EXCEPTIONS.some((e) => e.module === o.module && e.mot === o.mot);
 
 test('aucun mot du texte affiche ne s’ecrit a la fois avec et sans accent', () => {
   const releve = relever(MODULES_TEXTE, RACINE);
@@ -357,7 +394,13 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/criteres-eval.ts|applique': 2,
   };
   const compte = new Map<string, number>();
-  for (const o of reelles.filter(excepte)) {
+  /*
+   * Les HOMOGRAPHES sont hors de ce compte, et volontairement. Ils derogent par MOT et non par
+   * module : compter leurs occurrences reviendrait a tenir un compteur pour chaque phrase
+   * contenant « mais ». Leur propre test — « LA LISTE DES HOMOGRAPHES RESTE COURTE » — verifie ce
+   * qui compte pour eux : que la liste reste courte et que ses deux graphies existent encore.
+   */
+  for (const o of reelles.filter((x) => !estHomographe(x.mot)).filter(excepte)) {
     const clef = `${o.module}|${o.mot}`;
     compte.set(clef, (compte.get(clef) ?? 0) + 1);
   }
@@ -529,4 +572,36 @@ test('AUCUN COMPOSANT DE L’INTERFACE N’ECHAPPE A LA MESURE', () => {
     `${manquants.length} composant(s) de l'interface hors du perimetre de mesure : ils ecrivent du ` +
       "texte que le garde d'orthographe ne relit pas. Ajoutez-les a MODULES_TEXTE.",
   );
+});
+
+test('LA LISTE DES HOMOGRAPHES RESTE COURTE, ET CHAQUE ENTREE EST REELLE', () => {
+  /*
+   * Chaque homographe DESACTIVE le garde sur ce mot dans tous les modules a la fois : c'est de
+   * loin la derogation la plus large que ce fichier accorde. Trois verifications l'encadrent.
+   */
+  assert.ok(
+    HOMOGRAPHES.length <= 5,
+    `${HOMOGRAPHES.length} homographes declares : au-dela de quelques-uns, ce n'est plus une ` +
+      "liste d'exceptions, c'est le garde qu'on desarme.",
+  );
+
+  const releve = relever(MODULES_TEXTE, RACINE);
+  for (const h of HOMOGRAPHES) {
+    // 1. Les deux graphies doivent REELLEMENT exister dans le texte affiche, sinon l'entree est
+    //    perimee et masque peut-etre une vraie faute apparue depuis.
+    assert.ok(
+      releve.accentues.get(sansAccent(h.nu))?.has(h.accentue),
+      `« ${h.accentue} » n'est plus ecrit nulle part : retirez l'homographe « ${h.nu} ».`,
+    );
+    assert.ok(
+      releve.nus.some((o) => o.mot.toLowerCase() === h.nu),
+      `« ${h.nu} » n'est plus ecrit nulle part : retirez cet homographe.`,
+    );
+    // 2. Les deux membres doivent etre des mots DIFFERENTS, pas un couple verbe / participe —
+    //    ceux-la se traitent module par module, avec leur raison.
+    assert.notEqual(sansAccent(h.accentue), h.accentue, `« ${h.accentue} » n'a pas d'accent`);
+    assert.equal(sansAccent(h.accentue), h.nu, 'les deux graphies doivent se replier l’une sur l’autre');
+    // 3. Et la raison doit expliquer pourquoi ce sont deux mots, pas seulement le constater.
+    assert.ok(h.raison.length > 60, `raison trop courte pour l'homographe « ${h.nu} »`);
+  }
 });

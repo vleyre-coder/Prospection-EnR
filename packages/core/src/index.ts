@@ -7,4 +7,5 @@ export * from './avertissements.js';
 export * from './palette.js';
 export * from './snapshot.js';
 export * from './bornes.js';
+export * from './cultures.js';
 export * from './territoires.js';

@@ -522,6 +522,14 @@ export interface FiltresRecherche {
    * dominant : une parcelle a cheval sur A et N repond a `['A']` comme a `['N']`.
    */
   typesZonePlu?: string[];
+  /**
+   * Type d'agriculture declare, par code de groupe de culture du RPG.
+   *
+   * `typesSol` dit seulement « agricole exploite » : il ne distingue pas une prairie paturee d'un
+   * champ de ble, alors que ce sont deux projets differents. L'interface propose des familles
+   * d'usage (`FAMILLES_CULTURE`, dans `@enr/core`) et les traduit en codes avant l'appel.
+   */
+  groupesCulture?: string[];
   surfaceMinHa?: number;
   surfaceMaxHa?: number;
   distancePosteMaxKm?: number;

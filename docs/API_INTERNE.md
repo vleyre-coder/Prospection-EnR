@@ -187,6 +187,7 @@ Filtres parametrables par filiere (§F7 du cahier des charges).
   "codeRegion": "24",
   "enZaerSeulement": true,
   "typesZonePlu": ["A", "AUc"],
+  "groupesCulture": ["16", "17", "18", "19"],
   "tri": "score_desc",
   "limite": 200, "decalage": 0
 }
@@ -212,6 +213,25 @@ parce que le Geoportail de l'urbanisme publie `typezone` sans normalisation.
 
 `enZaerSeulement` `COALESCE` a `false` : une parcelle dont le snapshot ne porte pas l'information
 ZAER n'est jamais presumee en zone d'acceleration.
+
+#### `groupesCulture` — le type d'agriculture declare
+
+Codes de groupe de culture du RPG (`1` a `28`, le `13` n'existant pas). `typesSol` ne dit que
+« agricole exploite » : il ne distingue pas une prairie paturee d'un champ de ble, alors que ce
+sont deux projets, deux interlocuteurs et deux types de structure.
+
+**Ce sont les CODES qui voyagent, jamais les libelles.** Le libelle est fige dans l'instantane a
+la date de qualification, avec la nomenclature et les accents de l'epoque ; filtrer dessus ferait
+dependre le resultat de la date a laquelle chaque parcelle a ete qualifiee. Les codes sont stables
+depuis le millesime 2015.
+
+Une parcelle **sans declaration PAC n'est jamais retenue** par ce critere — aucun `COALESCE` : elle
+se cherche par la nature du sol (`typesSol: ["inculte"]`), qui est la question differente qu'elle
+pose.
+
+L'interface propose des **familles d'usage** (`FAMILLES_CULTURE`, dans `@enr/core` : elevage et
+prairies, grandes cultures, vignes et vergers, maraichage, gel, divers) et les developpe en codes
+avant l'appel — un developpeur demande « de l'elevage », pas « les groupes 16, 17, 18 et 19 ».
 
 #### `couverture` — ce que la recherche a REELLEMENT balaye
 

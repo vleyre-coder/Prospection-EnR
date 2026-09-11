@@ -27,7 +27,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement as h } from 'react';
-import { REGIME_PAR_TYPE_SOL, TYPES_SOL, typesSolDuRegime } from '@enr/core';
+import {
+  FAMILLES_CULTURE,
+  FILIERES_META,
+  GROUPES_CULTURE,
+  REGIME_PAR_TYPE_SOL,
+  TYPES_SOL,
+  groupesDesFamilles,
+  typesSolDuRegime,
+} from '@enr/core';
 import { VueListe } from '../src/components/VueListe.js';
 import type { CouvertureRecherche, LigneListe, TerritoireInterrogeable } from '../src/api/client.js';
 import { referentiel, rendreResolu, texte } from './aides/rendu.js';
@@ -307,4 +315,67 @@ test('LE BALAYAGE SIGNALE QU’IL EST BRIDE PAR L’EMPRISE DE LA CARTE', () => 
     { etat: { limiterALEmprise: true, empriseCourante: [1, 48, 2, 49] } },
   );
   assert.match(t, /limité à la zone affichée sur la carte/i);
+});
+
+// ---------------------------------------------------------------------------
+// Le type de projet et le type d'agriculture
+// ---------------------------------------------------------------------------
+
+test('LE TYPE DE PROJET EST UN CRITERE DU FORMULAIRE, ET LES QUATRE FILIERES Y SONT', () => {
+  /*
+   * Le proprietaire l'enumere parmi les criteres qu'un developpeur donne : « le type de projet, si
+   * c'est un projet agri-PV, methanisation, BESS ou encore eolien ». Il vivait jusqu'ici seulement
+   * dans la barre superieure, ou il se lit comme un mode d'affichage plutot que comme une entree
+   * de recherche.
+   */
+  const t = afficher({ total: 1, resultats: [LIGNE] });
+  assert.match(t, /Type de projet/i);
+  assert.match(t, /Filière recherchée/i);
+  for (const m of Object.values(FILIERES_META)) {
+    assert.ok(t.includes(m.libelle), `la filiere « ${m.libelle} » doit etre proposee`);
+  }
+  // Et l'ecran doit dire que ce selecteur commande la MEME filiere que la barre du haut : deux
+  // commandes pour un seul etat se lisent sinon comme deux reglages independants.
+  assert.match(t, /même filière que la barre du haut/i);
+});
+
+test('LE TYPE D’AGRICULTURE PROPOSE DES FAMILLES D’USAGE, PAS LES 27 GROUPES DU RPG', () => {
+  /*
+   * LE MANQUE QUE CE BLOC COMBLE. `typesSol` ne connait que « agricole exploité » : une prairie
+   * pâturée et un champ de blé y sont la même chose, alors que ce sont deux projets, deux
+   * interlocuteurs et deux types de structure. C'est la distinction demandée — « un type
+   * d'agriculture bien spécifique, ça peut être aussi de l'élevage ».
+   *
+   * Et le découpage est proposé en FAMILLES : un développeur demande « de l'élevage », pas « les
+   * groupes 16, 17, 18 et 19 ».
+   */
+  const t = afficher({ total: 1, resultats: [LIGNE] });
+  assert.match(t, /Type d[’']agriculture/i);
+  for (const f of FAMILLES_CULTURE) {
+    assert.ok(t.includes(f.libelle), `la famille « ${f.libelle} » doit etre proposee`);
+  }
+  assert.match(t, /Élevage et prairies/);
+
+  // La réserve qui évite un contresens : une parcelle sans déclaration PAC n'est jamais retenue
+  // par ce critère, et l'écran doit dire où la chercher.
+  assert.match(t, /sans déclaration/i);
+  assert.match(t, /Terrain inculte/i);
+  // Et le décalage du RPG est dit : « prairie permanente » relevé de 2023 n'affirme rien sur ce
+  // qui pousse aujourd'hui.
+  assert.match(t, /deux ans de décalage/i);
+});
+
+test('LES FAMILLES DE CULTURE SE TRADUISENT TOUTES EN GROUPES REELS', () => {
+  /*
+   * Garde de cohérence entre l'interface et la donnée, jumeau de celui des typologies. Une famille
+   * dont la réciproque serait vide s'afficherait comme une pastille cliquable qui ne filtre rien :
+   * le critère serait annoncé et pas appliqué, ce qui est pire qu'un critère absent.
+   */
+  for (const f of FAMILLES_CULTURE) {
+    const groupes = groupesDesFamilles([f.id]);
+    assert.ok(groupes.length > 0, `famille sans groupe : ${f.id}`);
+    for (const g of groupes) {
+      assert.ok(GROUPES_CULTURE[g], `groupe inconnu rendu par la famille ${f.id} : ${g}`);
+    }
+  }
 });

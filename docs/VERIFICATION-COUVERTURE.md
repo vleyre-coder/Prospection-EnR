@@ -532,3 +532,105 @@ dénominateur vaudrait toujours le résultat, et le bandeau resterait affiché s
   d'être une graphie périmée de « région », alors que c'est un identifiant ARIA. Un garde qui accuse
   à tort finit désactivé : le premier argument de `getByRole` est désormais écarté de la mesure, et
   une mutation vérifie que l'option `name` continue, elle, d'être relue.
+
+---
+
+## 8. La chaîne complète : des critères au dossier remis au développeur
+
+> « Le développeur me donne des critères : une surface, un type de terrain — agricole, industriel
+> abandonné, ou agricole avec un type d'agriculture bien spécifique, ça peut être aussi de
+> l'élevage — ou une zone d'accélération. Et le type de projet. Ensuite je lance la recherche dans
+> une région, et en fonction des cadastres remontés je sélectionne un certain nombre de cadastres
+> pour avoir toutes les informations qui peuvent intéresser le développeur : la distance au poste,
+> le type d'agriculture, le PLU, la topographie — pour constituer un dossier que je lui remets et
+> qu'il qualifie de son côté. »
+
+Trois maillons. **Deux existaient, un manquait** — et le manquant n'était pas celui qu'on croyait.
+
+### 8.1 Ce qui existait déjà
+
+| Maillon | État | Où |
+|---|---|---|
+| Sélectionner des cadastres dans les résultats | **existait** | case à cocher par ligne, plafond de 100 |
+| Constituer le dossier à remettre | **existait** | bouton « Dossier développeur » → PDF de 13 sections |
+| Distance au poste, PLU, topographie, eau, milieux, accès | **existait** | sections dédiées du dossier |
+
+La vue « Recherche » partage le tableau de résultats de la vue « Liste » : les cases à cocher, la
+sélection et le bouton de dossier y fonctionnent à l'identique. Le maillon 3 était donc déjà en
+place — vérifié de bout en bout (`e2e/dossier-site.spec.ts`).
+
+### 8.2 Le vrai manque : le type d'agriculture, nulle part
+
+Mesuré sur la base de référence : `snapshot.occupationSol.rpg.codeGroupeCulture` est **renseigné**,
+avec 14 groupes distincts sur les 301 parcelles. La donnée était là. Elle n'était :
+
+- **ni cherchable** : `typesSol` ne connaît que « agricole exploité ». Une prairie pâturée et un
+  champ de blé y sont la même chose, alors que ce sont deux projets, deux interlocuteurs et deux
+  types de structure. « De l'élevage » était donc inexprimable ;
+- **ni dans le dossier** : les 13 sections portaient l'accès, le raccordement, l'urbanisme, l'eau,
+  les milieux et la topographie, mais `occupationSol` n'y était lu **que pour la part boisée**. Le
+  développeur qui recevait le dossier devait retourner au RPG lui-même, parcelle par parcelle.
+
+**Corrigé aux trois niveaux :**
+
+| Niveau | Ce qui a été fait |
+|---|---|
+| Recherche | critère `groupesCulture`, proposé en **familles d'usage** (élevage et prairies, grandes cultures, vignes et vergers, maraîchage, gel, divers) — un développeur demande « de l'élevage », pas « les groupes 16, 17, 18 et 19 » |
+| Formulaire | le **type de projet** (filière) devient une entrée du formulaire, et non plus seulement un réglage de la barre du haut |
+| Dossier | nouvelle section **« Occupation du sol et agriculture »** : nature du sol, culture déclarée avec son groupe, années consécutives de déclaration, part de la parcelle couverte par l'îlot PAC, AOP |
+
+### 8.3 Trois décisions qui décident de la fiabilité
+
+1. **Le filtre porte sur le CODE, jamais sur le libellé.** Le libellé est figé dans l'instantané à
+   la date de qualification ; filtrer dessus ferait dépendre le résultat de la date à laquelle
+   chaque parcelle a été qualifiée. Les codes du RPG sont stables depuis le millésime 2015. Le test
+   de base sème volontairement un libellé **faux** à côté d'un code juste pour le prouver.
+2. **Une parcelle sans déclaration PAC n'est jamais retenue** par le critère d'agriculture. Aucun
+   `COALESCE` : demander « de l'élevage » et recevoir une friche non déclarée ferait déplacer un
+   développeur pour rien. L'absence de déclaration se cherche par « terrain inculte ».
+3. **Le dossier distingue « aucune déclaration PAC » de « donnée indisponible ».** La première est
+   un constat — et même un argument favorable en solaire au sol. La seconde est un aveu
+   d'ignorance. Les écrire l'une pour l'autre transforme une ignorance en affirmation, dans un
+   document remis à un tiers.
+
+### 8.4 Ce que le chantier a trouvé au passage
+
+- **Six libellés affichés sans accent depuis l'origine** : « Ble tendre », « Mais grain et
+  ensilage », « Proteagineux », « Legumineuses a grains », « Estives et landes », « Canne a sucre ».
+  La table vivait dans `apps/api/src/connecteurs/rpg.ts`, **hors du périmètre du garde
+  d'orthographe**. Descendue dans `@enr/core`, elle y est désormais relue.
+- **Le postulat du garde d'orthographe est faux pour les homographes.** Il suppose qu'un mot écrit
+  des deux façons est une faute ; « mais » (conjonction) et « maïs » (la culture) sont deux mots
+  sans rapport. L'arrivée de « maïs » a fait accuser **32 conjonctions** sur six modules. Une liste
+  d'homographes, documentée et bornée à cinq entrées, corrige la règle plutôt que d'empiler des
+  exceptions qui auraient dit « le verbe mais ».
+- **Un de mes propres tests passait trivialement** : mon assertion sur les trois états de la
+  déclaration PAC était une disjonction toujours vraie. La mutation qui effondre les deux états a
+  survécu et l'a montré. Le test fabrique désormais le cas — aucune fixture ne porte
+  `anneesDeclareesConsecutives: null` (mesure : 294 parcelles à 5 ans, 3 à zéro, 3 à trois ans, 1 à
+  quatre).
+
+### 8.5 Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run build`, `npm run typecheck` | 0 erreur |
+| `@enr/core` | 85/85 (+7) |
+| `@enr/scoring` | 91/91 |
+| `@enr/api` | 525/525 (+6) |
+| `@enr/web` | 179/179 (+5) |
+| `test:base`, base fraîchement migrée | 123/123, 4 ignorés |
+| Bout en bout | 27/27, 2 ignorés (`@revue`) |
+| Mutations du chantier (`--filtre "audit 22"`) | **10/10 attrapées** |
+
+### 8.6 Ce qui reste vrai, et qu'il faut redire
+
+Le type de terrain « industriel abandonné » est couvert par la typologie **« Terrain dégradé /
+artificialisé »**, qui est un régime **présumé** : le classement en terrain dégradé au sens du
+décret n° 2023-1408 suppose d'établir l'historique du site — ancienne carrière, décharge, friche,
+pollution — ce qu'aucune couche d'occupation du sol ne dit. La recherche oriente ; elle ne qualifie
+pas.
+
+Et le RPG paraît avec environ **deux ans de décalage** : « prairie permanente » relevé sur le
+millésime 2023 n'affirme rien sur ce qui pousse aujourd'hui. Le formulaire et le dossier le disent
+tous les deux.

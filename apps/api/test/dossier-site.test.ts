@@ -35,10 +35,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { construireServeur } from '../src/serveur.js';
-import { pool } from '../src/bdd.js';
+import { pool, requete } from '../src/bdd.js';
 import { texteDuPdf } from './aides/texte-pdf.js';
 import { effacerDepartement, lireFiches, reidentifier, semerFiche } from './aides/semer-fiches.js';
 import { nbGroupesContigus } from '../src/depots/prospection.js';
+import { libelleTypeSol } from '@enr/core';
 // Territoire fictif PARTAGE : l'importer passe par le garde de serialisation (audit 11), qui refuse
 // une execution en parallele sur une base commune.
 import { DEP_LOCAL, INSEE_LOCAL } from './aides/communes-fictives.js';
@@ -355,4 +356,137 @@ test('aucune date ISO ni point decimal dans le dossier', async () => {
     .map((m) => m[0])
     .filter((s) => s.split('.').length === 2);
   assert.deepEqual(points, [], `points decimaux dans le dossier — ${points.join(', ')}`);
+});
+
+test('LE DOSSIER DIT QUELLE AGRICULTURE EST DECLAREE SUR CHAQUE PARCELLE', async () => {
+  if (ignorer()) return;
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * CE QUI MANQUAIT AU DOSSIER, ET C'EST UNE DEMANDE EXPLICITE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le dossier remis au developpeur portait l'acces, le raccordement, l'urbanisme, l'eau, les
+   * milieux et la topographie — mais RIEN sur l'agriculture. `occupationSol` n'y etait lu que
+   * pour la part boisee. Or c'est la premiere question d'un projet agrivoltaique : qu'est-ce qui
+   * est cultive, depuis quand, et sur quelle part de la parcelle. Sans ce tableau, le developpeur
+   * qui recoit le dossier doit retourner au RPG lui-meme, parcelle par parcelle.
+   */
+  const { code, texte, corps } = await dossier(SOLAIRE.map((p) => p.idu));
+  assert.equal(code, 200, corps);
+
+  assert.ok(
+    contient(texte, 'Occupation du sol et agriculture'),
+    'la section d’occupation du sol doit exister dans le dossier',
+  );
+  // Les quatre colonnes qui repondent chacune a une question du developpeur.
+  for (const entete of ['Nature du sol', 'Culture déclarée', 'Déclarée', 'AOP']) {
+    assert.ok(contient(texte, entete), `colonne « ${entete} » absente de la section agriculture`);
+  }
+
+  /*
+   * ET LE CONTENU DOIT VENIR DE LA BASE, non d'un gabarit. Les fixtures solaires portent une
+   * nature de sol : le libelle correspondant doit se lire dans le dossier. Sans cette
+   * verification, une section vide passerait le test precedent.
+   */
+  const lignes = await requete<{ t: string | null }>(
+    `SELECT DISTINCT snapshot -> 'occupationSol' ->> 'typeSol' AS t
+       FROM parcelle_snapshot WHERE idu = ANY($1)`,
+    [SOLAIRE.map((p) => p.idu)],
+  );
+  const naturesAttendues = lignes.map((l) => l.t).filter((t): t is string => t != null);
+  if (naturesAttendues.length > 0) {
+    // Le libelle COURT : la colonne fait 17 % de la largeur, le libelle long y passerait sur
+    // trois lignes. C'est celui que la section rend, donc celui qu'il faut chercher.
+    const libelles = naturesAttendues.map((t) => libelleTypeSol(t) ?? t);
+    assert.ok(
+      libelles.some((l) => contient(texte, l)),
+      `aucune des natures de sol de la base (${libelles.join(', ')}) n’apparait dans le dossier : ` +
+        'la section est presente mais vide.',
+    );
+  }
+
+});
+
+test('LE DOSSIER NE CONFOND PAS « AUCUNE DECLARATION PAC » ET « DONNEE INDISPONIBLE »', async () => {
+  if (ignorer()) return;
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * DEUX PHRASES QUI NE DISENT PAS LA MEME CHOSE — et ma premiere version ne les distinguait pas
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * « Aucune declaration PAC » est un CONSTAT : le RPG a repondu, et aucun ilot ne recouvre la
+   * parcelle. C'est meme un argument FAVORABLE en solaire au sol, puisqu'il oriente vers le regime
+   * du terrain inculte plutot que vers l'agrivoltaisme. « Donnee indisponible » est un AVEU
+   * d'ignorance : le RPG n'a pas repondu, et on ne sait rien. Ecrire la premiere a la place de la
+   * seconde transforme une ignorance en affirmation, dans un document remis a un tiers.
+   *
+   * POURQUOI CE TEST FABRIQUE SON CAS. Aucune fixture ne porte
+   * `anneesDeclareesConsecutives: null` — mesure sur la base de reference : 294 parcelles a 5 ans,
+   * 3 a zero, 3 a trois ans, 1 a quatre. Ma premiere ecriture se contentait donc d'une disjonction
+   * qui passait trivialement, et la mutation qui EFFONDRE les deux etats a survecu. Le cas est
+   * desormais ETABLI par le test, ce qui est la seule facon de le rendre discriminant.
+   */
+  const cible = SOLAIRE[0]!;
+  const avant = await requete<{ snapshot: unknown }>(
+    `SELECT snapshot FROM parcelle_snapshot WHERE idu = $1`,
+    [cible.idu],
+  );
+  assert.ok(avant[0], 'la parcelle de test doit porter un instantane');
+
+  try {
+    // RPG muet : ni culture, ni groupe, ni annees. C'est l'etat produit par un connecteur en echec.
+    await requete(
+      `UPDATE parcelle_snapshot
+          SET snapshot = jsonb_set(snapshot, '{occupationSol,rpg}', $2::jsonb, true)
+        WHERE idu = $1`,
+      [
+        cible.idu,
+        JSON.stringify({
+          codeCulture: null,
+          libelleCulture: null,
+          codeGroupeCulture: null,
+          libelleGroupeCulture: null,
+          millesime: null,
+          partRecouvrement: null,
+          anneesDeclareesConsecutives: null,
+        }),
+      ],
+    );
+
+    const { code, texte, corps } = await dossier([cible.idu]);
+    assert.equal(code, 200, corps);
+    assert.ok(
+      contient(texte, 'donnée indisponible'),
+      'le RPG n’a pas repondu : le dossier doit l’avouer, et non ecrire « aucune declaration PAC », ' +
+        'qui ferait passer une ignorance pour un constat favorable.',
+    );
+    assert.ok(
+      !contient(texte, 'aucune déclaration PAC'),
+      'le dossier annonce une absence de declaration alors que le RPG n’a pas ete consulte',
+    );
+
+    // ET LE CAS INVERSE, pour que le test ne puisse pas passer en ecrivant toujours la meme
+    // phrase : RPG consulte, zero annee declaree.
+    await requete(
+      `UPDATE parcelle_snapshot
+          SET snapshot = jsonb_set(snapshot, '{occupationSol,rpg,anneesDeclareesConsecutives}', '0'::jsonb, true)
+        WHERE idu = $1`,
+      [cible.idu],
+    );
+    const apres = await dossier([cible.idu]);
+    assert.equal(apres.code, 200, apres.corps);
+    assert.ok(
+      contient(apres.texte, 'aucune déclaration PAC'),
+      'RPG consulte sans ilot recouvrant : c’est un constat, et le dossier doit l’ecrire comme tel',
+    );
+    assert.ok(
+      !contient(apres.texte, 'donnée indisponible'),
+      'le dossier avoue une ignorance alors que le RPG a bien repondu',
+    );
+  } finally {
+    await requete(`UPDATE parcelle_snapshot SET snapshot = $2::jsonb WHERE idu = $1`, [
+      cible.idu,
+      JSON.stringify(avant[0]!.snapshot),
+    ]);
+  }
 });

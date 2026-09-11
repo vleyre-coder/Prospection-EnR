@@ -241,3 +241,26 @@ test('un critere de balayage mal orthographie est REFUSE, non ignore', () => {
   refuse({ ...base, enZaerSeulment: true }, /inconnu/);
   refuse({ ...base, codeDepartements: ['28'] }, /inconnu/);
 });
+
+test('LE TYPE D’AGRICULTURE SE VALIDE PAR CODE DE GROUPE, NON PAR LIBELLE', () => {
+  /*
+   * POURQUOI PAR CODE. Le libelle est stocke dans l'instantane tel qu'il etait a la qualification
+   * — nomenclature et accents de l'epoque. Filtrer dessus ferait dependre le resultat de la DATE
+   * a laquelle chaque parcelle a ete qualifiee, ce qui est indefendable pour un outil de tri. Les
+   * codes du RPG, eux, sont stables depuis le millesime 2015.
+   */
+  const f = filtresValides({ ...base, groupesCulture: ['18', '19', '18'] });
+  assert.deepEqual(f.groupesCulture, ['18', '19'], 'les doublons sont ecartes');
+
+  refuse({ ...base, groupesCulture: ['Prairies permanentes'] }, /groupesCulture/);
+  refuse({ ...base, groupesCulture: ['018'] }, /groupesCulture/);
+  refuse({ ...base, groupesCulture: [18] }, /groupesCulture/);
+  refuse({ ...base, groupesCulture: '18' }, /groupesCulture.*tableau attendu/);
+  // 28 groupes au maximum : au-dela, la demande ne peut plus correspondre a rien de reel.
+  refuse(
+    { ...base, groupesCulture: Array.from({ length: 29 }, (_, i) => String((i % 28) + 1)) },
+    /groupesCulture.*au plus 28/,
+  );
+  // Et un critere mal orthographie reste REFUSE, non ignore.
+  refuse({ ...base, groupeCulture: ['18'] }, /inconnu/);
+});

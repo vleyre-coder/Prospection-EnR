@@ -11,7 +11,7 @@
  *      ce qui conditionne le regime juridique applicable au photovoltaique au sol.
  */
 
-import type { OccupationSol, TypeSol } from '@enr/core';
+import { GROUPES_CULTURE as TABLE_GROUPES, type OccupationSol, type TypeSol } from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { surfaceM2, type GeoJsonGeometry } from '../geo.js';
@@ -35,35 +35,14 @@ interface ProprietesRpg {
 }
 
 /** Libelles des groupes de culture RPG. */
-export const GROUPES_CULTURE: Record<string, string> = {
-  '1': 'Ble tendre',
-  '2': 'Mais grain et ensilage',
-  '3': 'Orge',
-  '4': 'Autres cereales',
-  '5': 'Colza',
-  '6': 'Tournesol',
-  '7': 'Autres oleagineux',
-  '8': 'Proteagineux',
-  '9': 'Plantes a fibres',
-  '10': 'Semences',
-  '11': 'Gel (surfaces sans production)',
-  '12': 'Gel industriel',
-  '14': 'Riz',
-  '15': 'Legumineuses a grains',
-  '16': 'Fourrage',
-  '17': 'Estives et landes',
-  '18': 'Prairies permanentes',
-  '19': 'Prairies temporaires',
-  '20': 'Vergers',
-  '21': 'Vignes',
-  '22': 'Fruits a coque',
-  '23': 'Oliviers',
-  '24': 'Autres cultures industrielles',
-  '25': 'Légumes ou fleurs',
-  '26': 'Canne a sucre',
-  '27': 'Arboriculture',
-  '28': 'Divers',
-};
+/*
+ * `GROUPES_CULTURE` a DEMENAGE dans `@enr/core` (`cultures.ts`), et y est reexporte pour les
+ * appelants de ce connecteur. Deux raisons : l'outil de recherche par criteres doit traduire
+ * « de l'elevage » en groupes de culture COTE NAVIGATEUR, ou ce connecteur n'existe pas ; et ces
+ * libelles sont AFFICHES sans jamais avoir ete relus par le garde d'orthographe, qui ne couvrait
+ * pas ce fichier — six d'entre eux ont ainsi circule sans accent.
+ */
+export { GROUPES_CULTURE } from '@enr/core';
 
 /**
  * Potentiel agronomique approche a partir du groupe de culture declare.
@@ -209,7 +188,7 @@ export async function occupationSol(
     codeCulture: featureRetenue?.code_cultu ?? null,
     libelleCulture: featureRetenue?.culture_d1 ?? null,
     codeGroupeCulture: groupe,
-    libelleGroupeCulture: groupe ? (GROUPES_CULTURE[groupe] ?? null) : null,
+    libelleGroupeCulture: groupe ? (TABLE_GROUPES[groupe] ?? null) : null,
     millesime: millesimeUtilise ? String(millesimeUtilise) : null,
     partRecouvrement,
     // `null` uniquement quand aucune source RPG n'a repondu. Le repli WFS reussi, lui,

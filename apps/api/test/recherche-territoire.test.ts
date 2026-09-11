@@ -62,11 +62,19 @@ interface Cas {
   /** Le snapshot est-il present du tout ? `false` teste le COALESCE a `false`. */
   snapshot: boolean;
   zonages: string[];
+  /**
+   * Code de groupe de culture RPG, ou `null` pour une parcelle sans declaration PAC.
+   *
+   * `null` est le cas qui compte : une parcelle non declaree ne doit JAMAIS etre retenue par un
+   * critere qui demande un type d'agriculture. Elle se cherche par la nature du sol.
+   */
+  groupeCulture: string | null;
 }
 
 const CAS: Cas[] = [
-  { suffixe: 'A', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: true, snapshot: true, zonages: ['A'] },
-  { suffixe: 'B', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: false, snapshot: true, zonages: ['A'] },
+  // 18 = prairies permanentes (famille « elevage »), 1 = ble tendre (famille « grandes cultures »).
+  { suffixe: 'A', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: true, snapshot: true, zonages: ['A'], groupeCulture: '18' },
+  { suffixe: 'B', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: false, snapshot: true, zonages: ['A'], groupeCulture: '1' },
   {
     suffixe: 'C',
     dep: DEP_LOCAL,
@@ -77,10 +85,13 @@ const CAS: Cas[] = [
     // `typezone`, et le SQL compare `upper()` des deux cotes. Ecrire 'n' ici verifie ce
     // `upper()` : sans lui, chercher 'N' ne trouverait pas cette parcelle.
     zonages: ['n', 'u'],
+    // Snapshot present, mais AUCUNE declaration PAC : le cas qui distingue « pas d'agriculture »
+    // de « agriculture inconnue ».
+    groupeCulture: null,
   },
-  { suffixe: 'D', dep: DEP_VOISIN, insee: INSEE_VOISIN, zaer: true, snapshot: true, zonages: ['A'] },
+  { suffixe: 'D', dep: DEP_VOISIN, insee: INSEE_VOISIN, zaer: true, snapshot: true, zonages: ['A'], groupeCulture: '18' },
   // Cinquieme cas, sans snapshot du tout : il ne doit JAMAIS etre retenu par « uniquement en ZAER ».
-  { suffixe: 'E', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: false, snapshot: false, zonages: [] },
+  { suffixe: 'E', dep: DEP_LOCAL, insee: INSEE_LOCAL, zaer: false, snapshot: false, zonages: [], groupeCulture: null },
 ];
 
 const FILIERE = 'solaire_sol' as const;
@@ -124,6 +135,14 @@ async function peupler(): Promise<void> {
       urbanisme: {
         zaer: { present: c.zaer },
         zonages: c.zonages.map((z) => ({ typeZone: z, libelle: z, partRecouvrement: 1 })),
+      },
+      occupationSol: {
+        rpg: {
+          codeGroupeCulture: c.groupeCulture,
+          // Le libelle est volontairement FAUX et desaccentue : il reproduit un instantane
+          // ancien. Si le filtre le lisait au lieu du code, le test s'en apercevrait.
+          libelleGroupeCulture: c.groupeCulture ? 'libelle perime' : null,
+        },
       },
     };
     await requete(
@@ -288,6 +307,68 @@ test('LE ZONAGE PLU RETIENT UNE PARCELLE QUI TOUCHE LA ZONE, ET IGNORE LA CASSE'
   ]);
   // Un type absent de la base ne rend rien, et surtout pas tout.
   assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], typesZonePlu: ['AUC'] }), []);
+});
+
+// ---------------------------------------------------------------------------
+// Le type d'agriculture declare
+// ---------------------------------------------------------------------------
+
+test('LE TYPE D’AGRICULTURE FILTRE SUR LE CODE, ET IGNORE LE LIBELLE STOCKE', async () => {
+  if (ignorer()) return;
+  /*
+   * LE POINT SENSIBLE. Les instantanes de ce jeu portent volontairement un libelle FAUX
+   * (« libelle perime ») a cote d'un code juste. C'est fidele a la realite : le libelle est fige a
+   * la qualification, avec la nomenclature et les accents de l'epoque — six de ces libelles ont
+   * circule sans accent jusqu'a ce chantier. Un filtre qui lirait le libelle ferait donc dependre
+   * le resultat de la DATE de qualification de chaque parcelle.
+   */
+  // 18 = prairies permanentes : `A` dans le 99, `D` dans le 98.
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['18'] }), ['A']);
+  // 1 = ble tendre.
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['1'] }), ['B']);
+  // Toute la famille « elevage » developpee par l'interface : seul le 18 est present ici.
+  assert.deepEqual(
+    await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['16', '17', '18', '19'] }),
+    ['A'],
+  );
+  // Un groupe absent de la base ne rend rien — et surtout pas tout.
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['21'] }), []);
+});
+
+test('UNE PARCELLE SANS DECLARATION PAC N’EST JAMAIS RETENUE PAR CE CRITERE', async () => {
+  if (ignorer()) return;
+  /*
+   * `C` a un instantane mais aucun groupe de culture ; `E` n'a pas d'instantane du tout. Aucune ne
+   * doit apparaitre : demander « de l'elevage » et recevoir une friche non declaree ferait
+   * deplacer un developpeur pour rien. L'absence de declaration se cherche par la NATURE DU SOL
+   * (« terrain inculte »), qui est la question differente qu'elle pose.
+   */
+  const tous = await retenus({
+    codesDepartement: [DEP_LOCAL],
+    groupesCulture: Array.from({ length: 28 }, (_, i) => String(i + 1)),
+  });
+  assert.deepEqual(tous, ['A', 'B']);
+  assert.ok(!tous.includes('C'), 'instantane sans groupe de culture : jamais retenue');
+  assert.ok(!tous.includes('E'), 'aucun instantane : jamais retenue');
+});
+
+test('LE TYPE D’AGRICULTURE SE CUMULE AVEC LES AUTRES CRITERES', async () => {
+  if (ignorer()) return;
+  // Prairie permanente ET en ZAER ET zonage A : `A` seule. `B` est du ble, `D` est dans le 98.
+  assert.deepEqual(
+    await retenus({
+      codesDepartement: [DEP_LOCAL],
+      groupesCulture: ['18'],
+      enZaerSeulement: true,
+      typesZonePlu: ['A'],
+    }),
+    ['A'],
+  );
+  // Et une combinaison contradictoire rend vide, sans se rabattre sur l'un des criteres.
+  assert.deepEqual(
+    await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['1'], enZaerSeulement: true }),
+    [],
+  );
 });
 
 test('LES CRITERES D’URBANISME SE CUMULENT ENTRE EUX', async () => {

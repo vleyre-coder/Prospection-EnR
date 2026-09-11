@@ -35,9 +35,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  FAMILLES_CULTURE,
+  FILIERES_META,
+  GROUPES_CULTURE,
   LIBELLES_REGIME,
   ORDRE_REGIMES,
   TYPES_SOL,
+  groupesDesFamilles,
   typesSolDuRegime,
   type Filiere,
 } from '@enr/core';
@@ -148,6 +152,32 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
     maj({ typesSol: apres.length > 0 ? apres : undefined });
   };
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE TYPE D'AGRICULTURE, par famille d'usage et non par groupe RPG
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * POURQUOI PAR FAMILLE. Un developpeur demande « de l'elevage », pas « les groupes 16, 17, 18 et
+   * 19 ». La traduction existe une fois, dans `@enr/core` (`FAMILLES_CULTURE`), ou elle se relit —
+   * plutot qu'a chaque recherche, de memoire, dans la tete de l'operateur.
+   *
+   * CE QUI PART AU SERVEUR RESTE LE CODE. `groupesDesFamilles` developpe la selection avant
+   * l'appel : le filtre SQL porte sur `codeGroupeCulture`, stable depuis 2015, et jamais sur le
+   * libelle, qui depend de la date de qualification de chaque parcelle.
+   */
+  const familleActive = (id: string): boolean => {
+    const attendus = groupesDesFamilles([id]);
+    return attendus.length > 0 && attendus.every((g) => f.groupesCulture?.includes(g));
+  };
+  const basculerFamille = (id: string): void => {
+    const attendus = groupesDesFamilles([id]);
+    const actuels = f.groupesCulture ?? [];
+    const apres = familleActive(id)
+      ? actuels.filter((g) => !attendus.includes(g))
+      : [...new Set([...actuels, ...attendus])];
+    maj({ groupesCulture: apres.length > 0 ? apres : undefined });
+  };
+
   const basculerZonePlu = (code: string): void => {
     const actifs = f.typesZonePlu ?? [];
     const apres = actifs.includes(code) ? actifs.filter((c) => c !== code) : [...actifs, code];
@@ -230,7 +260,32 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
 
         {/* --- 3. Typologie ----------------------------------------------- */}
         <div className="balayage-bloc">
-          <h3>Typologie d&apos;implantation</h3>
+          <h3>Type de projet</h3>
+          {/*
+            LE TYPE DE PROJET EST UN CRITERE DE RECHERCHE, et il doit donc etre dans le formulaire.
+            Il vit aussi dans la barre superieure, ou il pilote toute l'application — carte,
+            couches, ponderations. Les deux commandes ecrivent le MEME etat : il n'y a qu'une
+            filiere courante, et changer de projet ici change bien tout le reste. Le rappeler
+            evite de croire a deux reglages independants.
+          */}
+          <label htmlFor="bal-filiere">Filière recherchée</label>
+          <select
+            id="bal-filiere"
+            value={filiere}
+            onChange={(e) => etat.definirFiliere(e.target.value as Filiere)}
+          >
+            {Object.values(FILIERES_META).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.libelle}
+              </option>
+            ))}
+          </select>
+          <p className="balayage-note">
+            Commande la même filière que la barre du haut : les couches, les pondérations et les
+            critères évalués suivent.
+          </p>
+
+          <h3 style={{ marginTop: 8 }}>Typologie d&apos;implantation</h3>
           {filiere === 'solaire_sol' ? (
             <>
               <p className="balayage-note">
@@ -262,7 +317,46 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
           )}
         </div>
 
-        {/* --- 4. Zone ---------------------------------------------------- */}
+        {/* --- 4. Type d'agriculture --------------------------------------- */}
+        <div className="balayage-bloc">
+          <h3>Type d&apos;agriculture</h3>
+          {/*
+            CE QUE `typesSol` NE DIT PAS. Il ne connait que « agricole exploite » : une prairie
+            paturee et un champ de ble y sont la meme chose, alors que ce sont deux projets, deux
+            interlocuteurs et deux types de structure. C'est la distinction que le proprietaire a
+            nommee — « un type d'agriculture bien specifique, ca peut etre aussi de l'elevage ».
+          */}
+          <p className="balayage-note">
+            D&apos;après la déclaration PAC (RPG). Une parcelle sans déclaration n&apos;est
+            <strong> jamais</strong> retenue par ce critère : cherchez-la par « Terrain inculte ».
+          </p>
+          <div className="pastilles">
+            {FAMILLES_CULTURE.map((fam) => (
+              <button
+                key={fam.id}
+                type="button"
+                className="pastille"
+                aria-pressed={familleActive(fam.id)}
+                title={`${fam.aide} — groupes RPG : ${fam.groupes
+                  .map((g) => GROUPES_CULTURE[g] ?? g)
+                  .join(', ')}`}
+                onClick={() => basculerFamille(fam.id)}
+              >
+                {fam.libelle}
+              </button>
+            ))}
+          </div>
+          {/*
+            LE MILLESIME EST DIT, parce que le RPG publie avec deux ans de retard : « prairie
+            permanente » releve de 2023 n'affirme rien sur ce qui pousse aujourd'hui.
+          */}
+          <p className="balayage-note">
+            Le RPG paraît avec environ deux ans de décalage : la culture déclarée oriente, elle ne
+            constate pas l&apos;usage du jour.
+          </p>
+        </div>
+
+        {/* --- 5. Zone ---------------------------------------------------- */}
         <div className="balayage-bloc">
           <h3>Zone</h3>
           <label className="case">

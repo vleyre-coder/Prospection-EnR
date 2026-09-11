@@ -376,6 +376,26 @@ export interface FiltresParcelles {
    * snapshot permet mais qui repond a une AUTRE question.
    */
   typesZonePlu?: string[];
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE TYPE D'AGRICULTURE DECLARE — codes de groupe de culture du RPG
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * POURQUOI CE CRITERE EXISTE, ET C'EST UNE DEMANDE EXPLICITE. « Un terrain agricole, mais avec
+   * un type d'agriculture bien specifique, ca peut etre aussi de l'elevage. » La nature du sol
+   * (`typesSol`) dit seulement « agricole exploite » : elle ne distingue pas une prairie paturee
+   * d'un champ de ble, alors que ce sont DEUX PROJETS DIFFERENTS. Un agrivoltaisme sur pature se
+   * monte avec un eleveur sur une duree compatible avec un cheptel ; sur grandes cultures il se
+   * discute en hauteur de structure et en passage d'engins ; sur vigne il appelle des persiennes
+   * et une AOC.
+   *
+   * CE SONT LES CODES QUI VOYAGENT, PAS LES LIBELLES. Le libelle est stocke dans l'instantane tel
+   * qu'il etait a la qualification — accents compris ou non, nomenclature de l'epoque. Filtrer
+   * dessus ferait dependre le resultat de la DATE de qualification de chaque parcelle. Le code,
+   * lui, est stable depuis le millesime 2015. L'interface propose des familles d'usage
+   * (`FAMILLES_CULTURE`, dans `@enr/core`) et les traduit en codes avant l'appel.
+   */
+  groupesCulture?: string[];
   tri?: 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
   limite?: number;
   decalage?: number;
@@ -709,6 +729,19 @@ export async function filtrerParcelles(
     );
   }
 
+  if (f.groupesCulture?.length) {
+    /*
+     * Le CODE du groupe, jamais son libelle — voir le champ. Aucun `COALESCE` ici : une parcelle
+     * sans declaration PAC n'a pas de groupe, et ne doit donc PAS etre retenue par un critere qui
+     * demande explicitement un type d'agriculture. « Aucune declaration » se cherche par la nature
+     * du sol (`inculte`), qui est la question differente qu'elle pose.
+     */
+    ajouter(
+      `(sn.snapshot -> 'occupationSol' -> 'rpg' ->> 'codeGroupeCulture') = ANY($?)`,
+      f.groupesCulture,
+    );
+  }
+
   const where = conditions.join(' AND ');
   const base = `
     FROM score_parcelle_filiere s
@@ -889,6 +922,17 @@ export function filtresValides(
       motif: /^[A-Za-z0-9]{1,10}$/,
       description: 'types de zone du PLU, alphanumériques, de 1 a 10 caractères (ex. A, N, U, AUc)',
       maxElements: 30,
+    }),
+    /*
+     * Les codes de groupe RPG sont NUMERIQUES (« 1 » a « 28 »), d'ou un motif propre plutot que
+     * `listeCodes`, dont la mise en majuscules n'aurait aucun sens ici. Le plafond de 28 est le
+     * nombre de groupes de la nomenclature, fige par le test de `@enr/core` : au-dela, la demande
+     * ne peut plus correspondre a rien de reel.
+     */
+    groupesCulture: l.listeCodes('groupesCulture', {
+      motif: /^\d{1,2}$/,
+      description: 'codes de groupe de culture RPG (1 a 28)',
+      maxElements: 28,
     }),
     tri: l.parmi('tri', TRIS_VALIDES),
     limite: l.nombre('limite', { min: 1, max: limiteMax, entier: true }),

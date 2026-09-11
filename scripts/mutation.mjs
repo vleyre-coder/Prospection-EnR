@@ -2186,6 +2186,156 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
   },
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * AUDIT 22 — LE TYPE D'AGRICULTURE, ET LE DOSSIER QUI LE DIT
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   */
+  {
+    audit: 'audit 22',
+    /*
+     * LE FILTRE LIT LE LIBELLE AU LIEU DU CODE. Le libelle est fige dans l'instantane a la date de
+     * qualification, avec la nomenclature et les accents de l'epoque — six de ces libelles ont
+     * circule sans accent. Le resultat dependrait donc de la DATE a laquelle chaque parcelle a ete
+     * qualifiee, ce qui est indefendable pour un outil de tri.
+     */
+    quoi: 'le type d’agriculture se cherche par libelle : le resultat depend de la date de qualification',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "      `(sn.snapshot -> 'occupationSol' -> 'rpg' ->> 'codeGroupeCulture') = ANY($?)`,",
+    vers: "      `(sn.snapshot -> 'occupationSol' -> 'rpg' ->> 'libelleGroupeCulture') = ANY($?)`,",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    /*
+     * UNE PARCELLE SANS DECLARATION PAC EST PRESUMEE AGRICOLE. Demander « de l'elevage » et
+     * recevoir une friche non declaree ferait deplacer un developpeur pour rien. L'absence de
+     * declaration se cherche par la NATURE DU SOL, qui est la question differente qu'elle pose.
+     */
+    quoi: 'une parcelle sans declaration PAC est retenue par un critere d’agriculture',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "  if (f.groupesCulture?.length) {",
+    vers: "  if (f.groupesCulture?.length && false) {",
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    // Le champ disparait de la validation : le critere est ignore en silence, et `refuserInconnus`
+    // refuse le corps entier en 400 — le formulaire cesse de fonctionner.
+    quoi: 'le critere d’agriculture n’est plus valide : il est ignore, et le corps entier devient refuse',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "    groupesCulture: l.listeCodes('groupesCulture', {",
+    vers: "    groupesCulture: undefined && l.listeCodes('groupesCulture', {",
+    tests: ['apps/api/test/validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/validation.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    /*
+     * UNE FAMILLE PERD UN GROUPE. « Elevage » cesse de couvrir les prairies permanentes : le
+     * foncier existe en base et devient introuvable par le formulaire, sans erreur ni message.
+     * C'est le defaut muet type de ce depot, applique au vocabulaire metier.
+     */
+    quoi: 'la famille « elevage » perd les prairies permanentes : le foncier existe et devient introuvable',
+    fichier: 'packages/core/src/cultures.ts',
+    construire: '@enr/core',
+    de: "    groupes: ['16', '17', '18', '19'],",
+    vers: "    groupes: ['16', '17', '19'],",
+    tests: ['packages/core/test/cultures.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 22',
+    // Un groupe inconnu tombe dans « Divers » au lieu de se signaler : un groupe ajoute demain au
+    // RPG et oublie dans les familles se fondrait dans un fourre-tout, et personne ne le saurait.
+    quoi: 'un groupe de culture inconnu se fond dans « Divers » au lieu de se signaler',
+    fichier: 'packages/core/src/cultures.ts',
+    construire: '@enr/core',
+    de: "  return FAMILLES_CULTURE.find((f) => f.groupes.includes(code)) ?? null;",
+    vers: "  return FAMILLES_CULTURE.find((f) => f.groupes.includes(code)) ?? FAMILLES_CULTURE[5]!;",
+    tests: ['packages/core/test/cultures.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 22',
+    /*
+     * L'ACCENT REPERDU. Ces libelles sont affiches — fiche, dossier PDF, formulaire de recherche —
+     * et ils ont circule six ans sans accent parce que `connecteurs/rpg.ts` n'etait pas dans le
+     * perimetre du garde d'orthographe. Cette mutation verifie qu'ils y sont bien desormais.
+     */
+    quoi: 'un libelle de groupe de culture reperd son accent dans du texte affiche',
+    fichier: 'packages/core/src/cultures.ts',
+    construire: '@enr/core',
+    de: "  '2': 'Maïs grain et ensilage',",
+    vers: "  '2': 'Mais grain et ensilage',",
+    tests: ['packages/core/test/cultures.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 22',
+    /*
+     * LA SECTION AGRICULTURE DISPARAIT DU DOSSIER. C'est l'etat d'avant ce chantier restaure : le
+     * dossier remis au developpeur portait l'acces, le raccordement, l'urbanisme, l'eau, les
+     * milieux et la topographie, et RIEN sur ce qui est cultive — la premiere question d'un projet
+     * agrivoltaique.
+     */
+    quoi: 'le dossier developpeur ne dit plus quelle agriculture est declaree sur les parcelles',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "  titreSection(doc, 'Occupation du sol et agriculture', 90);",
+    vers: "  titreSection(doc, 'Occupation du sol', 90);",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    // Le dossier confond « aucune declaration PAC » — un constat, et meme un argument favorable en
+    // solaire au sol — avec « donnee indisponible », qui est un aveu d'ignorance. Les ecrire l'un
+    // pour l'autre transforme une ignorance en affirmation.
+    quoi: 'le dossier confond « aucune declaration PAC » et « donnee indisponible »',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "            (annees == null ? 'donnée indisponible (RPG non consulté)' : 'aucune déclaration PAC'),",
+    vers: "            'aucune déclaration PAC',",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    // Le formulaire propose les 27 groupes bruts du RPG : la traduction metier retombe sur
+    // l'operateur, a chaque recherche, de memoire.
+    quoi: 'le formulaire cesse de proposer les familles d’usage et le type d’agriculture disparait',
+    fichier: 'apps/web/src/components/FormulaireBalayage.tsx',
+    de: '          <h3>Type d&apos;agriculture</h3>',
+    vers: '          <h3>Agriculture</h3>',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+  {
+    audit: 'audit 22',
+    /*
+     * LA LISTE DES HOMOGRAPHES DESARME LE GARDE. Chaque entree desactive le controle sur ce mot
+     * dans TOUS les modules : c'est la derogation la plus large du fichier. Une entree perimee —
+     * dont la graphie accentuee n'existe plus — masquerait une vraie faute apparue depuis.
+     */
+    quoi: 'un homographe perime reste declare et desarme le garde sur un mot qui n’existe plus',
+    fichier: 'apps/web/test/orthographe-affichee.test.ts',
+    de: "    nu: 'mais',\n    accentue: 'maïs',",
+    vers: "    nu: 'cote',\n    accentue: 'côte',",
+    tests: ['apps/web/test/orthographe-affichee.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
+  },
 ];
 
 /**
