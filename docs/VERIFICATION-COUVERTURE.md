@@ -634,3 +634,128 @@ pas.
 Et le RPG paraît avec environ **deux ans de décalage** : « prairie permanente » relevé sur le
 millésime 2023 n'affirme rien sur ce qui pousse aujourd'hui. Le formulaire et le dossier le disent
 tous les deux.
+
+---
+
+## 9. Le cahier des charges Word, et les seuils qui manquaient
+
+> Trois demandes : un document Word éditable à transmettre au développeur, par filière ; et
+> « étoffer encore les différents types de projet et couches s'il en reste, afin d'avoir la
+> recherche la plus fine et exacte possible ».
+
+### 9.1 Ce que la mesure a montré : le critère roi était introuvable
+
+L'application évalue **43 critères**. La recherche par critères n'en laissait régler qu'une
+poignée : surface, pente, distance au poste, capacité résiduelle, nature du sol, zonage, ZAER, type
+d'agriculture. Relevé du gisement, famille par famille :
+
+| Ce qu'un développeur demande | Filière | État avant |
+|---|---|---|
+| « une irradiation d'au moins 1 300 kWh/m²/an » | solaire | **inexprimable** |
+| « du vent à au moins 6 m/s à 100 m » | éolien | **inexprimable** |
+| « au moins 15 000 t MS/an d'intrants » | méthanisation | **inexprimable** |
+| « à moins de 2 km d'une canalisation de gaz » | méthanisation | **inexprimable** |
+| « au plus 3 propriétaires » | toutes | **inexprimable** |
+| « à plus de 500 m de toute habitation » | éolien | **inexprimable** |
+
+**Le critère roi de trois filières sur quatre était introuvable.** Un outil de recherche qui ne sait
+pas chercher par le critère roi de sa filière ne cherche pas.
+
+### 9.2 Un mécanisme générique, pas vingt-cinq champs
+
+L'écriture naïve aurait ajouté `irradiationMinKwhM2An`, `ventMinMs`, `intrantsMinTonnes`… soit un
+champ par grandeur, à tenir en phase dans le type, la validation, le SQL, le client et le
+formulaire. Cinq endroits par grandeur, et un oubli dans l'un d'eux donne un critère annoncé et pas
+appliqué.
+
+**La liste blanche est `BORNES_SNAPSHOT`** : 64 grandeurs numériques déjà déclarées, avec leur
+chemin, leurs bornes physiques et leur unité. *La table qui empêche une valeur absurde d'entrer en
+base est celle qui autorise à la chercher.* Par-dessus, `SEUILS_RECHERCHE` désigne — par filière —
+les 19 grandeurs qu'un développeur nomme vraiment, avec leur sens, leur unité et un ordre de
+grandeur usuel. Cette table alimente **le formulaire et le cahier des charges Word**, ce qui garantit
+que le développeur ne renseigne jamais un critère que l'outil ne sait pas appliquer.
+
+Mesure du filtre contre la base de référence : 301 parcelles sans seuil → **240** à
+`irradiation ≥ 1474` → **0** à `≥ 1500`. Il discrimine.
+
+### 9.3 Le défaut que j'ai introduit, et corrigé
+
+Le filtre écarte toute parcelle dont la grandeur n'est pas renseignée — bon sens d'erreur : un seuil
+qu'on ne peut pas vérifier ne doit pas être réputé satisfait. Mais mesure immédiate :
+`foncier.nbProprietairesEstime` est **nul sur les 301 parcelles** (la donnée de propriété exige une
+habilitation et n'est pas ingérée). Demander « au plus 2 propriétaires » rend donc **0 résultat**,
+exactement comme si aucune parcelle ne convenait — alors que le territoire est qualifié et que le
+bandeau annonce ses 301 parcelles.
+
+**C'est « 0 résultat ment » sous une forme nouvelle, et je venais de la créer.** La couverture porte
+désormais, pour chaque seuil demandé, le nombre de parcelles où la grandeur est réellement mesurée,
+et l'écran nomme la grandeur fautive plutôt que de laisser conclure.
+
+### 9.4 Le cahier des charges Word
+
+`POST /api/exports/cahier-des-charges` produit un **.docx éditable** par filière : le projet, le
+territoire, les seuils, la nature du terrain, les critères évalués automatiquement, le cadre
+réglementaire daté, et ce que l'outil ne sait pas.
+
+**Écrit sans dépendance.** Trois voies existaient : la bibliothèque `docx` (1,5 Mo de dépendance
+transitive dans un dépôt qui en compte onze et s'installe sans réseau chez l'utilisateur final) ;
+un .rtf renommé, que Word ouvre avec un avertissement ; ou l'Office Open XML à la main. Un .docx est
+une archive ZIP de six fichiers XML, et `zipper()` existait déjà pour les Shapefile.
+
+**Vérifié à l'ouverture, pas supposé.** LibreOffice Writer a été installé dans le conteneur pour
+mesurer : `libreoffice --headless --convert-to txt` charge les quatre documents *« as a Writer
+document »* et en restitue le texte, titres et cellules comprises. Le test, lui, reste **hermétique**
+— même raisonnement que pour hunspell : l'outil est l'instrument, le test est le constat. Il dézippe
+l'archive avec `node:zlib` seul et vérifie ce qui fait échouer Word : parties présentes,
+`[Content_Types].xml` en premier, XML bien formé, aucun caractère de contrôle, chaque tableau muni
+de sa grille.
+
+**Le point qui décide de son utilité** : chaque ligne porte la grandeur **telle que le logiciel la
+nomme**. Un cahier des charges rempli en toutes lettres oblige à retraduire chaque ligne au retour,
+de mémoire, à chaque dossier — et c'est exactement là qu'un critère se perd.
+
+**Ce qu'il ne fait pas, et le document le dit.** Il ne se réimporte pas. Rien ne garantit qu'un
+destinataire n'écrira pas « ~500 » ou « entre 3 et 5 km » dans une case attendue numérique. Un
+analyseur aurait deux comportements possibles : refuser des documents légitimes, ou deviner — et
+deviner un seuil de recherche, c'est produire une liste de parcelles qui ne correspond pas à la
+demande, sans que personne ne puisse s'en apercevoir. La saisie reste manuelle ; le document est
+construit pour la rendre mécanique.
+
+### 9.5 Ce que les mutations ont trouvé dans mes propres tests
+
+Trois des quatorze mutations ont **survécu au premier passage** — trois tests décoratifs que la
+relecture n'aurait pas vus :
+
+| Mutation | Ce que mon test acceptait |
+|---|---|
+| `unite: 'm'` → `'km'` sur une distance | mon test acceptait qu'une unité **contienne** l'autre : « km » contient « m ». Le cahier des charges aurait imprimé « au plus 500 km » chez le développeur |
+| suppression de `w:tblGrid` | un tableau sans grille reste du XML parfaitement équilibré : ma vérification de bonne formation ne pouvait pas le voir |
+| renommage de la colonne des identifiants | **cinq** tableaux portent cet en-tête ; renommer celui des seuils laissait les quatre autres valider l'assertion |
+
+### 9.6 Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run build`, `npm run typecheck` | 0 erreur |
+| `@enr/core` | 93/93 (+8) |
+| `@enr/scoring` | 91/91 |
+| `@enr/api` | 545/545 (+20) |
+| `@enr/web` | 183/183 (+4) |
+| `test:base`, base fraîchement migrée | 127/127, 4 ignorés |
+| Bout en bout | 27/27, 2 ignorés (`@revue`) |
+| Ouverture réelle des 4 documents Word | LibreOffice Writer, 4/4 |
+| Mutations du chantier (`--filtre "audit 23"`) | **14/14 attrapées** |
+
+### 9.7 Ce qui reste, et qui n'a pas bougé
+
+Les **types de projet** restent au nombre de quatre. Ajouter une filière n'est pas ajouter une
+entrée dans une liste : c'est un jeu de critères pondérés, des knock-outs, un référentiel
+réglementaire daté et des couches propres — l'équivalent de tout ce qui existe pour le solaire. Ce
+chantier a donc étoffé **la finesse de recherche des quatre filières existantes** (de 8 à 27
+critères réglables selon la filière), ce qui est ce que « la recherche la plus fine et exacte
+possible » demandait. Une cinquième filière est un chantier à part entière, à décider comme tel.
+
+Et les **5 connecteurs d'ingestion jamais lancés** (§6.1) le restent : les seuils portant sur le
+patrimoine, les réseaux de gaz ou le vent sont désormais *exprimables*, mais ils ne retiendront rien
+tant que la donnée n'est pas ingérée — ce que le diagnostic par seuil dit maintenant explicitement,
+plutôt que de laisser lire « 0 résultat ».

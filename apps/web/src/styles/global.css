@@ -1750,6 +1750,54 @@ button:focus-visible,
   opacity: 0.75;
 }
 
+/* Les seuils : une ligne par grandeur, libelle a gauche, valeur et unite a droite.
+   La colonne de saisie est FIXE (72 px) : sans elle, les champs s'alignent sur la longueur du
+   libelle le plus long et le tableau devient illisible des qu'une filiere en porte un long
+   (« Distance a la canalisation de gaz maximale »). */
+
+.balayage-seuils {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 178px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.balayage-seuil {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.balayage-seuil-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balayage-seuil-nom em {
+  font-style: normal;
+  color: var(--texte-faible);
+}
+
+.balayage-seuil input {
+  width: 72px;
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  padding: 2px 4px;
+}
+
+.balayage-seuil-unite {
+  flex: 0 0 auto;
+  min-width: 52px;
+  font-size: 10.5px;
+  color: var(--texte-faible);
+}
+
 .balayage-pied {
   display: flex;
   align-items: center;

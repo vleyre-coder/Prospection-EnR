@@ -530,6 +530,14 @@ export interface FiltresRecherche {
    * d'usage (`FAMILLES_CULTURE`, dans `@enr/core`) et les traduit en codes avant l'appel.
    */
   groupesCulture?: string[];
+  /**
+   * Seuils sur n'importe quelle grandeur numerique du snapshot.
+   *
+   * La liste blanche est `BORNES_SNAPSHOT` (`@enr/core`) : 64 grandeurs deja declarees avec leur
+   * chemin, leurs bornes physiques et leur unite. `SEUILS_RECHERCHE` designe, par filiere, celles
+   * qu'un developpeur nomme reellement.
+   */
+  seuils?: Array<{ chemin: string; min?: number; max?: number }>;
   surfaceMinHa?: number;
   surfaceMaxHa?: number;
   distancePosteMaxKm?: number;
@@ -566,6 +574,14 @@ export interface CouvertureRecherche {
   communesAvecParcelle: number;
   /** Communes que compte le territoire. `null` si aucun territoire n'est demande. */
   communesDuTerritoire: number | null;
+  /**
+   * Pour chaque seuil demande, le nombre de parcelles du territoire ou la grandeur est MESUREE.
+   *
+   * Sans ce compte, un seuil portant sur une grandeur jamais renseignee rend « 0 resultat », ce
+   * qui est indistinguable de « aucune parcelle ne convient ». Mesure sur la base de reference :
+   * `foncier.nbProprietairesEstime` est nul sur les 301 parcelles.
+   */
+  seuilsRenseignes: Array<{ chemin: string; renseignees: number }>;
 }
 
 /** Un territoire proposable dans le selecteur, avec ce que la base en contient. */
@@ -807,7 +823,7 @@ export const api = {
     `/api/exports/parcelle/${encodeURIComponent(idu)}.pdf?filiere=${filiere}`,
 
   exporter: async (
-    format: 'geojson' | 'shapefile' | 'csv' | 'dossier',
+    format: 'geojson' | 'shapefile' | 'csv' | 'dossier' | 'cahier-des-charges',
     corps: unknown,
     nomFichier: string,
   ): Promise<void> => {

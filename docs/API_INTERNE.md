@@ -188,6 +188,11 @@ Filtres parametrables par filiere (§F7 du cahier des charges).
   "enZaerSeulement": true,
   "typesZonePlu": ["A", "AUc"],
   "groupesCulture": ["16", "17", "18", "19"],
+  "seuils": [
+    { "chemin": "gisement.irradiationKwhM2An", "min": 1300 },
+    { "chemin": "foncier.nbProprietairesEstime", "max": 3 },
+    { "chemin": "topographie.altitudeM", "min": 100, "max": 800 }
+  ],
   "tri": "score_desc",
   "limite": 200, "decalage": 0
 }
@@ -233,6 +238,30 @@ L'interface propose des **familles d'usage** (`FAMILLES_CULTURE`, dans `@enr/cor
 prairies, grandes cultures, vignes et vergers, maraichage, gel, divers) et les developpe en codes
 avant l'appel — un developpeur demande « de l'elevage », pas « les groupes 16, 17, 18 et 19 ».
 
+#### `seuils` — filtre generique sur une grandeur du snapshot
+
+Le CRITERE ROI de trois filieres sur quatre — irradiation, vitesse de vent, tonnage d'intrants —
+n'etait pas cherchable avant ce mecanisme. Plutot qu'un champ par grandeur, un filtre generique :
+
+- **la liste blanche est `BORNES_SNAPSHOT`** (`@enr/core`), 64 grandeurs numeriques deja declarees
+  avec leur chemin, leurs bornes physiques et leur unite. La table qui empeche une valeur absurde
+  d'ENTRER en base est celle qui autorise a la CHERCHER ;
+- un chemin inconnu est **refuse en 400**, jamais transmis : `#>>` sur une cle absente rend `NULL`,
+  donc la condition est fausse, donc la recherche ne retiendrait rien — un critere annonce a
+  l'ecran et jamais applique ;
+- une valeur **hors des bornes physiques** est refusee, avec l'unite dans le message ;
+- un intervalle inverse (`min > max`) est refuse plutot que rendu vide ;
+- au plus **25 seuils** par requete, une seule fois par grandeur.
+
+Le chemin passe en PARAMETRE (`#>> $n::text[]`), jamais par concatenation.
+
+**Une parcelle dont la grandeur n'est pas mesuree n'est jamais retenue** — aucun `COALESCE`. Un
+seuil qu'on ne peut pas verifier ne doit pas etre repute satisfait.
+
+`SEUILS_RECHERCHE` (`@enr/core`) designe, par filiere, les grandeurs qu'un developpeur nomme
+reellement, avec leur sens, leur unite et un ordre de grandeur usuel. C'est cette table qui
+alimente le formulaire ET le cahier des charges Word.
+
 #### `couverture` — ce que la recherche a REELLEMENT balaye
 
 ```json
@@ -249,7 +278,13 @@ vraie conclut qu'il n'y a rien a prospecter.
 Les deux comptes sont pris **sans les criteres de l'utilisateur** : c'est leur comparaison avec
 `total` qui informe. `communesDuTerritoire` vaut `null` quand aucun territoire n'est demande — la
 question n'a alors pas de denominateur, et rendre 0 afficherait une couverture nulle sur une
-recherche parfaitement valide. `codeInsee` et `bbox` ne comptent pas comme un territoire : le
+recherche parfaitement valide.
+
+`seuilsRenseignes` porte, pour chaque seuil demande, le nombre de parcelles du territoire ou la
+grandeur est REELLEMENT mesuree. **Sans lui, « 0 resultat » ment a nouveau** : mesure sur la base
+de reference, `foncier.nbProprietairesEstime` est nul sur les 301 parcelles (la donnee de propriete
+exige une habilitation et n'est pas ingeree). Demander « au plus 2 proprietaires » rend donc zero,
+exactement comme si aucune parcelle ne convenait. `codeInsee` et `bbox` ne comptent pas comme un territoire : le
 premier est une commune precise, le second l'emprise de la carte.
 
 ### `GET /api/territoires?filiere=`
@@ -311,6 +346,20 @@ Recherche unifiee. Detecte automatiquement le type de saisie :
 - `POST /api/exports/shapefile` → meme corps → archive ZIP.
 - `POST /api/exports/csv` → meme corps que `/api/recherche/parcelles` → CSV point-virgule,
   encodage UTF-8 avec BOM (compatible Excel FR).
+- `POST /api/exports/cahier-des-charges` → `{ "filiere", "criteres"? }` → document **Word (.docx)**
+  editable. Le cahier des charges de la filiere : projet, territoire, seuils, nature du terrain,
+  les criteres evalues automatiquement, le cadre reglementaire date, et ce que l'outil ne sait pas.
+
+  `criteres` est FACULTATIF et change la nature du document : absent, c'est un **formulaire vierge**
+  a envoyer au developpeur ; present, c'est le **compte rendu** de la recherche qu'on vient de
+  lancer. Les criteres sont valides meme la — ils sont IMPRIMES dans un document remis a un tiers.
+
+  Chaque ligne porte la **grandeur telle que le logiciel la nomme**, pour que le report au retour
+  soit une recopie et non une traduction. Le document **ne se reimporte pas** : Word remplit des
+  cellules, mais rien ne garantit qu'un destinataire n'ecrira pas « ~500 » ou « entre 3 et 5 km »
+  dans une case attendue numerique. Deviner un seuil de recherche produirait une liste de parcelles
+  qui ne correspond pas a la demande, sans que personne ne puisse s'en apercevoir. Le document le
+  dit noir sur blanc.
 
 Tout export est journalise (`journal_acces`).
 

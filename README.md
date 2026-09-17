@@ -40,11 +40,16 @@ filtres.
 - **Recherche de foncier par critères** : décrire le projet cherché — surface minimale par
   parcelle, type de projet, typologie d'implantation (agrivoltaïsme, terrain dégradé, terrain
   inculte), **type d'agriculture déclaré** (élevage et prairies, grandes cultures, vignes et
-  vergers…), zone d'accélération des ENR, zonage du PLU — puis balayer **un département, plusieurs, ou une
+  vergers…), **seuils sur 19 grandeurs** (irradiation, vent, intrants, distance à l'habitation,
+  nombre de propriétaires…), zone d'accélération des ENR, zonage du PLU — puis balayer **un département, plusieurs, ou une
   région entière** et obtenir toutes les parcelles qualifiées qui répondent. Chaque résultat porte
   sa **couverture** : « 12 parcelles retenues sur 301 qualifiées, 40 communes sur 365 » — et un
   territoire jamais qualifié le dit explicitement, pour que « 0 résultat » ne se lise jamais
   « aucun foncier propice ».
+- **Cahier des charges Word** : un document **.docx éditable** par filière — projet, territoire,
+  seuils de recherche, nature du terrain, les critères évalués automatiquement, le cadre
+  réglementaire daté — à envoyer au développeur pour qu'il le remplisse, ou à joindre aux
+  résultats comme compte rendu de la recherche lancée.
 - **Dossier développeur** : cocher les parcelles retenues dans les résultats produit un PDF de
   14 sections — accès, raccordement, urbanisme, **occupation du sol et agriculture**, eau,
   milieux naturels, topographie, points à lever avec le propriétaire — à remettre au développeur

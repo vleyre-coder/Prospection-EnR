@@ -8,4 +8,5 @@ export * from './palette.js';
 export * from './snapshot.js';
 export * from './bornes.js';
 export * from './cultures.js';
+export * from './seuils-recherche.js';
 export * from './territoires.js';

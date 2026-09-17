@@ -6,6 +6,7 @@
  */
 
 import {
+  BORNES_SNAPSHOT,
   COEFFICIENT_TRACE,
   composerIdu,
   DEPARTEMENTS,
@@ -18,7 +19,7 @@ import {
   type StatutProspection,
   type TypeSol,
 } from '@enr/core';
-import { ErreurValidation, lecteur } from '../validation.js';
+import { ErreurValidation, lecteur, type Lecteur } from '../validation.js';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { requete } from '../bdd.js';
@@ -396,6 +397,30 @@ export interface FiltresParcelles {
    * (`FAMILLES_CULTURE`, dans `@enr/core`) et les traduit en codes avant l'appel.
    */
   groupesCulture?: string[];
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * SEUILS SUR N'IMPORTE QUELLE GRANDEUR DU SNAPSHOT — le filtre generique
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QU'IL CORRIGE, ET C'ETAIT LE PLUS GROS TROU DE LA RECHERCHE. L'application evalue
+   * 43 criteres ; la recherche n'en laissait regler qu'une poignee. Le CRITERE ROI de trois
+   * filieres sur quatre etait introuvable : l'irradiation en solaire, la vitesse de vent en
+   * eolien, le tonnage d'intrants en methanisation. Un outil de recherche qui ne sait pas
+   * chercher par le critere roi de sa filiere ne cherche pas.
+   *
+   * POURQUOI UN MECANISME GENERIQUE PLUTOT QUE VINGT-CINQ CHAMPS. L'ecriture naive aurait ajoute
+   * `irradiationMinKwhM2An`, `ventMinMs`, `intrantsMinTonnes`… soit un champ par grandeur, a
+   * tenir en phase dans le type, la validation, le SQL, le client et le formulaire. Cinq endroits
+   * par grandeur, et un oubli dans l'un d'eux donne un critere annonce et pas applique.
+   *
+   * LA LISTE BLANCHE EST `BORNES_SNAPSHOT`, et c'est ce qui rend le mecanisme sur. 64 grandeurs
+   * numeriques y sont deja declarees avec leur chemin, leurs bornes physiques et leur unite — la
+   * table qui empeche une valeur absurde d'ENTRER en base est celle qui autorise a la CHERCHER.
+   * Le chemin n'est donc jamais une chaine libre : il est valide contre cette table AVANT
+   * d'atteindre le SQL, et passe ensuite en PARAMETRE (`#>> $n::text[]`), jamais par
+   * concatenation.
+   */
+  seuils?: Array<{ chemin: string; min?: number; max?: number }>;
   tri?: 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
   limite?: number;
   decalage?: number;
@@ -433,6 +458,27 @@ export interface CouvertureRecherche {
   communesAvecParcelle: number;
   /** Communes que compte le territoire. `null` si aucun territoire n'est demande. */
   communesDuTerritoire: number | null;
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * POUR CHAQUE SEUIL DEMANDE : SUR COMBIEN DE PARCELLES LA GRANDEUR EST-ELLE MESUREE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * LE DEFAUT QUE CE CHAMP EMPECHE, ET JE VENAIS DE L'INTRODUIRE. Le filtre par seuil ecarte toute
+   * parcelle dont la grandeur n'est pas renseignee — c'est le bon sens d'erreur, un seuil qu'on ne
+   * peut pas verifier ne doit pas etre repute satisfait. Mais la consequence, mesuree sur la base
+   * de reference : `foncier.nbProprietairesEstime` est `NULL` sur les 301 parcelles (la donnee de
+   * propriete exige une habilitation et n'est pas ingeree). Demander « au plus 2 proprietaires »
+   * rend donc **0 resultat**, exactement comme si aucune parcelle ne convenait.
+   *
+   * C'est « 0 resultat ment » sous une forme nouvelle : le territoire est bien qualifie, le
+   * bandeau de couverture annonce ses 301 parcelles, et pourtant le resultat est vide — pour une
+   * raison qui n'a rien a voir avec le foncier. Sans ce compte, l'operateur conclurait qu'aucune
+   * parcelle du departement n'a moins de trois proprietaires.
+   *
+   * Le compte est pris SANS les criteres de l'utilisateur, comme le reste de la couverture : il
+   * repond a « cette grandeur est-elle connue ici », pas a « combien de parcelles la respectent ».
+   */
+  seuilsRenseignes: Array<{ chemin: string; renseignees: number }>;
 }
 
 /**
@@ -476,7 +522,7 @@ async function couvertureDuTerritoire(f: FiltresParcelles): Promise<CouvertureRe
   const departements = await departementsDuTerritoire(f);
   const restreint = departements.length > 0;
 
-  const [comptes, communes] = await Promise.all([
+  const [comptes, communes, renseignes] = await Promise.all([
     requete<{ parcelles: number; communes: number }>(
       `SELECT count(*)::int AS parcelles,
               count(DISTINCT p.code_insee)::int AS communes
@@ -492,6 +538,7 @@ async function couvertureDuTerritoire(f: FiltresParcelles): Promise<CouvertureRe
           [departements],
         )
       : Promise.resolve([]),
+    comptesRenseignes(f, departements),
   ]);
 
   return {
@@ -499,7 +546,51 @@ async function couvertureDuTerritoire(f: FiltresParcelles): Promise<CouvertureRe
     parcellesQualifiees: comptes[0]?.parcelles ?? 0,
     communesAvecParcelle: comptes[0]?.communes ?? 0,
     communesDuTerritoire: restreint ? (communes[0]?.n ?? 0) : null,
+    seuilsRenseignes: renseignes,
   };
+}
+
+/**
+ * Pour chaque seuil demande, le nombre de parcelles du territoire ou la grandeur EST mesuree.
+ *
+ * UNE SEULE REQUETE POUR TOUS LES SEUILS, et c'est ce qui rend ce diagnostic acceptable : une
+ * requete par seuil aurait ajoute jusqu'a vingt-cinq aller-retours a chaque recherche, pour une
+ * information qui ne sert qu'a expliquer un resultat vide. `count(expression)` ne compte que les
+ * valeurs non nulles — c'est exactement la question posee.
+ *
+ * Les chemins passent en PARAMETRES `text[]`, comme dans le filtre lui-meme : seuls les alias de
+ * colonnes sont ecrits dans la requete, et ils sont generes ici, jamais recus.
+ */
+async function comptesRenseignes(
+  f: FiltresParcelles,
+  departements: string[],
+): Promise<Array<{ chemin: string; renseignees: number }>> {
+  const seuils = f.seuils ?? [];
+  if (seuils.length === 0) return [];
+
+  const params: unknown[] = [f.filiere];
+  const restreint = departements.length > 0;
+  if (restreint) params.push(departements);
+  const colonnes = seuils.map((s) => {
+    params.push(s.chemin.split('.'));
+    return `count(sn.snapshot #>> $${params.length}::text[])::int AS c${params.length}`;
+  });
+
+  const lignes = await requete<Record<string, number>>(
+    `SELECT ${colonnes.join(', ')}
+       FROM score_parcelle_filiere s
+       JOIN parcelle p ON p.idu = s.idu
+       LEFT JOIN parcelle_snapshot sn ON sn.idu = s.idu
+      WHERE s.filiere = $1 AND s.profil_ponderation = 'defaut'
+        ${restreint ? 'AND p.code_departement = ANY($2)' : ''}`,
+    params,
+  );
+  const ligne = lignes[0];
+  return seuils.map((s, i) => ({
+    chemin: s.chemin,
+    // L'alias suit l'indice du parametre, decale par `filiere` et, s'il y a lieu, `departements`.
+    renseignees: ligne?.[`c${i + (restreint ? 3 : 2)}`] ?? 0,
+  }));
 }
 
 /**
@@ -742,6 +833,31 @@ export async function filtrerParcelles(
     );
   }
 
+  for (const s of f.seuils ?? []) {
+    /*
+     * LE CHEMIN PASSE EN PARAMETRE, jamais par concatenation. `#>>` prend un `text[]` : le chemin
+     * decoupe devient une valeur liee, et non un morceau de requete. Meme si la validation venait
+     * a faiblir, aucune chaine d'appelant n'atteindrait l'analyseur SQL.
+     *
+     * `::numeric` sur une valeur absente rend `NULL`, donc la condition est fausse : une parcelle
+     * dont la grandeur n'a pas ete mesuree n'est PAS retenue par un seuil qui la demande. C'est le
+     * bon sens d'erreur — un seuil qu'on ne peut pas verifier ne doit pas etre repute satisfait.
+     */
+    const segments = s.chemin.split('.');
+    if (s.min != null) {
+      params.push(segments, s.min);
+      conditions.push(
+        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric >= $${params.length}`,
+      );
+    }
+    if (s.max != null) {
+      params.push(segments, s.max);
+      conditions.push(
+        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric <= $${params.length}`,
+      );
+    }
+  }
+
   const where = conditions.join(' AND ');
   const base = `
     FROM score_parcelle_filiere s
@@ -934,6 +1050,7 @@ export function filtresValides(
       description: 'codes de groupe de culture RPG (1 a 28)',
       maxElements: 28,
     }),
+    seuils: seuilsValides(l),
     tri: l.parmi('tri', TRIS_VALIDES),
     limite: l.nombre('limite', { min: 1, max: limiteMax, entier: true }),
     decalage: l.nombre('decalage', { min: 0, max: 1_000_000, entier: true }),
@@ -956,6 +1073,114 @@ export function filtresValides(
 
   return filtres;
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * VALIDATION DES SEUILS — la liste blanche est la table des bornes physiques
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * TROIS CONTROLES, ET CHACUN REPOND A UN DEFAUT PRECIS :
+ *
+ *   1. LE CHEMIN EST CONNU. Il est cherche dans `BORNES_SNAPSHOT` — un chemin libre partirait
+ *      sinon dans `#>>`, ou il rendrait `NULL` sur toute la base : le filtre serait annonce a
+ *      l'ecran et ne retiendrait rien, sans la moindre erreur. `gisement.iradiationKwhM2An`, avec
+ *      une lettre en moins, viderait la liste en silence.
+ *
+ *   2. LA VALEUR EST DANS LES BORNES PHYSIQUES de la grandeur. Demander un vent d'au moins
+ *      40 m/s est une faute de saisie, pas une recherche : la borne le dit avec son unite, ce qui
+ *      permet de corriger sans deviner.
+ *
+ *   3. L'INTERVALLE N'EST PAS INVERSE. `min > max` ne renvoie rien, ce qui se lit « aucune
+ *      parcelle ne correspond » alors que c'est la demande qui est contradictoire — meme
+ *      raisonnement que pour les bornes de surface, et meme remede.
+ *
+ * Et un quatrieme, implicite : un seuil sans `min` NI `max` est REFUSE plutot qu'ignore. Il
+ * signale un formulaire qui envoie une ligne vide, et l'ignorer laisserait croire a un critere
+ * actif.
+ */
+function seuilsValides(l: Lecteur): Array<{ chemin: string; min?: number; max?: number }> | undefined {
+  const brut = l.brutValideAilleurs('seuils');
+  if (brut === undefined || brut === null) return undefined;
+  if (!Array.isArray(brut)) return refusSeuil('tableau attendu', brut);
+  if (brut.length === 0) return undefined;
+  if (brut.length > MAX_SEUILS) {
+    return refusSeuil(`au plus ${MAX_SEUILS} seuils`, brut.length);
+  }
+
+  const vus = new Set<string>();
+  const seuils: Array<{ chemin: string; min?: number; max?: number }> = [];
+  for (const e of brut) {
+    if (e == null || typeof e !== 'object' || Array.isArray(e)) {
+      return refusSeuil('objet { chemin, min?, max? } attendu', e);
+    }
+    const { chemin, min, max } = e as { chemin?: unknown; min?: unknown; max?: unknown };
+    if (typeof chemin !== 'string') return refusSeuil('champ `chemin` requis', chemin);
+
+    const borne = BORNES_SNAPSHOT.find((b) => b.chemin === chemin);
+    if (!borne) {
+      throw new ErreurValidation(
+        'seuils',
+        `Grandeur inconnue : « ${chemin} ». Un chemin mal orthographie ne retiendrait AUCUNE ` +
+          'parcelle, sans erreur et sans que rien ne le signale.',
+      );
+    }
+    if (vus.has(chemin)) {
+      // Deux seuils sur la meme grandeur se cumuleraient, et le second passerait pour ignore.
+      throw new ErreurValidation('seuils', `Grandeur en double : « ${chemin} ».`);
+    }
+    vus.add(chemin);
+
+    const nombre = (v: unknown, nom: string): number | undefined => {
+      if (v === undefined || v === null) return undefined;
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        throw new ErreurValidation('seuils', `Seuil ${nom} de « ${chemin} » : nombre attendu.`);
+      }
+      if (v < borne.min || v > borne.max) {
+        throw new ErreurValidation(
+          'seuils',
+          `Seuil ${nom} de « ${chemin} » : ${v} ${borne.unite} hors des bornes physiques ` +
+            `(${borne.min} a ${borne.max} ${borne.unite}). ${borne.motif}`,
+        );
+      }
+      return v;
+    };
+
+    const bas = nombre(min, 'minimal');
+    const haut = nombre(max, 'maximal');
+    if (bas === undefined && haut === undefined) {
+      throw new ErreurValidation(
+        'seuils',
+        `Seuil de « ${chemin} » sans valeur : precisez \`min\`, \`max\`, ou retirez la ligne.`,
+      );
+    }
+    if (bas !== undefined && haut !== undefined && bas > haut) {
+      throw new ErreurValidation(
+        'seuils',
+        `Seuil de « ${chemin} » : minimum ${bas} superieur au maximum ${haut} — aucune parcelle ne peut correspondre.`,
+      );
+    }
+    seuils.push({
+      chemin,
+      ...(bas !== undefined ? { min: bas } : {}),
+      ...(haut !== undefined ? { max: haut } : {}),
+    });
+  }
+  return seuils;
+}
+
+const refusSeuil = (attendu: string, recu: unknown): never => {
+  throw new ErreurValidation(
+    'seuils',
+    `Champ \`seuils\` : ${attendu}. Recu : ${typeof recu === 'object' ? JSON.stringify(recu).slice(0, 60) : String(recu)}.`,
+  );
+};
+
+/**
+ * Plafond du nombre de seuils. Dix-neuf grandeurs sont proposees par l'interface, toutes filieres
+ * confondues ; vingt-cinq laisse la place a une recherche experte sans ouvrir la porte a une
+ * requete de mille conditions.
+ */
+const MAX_SEUILS = 25;
 
 /** Valeurs closes acceptees par les filtres, alignees sur les types du domaine. */
 const FEUX_VALIDES = ['vert', 'orange', 'rouge', 'gris'] as const satisfies readonly Feu[];

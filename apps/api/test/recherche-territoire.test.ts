@@ -136,6 +136,15 @@ async function peupler(): Promise<void> {
         zaer: { present: c.zaer },
         zonages: c.zonages.map((z) => ({ typeZone: z, libelle: z, partRecouvrement: 1 })),
       },
+      // Grandeurs numeriques, pour eprouver le filtre generique par seuil. `A` et `B` portent des
+      // valeurs distinctes ; `C` n'en porte AUCUNE — c'est le cas qui prouve qu'un seuil sur une
+      // grandeur non mesuree ecarte la parcelle plutot que de la presumer conforme.
+      ...(c.suffixe === 'C'
+        ? {}
+        : {
+            gisement: { irradiationKwhM2An: c.suffixe === 'A' ? 1400 : 1100 },
+            topographie: { altitudeM: c.suffixe === 'A' ? 120 : 900 },
+          }),
       occupationSol: {
         rpg: {
           codeGroupeCulture: c.groupeCulture,
@@ -369,6 +378,81 @@ test('LE TYPE D’AGRICULTURE SE CUMULE AVEC LES AUTRES CRITERES', async () => {
     await retenus({ codesDepartement: [DEP_LOCAL], groupesCulture: ['1'], enZaerSeulement: true }),
     [],
   );
+});
+
+// ---------------------------------------------------------------------------
+// Les seuils sur une grandeur du snapshot
+// ---------------------------------------------------------------------------
+
+test('UN SEUIL FILTRE REELLEMENT SUR LA GRANDEUR DEMANDEE', async () => {
+  if (ignorer()) return;
+  /*
+   * LE CHEMIN JSONB NE SE VERIFIE QUE CONTRE UNE BASE. `#>>` sur une cle absente rend `NULL`, la
+   * condition devient fausse, et la recherche ne retient rien — sans erreur, sans message. Un
+   * chemin faux et un seuil trop exigeant produisent donc exactement le meme ecran.
+   */
+  // `A` porte 1400, `B` porte 1100, `C` n'a pas de gisement du tout.
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], seuils: [{ chemin: 'gisement.irradiationKwhM2An', min: 1300 }] }), ['A']);
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], seuils: [{ chemin: 'gisement.irradiationKwhM2An', min: 1000 }] }), ['A', 'B']);
+  // Le sens `max` fonctionne aussi, et il porte sur la meme grandeur.
+  assert.deepEqual(await retenus({ codesDepartement: [DEP_LOCAL], seuils: [{ chemin: 'topographie.altitudeM', max: 500 }] }), ['A']);
+  // Et un intervalle encadre des deux cotes.
+  assert.deepEqual(
+    await retenus({ codesDepartement: [DEP_LOCAL], seuils: [{ chemin: 'topographie.altitudeM', min: 100, max: 500 }] }),
+    ['A'],
+  );
+});
+
+test('UNE PARCELLE DONT LA GRANDEUR N’EST PAS MESUREE N’EST JAMAIS PRESUMEE CONFORME', async () => {
+  if (ignorer()) return;
+  /*
+   * LE SENS D'ERREUR. `C` et `E` ne portent aucune valeur de gisement. Un seuil qu'on ne peut pas
+   * verifier ne doit pas etre repute satisfait : retenir ces parcelles ferait remonter du foncier
+   * dont on ignore tout, presente comme repondant au critere.
+   */
+  const r = await retenus({ codesDepartement: [DEP_LOCAL], seuils: [{ chemin: 'gisement.irradiationKwhM2An', min: 0 }] });
+  assert.deepEqual(r, ['A', 'B']);
+  assert.ok(!r.includes('C'), 'instantane sans la grandeur : jamais retenue');
+  assert.ok(!r.includes('E'), 'aucun instantane : jamais retenue');
+});
+
+test('LA COUVERTURE DIT SUR COMBIEN DE PARCELLES CHAQUE SEUIL EST MESURABLE', async () => {
+  if (ignorer()) return;
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * « 0 RESULTAT » MENT A NOUVEAU, SOUS UNE FORME NOUVELLE — et c'est moi qui l'ai introduite
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Mesure sur la base de reference : `foncier.nbProprietairesEstime` est NULL sur les 301
+   * parcelles, la donnee de propriete exigeant une habilitation. Demander « au plus 2
+   * proprietaires » rend donc zero, exactement comme si aucune parcelle ne convenait — alors que
+   * le territoire est qualifie et que le bandeau annonce ses parcelles.
+   *
+   * Le compte par seuil distingue les deux causes, et il est pris SANS les criteres.
+   */
+  const { total, couverture } = await filtrerParcelles({
+    filiere: FILIERE,
+    codesDepartement: [DEP_LOCAL],
+    seuils: [
+      { chemin: 'foncier.nbProprietairesEstime', max: 2 },
+      { chemin: 'gisement.irradiationKwhM2An', min: 1000 },
+    ],
+    limite: 50,
+  });
+
+  assert.equal(total, 0, 'la grandeur jamais mesuree ecarte tout');
+  const parChemin = new Map(couverture.seuilsRenseignes.map((s) => [s.chemin, s.renseignees]));
+  assert.equal(parChemin.get('foncier.nbProprietairesEstime'), 0, 'grandeur jamais renseignee ici');
+  assert.equal(parChemin.get('gisement.irradiationKwhM2An'), 2, 'mesuree sur A et B');
+  // Le denominateur du territoire, lui, reste entier : le territoire EST qualifie.
+  assert.ok(couverture.parcellesQualifiees >= 4);
+});
+
+test('SANS SEUIL, LA COUVERTURE NE FABRIQUE PAS DE DIAGNOSTIC', async () => {
+  if (ignorer()) return;
+  // Une liste vide plutot qu'un tableau de zeros : un diagnostic qui parle toujours ne se lit plus.
+  const { couverture } = await filtrerParcelles({ filiere: FILIERE, codesDepartement: [DEP_LOCAL], limite: 5 });
+  assert.deepEqual(couverture.seuilsRenseignes, []);
 });
 
 test('LES CRITERES D’URBANISME SE CUMULENT ENTRE EUX', async () => {

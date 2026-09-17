@@ -2336,6 +2336,206 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/orthographe-affichee.test.ts'],
   },
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * AUDIT 23 — LES SEUILS, ET LE CAHIER DES CHARGES WORD
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   */
+  {
+    audit: 'audit 23',
+    /*
+     * LE CHEMIN JSONB DEVIE D'UNE LETTRE. `#>>` sur une cle absente rend `NULL`, la condition
+     * devient fausse, et la recherche ne retient RIEN — sans erreur, sans message. Le critere
+     * serait annonce dans le formulaire ET dans le cahier des charges remis au developpeur, et
+     * n'aurait jamais retenu une seule parcelle.
+     */
+    quoi: 'le critere roi du solaire pointe une grandeur qui n’existe pas : la recherche ne retient plus rien',
+    fichier: 'packages/core/src/seuils-recherche.ts',
+    construire: '@enr/core',
+    de: "      chemin: 'gisement.irradiationKwhM2An',",
+    vers: "      chemin: 'gisement.iradiationKwhM2An',",
+    tests: ['packages/core/test/seuils-recherche.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * LE SENS DU SEUIL S'INVERSE. Le formulaire afficherait « Distance a l'habitation AU PLUS
+     * 500 m » et retiendrait exactement le foncier que l'article L.515-44 interdit. C'est le
+     * defaut le plus couteux de cette table, et le plus difficile a voir en relecture.
+     */
+    quoi: 'le recul eolien s’inverse : l’outil retient le foncier que la loi interdit',
+    fichier: 'packages/core/src/seuils-recherche.ts',
+    construire: '@enr/core',
+    de: "      libelle: \"Distance à l'habitation minimale\",\n      sens: 'min',\n      unite: 'm',\n      usuel: 500,",
+    vers: "      libelle: \"Distance à l'habitation minimale\",\n      sens: 'max',\n      unite: 'm',\n      usuel: 500,",
+    tests: ['packages/core/test/seuils-recherche.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 23',
+    // Une unite fausse fait saisir une valeur mille fois trop grande, et le cahier des charges
+    // l'imprime telle quelle chez le developpeur.
+    quoi: 'un seuil annonce une unite qui n’est pas celle de sa grandeur',
+    fichier: 'packages/core/src/seuils-recherche.ts',
+    construire: '@enr/core',
+    de: "      libelle: 'Distance à la voirie maximale',\n      sens: 'max',\n      unite: 'm',\n      usuel: 500,",
+    vers: "      libelle: 'Distance à la voirie maximale',\n      sens: 'max',\n      unite: 'km',\n      usuel: 500,",
+    tests: ['packages/core/test/seuils-recherche.test.ts'],
+    cwd: 'packages/core',
+    commande: ['npm', 'test'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * UNE GRANDEUR INCONNUE PASSE LA VALIDATION. Sans la liste blanche, un chemin libre part dans
+     * `#>>` et la recherche annonce un critere qu'elle n'applique jamais.
+     */
+    quoi: 'la liste blanche des grandeurs saute : un chemin invente atteint le SQL',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '    const borne = BORNES_SNAPSHOT.find((b) => b.chemin === chemin);\n    if (!borne) {',
+    vers: '    const borne = BORNES_SNAPSHOT.find((b) => b.chemin === chemin) ?? BORNES_SNAPSHOT[0]!;\n    if (false) {',
+    tests: ['apps/api/test/validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/validation.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    // Les bornes physiques ne sont plus verifiees : un vent moyen de 40 m/s devient une recherche
+    // legitime, et l'operateur n'a aucun moyen de savoir qu'il s'est trompe d'unite.
+    quoi: 'les bornes physiques ne sont plus verifiees : une valeur absurde devient une recherche',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '      if (v < borne.min || v > borne.max) {',
+    vers: '      if (false) {',
+    tests: ['apps/api/test/validation.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/validation.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * UNE PARCELLE NON MESUREE EST PRESUMEE CONFORME. Un seuil qu'on ne peut pas verifier serait
+     * repute satisfait : l'outil remonterait du foncier dont on ignore tout, presente comme
+     * repondant au critere. C'est l'inverse exact du principe de tout ce depot.
+     */
+    quoi: 'une parcelle dont la grandeur n’est pas mesuree est presumee satisfaire le seuil',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric >= $${params.length}`,',
+    vers: '        `COALESCE((sn.snapshot #>> $${params.length - 1}::text[])::numeric, 1e9) >= $${params.length}`,',
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * LE DIAGNOSTIC PAR SEUIL DISPARAIT. C'est « 0 resultat ment » restaure sous sa forme
+     * nouvelle : un seuil sur une grandeur jamais renseignee vide la liste, et rien ne distingue
+     * plus cette cause de « aucune parcelle ne convient ».
+     */
+    quoi: 'le diagnostic par seuil disparait : une grandeur jamais mesuree redevient indistinguable d’un resultat vide',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: '  const seuils = f.seuils ?? [];\n  if (seuils.length === 0) return [];',
+    vers: '  const seuils = f.seuils ?? [];\n  if (true) return [];',
+    tests: ['apps/api/test/recherche-territoire.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    // Le meme diagnostic, mais cote ecran : le bandeau cesse de nommer la grandeur non mesuree.
+    quoi: 'l’ecran n’avertit plus qu’un seuil porte sur une grandeur jamais mesuree',
+    fichier: 'apps/web/src/components/VueListe.tsx',
+    de: '  if (jamaisMesures.length > 0) {',
+    vers: '  if (false) {',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * L'ESPERLUETTE N'EST PLUS ECHAPPEE. Un seul `&` nu rend le .docx illisible par Word — « le
+     * contenu pose probleme », sans dire lequel. Les libelles viennent de sources externes qui en
+     * charrient (« Eau & milieux »), et aucun typage ne protege de cela.
+     */
+    quoi: 'l’esperluette n’est plus echappee : Word refuse d’ouvrir le cahier des charges',
+    fichier: 'apps/api/src/services/docx.ts',
+    de: "    .replace(/&/g, '&amp;')",
+    vers: '    .replace(/&/g, String.fromCharCode(38))',
+    tests: ['apps/api/test/cahier-des-charges.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/cahier-des-charges.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    // `w:tblGrid` est exige par la specification Office Open XML : sans lui, Word signale un
+    // contenu illisible et n'ouvre pas le document.
+    quoi: 'la grille des tableaux disparait du .docx : le document ne s’ouvre plus',
+    fichier: 'apps/api/src/services/docx.ts',
+    de: '`<w:tblGrid>${grille}</w:tblGrid>${enTete}${corps}</w:tbl>`',
+    vers: '`${enTete}${corps}</w:tbl>`',
+    tests: ['apps/api/test/cahier-des-charges.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/cahier-des-charges.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * LA COLONNE DES IDENTIFIANTS TECHNIQUES DISPARAIT. C'est ce qui rend le document exploitable
+     * au retour : sans elle, chaque ligne doit etre RETRADUITE de memoire vers le formulaire, et
+     * c'est exactement la qu'un critere se perd.
+     */
+    quoi: 'le cahier des charges perd la colonne qui nomme chaque grandeur dans le logiciel',
+    fichier: 'apps/api/src/services/cahier-des-charges.ts',
+    de: "      entetes: ['Critère', 'Sens', 'Unité', 'Usuel', 'Valeur demandée', 'Grandeur dans le logiciel'],",
+    vers: "      entetes: ['Critère', 'Sens', 'Unité', 'Usuel', 'Valeur demandée', 'Code'],",
+    tests: ['apps/api/test/cahier-des-charges.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/cahier-des-charges.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    /*
+     * LE DOCUMENT CESSE DE DIRE QUE DES REGLES ATTENDENT UN JURISTE. Il partirait chez un tiers
+     * avec l'apparence d'un cadre reglementaire valide — l'exact contraire de ce que le referentiel
+     * de ce depot affirme depuis quatre audits.
+     */
+    quoi: 'le cahier des charges ne signale plus les regles non validees par un juriste',
+    fichier: 'apps/api/src/services/cahier-des-charges.ts',
+    de: "      texte: `${aValider.length} de ces ${toutes.length} règles n'ont pas encore été validées par un juriste. Elles sont signalées « à valider » ci-dessous et ne doivent pas être opposées telles quelles.`,",
+    vers: "      texte: `Le référentiel compte ${toutes.length} règles applicables à cette filière.`,",
+    tests: ['apps/api/test/cahier-des-charges.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/cahier-des-charges.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    // Le document cesse d'avouer qu'il ne se reimporte pas : l'operateur attendrait une reprise
+    // automatique qui n'existe pas, et croirait ses criteres appliques.
+    quoi: 'le cahier des charges n’avoue plus qu’il ne se reimporte pas automatiquement',
+    fichier: 'apps/api/src/services/cahier-des-charges.ts',
+    de: '        "Ce cahier des charges ne se réimporte pas automatiquement',
+    vers: '        "Ce cahier des charges se reprend automatiquement',
+    tests: ['apps/api/test/cahier-des-charges.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/cahier-des-charges.test.ts'],
+  },
+  {
+    audit: 'audit 23',
+    // Le formulaire cesse de dire que la valeur grise n'est qu'un ordre de grandeur : l'operateur
+    // croirait le seuil applique, et conclurait a tort sur le contenu du territoire.
+    quoi: 'la valeur usuelle grisee passe pour un filtre actif',
+    fichier: 'apps/web/src/components/FormulaireBalayage.tsx',
+    de: '            Les valeurs en gris sont des <strong>ordres de grandeur usuels</strong>, pas des',
+    vers: '            Valeurs indicatives, pas des',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
 ];
 
 /**

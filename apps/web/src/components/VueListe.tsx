@@ -177,6 +177,33 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
             />
             Limiter à la zone affichée
           </label>
+          {/*
+            LE CAHIER DES CHARGES WORD, et il n'est PAS desactive quand la liste est vide.
+            C'est la difference de nature avec les autres exports : le CSV, le Shapefile et le
+            dossier portent des RESULTATS, donc ils n'ont aucun sens sans resultat. Le cahier des
+            charges, lui, porte la DEMANDE — on l'envoie au developpeur avant d'avoir cherche quoi
+            que ce soit, et c'est meme son usage principal. Le griser sur une liste vide
+            interdirait le seul moment ou l'on en a le plus besoin.
+
+            Les criteres courants y sont joints : envoye a vide il sert de formulaire, envoye avec
+            ce qui est regle il devient le compte rendu de la recherche.
+          */}
+          <button
+            type="button"
+            className="bouton"
+            title="Document Word éditable : le cahier des charges de la filière, à remplir par le développeur et à renvoyer."
+            onClick={() =>
+              void api
+                .exporter(
+                  'cahier-des-charges',
+                  { filiere, criteres: filtres },
+                  `cahier-des-charges-${filiere}.docx`,
+                )
+                .catch((e: ErreurApi) => setErreurExport(e.message))
+            }
+          >
+            Cahier des charges (Word)
+          </button>
           <button
             type="button"
             className="bouton"
@@ -482,6 +509,41 @@ function BandeauCouverture({
 }): JSX.Element | null {
   if (!couverture || !Array.isArray(couverture.departementsDemandes)) return null;
   const { departementsDemandes: deps, parcellesQualifiees, communesAvecParcelle } = couverture;
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * UN SEUIL SUR UNE GRANDEUR JAMAIS MESUREE — « 0 resultat » ment a nouveau, autrement
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * LE FILTRE PAR SEUIL ecarte toute parcelle dont la grandeur n'est pas renseignee : c'est le bon
+   * sens d'erreur, un seuil qu'on ne peut pas verifier ne doit pas etre repute satisfait. Mais la
+   * consequence est brutale — mesure sur la base de reference, `foncier.nbProprietairesEstime` est
+   * nul sur les 301 parcelles, parce que la donnee de propriete exige une habilitation et n'est
+   * pas ingeree. Demander « au plus 2 proprietaires » rend donc ZERO, exactement comme si aucune
+   * parcelle ne convenait.
+   *
+   * Le territoire est pourtant bien qualifie, et le bandeau annonce ses parcelles : sans cette
+   * phrase, l'operateur conclurait qu'aucune parcelle du departement n'a moins de trois
+   * proprietaires. Ce bloc passe AVANT le retour anticipe sur un territoire vide, parce qu'un
+   * seuil non mesure se signale meme sans territoire demande.
+   */
+  const jamaisMesures = (couverture.seuilsRenseignes ?? []).filter((s) => s.renseignees === 0);
+  if (jamaisMesures.length > 0) {
+    return (
+      <div className="couverture couverture-vide" role="status">
+        <strong>
+          {jamaisMesures.length > 1
+            ? `${jamaisMesures.length} critères ne sont mesurés sur aucune parcelle`
+            : 'Un critère n’est mesuré sur aucune parcelle'}{' '}
+          du territoire.
+        </strong>{' '}
+        {jamaisMesures.map((s) => s.chemin).join(', ')} — la donnée n’a jamais été renseignée ici.
+        Le résultat est donc vide <em>pour cette raison</em>, et non parce qu’aucune parcelle ne
+        conviendrait. Retirez ce seuil pour voir ce que les autres critères donnent.
+      </div>
+    );
+  }
+
   if (deps.length === 0) return null;
 
   const territoire = `${deps.length} département${deps.length > 1 ? 's' : ''} (${deps.join(', ')})`;

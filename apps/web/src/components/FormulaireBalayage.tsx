@@ -38,6 +38,7 @@ import {
   FAMILLES_CULTURE,
   FILIERES_META,
   GROUPES_CULTURE,
+  SEUILS_RECHERCHE,
   LIBELLES_REGIME,
   ORDRE_REGIMES,
   TYPES_SOL,
@@ -176,6 +177,32 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
       ? actuels.filter((g) => !attendus.includes(g))
       : [...new Set([...actuels, ...attendus])];
     maj({ groupesCulture: apres.length > 0 ? apres : undefined });
+  };
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LES SEUILS — ce qui manquait le plus, et de loin
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le CRITERE ROI de trois filieres sur quatre etait introuvable : l'irradiation en solaire, la
+   * vitesse de vent en eolien, le tonnage d'intrants en methanisation. Un outil de recherche qui
+   * ne sait pas chercher par le critere roi de sa filiere ne cherche pas.
+   *
+   * UNE CASE VIDE N'ECARTE RIEN, et c'est la regle qui rend le formulaire lisible : le seuil
+   * n'existe dans les criteres que s'il porte une valeur. Effacer la case retire la ligne, plutot
+   * que d'envoyer un seuil a zero — qui, sur un `min`, ne filtrerait rien, et sur un `max`,
+   * viderait la liste.
+   */
+  const valeurSeuil = (chemin: string, sens: 'min' | 'max'): number | '' => {
+    const s = f.seuils?.find((x) => x.chemin === chemin);
+    const v = sens === 'min' ? s?.min : s?.max;
+    return v ?? '';
+  };
+  const definirSeuil = (chemin: string, sens: 'min' | 'max', brut: string): void => {
+    const autres = (f.seuils ?? []).filter((x) => x.chemin !== chemin);
+    const v = brut === '' ? null : Number(brut);
+    const apres = v == null || Number.isNaN(v) ? autres : [...autres, { chemin, [sens]: v }];
+    maj({ seuils: apres.length > 0 ? apres : undefined });
   };
 
   const basculerZonePlu = (code: string): void => {
@@ -356,7 +383,43 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
           </p>
         </div>
 
-        {/* --- 5. Zone ---------------------------------------------------- */}
+        {/* --- 5. Seuils ---------------------------------------------------- */}
+        <div className="balayage-bloc">
+          <h3>Seuils {FILIERES_META[filiere].libelleCourt}</h3>
+          <p className="balayage-note">
+            Dans l&apos;ordre où ils éliminent — le premier est le critère déterminant de la
+            filière. Une case vide n&apos;écarte rien.
+          </p>
+          <div className="balayage-seuils">
+            {SEUILS_RECHERCHE[filiere].map((s) => (
+              <label key={s.chemin} className="balayage-seuil" title={s.aide}>
+                <span className="balayage-seuil-nom">
+                  {s.libelle}
+                  <em>{s.sens === 'min' ? ' au moins' : ' au plus'}</em>
+                </span>
+                <input
+                  type="number"
+                  value={valeurSeuil(s.chemin, s.sens)}
+                  placeholder={String(s.usuel)}
+                  aria-label={`${s.libelle} ${s.sens === 'min' ? 'au moins' : 'au plus'} (${s.unite})`}
+                  onChange={(e) => definirSeuil(s.chemin, s.sens, e.target.value)}
+                />
+                <span className="balayage-seuil-unite">{s.unite}</span>
+              </label>
+            ))}
+          </div>
+          {/*
+            LE PLACEHOLDER N'EST PAS UNE VALEUR PAR DEFAUT, et le dire evite un contresens couteux :
+            un operateur qui voit « 1250 » en gris pourrait croire le seuil applique. Il ne l'est
+            pas tant que la case est vide.
+          */}
+          <p className="balayage-note">
+            Les valeurs en gris sont des <strong>ordres de grandeur usuels</strong>, pas des
+            filtres actifs : tant que la case est vide, le critère ne s&apos;applique pas.
+          </p>
+        </div>
+
+        {/* --- 6. Zone ---------------------------------------------------- */}
         <div className="balayage-bloc">
           <h3>Zone</h3>
           <label className="case">

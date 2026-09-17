@@ -27,6 +27,7 @@ import { entierRequete, ErreurValidation, lecteur, ponderationValide } from '../
 /** Roles applicatifs. Liste fermee : une valeur invalide est refusee, et non ramenee a `lecture`. */
 const ROLES = ['admin', 'prospection', 'lecture'] as const;
 import { csvResultats, dossierSitePdf, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
+import { cahierDesChargesDocx } from '../services/cahier-des-charges.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
@@ -241,6 +242,68 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       .header('Content-Type', 'application/zip')
       .header('Content-Disposition', `attachment; filename="parcelles-${filiere}-shapefile.zip"`)
       .send(archive);
+  });
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE CAHIER DES CHARGES, EN WORD EDITABLE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * POST ET NON GET, alors qu'il s'agit d'un telechargement. Le corps est FACULTATIF : vide, la
+   * route rend un formulaire vierge a envoyer au developpeur ; rempli des criteres courants, elle
+   * rend le compte rendu de la recherche qu'on vient de lancer, a joindre aux resultats. Les
+   * criteres comportent des tableaux et des seuils imbriques, qui ne tiennent pas proprement dans
+   * une chaine de requete — et un GET aurait fini par porter un JSON encode dans une URL.
+   *
+   * LES CRITERES SONT VALIDES MEME ICI, alors qu'ils ne touchent aucun SQL : ils sont IMPRIMES
+   * dans un document remis a un tiers. Un seuil hors bornes physiques ou une grandeur inconnue
+   * s'imprimerait tel quel et ferait chercher au developpeur un critere qui n'existe pas.
+   */
+  app.post('/api/exports/cahier-des-charges', debitExport, async (req, rep) => {
+    const corps = (req.body ?? {}) as Record<string, unknown>;
+    const filiere = corps['filiere'];
+    if (!estFiliere(filiere)) {
+      return erreur(
+        rep,
+        400,
+        'filiere_invalide',
+        `Paramètre \`filière\` requis, parmi ${FILIERES.join(', ')}`,
+      );
+    }
+
+    /*
+     * `criteres` absent -> formulaire vierge. Present -> valide comme n'importe quel filtre, avec
+     * le meme message d'erreur : l'operateur corrige au meme endroit, qu'il cherche ou qu'il
+     * edite.
+     */
+    let criteres: Record<string, unknown> | undefined;
+    if (corps['criteres'] != null) {
+      try {
+        criteres = filtresValides(corps['criteres']) as unknown as Record<string, unknown>;
+      } catch (err) {
+        if (err instanceof ErreurValidation) {
+          return erreur(rep, 400, 'filtre_invalide', err.message, { champ: err.champ });
+        }
+        throw err;
+      }
+    }
+
+    const fichier = cahierDesChargesDocx(filiere, criteres);
+    await journaliser('export_cahier_des_charges', {
+      utilisateurId: req.utilisateur?.id,
+      email: req.utilisateur?.email,
+      details: { filiere, rempli: criteres != null },
+    });
+    return rep
+      .header(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      )
+      .header(
+        'Content-Disposition',
+        `attachment; filename="cahier-des-charges-${filiere}.docx"`,
+      )
+      .send(fichier);
   });
 
   app.post('/api/exports/csv', debitExport, async (req, rep) => {

@@ -264,3 +264,81 @@ test('LE TYPE D’AGRICULTURE SE VALIDE PAR CODE DE GROUPE, NON PAR LIBELLE', ()
   // Et un critere mal orthographie reste REFUSE, non ignore.
   refuse({ ...base, groupeCulture: ['18'] }, /inconnu/);
 });
+
+// ---------------------------------------------------------------------------
+// Les seuils : la liste blanche est la table des bornes physiques
+// ---------------------------------------------------------------------------
+
+test('UN SEUIL VALIDE PASSE, AVEC SON SENS', () => {
+  const f = filtresValides({
+    ...base,
+    seuils: [
+      { chemin: 'gisement.irradiationKwhM2An', min: 1300 },
+      { chemin: 'foncier.nbProprietairesEstime', max: 3 },
+      { chemin: 'topographie.altitudeM', min: 100, max: 800 },
+    ],
+  });
+  assert.deepEqual(f.seuils, [
+    { chemin: 'gisement.irradiationKwhM2An', min: 1300 },
+    { chemin: 'foncier.nbProprietairesEstime', max: 3 },
+    { chemin: 'topographie.altitudeM', min: 100, max: 800 },
+  ]);
+});
+
+test('UNE GRANDEUR INCONNUE EST REFUSEE, ET NON LAISSEE PASSER', () => {
+  /*
+   * C'EST LE CONTROLE QUI COMPTE. Un chemin mal orthographie ne provoque AUCUNE erreur en SQL :
+   * `#>>` sur une cle absente rend `NULL`, la condition devient fausse, et la recherche ne retient
+   * RIEN. Le critere serait annonce dans le formulaire et dans le cahier des charges remis au
+   * developpeur, et n'aurait jamais retenu une seule parcelle.
+   */
+  refuse({ ...base, seuils: [{ chemin: 'gisement.iradiationKwhM2An', min: 1300 }] }, /inconnue/);
+  refuse({ ...base, seuils: [{ chemin: 'n_importe_quoi', min: 1 }] }, /inconnue/);
+  // Et le message NOMME la grandeur fautive : sans elle, l'operateur cherche dans une liste de 64.
+  refuse({ ...base, seuils: [{ chemin: 'gisement.iradiationKwhM2An', min: 1 }] }, /iradiationKwhM2An/);
+});
+
+test('UNE VALEUR HORS DES BORNES PHYSIQUES EST REFUSEE, AVEC SON UNITE', () => {
+  // Un vent moyen de 40 m/s est une faute de saisie, pas une recherche : la borne le dit.
+  refuse({ ...base, seuils: [{ chemin: 'gisement.ventVitesse100mMs', min: 40 }] }, /m\/s/);
+  refuse({ ...base, seuils: [{ chemin: 'topographie.pentePct', max: 500 }] }, /bornes physiques/);
+  // La borne basse compte autant : une irradiation de 10 kWh/m²/an ne designe rien de reel.
+  refuse({ ...base, seuils: [{ chemin: 'gisement.irradiationKwhM2An', min: 10 }] }, /bornes physiques/);
+});
+
+test('UN INTERVALLE INVERSE EST REFUSE PLUTOT QUE RENDU VIDE', () => {
+  // Sinon il se lit « aucune parcelle ne correspond » alors que c'est la demande qui se contredit.
+  refuse(
+    { ...base, seuils: [{ chemin: 'topographie.altitudeM', min: 900, max: 100 }] },
+    /aucune parcelle ne peut correspondre/,
+  );
+});
+
+test('UN SEUIL SANS VALEUR EST REFUSE, ET UNE GRANDEUR EN DOUBLE AUSSI', () => {
+  /*
+   * Un seuil vide signale un formulaire qui envoie une ligne inutile ; l'ignorer laisserait croire
+   * a un critere actif. Un doublon, lui, produirait deux conditions cumulees dont la seconde
+   * passerait pour ignoree.
+   */
+  refuse({ ...base, seuils: [{ chemin: 'topographie.altitudeM' }] }, /sans valeur/);
+  refuse(
+    {
+      ...base,
+      seuils: [
+        { chemin: 'topographie.altitudeM', max: 800 },
+        { chemin: 'topographie.altitudeM', min: 100 },
+      ],
+    },
+    /double/,
+  );
+});
+
+test('LA FORME DES SEUILS EST VERIFIEE, ET LEUR NOMBRE PLAFONNE', () => {
+  refuse({ ...base, seuils: 'gisement.irradiationKwhM2An' }, /tableau attendu/);
+  refuse({ ...base, seuils: ['gisement.irradiationKwhM2An'] }, /objet/);
+  refuse({ ...base, seuils: [{ min: 3 }] }, /chemin/);
+  refuse({ ...base, seuils: [{ chemin: 'topographie.altitudeM', min: 'haut' }] }, /nombre attendu/);
+  refuse({ ...base, seuils: [{ chemin: 'topographie.altitudeM', min: Infinity }] }, /nombre attendu/);
+  // Une liste vide vaut absence, pas « aucun critere ne passe ».
+  assert.equal(filtresValides({ ...base, seuils: [] }).seuils, undefined);
+});

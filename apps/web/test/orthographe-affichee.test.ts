@@ -152,6 +152,27 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   // qualifiée ») et ce que le regime presume ne fait pas (« il ne qualifie aucun terrain »).
   { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'qualifie', raison: "verbe qualifier : « il oriente la recherche, il ne qualifie aucun terrain »" },
   /*
+   * « mesure » / « mesures » (le NOM, et le verbe) contre « mesuré » (le participe). Les deux
+   * graphies sont justes et toutes deux necessaires. Le participe est entre avec le diagnostic des
+   * seuils — « ce critere n'est mesuré sur aucune parcelle » — et a aussitot fait accuser dix noms
+   * parfaitement corrects, dont « mesures compensatoires » et « la mesure porte sur ».
+   *
+   * Traite par exception NOMMEE et non par homographe global : « mesure » et « mesuré » sont deux
+   * formes du meme mot, et desarmer le garde partout masquerait un vrai accent oublie sur le
+   * participe. Relues une par une.
+   */
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'mesure', raison: 'le NOM mesure : « la mesure porte sur », « une mesure compensatoire »' },
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'mesures', raison: 'le NOM au pluriel : « mesures compensatoires », « mesures de reduction »' },
+  { module: 'packages/scoring/src/index.ts', mot: 'mesure', raison: 'le NOM mesure : « la mesure retenue »' },
+  { module: 'packages/core/src/bornes.ts', mot: 'mesure', raison: 'le NOM mesure : « la mesure est bornee »' },
+  { module: 'packages/core/src/criteres.ts', mot: 'mesure', raison: 'le NOM mesure, et le verbe : « ce que le critere mesure »' },
+  { module: 'packages/core/src/criteres.ts', mot: 'mesures', raison: 'le NOM au pluriel : « mesures compensatoires »' },
+  { module: 'packages/core/src/reglementation.ts', mot: 'mesure', raison: 'le NOM mesure : « la mesure prescrite »' },
+  { module: 'packages/core/src/reglementation.ts', mot: 'mesures', raison: 'le NOM au pluriel : « mesures compensatoires »' },
+  { module: 'apps/web/src/App.tsx', mot: 'mesure', raison: "le NOM mesure : l'outil de mesure de la carte" },
+  // « cahier des charges » (le NOM) contre « departements chargés » (participe, panneau des zones).
+  { module: 'apps/web/src/components/VueListe.tsx', mot: 'charges', raison: "le NOM charges : « Cahier des charges (Word) », et son infobulle" },
+  /*
    * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
    * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
    * fait ecrire « le seuil de surface est fixé par arrete » a cote de « le reglement du plan
@@ -392,6 +413,15 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // Les deux sont le MEME verbe appliquer, relues une par une : « le reglement national
     // d'urbanisme s'applique » et « le critere ne s'applique qu'aux projets agrivoltaiques ».
     'packages/scoring/src/criteres-eval.ts|applique': 2,
+    // Deux occurrences du NOM « mesure », relues : « la mesure porte sur » et « une mesure
+    // compensatoire ». Aucune n'est le participe.
+    'packages/scoring/src/criteres-eval.ts|mesure': 2,
+    // Deux fois le NOM dans « Cahier des charges (Word) » : le libelle du bouton et son infobulle.
+    'apps/web/src/components/VueListe.tsx|charges': 2,
+    // Les deux sont le MEME verbe appliquer, relues une par une : « le regime d'implantation ne
+    // s'applique qu'au solaire au sol » et « tant que la case est vide, le critere ne s'applique
+    // pas ». Aucune n'est le participe.
+    'apps/web/src/components/FormulaireBalayage.tsx|applique': 2,
   };
   const compte = new Map<string, number>();
   /*

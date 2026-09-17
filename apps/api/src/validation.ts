@@ -315,6 +315,23 @@ export class Lecteur {
   }
 
   /**
+   * Meme engagement que `valideAilleurs`, mais RESTITUE la valeur brute.
+   *
+   * POURQUOI LES DEUX EXISTENT. `valideAilleurs` suffit quand l'appelant a deja la valeur sous la
+   * main — `ponderationValide` lit `brut.poids` avant meme de construire le lecteur. Les seuils de
+   * recherche, eux, sont valides DANS `filtresValides` a partir du seul lecteur : sans cette
+   * methode il faudrait rouvrir le corps, c'est-a-dire contourner le lecteur pour lire ce qu'il
+   * protege.
+   *
+   * Le nom porte le meme engagement : le champ EST valide, par l'appelant, dans la meme route. Le
+   * test structurel qui exige une raison ecrite pour chaque lecture brute de `req.body` couvre les
+   * deux methodes.
+   */
+  brutValideAilleurs(champ: string): unknown {
+    return this.brut(champ);
+  }
+
+  /**
    * Refuse toute cle du corps qui n'a pas ete lue.
    *
    * C'est la partie du controle qui protege de l'erreur la plus insidieuse : un filtre mal

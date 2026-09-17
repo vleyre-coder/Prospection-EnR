@@ -32,6 +32,7 @@ import {
   FILIERES_META,
   GROUPES_CULTURE,
   REGIME_PAR_TYPE_SOL,
+  SEUILS_RECHERCHE,
   TYPES_SOL,
   groupesDesFamilles,
   typesSolDuRegime,
@@ -103,6 +104,7 @@ test('UN TERRITOIRE JAMAIS QUALIFIE NE SE LIT PAS « AUCUN FONCIER PROPICE »', 
       parcellesQualifiees: 0,
       communesAvecParcelle: 0,
       communesDuTerritoire: 287,
+      seuilsRenseignes: [],
     },
   });
 
@@ -133,6 +135,7 @@ test('UN TERRITOIRE PARTIELLEMENT QUALIFIE ANNONCE UN PLANCHER, PAS UN INVENTAIR
       // 40 communes sur 365 : 11 %, tres loin des 90 % au-dela desquels « partiel » n'informe plus.
       communesAvecParcelle: 40,
       communesDuTerritoire: 365,
+      seuilsRenseignes: [],
     },
   });
 
@@ -161,6 +164,7 @@ test('UN TERRITOIRE COUVERT N’AFFICHE PAS LA RESERVE « PARTIELLEMENT QUALIFIE
       parcellesQualifiees: 4000,
       communesAvecParcelle: 360,
       communesDuTerritoire: 365,
+      seuilsRenseignes: [],
     },
   });
 
@@ -180,6 +184,7 @@ test('SANS TERRITOIRE DEMANDE, LE BANDEAU SE TAIT', () => {
       parcellesQualifiees: 301,
       communesAvecParcelle: 40,
       communesDuTerritoire: null,
+      seuilsRenseignes: [],
     },
   });
 
@@ -378,4 +383,99 @@ test('LES FAMILLES DE CULTURE SE TRADUISENT TOUTES EN GROUPES REELS', () => {
       assert.ok(GROUPES_CULTURE[g], `groupe inconnu rendu par la famille ${f.id} : ${g}`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Les seuils, et le diagnostic qui empêche « 0 résultat » de mentir à nouveau
+// ---------------------------------------------------------------------------
+
+test('LE FORMULAIRE PROPOSE LES SEUILS DE LA FILIÈRE, CRITÈRE ROI EN TÊTE', () => {
+  /*
+   * LE PLUS GROS TROU DE LA RECHERCHE. L'application évalue 43 critères et la recherche n'en
+   * laissait régler qu'une poignée : le critère roi de trois filières sur quatre — irradiation,
+   * vent, intrants — était INTROUVABLE. Un outil de recherche qui ne sait pas chercher par le
+   * critère roi de sa filière ne cherche pas.
+   */
+  const t = afficher({ total: 1, resultats: [LIGNE] });
+  for (const s of SEUILS_RECHERCHE.solaire_sol) {
+    assert.ok(t.includes(s.libelle), `seuil absent du formulaire : ${s.libelle}`);
+  }
+  assert.match(t, /Irradiation globale horizontale minimale/);
+  assert.match(t, /kWh\/m²\/an/);
+  assert.match(t, /au moins|au plus/);
+
+  /*
+   * LA VALEUR GRISE N'EST PAS UN FILTRE ACTIF, et l'écran doit le dire. Un opérateur qui voit
+   * « 1250 » en gris pourrait croire le seuil appliqué, et conclure que le territoire ne porte que
+   * du foncier au-dessus de ce seuil.
+   */
+  assert.match(t, /ordres de grandeur usuels/i);
+  assert.match(t, /tant que la case est vide/i);
+});
+
+test('UN SEUIL SUR UNE GRANDEUR JAMAIS MESURÉE LE DIT, PLUTÔT QUE DE RENDRE « 0 RÉSULTAT »', () => {
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE DÉFAUT QUE J'AI INTRODUIT AVEC LES SEUILS, ET QUE CE TEST FIGE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le filtre écarte toute parcelle dont la grandeur n'est pas renseignée — bon sens d'erreur. Mais
+   * mesure sur la base de référence : `foncier.nbProprietairesEstime` est nul sur les 301 parcelles,
+   * la donnée de propriété exigeant une habilitation. Demander « au plus 2 propriétaires » rend
+   * donc zéro, exactement comme si aucune parcelle ne convenait — alors que le territoire est
+   * qualifié et que le bandeau annonce ses parcelles.
+   */
+  const t = afficher({
+    total: 0,
+    resultats: [],
+    couverture: {
+      departementsDemandes: ['28'],
+      parcellesQualifiees: 301,
+      communesAvecParcelle: 40,
+      communesDuTerritoire: 365,
+      seuilsRenseignes: [
+        { chemin: 'foncier.nbProprietairesEstime', renseignees: 0 },
+        { chemin: 'gisement.irradiationKwhM2An', renseignees: 301 },
+      ],
+    },
+  });
+
+  assert.match(t, /n’est mesuré sur aucune parcelle/i);
+  assert.match(t, /foncier\.nbProprietairesEstime/, 'la grandeur fautive doit être nommée');
+  assert.doesNotMatch(
+    t,
+    /gisement\.irradiationKwhM2An/,
+    'une grandeur bien mesurée ne doit pas être accusée',
+  );
+  // Et la phrase doit refuser explicitement la lecture « aucune parcelle ne conviendrait ».
+  assert.match(t, /pour cette raison/i);
+  assert.match(t, /Retirez ce seuil/i);
+});
+
+test('TOUS LES SEUILS MESURÉS : LE DIAGNOSTIC SE TAIT ET LA COUVERTURE ORDINAIRE REPREND', () => {
+  // Un diagnostic qui parle toujours ne se lit plus : il ne doit apparaître que s'il a une cause.
+  const t = afficher({
+    total: 12,
+    resultats: [LIGNE],
+    couverture: {
+      departementsDemandes: ['28'],
+      parcellesQualifiees: 301,
+      communesAvecParcelle: 40,
+      communesDuTerritoire: 365,
+      seuilsRenseignes: [{ chemin: 'gisement.irradiationKwhM2An', renseignees: 301 }],
+    },
+  });
+  assert.doesNotMatch(t, /mesuré sur aucune parcelle/i);
+  assert.match(t, /12 parcelles? retenues?/i, 'le bandeau de couverture ordinaire doit reprendre');
+});
+
+test('LE CAHIER DES CHARGES WORD EST PROPOSÉ, ET RESTE ACTIF SUR UNE LISTE VIDE', () => {
+  /*
+   * C'est la différence de nature avec les autres exports : le CSV, le Shapefile et le dossier
+   * portent des RÉSULTATS et n'ont aucun sens sans résultat. Le cahier des charges porte la
+   * DEMANDE — on l'envoie au développeur avant d'avoir cherché quoi que ce soit. Le griser sur une
+   * liste vide interdirait le seul moment où l'on en a le plus besoin.
+   */
+  const t = afficher({ total: 0, resultats: [] });
+  assert.match(t, /Cahier des charges \(Word\)/);
 });
