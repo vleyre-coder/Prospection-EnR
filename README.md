@@ -154,6 +154,12 @@ Le moteur de scoring et ses règles par filière : [docs/SCORING.md](docs/SCORIN
 Le contrat de l'API interne : [docs/API_INTERNE.md](docs/API_INTERNE.md).
 La procédure de rafraîchissement : [docs/RAFRAICHISSEMENT.md](docs/RAFRAICHISSEMENT.md).
 
+**Ce que l'application évalue réellement du référentiel de contraintes, et ce qu'elle laisse à
+l'opérateur** : [docs/VERIFICATION-REFERENTIEL.md](docs/VERIFICATION-REFERENTIEL.md). À lire avant
+de fonder une décision sur un verdict — 73 contraintes sur 292 sont tranchées automatiquement, les
+219 autres sont affichées avec leur seuil et leur source à consulter. Les chiffres de ce rapport
+sont recomptés par un test, ils ne peuvent pas se périmer en silence.
+
 ## Avertissements — à lire avant tout usage
 
 Ces avertissements sont affichés dans l'application, dans les fiches PDF et dans les exports.

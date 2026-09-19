@@ -3475,6 +3475,75 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/accessibilite.test.ts'],
   },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 34 — le rapport de verification ne doit pas pouvoir se perimer en silence
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 34',
+    /*
+     * LE RAPPORT SURESTIME CE QUE L'APPLICATION EVALUE. C'est le document sur lequel se fonde une
+     * decision de terrain : savoir que le verdict eolien repose sur 18 contraintes raccordees et
+     * non sur les 54 classees automatisables change ce qu'on en fait. Un tableau faux se lit
+     * exactement comme un tableau juste — il est donc PIRE que l'absence de rapport.
+     */
+    quoi: 'le rapport annonce plus de contraintes raccordees qu’il n’y en a',
+    fichier: 'docs/VERIFICATION-REFERENTIEL.md',
+    de: '| Éolien terrestre | 83 | 54 | **18** | 36 | 29 |',
+    vers: '| Éolien terrestre | 83 | 54 | **24** | 30 | 29 |',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-referentiel.test.ts'],
+  },
+  {
+    audit: 'audit 34',
+    /*
+     * UNE CORRESPONDANCE RETIREE DU CODE, ET LE RAPPORT QUI CONTINUE D'ANNONCER L'ANCIEN COMPTE.
+     * C'est la derive normale d'un document tenu a la main : le code bouge, le tableau reste. Le
+     * test doit lier les deux dans CE sens-la aussi, et pas seulement quand c'est le document qu'on
+     * edite.
+     */
+    quoi: 'une correspondance disparait du code sans que le rapport ne bouge',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: "    'methanisation__ppri_inondation',",
+    vers: '',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-referentiel.test.ts'],
+  },
+  {
+    audit: 'audit 34',
+    /*
+     * LE RAPPORT ANNONCE UN MILLESIME QUI N'EST PLUS CELUI DU CLASSEUR INTEGRE. Il decrirait alors
+     * un autre referentiel que celui que l'application applique, et rien dans sa lecture ne le
+     * revelerait.
+     */
+    quoi: 'le rapport reste date d’un millesime anterieur du classeur',
+    fichier: 'docs/VERIFICATION-REFERENTIEL.md',
+    de: '**Millésime du classeur** : 2026-09-18',
+    vers: '**Millésime du classeur** : 2026-08-04',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-referentiel.test.ts'],
+  },
+  {
+    audit: 'audit 34',
+    /*
+     * LE README EST CE QUE TOUT LE MONDE LIT. Sa phrase de couverture oriente l'usage bien plus que
+     * le rapport, que personne n'ouvre avant d'en avoir besoin — et c'est donc elle qui derivera en
+     * premier si rien ne la tient. « 219 sur 292 tranchees » ferait croire l'inverse de la realite.
+     */
+    quoi: 'le README annonce une couverture inverse de la realite',
+    fichier: 'README.md',
+    de: 'de fonder une décision sur un verdict — 73 contraintes sur 292 sont tranchées automatiquement, les\n219 autres sont affichées',
+    vers: 'de fonder une décision sur un verdict — 219 contraintes sur 292 sont tranchées automatiquement, les\n73 autres sont affichées',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-referentiel.test.ts'],
+  },
 ];
 
 /**
