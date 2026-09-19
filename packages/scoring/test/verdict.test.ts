@@ -80,6 +80,17 @@ function parcelleSansRien(filiere: 'eolien_terrestre' | 'methanisation'): Parcel
       codeGestionnaire: null,
       dateEtat: null,
     } as (typeof s.raccordement)['posteLePlusProche'];
+    /*
+     * LES DRAPEAUX AUSSI DOIVENT ETRE POSES. Ils ont ete ajoutes apres cette aide, et l'oubli s'est
+     * vu immediatement : la contrainte PPRI devenait « non evaluee » et le « favorable » cessait
+     * d'etre atteignable. C'est le test qui a rattrape la fixture, pas l'inverse.
+     */
+    s.risques.ppri.present = false;
+    s.risques.pprif.present = false;
+    s.risques.pprt.present = false;
+    s.topographie.pentePct = 2;
+    s.gisement.irradiationKwhM2An = 1350;
+    s.acces.distanceVoirieM = 50;
     for (const couche of [
       s.milieux.natura2000Habitats,
       s.milieux.natura2000Oiseaux,
@@ -109,6 +120,7 @@ describe('la table de correspondance', () => {
      */
     const bornes = new Map(BORNES_SNAPSHOT.map((b) => [b.chemin, b]));
     for (const c of CORRESPONDANCES) {
+      if (c.mode === 'drapeau') continue;
       for (const chemin of c.chemins) {
         const borne = bornes.get(chemin);
         assert.ok(borne, `${c.contrainteId} : chemin inconnu du releve « ${chemin} »`);
@@ -118,6 +130,40 @@ describe('la table de correspondance', () => {
           `${c.contrainteId} : « ${chemin} » est en ${borne.unite}, la correspondance annonce ${c.unite}`,
         );
       }
+    }
+  });
+
+  it('les chemins des DRAPEAUX existent dans la forme du releve', () => {
+    /*
+     * UN DRAPEAU N'EST PAS UNE GRANDEUR, donc il ne figure pas dans les bornes physiques — le
+     * controle d'unite ne peut pas s'y appliquer. Mais le laisser sans garde ouvrirait exactement
+     * la porte que ce fichier ferme ailleurs : un chemin mal orthographie rend `null`, la
+     * contrainte part en « non evaluee », et rien ne signale que la correspondance est morte.
+     *
+     * On verifie donc que la CLE existe dans la structure produite par `snapshotVide` — y compris
+     * quand sa valeur est nulle, ce qui est le cas de tous les drapeaux d'un releve vierge.
+     */
+    const vide = snapshotVide(identiteDepuisIdu('283900000C0843', 'Tillay-le-Peneux'));
+    const cleExiste = (chemin: string): boolean => {
+      let courant: unknown = vide;
+      for (const segment of chemin.split('.')) {
+        if (courant === null || typeof courant !== 'object') return false;
+        if (!(segment in (courant as Record<string, unknown>))) return false;
+        courant = (courant as Record<string, unknown>)[segment];
+      }
+      return true;
+    };
+
+    const drapeaux = CORRESPONDANCES.filter((c) => c.mode === 'drapeau');
+    assert.ok(drapeaux.length > 0, 'le mode drapeau doit etre reellement employe');
+    for (const c of drapeaux) {
+      for (const chemin of c.chemins) {
+        assert.ok(cleExiste(chemin), `${c.contrainteId} : « ${chemin} » n’existe pas au releve`);
+      }
+      assert.ok(
+        c.cheminAbsence === undefined || cleExiste(c.cheminAbsence),
+        `${c.contrainteId} : chemin d’absence « ${c.cheminAbsence} » inexistant`,
+      );
     }
   });
 
@@ -143,13 +189,22 @@ describe('la table de correspondance', () => {
 
   it('annonce une couverture qui ne se surestime pas', () => {
     /*
-     * 42 contraintes rattachees sur 292. Le chiffre est FIGE, et volontairement modeste : il dit
-     * ce que le releve sait reellement mesurer aujourd'hui. Le laisser flotter permettrait a une
+     * 64 contraintes rattachees sur 292. Le chiffre est FIGE : le laisser flotter permettrait a une
      * correspondance retiree de disparaitre sans bruit — et le verdict se mettrait a conclure sur
      * moins de contraintes qu'avant, en silence, ce qui est precisement la faute que ce fichier
      * traque.
+     *
+     * IL EST PASSE DE 42 A 64 SANS QU'AUCUNE COUCHE NOUVELLE NE SOIT INGEREE, et c'est le resultat
+     * le plus utile de ce chantier : 47 des 64 grandeurs du releve ne servaient a AUCUN verdict.
+     * Les connecteurs remontaient `risques.ppri.present`, `topographie.pentePct` ou
+     * `acces.distanceVoirieM` depuis l'origine — renseignes sur 301 parcelles sur 301 — et aucune
+     * contrainte ne les lisait. Le goulot n'etait pas l'ingestion, c'etait cette table.
+     *
+     * Effet mesure sur la base de reference, en eolien : 230 parcelles « defavorable » contre 301
+     * « a instruire » avant. Le recul de 500 m mord enfin, et les 71 parcelles qui restent sont
+     * exactement celles mesurees a 500 m ou plus d'une habitation.
      */
-    assert.equal(CORRESPONDANCES.length, 42, `${CORRESPONDANCES.length} correspondances au lieu de 42`);
+    assert.equal(CORRESPONDANCES.length, 64, `${CORRESPONDANCES.length} correspondances au lieu de 64`);
     // Et chaque filiere en a au moins une : un verdict qui ne regarderait rien pour une filiere
     // entiere rendrait « a instruire » a tout, ce qui ne distingue rien.
     for (const f of ['eolien_terrestre', 'solaire_sol', 'agrivoltaisme', 'bess', 'methanisation'] as const) {
@@ -461,6 +516,84 @@ describe('un seuil au sens non etabli ne tranche pas', () => {
       assert.equal(mh.valeurMesuree, distance, 'la mesure est restituee, meme sans conclusion');
       assert.match(expliquerContrainte(mh), /à vérifier/);
     }
+  });
+});
+
+describe('un drapeau se lit en TROIS etats, jamais deux', () => {
+  const ID_PPRI = 'eolien_terrestre__ppri_inondation';
+
+  it('l’ABSENCE de plan sur la commune etablit que la contrainte est respectee', () => {
+    /*
+     * C'EST LE CAS LE PLUS FREQUENT, et il etait perdu. Sur la base de reference,
+     * `risques.ppri.present` vaut `false` sur les 301 parcelles : le fait est connu, mesure, et la
+     * contrainte etait pourtant comptee « non evaluee ».
+     */
+    const r = evaluerVerdict(
+      parcelle((s) => {
+        s.risques.ppri.present = false;
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
+    assert.ok(ppri);
+    assert.equal(ppri.etat, 'respectee');
+  });
+
+  it('un plan PRESENT sur la commune ne vaut PAS interdiction sur la parcelle', () => {
+    /*
+     * LA CONFUSION QU'IL FALLAIT EVITER. `present` est au niveau COMMUNE, `severitePlan` au niveau
+     * PARCELLE. Traiter le premier comme un verdict rendrait redhibitoire toute parcelle d'une
+     * commune dotee d'un PPRI — des milliers de parcelles constructibles ecartees d'un coup, sans
+     * qu'aucune erreur ne soit levee.
+     */
+    const r = evaluerVerdict(
+      parcelle((s) => {
+        s.risques.ppri.present = true;
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
+    assert.ok(ppri);
+    assert.equal(ppri.etat, 'a_verifier', 'un plan sur la commune ne dit rien de la parcelle');
+    assert.notEqual(r.verdict, 'defavorable');
+  });
+
+  it('une severite d’INTERDICTION sur la parcelle, elle, tranche', () => {
+    const r = evaluerVerdict(
+      parcelle((s) => {
+        s.risques.ppri.present = true;
+        s.risques.ppri.severitePlan = 'interdiction_stricte';
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
+    assert.ok(ppri);
+    assert.equal(ppri.etat, 'enfreinte');
+    assert.equal(r.verdict, 'defavorable', 'la contrainte est redhibitoire au classeur');
+  });
+
+  it('« prescriptions » autorise sous conditions : ni infraction, ni feu vert', () => {
+    const r = evaluerVerdict(
+      parcelle((s) => {
+        s.risques.ppri.present = true;
+        s.risques.ppri.severitePlan = 'prescriptions';
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
+    assert.ok(ppri);
+    assert.equal(ppri.etat, 'a_verifier');
+  });
+
+  it('rien du tout reste « non evaluee »', () => {
+    const r = evaluerVerdict(parcelle(), 'eolien_terrestre', 'reglementaire');
+    const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
+    assert.ok(ppri);
+    assert.equal(ppri.etat, 'donnee_absente', 'sans donnee, on ne conclut pas');
   });
 });
 

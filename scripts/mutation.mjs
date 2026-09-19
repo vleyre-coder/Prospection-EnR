@@ -3169,6 +3169,88 @@ const MUTATIONS = [
     cwd: 'apps/api',
     commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
   },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 30 — les couches deja mesurees, enfin lues par le verdict
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 30',
+    /*
+     * UN PLAN PRESENT SUR LA COMMUNE REDEVIENT UNE INTERDICTION SUR LA PARCELLE. `present` est au
+     * niveau COMMUNE, `severitePlan` au niveau PARCELLE : confondre les deux rend redhibitoire
+     * toute parcelle d'une commune dotee d'un PPRI — des milliers de parcelles constructibles
+     * ecartees d'un coup, sans qu'aucune erreur ne soit levee.
+     */
+    quoi: 'un plan de prevention sur la commune vaut interdiction sur la parcelle',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    if (presence === true) return { etat: 'a_verifier', valeur: 1, chemin: correspondance.cheminAbsence };",
+    vers: "    if (presence === true) return { etat: 'enfreinte', valeur: 1, chemin: correspondance.cheminAbsence };",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 30',
+    /*
+     * L'ABSENCE DE PLAN CESSE D'ETRE UN FAIT. Sur la base de reference, `present === false` sur les
+     * 301 parcelles : le fait est connu et mesure. Le perdre remettrait 301 contraintes en « non
+     * evaluee » — exactement l'etat dont ce chantier sortait.
+     */
+    quoi: 'l’absence de plan sur la commune n’etablit plus rien',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    if (presence === false) return { etat: 'respectee', valeur: 0, chemin: correspondance.cheminAbsence };",
+    vers: '    // mutation',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 30',
+    /*
+     * UNE VALEUR INCERTAINE PASSE POUR UN FEU VERT. « prescriptions » autorise SOUS CONDITIONS :
+     * la compter pour un respect ferait declarer conforme une parcelle que le plan contraint.
+     */
+    quoi: 'une severite « prescriptions » est comptee comme un respect',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: null, chemin };",
+    vers: '    // mutation',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 30',
+    /*
+     * LA COUVERTURE SE RETRECIT EN SILENCE. Une correspondance retiree fait conclure le verdict sur
+     * moins de contraintes qu'avant, sans un mot — et « favorable » devient plus facile a obtenir.
+     */
+    quoi: 'des correspondances disparaissent sans que le compte ne bronche',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: "    'eolien_terrestre__ppri_inondation',\n    'solaire_sol__ppri_inondation',",
+    vers: "    'solaire_sol__ppri_inondation',",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 30',
+    /*
+     * UN CHEMIN DE DRAPEAU MAL ORTHOGRAPHIE. Il rend `null`, la contrainte part en « non evaluee »,
+     * et rien ne signale que la correspondance est morte : c'est la panne la plus silencieuse que
+     * cette table puisse porter.
+     */
+    quoi: 'un chemin de drapeau ne designe plus rien dans le releve',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: '    chemins: [`${racine}.severitePlan`],',
+    vers: '    chemins: [`${racine}.severiteDuPlan`],',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
 ];
 
 /**

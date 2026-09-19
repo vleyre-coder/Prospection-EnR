@@ -46,7 +46,22 @@ import type { FiliereReferentiel } from '@enr/core';
  *     un nombre mais une interdiction (« Interdiction », « Évaluation des incidences »), et c'est
  *     le RECOUVREMENT qui declenche la regle.
  */
-export type ModeMesure = 'seuil' | 'presence';
+export type ModeMesure =
+  | 'seuil'
+  | 'presence'
+  /**
+   * Un DRAPEAU du releve : un booleen, ou un mot d'une liste fermee.
+   *
+   * POURQUOI CE TROISIEME MODE EXISTE, et il fallait le mesurer pour s'en apercevoir. Le releve
+   * porte 64 grandeurs numeriques — et AUSSI une vingtaine de champs qui ne sont pas des nombres :
+   * « la parcelle est-elle en zone humide », « dans un perimetre de captage », « couverte par un
+   * PPRI ». Le modele a deux modes ne savait pas les lire, et les contraintes correspondantes
+   * restaient « non evaluees » alors que la donnee etait la, en base, depuis le debut.
+   *
+   * `null` reste `null` : une donnee absente n'est pas un drapeau baisse. C'est la meme regle que
+   * pour un zonage jamais croise.
+   */
+  | 'drapeau';
 
 export interface Correspondance {
   contrainteId: string;
@@ -57,14 +72,94 @@ export interface Correspondance {
    * naturelles, APB, cœurs de parcs » en est une seule contrainte et trois couches.
    */
   chemins: readonly string[];
-  /** Unite attendue du chemin, verifiee contre `BORNES_SNAPSHOT` par le test. */
+  /**
+   * Unite attendue du chemin, verifiee contre `BORNES_SNAPSHOT` par le test.
+   *
+   * Vaut `'drapeau'` pour le mode du meme nom : ces champs ne sont pas des grandeurs et ne
+   * figurent donc pas dans les bornes physiques.
+   */
   unite: string;
+  /**
+   * Valeurs qui DECLENCHENT la regle, pour un drapeau non booleen.
+   *
+   * `eau.zoneHumide` vaut « oui », « non » ou « a_confirmer » : seul le premier declenche, et
+   * « a_confirmer » doit partir en verification plutot que d'etre compte pour un non. Absent pour
+   * un booleen, ou `true` declenche.
+   */
+  valeursDeclenchantes?: readonly string[];
+  /** Valeurs qui laissent la contrainte EN SUSPENS plutot que respectee ou enfreinte. */
+  valeursIncertaines?: readonly string[];
+  /**
+   * Drapeau seulement : le chemin dont `false` ETABLIT l'absence du risque.
+   *
+   * POURQUOI IL FAUT TROIS ETATS, ET NON DEUX. `risques.ppri.present` dit si un plan existe sur la
+   * COMMUNE ; `risques.ppri.severitePlan` dit ce que le plan impose a la PARCELLE. Traiter le
+   * premier comme un verdict rendrait redhibitoire toute parcelle d'une commune dotee d'un PPRI —
+   * des milliers de parcelles constructibles ecartees d'un coup.
+   *
+   * La lecture juste est donc :
+   *   - severite « interdiction » ou « interdiction stricte » -> enfreinte ;
+   *   - plan ABSENT de la commune (`present === false`) -> respectee, et c'est un fait etabli ;
+   *   - plan present mais severite inconnue -> a verifier, pas enfreinte ;
+   *   - rien du tout -> donnee absente.
+   *
+   * Mesure sur la base de reference : `present === false` sur les 301 parcelles. Sans cette
+   * troisieme voie, 301 contraintes resteraient « non evaluees » alors que la reponse est connue.
+   */
+  cheminAbsence?: string;
   /** Pourquoi ce chemin et pas un autre. Lu en revue, pas decoratif. */
   justification: string;
 }
 
 /** Suffixe des chemins de recouvrement : une part de surface, entre 0 et 1. */
 const PART = 'partRecouvrement';
+
+/**
+ * Fabrique les correspondances d'une famille de plans de prevention.
+ *
+ * Une par filiere, toutes lues de la meme facon : la severite du plan sur la parcelle tranche, et
+ * l'ABSENCE de plan sur la commune etablit que la contrainte est respectee.
+ */
+function ppr(famille: string, racine: string, contraintes: readonly string[]): Correspondance[] {
+  return contraintes.map((contrainteId) => ({
+    contrainteId,
+    mode: 'drapeau' as const,
+    chemins: [`${racine}.severitePlan`],
+    unite: 'drapeau',
+    /*
+     * Le classeur dit « zone rouge = inconstructible ». Les deux severites d'interdiction en sont
+     * la traduction ; « prescriptions » et « precaution » autorisent sous conditions et ne peuvent
+     * donc pas valoir infraction — mais elles ne valent pas non plus feu vert.
+     */
+    valeursDeclenchantes: ['interdiction_stricte', 'interdiction'],
+    valeursIncertaines: ['prescriptions', 'precaution'],
+    cheminAbsence: `${racine}.present`,
+    justification:
+      `Plan de prevention ${famille} : la severite appliquee a la parcelle tranche, et l'absence ` +
+      'de plan sur la commune etablit l’absence de risque. Le simple fait qu’un plan existe sur la ' +
+      'commune ne dit rien de la parcelle, et ne peut pas valoir interdiction.',
+  }));
+}
+
+/**
+ * Fabrique les correspondances de pente.
+ *
+ * Le classeur donne des fourchettes approximatives — « > ~10-15 % », « < ~3-5 % » — donc aucune ne
+ * tranche seule : la contrainte part en verification. Elle n'en est pas moins utile a rattacher,
+ * puisque la valeur MESUREE est alors restituee a l'operateur au lieu d'un « non evaluee » muet.
+ */
+function pente(contraintes: readonly string[]): Correspondance[] {
+  return contraintes.map((contrainteId) => ({
+    contrainteId,
+    mode: 'seuil' as const,
+    chemins: ['topographie.pentePct'],
+    unite: '%',
+    justification:
+      'Pente moyenne de la parcelle, calculee sur le MNT RGE ALTI et renseignee sur toute la base ' +
+      'de reference. C’est la grandeur que le classeur nomme, avec des fourchettes qui ne ' +
+      'tranchent pas seules.',
+  }));
+}
 
 /** Raccourci d'ecriture pour les zonages, tous mesures de la meme facon. */
 function presence(
@@ -379,6 +474,85 @@ export const CORRESPONDANCES: readonly Correspondance[] = [
     ['patrimoine.spr'],
     'Site patrimonial remarquable : le recouvrement declenche l’avis de l’ABF.',
   ),
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // PLANS DE PREVENTION DES RISQUES — trois etats, jamais deux
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // MESURE QUI A MOTIVE TOUT CE BLOC. 47 des 64 grandeurs du releve ne servaient a AUCUN verdict.
+  // Le goulot n'etait donc pas l'ingestion : les connecteurs remontent `risques.ppri.present`
+  // depuis l'origine, renseigne sur 301 parcelles sur 301, et aucune contrainte ne le lisait.
+  ...ppr('inondation', 'risques.ppri', [
+    'eolien_terrestre__ppri_inondation',
+    'solaire_sol__ppri_inondation',
+    'agrivoltaisme__ppri_pprn_inondation',
+    'bess__ppri_inondation',
+    'methanisation__ppri_inondation',
+  ]),
+  ...ppr('incendie de foret', 'risques.pprif', [
+    'eolien_terrestre__feux_de_foret_pprif_old',
+    'solaire_sol__feux_de_foret_pprif_old',
+    'agrivoltaisme__feux_de_foret_pprif_old',
+    'bess__feux_de_foret_old_pprif',
+    'methanisation__feux_de_foret_old_pprif',
+  ]),
+  ...ppr('technologique', 'risques.pprt', [
+    'eolien_terrestre__pprt_sites_seveso',
+    'solaire_sol__pprt_seveso',
+    'bess__pprt_seveso_voisins',
+    'methanisation__pprt_seveso_voisinage',
+  ]),
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // GRANDEURS DEJA MESUREES, ET QUE PERSONNE NE LISAIT
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  ...pente([
+    'eolien_terrestre__topographie_pente',
+    'solaire_sol__pente_et_orientation_du_terrain',
+    'agrivoltaisme__pente_orientation',
+    'methanisation__topographie_terrain_plat',
+    'methanisation__pente_des_parcelles_d_epandage',
+  ]),
+  {
+    contrainteId: 'solaire_sol__gisement_solaire_irradiation',
+    mode: 'seuil',
+    chemins: ['gisement.irradiationKwhM2An'],
+    unite: 'kWh/m2/an',
+    justification:
+      'Irradiation globale horizontale, le critere roi de la filiere, mesuree sur toute la base. Le ' +
+      'classeur donne des ordres de grandeur par zone (« Sud >1400, Nord ~1000-1100 ») : la valeur ' +
+      'est restituee et la contrainte part en verification, plutot que de trancher sur une fourchette.',
+  },
+  {
+    contrainteId: 'solaire_sol__acces_et_voirie',
+    mode: 'seuil',
+    chemins: ['acces.distanceVoirieM'],
+    unite: 'm',
+    justification:
+      'Distance a la voirie carrossable la plus proche. Le classeur dit « desserte PL » sans ' +
+      'chiffre : la mesure est restituee pour que l’operateur juge, sans qu’aucun seuil ne soit invente.',
+  },
+  {
+    contrainteId: 'agrivoltaisme__acces_desserte_distance_route',
+    mode: 'seuil',
+    chemins: ['acces.distanceVoirieM'],
+    unite: 'm',
+    justification: 'Meme grandeur qu’en solaire au sol : distance a la voirie carrossable.',
+  },
+  /*
+   * ZONE HUMIDE : DELIBEREMENT NON RATTACHEE, et il faut dire pourquoi.
+   *
+   * Le releve porte `eau.zoneHumide`, renseigne sur la totalite de la base — la tentation etait
+   * forte. Mais les cinq contraintes « zones humides » du classeur sont classees VERIFICATION
+   * MANUELLE par le classeur lui-meme, qui renvoie aux criteres pedologiques et floristiques de
+   * l'arrete du 24/06/2008. La source du releve se decrit d'ailleurs comme un « pre-reperage, a
+   * confirmer ».
+   *
+   * Les rattacher ferait trancher une question que ni la donnee ni le referentiel ne tranchent :
+   * une parcelle sortirait « respectee » sur un pre-reperage negatif, la ou un sondage
+   * pedologique conclura l'inverse. Le garde de la table refuse d'ailleurs toute correspondance
+   * vers une contrainte non `auto_sig` — c'est lui qui a rattrape cette entree.
+   */
 ];
 
 const PAR_ID = new Map(CORRESPONDANCES.map((c) => [c.contrainteId, c]));

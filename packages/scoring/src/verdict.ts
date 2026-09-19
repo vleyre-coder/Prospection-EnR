@@ -184,6 +184,59 @@ function evaluerPresence(
   return { etat: 'respectee', valeur: 0, chemin: correspondance.chemins[0] ?? null };
 }
 
+/** Lit une valeur BRUTE (non numerique) a un chemin pointe. */
+function brutAuChemin(snapshot: ParcelleSnapshot, chemin: string): unknown {
+  let courant: unknown = snapshot;
+  for (const segment of chemin.split('.')) {
+    if (courant == null || typeof courant !== 'object') return null;
+    courant = (courant as Record<string, unknown>)[segment];
+  }
+  return courant ?? null;
+}
+
+/**
+ * Evalue un DRAPEAU : un booleen, ou un mot d'une liste fermee.
+ *
+ * Voir `Correspondance.cheminAbsence` pour la raison d'etre des trois etats. En resume : un plan
+ * de prevention declare sur la COMMUNE n'est pas un verdict sur la PARCELLE, et son absence, elle,
+ * en est un.
+ */
+function evaluerDrapeau(
+  snapshot: ParcelleSnapshot,
+  correspondance: Correspondance,
+): { etat: EtatContrainte; valeur: number | null; chemin: string | null } {
+  const chemin = correspondance.chemins[0] ?? null;
+  if (chemin === null) return { etat: 'donnee_absente', valeur: null, chemin: null };
+
+  const valeur = brutAuChemin(snapshot, chemin);
+  const declenchantes = correspondance.valeursDeclenchantes;
+  const incertaines = correspondance.valeursIncertaines ?? [];
+
+  if (valeur !== null && valeur !== undefined) {
+    if (typeof valeur === 'boolean') {
+      return { etat: valeur ? 'enfreinte' : 'respectee', valeur: valeur ? 1 : 0, chemin };
+    }
+    const mot = String(valeur);
+    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: null, chemin };
+    if (declenchantes && declenchantes.includes(mot)) {
+      return { etat: 'enfreinte', valeur: null, chemin };
+    }
+    /*
+     * Une valeur connue qui ne declenche pas EST une reponse : « zone humide : non » etablit que
+     * la parcelle n'y est pas. La confondre avec une donnee absente perdrait un fait mesure.
+     */
+    return { etat: 'respectee', valeur: null, chemin };
+  }
+
+  // Le drapeau lui-meme est nul : l'absence du risque peut malgre tout etre etablie ailleurs.
+  if (correspondance.cheminAbsence) {
+    const presence = brutAuChemin(snapshot, correspondance.cheminAbsence);
+    if (presence === false) return { etat: 'respectee', valeur: 0, chemin: correspondance.cheminAbsence };
+    if (presence === true) return { etat: 'a_verifier', valeur: 1, chemin: correspondance.cheminAbsence };
+  }
+  return { etat: 'donnee_absente', valeur: null, chemin };
+}
+
 /** Evalue une contrainte de type `seuil`. */
 function evaluerSeuil(
   snapshot: ParcelleSnapshot,
@@ -249,7 +302,9 @@ export function evaluerVerdict(
       const mesure =
         correspondance.mode === 'presence'
           ? evaluerPresence(snapshot, correspondance)
-          : evaluerSeuil(snapshot, correspondance, applique);
+          : correspondance.mode === 'drapeau'
+            ? evaluerDrapeau(snapshot, correspondance)
+            : evaluerSeuil(snapshot, correspondance, applique);
       etat = mesure.etat;
       valeurMesuree = mesure.valeur;
       cheminMesure = mesure.chemin;
