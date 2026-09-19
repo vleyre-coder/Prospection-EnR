@@ -99,6 +99,7 @@ export const MODULES_TEXTE: readonly string[] = [
   'packages/core/src/types.ts',
   'apps/web/src/App.tsx',
   'apps/web/src/components/BandeauAvertissements.tsx',
+  'apps/web/src/components/BlocVerdict.tsx',
   'apps/web/src/components/BarreSuperieure.tsx',
   'apps/web/src/components/Carte.tsx',
   'apps/web/src/components/Connexion.tsx',

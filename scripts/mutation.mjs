@@ -2829,6 +2829,100 @@ const MUTATIONS = [
     cwd: 'packages/scoring',
     commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 26 — le verdict branche sur le mode 1
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 26',
+    /*
+     * LA FICHE SE MET A LIRE UN CAHIER DES CHARGES. C'est l'inversion du §2.3 cote route : la
+     * parcelle repondrait selon le profil du dernier developpeur consulte, et l'operateur
+     * ecarterait du foncier instruisable en croyant lire la loi. La reponse resterait un 200
+     * parfaitement forme.
+     */
+    quoi: 'la fiche parcelle laisse la requete choisir le mode d’evaluation',
+    fichier: 'apps/api/src/routes/parcelles.ts',
+    de: "      verdict: evaluerVerdict(snapshot.snapshot, filiere, 'reglementaire'),",
+    vers: "      verdict: evaluerVerdict(snapshot.snapshot, filiere, (q as { mode?: 'reglementaire' | 'developpeur' }).mode ?? 'reglementaire'),",
+    tests: ['apps/api/test/verdict-mode1.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/verdict-mode1.test.ts'],
+  },
+  {
+    audit: 'audit 26',
+    /*
+     * L'ECRAN CESSE DE DIRE QUE « NON EVALUEE » EST UNE LACUNE. Le referentiel depasse largement
+     * ce que le releve mesure : sans cette phrase, un « à instruire » se lit comme un jugement
+     * porte sur la parcelle alors que c'est un aveu sur la donnee, et l'operateur regle le mauvais
+     * probleme.
+     */
+    quoi: 'la fiche ne dit plus qu’une contrainte « non evaluee » est une lacune de donnee',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: '          Les contraintes « non évaluées » ne sont pas des contraintes absentes&nbsp;: la donnée',
+    vers: '          Contraintes sans incidence relevée&nbsp;: la donnée',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
+  {
+    audit: 'audit 26',
+    /*
+     * L'ECRAN CESSE DE DIRE QUE LA FICHE EST REGLEMENTAIRE. Meme contresens que ci-dessus, du cote
+     * de l'interface : l'operateur croira sa fiche influencee par le profil ouvert.
+     */
+    quoi: 'la fiche n’annonce plus qu’elle evalue au seuil reglementaire',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: '        Évalué au <strong>seuil réglementaire</strong>. Les exigences propres à un développeur',
+    vers: '        Évalué selon les critères en vigueur. Les exigences propres à un développeur',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
+  {
+    audit: 'audit 26',
+    /*
+     * LE CHEMIN DE LA MESURE DISPARAIT. Sans lui, un chiffre faux est indiscernable d'un chiffre
+     * juste : l'operateur n'a aucun moyen de remonter a la source de ce qu'on lui affirme.
+     */
+    quoi: 'la mesure affichee n’indique plus d’ou elle vient',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: '          <span className="verdict-chemin">({c.cheminMesure})</span>',
+    vers: '          <span className="verdict-chemin" />',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
+  {
+    audit: 'audit 26',
+    /*
+     * LES CONTRAINTES RESPECTEES REMONTENT EN TETE DE LISTE. L'operateur defile alors sur ce dont
+     * il n'a rien a faire avant d'atteindre ce qui pose probleme.
+     */
+    quoi: 'les contraintes a lire ne viennent plus avant celles qui vont bien',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: '  const triees = [...verdict.contraintes].sort((a, b) => ORDRE[a.etat] - ORDRE[b.etat]);',
+    vers: '  const triees = [...verdict.contraintes];',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
+  {
+    audit: 'audit 26',
+    /*
+     * L'ECRAN CESSE DE DISTINGUER « A INSTRUIRE FAUTE DE DONNEE » DE « A INSTRUIRE PARCE QUE ÇA
+     * COINCE ». Mesure sur 200 parcelles reelles en solaire : 200 « à instruire », 0 enfreinte,
+     * 51 contraintes non evaluees sur 56. Sans la nuance, la totalite du foncier parait mediocre
+     * alors que la phrase juste est « nous n'avons pas regarde ».
+     */
+    quoi: 'l’ecran ne distingue plus une lacune de donnee d’une contrainte qui coince',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: "  const faute = enfreintes > 0 || aVerifier > 0;",
+    vers: '  const faute = true;',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
 ];
 
 /**

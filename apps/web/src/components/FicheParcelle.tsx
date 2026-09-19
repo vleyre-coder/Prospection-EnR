@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libelleTypeSol } from '@enr/core';
+import { BlocVerdict } from './BlocVerdict.js';
 import type {
   Avertissement,
   EvaluationCritere,
@@ -180,6 +181,20 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           referentiel={referentiel}
           personnalise={personnalise}
         />
+
+        {/*
+          LE VERDICT AVANT LE DETAIL DES CRITERES, ET APRES LA SYNTHESE DU SCORE.
+          
+          L'ordre n'est pas cosmetique : le score repond « laquelle regarder d'abord », le verdict
+          « celle-ci est-elle instruisable ». Un operateur qui lirait le detail des criteres avant
+          de savoir que la parcelle est en cœur de parc national perdrait son temps sur une
+          parcelle interdite.
+          
+          Le bloc est FACULTATIF : une reponse mise en cache avant l'arrivee du champ, ou servie
+          par une instance plus ancienne, ne le porte pas. Perdre le bloc est benin ; perdre la
+          fiche entiere parce qu'il manque ne l'est pas.
+        */}
+        {fiche.verdict && <BlocVerdict verdict={fiche.verdict} />}
 
         <SectionCriteres score={score} referentiel={referentiel} />
 

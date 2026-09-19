@@ -39,6 +39,7 @@ export const RACINE_ABSOLUE: string =
   RACINE_API || (typeof location !== 'undefined' ? location.origin : '');
 
 import { estSessionExpiree } from '../utils/affichage.js';
+import type { ContrainteEvaluee, ResultatVerdict } from '@enr/scoring';
 import type {
   Avertissement,
   DefinitionCritere,
@@ -420,6 +421,16 @@ export interface FicheParcelle {
   avertissements: Avertissement[];
   /** Ce qui reste a verifier avant de contacter le proprietaire. */
   avantContact: VerificationAvantContact[];
+  /**
+   * Verdict referentiel, TOUJOURS evalue au seuil reglementaire.
+   *
+   * Facultatif dans le type, et il faut dire pourquoi : une reponse mise en cache par le
+   * navigateur avant l'arrivee de ce champ, ou servie par une instance plus ancienne, ne le
+   * portera pas. Le destructurer sans precaution ferait disparaitre la FICHE ENTIERE derriere un
+   * ecran blanc — c'est exactement ce qui etait arrive avec `couverture` dans la recherche.
+   * Perdre le bloc du verdict est benin ; perdre la fiche parce qu'il manque ne l'est pas.
+   */
+  verdict?: ResultatVerdict;
 }
 
 export interface PosteSourceProps {

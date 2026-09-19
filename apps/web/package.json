@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@enr/core": "0.1.0",
+    "@enr/scoring": "0.1.0",
     "@tanstack/react-query": "^5.62.7",
     "@turf/turf": "^7.1.0",
     "maplibre-gl": "^4.7.1",

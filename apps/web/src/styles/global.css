@@ -2643,3 +2643,141 @@ button:focus-visible,
 .profils-repli[open] > summary {
   margin-bottom: 8px;
 }
+
+/* ─── Verdict referentiel sur la fiche parcelle ─────────────────────────────────────────────── */
+
+.bloc-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--fond-panneau-2);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+.verdict-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.verdict-pastille {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* Les trois couleurs reprennent la palette des feux du score : un operateur ne doit pas avoir a
+   apprendre un second code couleur pour lire le meme ecran. */
+.verdict-favorable { background: var(--vert); }
+.verdict-instruire { background: var(--orange); }
+.verdict-defavorable { background: var(--rouge); }
+
+.verdict-explication,
+.verdict-mode,
+.verdict-couverture,
+.verdict-lacune {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--texte-doux);
+}
+
+.verdict-lacune {
+  color: var(--orange);
+}
+
+.verdict-compte-ok { color: var(--vert); font-weight: 600; }
+.verdict-compte-ko { color: var(--rouge); font-weight: 600; }
+.verdict-compte-doute { color: var(--orange); font-weight: 600; }
+.verdict-compte-absent { color: var(--texte-faible); font-weight: 600; }
+
+.verdict-decisive {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 9px;
+  background: var(--fond-panneau);
+  border-left: 3px solid var(--orange);
+  border-radius: var(--rayon);
+  font-size: 12px;
+}
+
+.verdict-detail > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.verdict-liste {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.verdict-item {
+  padding: 6px 8px;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-left-width: 3px;
+  border-radius: var(--rayon);
+}
+
+.verdict-item.verdict-enfreinte { border-left-color: var(--rouge); }
+.verdict-item.verdict-a_verifier { border-left-color: var(--orange); }
+.verdict-item.verdict-donnee_absente { border-left-color: var(--gris); }
+.verdict-item.verdict-respectee { border-left-color: var(--vert); }
+.verdict-item.verdict-cadre { border-left-color: var(--bordure-forte); }
+
+.verdict-item-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.verdict-etat {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.verdict-nom {
+  font-weight: 500;
+}
+
+.verdict-categorie {
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+.verdict-ligne {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 3px;
+}
+
+.verdict-reglementaire,
+.verdict-mesure {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--texte-doux);
+}
+
+/* Le chemin du releve : discret, mais present — c'est lui qui rend la mesure verifiable. */
+.verdict-chemin {
+  font-family: var(--police-mono);
+  font-size: 10px;
+  color: var(--texte-faible);
+}

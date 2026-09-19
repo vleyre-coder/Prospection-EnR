@@ -2,7 +2,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { AVERTISSEMENTS, CRITERES, estFiliere, FILIERES, type Filiere } from '@enr/core';
-import { calculerScore, IDS_KNOCK_OUTS, verificationsAvantContact } from '@enr/scoring';
+import { calculerScore, evaluerVerdict, IDS_KNOCK_OUTS, verificationsAvantContact } from '@enr/scoring';
 import { bboxDepuisChaine } from '../geo.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
@@ -183,6 +183,31 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       avantContact: verificationsAvantContact(snapshot.snapshot, filiere, {
         regimeImplantation: score.regimeImplantation ?? null,
       }),
+      /*
+       * ═════════════════════════════════════════════════════════════════════════════════════════
+       * LE VERDICT REFERENTIEL, TOUJOURS AU SEUIL REGLEMENTAIRE
+       * ═════════════════════════════════════════════════════════════════════════════════════════
+       *
+       * C'est le MODE 1 du cahier des charges, et le mode d'interrogation est ecrit en dur ici :
+       * `'reglementaire'`. La fiche d'une parcelle repond a « est-elle constructible au regard du
+       * droit », question a laquelle le cahier des charges d'un developpeur n'a rien a dire. Si un
+       * profil pouvait la durcir, un operateur qui consulte une parcelle apres avoir travaille sur
+       * le profil d'un developpeur exigeant la verrait « defavorable » sans qu'aucune regle de
+       * droit ne s'y oppose — et il ecarterait du foncier instruisable en croyant lire la loi.
+       *
+       * Aucun parametre de requete ne permet de changer ce mode, et c'est deliberé : ce n'est pas
+       * un defaut modifiable, c'est la regle.
+       *
+       * CALCULE, PAS STOCKE, pour la meme raison qu'`avantContact` : le verdict se deduit
+       * entierement du releve et du referentiel embarque. Le figer en base creerait une seconde
+       * verite a tenir a jour, qui se perimerait au premier changement de referentiel sans que
+       * rien ne le signale. Le cout est nul — aucune requete, aucun appel reseau.
+       *
+       * LE SCORE N'EST PAS TOUCHE. Il reste au-dessus, inchange : il CLASSE les parcelles
+       * favorables entre elles, la ou le verdict dit si elles sont instruisables. Deux questions,
+       * deux reponses.
+       */
+      verdict: evaluerVerdict(snapshot.snapshot, filiere, 'reglementaire'),
     };
   });
 
