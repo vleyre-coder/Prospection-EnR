@@ -427,8 +427,10 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // Deux occurrences du NOM « mesure », relues : « la mesure porte sur » et « une mesure
     // compensatoire ». Aucune n'est le participe.
     'packages/scoring/src/criteres-eval.ts|mesure': 2,
-    // Deux fois le NOM dans « Cahier des charges (Word) » : le libelle du bouton et son infobulle.
-    'apps/web/src/components/VueListe.tsx|charges': 2,
+    // Trois fois le NOM, relues une par une : le libelle du bouton « Cahier des charges (Word) »,
+    // son infobulle, et le titre du bandeau « Cahier des charges « … » » qui annonce le profil
+    // applique a la recherche. Aucune n'est le participe « chargés ».
+    'apps/web/src/components/VueListe.tsx|charges': 3,
     // Les deux sont le MEME verbe appliquer, relues une par une : « le regime d'implantation ne
     // s'applique qu'au solaire au sol » et « tant que la case est vide, le critere ne s'applique
     // pas ». Aucune n'est le participe.

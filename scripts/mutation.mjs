@@ -2923,6 +2923,100 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 27 — le mode 2, la recherche au seuil du developpeur
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 27',
+    /*
+     * UN SEUIL QUE RIEN NE SAIT MESURER EST APPLIQUE QUAND MEME, sur la premiere grandeur venue.
+     * C'est exactement l'erreur que la table de correspondance ecrite a la main existe pour
+     * empecher : une condition fabriquee rend un nombre, il se compare, et la liste se restreint
+     * sur une grandeur qui n'a rien a voir.
+     */
+    quoi: 'un seuil sans correspondance est applique sur une grandeur arbitraire',
+    fichier: 'apps/api/src/services/profil-en-filtres.ts',
+    de: "      ignores.push({ contrainteId: s.contrainteId, nom: contrainte.nom, raison: 'grandeur_non_mesuree' });\n      continue;\n    }\n    if (correspondance.mode !== 'seuil') {",
+    vers: "      seuils.push({ chemin: 'bati.distanceHabitationM', min: s.valeur });\n      continue;\n    }\n    if (correspondance.mode !== 'seuil') {",
+    tests: ['apps/api/test/recherche-profil.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/recherche-profil.test.ts'],
+  },
+  {
+    audit: 'audit 27',
+    /*
+     * LES SEUILS NON APPLIQUES SONT TUS. L'operateur croit son filtre actif, remet un dossier, et
+     * personne ne sait que l'exigence du developpeur n'a jamais ete verifiee. 250 des 292
+     * contraintes sont dans ce cas : ce n'est pas un cas limite.
+     */
+    quoi: 'la recherche ne dit plus quels seuils du profil n’ont pas ete appliques',
+    fichier: 'apps/api/src/routes/divers.ts',
+    de: '          seuilsIgnores: traduction.ignores.map((i) => ({ ...i, message: expliquerIgnore(i) })),',
+    vers: '          seuilsIgnores: [],',
+    tests: ['apps/api/test/recherche-profil.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/recherche-profil.test.ts'],
+  },
+  {
+    audit: 'audit 27',
+    /*
+     * LE SEUIL DU PROFIL N'ATTEINT PLUS LE SQL. La recherche rend alors exactement le meme
+     * resultat qu'un balayage sans profil, et l'operateur remet au developpeur un dossier qui ne
+     * respecte pas son cahier des charges — sans qu'aucun message ne le signale.
+     */
+    quoi: 'les seuils du profil n’entrent pas dans les conditions de recherche',
+    fichier: 'apps/api/src/routes/divers.ts',
+    de: '        seuils: [...(filtres.seuils ?? []), ...traduction.seuils],',
+    vers: '        seuils: filtres.seuils,',
+    tests: ['apps/api/test/recherche-profil.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/recherche-profil.test.ts'],
+  },
+  {
+    audit: 'audit 27',
+    /*
+     * UN PROFIL D'UNE AUTRE FILIERE EST ACCEPTE. Aucune de ses contraintes ne produit de
+     * condition : la recherche rend le meme resultat que sans profil, et l'operateur croit le
+     * cahier des charges applique.
+     */
+    quoi: 'un profil d’une autre filiere est applique a vide au lieu d’etre refuse',
+    fichier: 'apps/api/src/routes/divers.ts',
+    de: '      if (profil.filiere !== filtres.filiere) {',
+    vers: '      if (false) {',
+    tests: ['apps/api/test/recherche-profil.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/recherche-profil.test.ts'],
+  },
+  {
+    audit: 'audit 27',
+    /*
+     * LE SENS D'UN SEUIL AMBIGU EST DEVINE « au moins ». Mesure sur le classeur : les cas ou le
+     * sens n'est pas etabli vont dans les deux sens. Deviner se tromperait environ une fois sur
+     * deux, en silence, et inverserait la contrainte.
+     */
+    quoi: 'la traduction devine le sens d’un seuil que le classeur n’etablit pas',
+    fichier: 'apps/api/src/services/profil-en-filtres.ts',
+    de: "    const sens = sensReglementaire(contrainte) ?? s.sens ?? null;",
+    vers: "    const sens = sensReglementaire(contrainte) ?? s.sens ?? 'min';",
+    tests: ['apps/api/test/recherche-profil.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/recherche-profil.test.ts'],
+  },
+  {
+    audit: 'audit 27',
+    /*
+     * LE BANDEAU CESSE DE DIRE CE QUI N'A PAS ETE APPLIQUE. Meme faute que cote serveur, du cote
+     * de l'ecran : l'operateur tient sa liste pour plus filtree qu'elle ne l'est.
+     */
+    quoi: 'le bandeau du cahier des charges masque les seuils non appliques',
+    fichier: 'apps/web/src/components/VueListe.tsx',
+    de: '            {seuilsIgnores.length} non appliqué{seuilsIgnores.length > 1 ? \'s\' : \'\'}',
+    vers: '            {0} seuil supplémentaire',
+    tests: ['apps/web/test/rendu-recherche-criteres.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
+  },
 ];
 
 /**

@@ -692,6 +692,26 @@ export interface EcritureProfil {
   seuils: Array<{ contrainteId: string; valeur: number; sens?: 'min' | 'max'; motif?: string }>;
 }
 
+/**
+ * Ce que le profil a REELLEMENT fait a la recherche.
+ *
+ * `seuilsIgnores` est la moitie importante. Un seuil saisi par le developpeur et silencieusement
+ * ecarte est la pire des reponses : l'operateur croit son filtre actif, rend un dossier, et
+ * personne ne sait que l'exigence n'a jamais ete verifiee.
+ */
+export interface ProfilApplique {
+  id: string;
+  nom: string;
+  developpeur: string | null;
+  seuilsAppliques: number;
+  seuilsIgnores: Array<{
+    contrainteId: string;
+    nom: string;
+    raison: 'grandeur_non_mesuree' | 'contrainte_inconnue' | 'sens_indetermine' | 'mode_presence';
+    message: string;
+  }>;
+}
+
 export interface TableauDeBord {
   parStatut: Record<string, number>;
   surfaceSecuriseeHa: number;
@@ -847,11 +867,24 @@ export const api = {
   rechercher: (q: string) =>
     appeler<{ resultats: ResultatRecherche[] }>(`/api/recherche?q=${encodeURIComponent(q)}`),
 
-  filtrer: (filtres: FiltresRecherche) =>
-    appeler<{ total: number; resultats: LigneListe[]; couverture: CouvertureRecherche }>(
-      '/api/recherche/parcelles',
-      { methode: 'POST', corps: filtres },
-    ),
+  /**
+   * Balayage filtre. `profilId` fait basculer en MODE 2 : les seuils du developpeur s'ajoutent.
+   *
+   * Ils s'AJOUTENT aux criteres du formulaire et ne les remplacent pas : l'operateur peut
+   * resserrer un balayage au-dela du cahier des charges sans modifier le profil du developpeur,
+   * qui ne lui appartient pas.
+   */
+  filtrer: (filtres: FiltresRecherche, profilId?: string) =>
+    appeler<{
+      total: number;
+      resultats: LigneListe[];
+      couverture: CouvertureRecherche;
+      /** Absent quand aucun profil n'est demande : la recherche classique est inchangee. */
+      profil?: ProfilApplique;
+    }>('/api/recherche/parcelles', {
+      methode: 'POST',
+      corps: profilId ? { ...filtres, profilId } : filtres,
+    }),
 
   /**
    * Territoires proposables, avec ce que la base contient de chacun.

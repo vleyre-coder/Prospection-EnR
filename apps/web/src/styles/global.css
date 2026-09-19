@@ -2781,3 +2781,27 @@ button:focus-visible,
   font-size: 10px;
   color: var(--texte-faible);
 }
+
+/* ─── Bandeau du cahier des charges applique a la recherche ─────────────────────────────────── */
+
+.bandeau-profil {
+  padding: 7px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--accent-clair);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--rayon);
+}
+
+/* Un seuil non applique est un AVERTISSEMENT : l'operateur croit son filtre actif. */
+.bandeau-profil-alerte {
+  background: var(--fond-panneau-2);
+  border-left-color: var(--orange);
+}
+
+.bandeau-profil-liste {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--texte-doux);
+}

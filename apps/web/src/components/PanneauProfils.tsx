@@ -97,6 +97,10 @@ export function PanneauProfils(): JSX.Element {
     setDeveloppeur('');
     setSaisies({});
     setMessage(null);
+    // Le magasin suit : un profil methanisation laisse actif sur une recherche eolienne serait
+    // refuse par le serveur, et l'operateur ne comprendrait pas d'ou vient l'erreur.
+    etat.definirProfil(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filiere]);
 
   const saisie = (id: string): SaisieSeuil => saisies[id] ?? VIDE;
@@ -133,6 +137,12 @@ export function PanneauProfils(): JSX.Element {
   const chargerProfil = async (id: string): Promise<void> => {
     setProfilId(id);
     setMessage(null);
+    /*
+     * Le profil est publie dans le magasin : c'est lui qui fait basculer la recherche en MODE 2.
+     * Le garder local a ce panneau obligerait a le faire descendre par les proprietes jusqu'a la
+     * vue liste, et le premier oubli ferait repartir la recherche en mode 1 sans un mot.
+     */
+    etat.definirProfil(id || null);
     if (!id) {
       setNom('');
       setDeveloppeur('');
@@ -197,6 +207,7 @@ export function PanneauProfils(): JSX.Element {
         : api.creerProfil(corps()),
     onSuccess: async (profil) => {
       setProfilId(profil.id);
+      etat.definirProfil(profil.id);
       setMessage({ ton: 'ok', texte: `Profil « ${profil.nom} » enregistré.` });
       await clientRequetes.invalidateQueries({ queryKey: ['profils'] });
     },
@@ -208,6 +219,7 @@ export function PanneauProfils(): JSX.Element {
     onSuccess: async () => {
       setMessage({ ton: 'ok', texte: 'Profil supprimé.' });
       setProfilId('');
+      etat.definirProfil(null);
       setNom('');
       setDeveloppeur('');
       setSaisies({});

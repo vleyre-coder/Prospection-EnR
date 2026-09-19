@@ -10,6 +10,7 @@ import {
   api,
   ErreurApi,
   type CouvertureRecherche,
+  type ProfilApplique,
   type LigneListe,
   type Referentiel,
 } from '../api/client.js';
@@ -54,9 +55,17 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
     limite: 300,
     ...(borne ? { bbox: etat.empriseCourante! } : {}),
   };
+  /*
+   * Le profil entre dans la CLE de requete, et pas seulement dans l'appel.
+   *
+   * L'oublier ferait servir le resultat en cache du balayage precedent apres un changement de
+   * profil : l'operateur verrait la liste d'un autre developpeur sous le nom du sien, sans
+   * qu'aucun indicateur ne bouge. C'est le genre d'ecart qu'on ne rattrape pas ensuite.
+   */
+  const profilId = etat.profilId;
   const requete = useQuery({
-    queryKey: ['liste', filtres],
-    queryFn: () => api.filtrer(filtres),
+    queryKey: ['liste', filtres, profilId],
+    queryFn: () => api.filtrer(filtres, profilId ?? undefined),
     retry: 1,
   });
 
@@ -290,6 +299,7 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
         </div>
       )}
 
+      {requete.data?.profil && <BandeauProfil profil={requete.data.profil} />}
       {requete.data && <BandeauCouverture couverture={requete.data.couverture} total={requete.data.total} />}
 
       {requete.data && requete.data.resultats.length === 0 && (
@@ -491,6 +501,46 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
  * ET IL NE S'AFFICHE PAS QUAND IL N'A RIEN A DIRE : sans territoire demande, la couverture n'a pas
  * de denominateur, donc pas de sens. Un bandeau qui parle toujours ne se lit plus.
  */
+/**
+ * Ce que le cahier des charges du developpeur a REELLEMENT fait a cette liste.
+ *
+ * LA MOITIE QUI COMPTE EST CELLE DES SEUILS IGNORES. Un seuil saisi par le developpeur et
+ * silencieusement ecarte est la pire des reponses possibles : l'operateur croit son filtre actif,
+ * remet un dossier, et personne ne sait que l'exigence n'a jamais ete verifiee. 250 des 292
+ * contraintes du referentiel n'ont aujourd'hui aucune grandeur mesuree en face — ce n'est pas un
+ * cas limite, c'est le cas courant.
+ *
+ * Le bandeau dit donc les deux nombres, et nomme chaque seuil non applique avec sa raison.
+ */
+function BandeauProfil({ profil }: { profil: ProfilApplique }): JSX.Element {
+  const { seuilsAppliques, seuilsIgnores } = profil;
+  return (
+    <div className={seuilsIgnores.length > 0 ? 'bandeau-profil bandeau-profil-alerte' : 'bandeau-profil'}>
+      <strong>
+        Cahier des charges «&nbsp;{profil.nom}&nbsp;»
+        {profil.developpeur ? ` — ${profil.developpeur}` : ''}
+      </strong>{' '}
+      : {seuilsAppliques} seuil{seuilsAppliques > 1 ? 's' : ''} appliqué
+      {seuilsAppliques > 1 ? 's' : ''} à cette recherche
+      {seuilsIgnores.length > 0 && (
+        <>
+          {', '}
+          <strong>
+            {seuilsIgnores.length} non appliqué{seuilsIgnores.length > 1 ? 's' : ''}
+          </strong>
+          {' :'}
+          <ul className="bandeau-profil-liste">
+            {seuilsIgnores.map((i) => (
+              <li key={i.contrainteId}>{i.message}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {seuilsIgnores.length === 0 && '.'}
+    </div>
+  );
+}
+
 function BandeauCouverture({
   couverture,
   total,

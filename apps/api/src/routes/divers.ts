@@ -23,6 +23,12 @@ import {
   LIMITE_MAX_EXPORT,
 } from '../services/recherche.js';
 import { entierRequete, ErreurValidation, lecteur, ponderationValide } from '../validation.js';
+import { expliquerIgnore, traduireProfil } from '../services/profil-en-filtres.js';
+import * as depotProfils from '../depots/profils.js';
+
+/** Forme d'un identifiant UUID de profil, celle que la base produit. */
+const MOTIF_UUID_PROFIL =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /** Roles applicatifs. Liste fermee : une valeur invalide est refusee, et non ramenee a `lecture`. */
 const ROLES = ['admin', 'prospection', 'lecture'] as const;
@@ -89,7 +95,83 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
      * une supervision reveillait une astreinte.
      */
     try {
-      return filtrerParcelles(filtresValides(req.body));
+      /*
+       * `profilId` est lu A PART, et retire du corps avant validation.
+       *
+       * POURQUOI PAS UN CHAMP DE `FiltresParcelles`. Ce n'est pas un filtre : c'est une SOURCE de
+       * filtres, qui doit etre resolue en base puis traduite en conditions avant que le
+       * constructeur SQL ne voie quoi que ce soit. Le laisser descendre le ferait refuser comme
+       * cle inconnue — a juste titre, puisque le constructeur ne saurait pas quoi en faire.
+       */
+      const corps = req.body;
+      let profilId: string | undefined;
+      if (corps != null && typeof corps === 'object' && !Array.isArray(corps)) {
+        const brut = (corps as Record<string, unknown>)['profilId'];
+        if (brut !== undefined && brut !== null) {
+          if (typeof brut !== 'string' || !MOTIF_UUID_PROFIL.test(brut)) {
+            return erreur(rep, 400, 'profil_invalide', 'Champ `profilId` : identifiant UUID attendu');
+          }
+          profilId = brut;
+        }
+      }
+      const sansProfil =
+        profilId === undefined
+          ? corps
+          : Object.fromEntries(
+              Object.entries(corps as Record<string, unknown>).filter(([c]) => c !== 'profilId'),
+            );
+
+      const filtres = filtresValides(sansProfil);
+
+      /*
+       * MODE 2 : les seuils du developpeur s'ajoutent aux criteres, traduits en conditions SQL.
+       *
+       * Ils s'AJOUTENT et ne remplacent pas : l'operateur peut resserrer un balayage au-dela du
+       * cahier des charges sans avoir a modifier le profil du developpeur, qui ne lui appartient
+       * pas.
+       */
+      if (profilId === undefined) return await filtrerParcelles(filtres);
+
+      const profil = await depotProfils.profilParId(profilId);
+      if (!profil) return erreur(rep, 404, 'profil_introuvable', 'Profil introuvable');
+      if (profil.filiere !== filtres.filiere) {
+        /*
+         * Un profil methanisation applique a une recherche eolienne ne produirait AUCUNE condition
+         * — ses contraintes sont d'une autre filiere — et la recherche rendrait exactement le meme
+         * resultat que sans profil. L'operateur croirait le cahier des charges applique.
+         */
+        return erreur(
+          rep,
+          400,
+          'profil_autre_filiere',
+          `Le profil « ${profil.nom} » porte la filière ${profil.filiere}, la recherche porte sur ${filtres.filiere}.`,
+        );
+      }
+
+      const traduction = traduireProfil(profil.seuils);
+      const resultat = await filtrerParcelles({
+        ...filtres,
+        seuils: [...(filtres.seuils ?? []), ...traduction.seuils],
+      });
+
+      return {
+        ...resultat,
+        /*
+         * CE QUI N'A PAS ETE APPLIQUE, REMONTE AU CLIENT.
+         *
+         * Un seuil saisi par le developpeur et silencieusement ignore est la pire des reponses :
+         * l'operateur croit son filtre actif, rend un dossier, et personne ne sait que l'exigence
+         * n'a jamais ete verifiee. 250 des 292 contraintes n'ont aujourd'hui aucune grandeur
+         * mesuree en face.
+         */
+        profil: {
+          id: profil.id,
+          nom: profil.nom,
+          developpeur: profil.developpeur,
+          seuilsAppliques: traduction.seuils.length,
+          seuilsIgnores: traduction.ignores.map((i) => ({ ...i, message: expliquerIgnore(i) })),
+        },
+      };
     } catch (err) {
       if (err instanceof ErreurValidation) {
         return erreur(rep, 400, 'filtre_invalide', err.message, { champ: err.champ });

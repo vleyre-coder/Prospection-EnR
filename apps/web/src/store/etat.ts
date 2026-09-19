@@ -111,6 +111,20 @@ export interface EtatApp {
   definirSeuils: (seuilVert: number, seuilOrange: number) => void;
   definirFiltres: (f: Partial<FiltresRecherche>) => void;
   reinitialiserFiltres: () => void;
+  /**
+   * Profil de recherche applique, ou `null`.
+   *
+   * IL VIT DANS LE MAGASIN et non dans le panneau des profils, parce que DEUX composants en ont
+   * besoin : celui qui le choisit, et la vue liste qui lance la recherche. Le garder local au
+   * premier obligerait a le faire descendre par les proprietes a travers tout l'ecran — et la
+   * premiere fois qu'on oublierait de le passer, la recherche repartirait en mode 1 sans que rien
+   * ne le signale.
+   *
+   * IL N'EST PAS PERSISTE, deliberement : un profil retrouve au demarrage ferait lancer un
+   * balayage au cahier des charges d'un developpeur sans que l'operateur l'ait demande.
+   */
+  profilId: string | null;
+  definirProfil: (id: string | null) => void;
   definirEmprise: (b: [number, number, number, number]) => void;
   basculerLimiteEmprise: () => void;
   definirOutil: (o: OutilDessin) => void;
@@ -188,6 +202,7 @@ export const useEtat = create<EtatApp>((set, get) => ({
   ponderations: prefs.ponderations ?? {},
   seuils: {},
   filtres: {},
+  profilId: null,
   outil: 'aucun',
   avertissementsMasques: prefs.avertissementsMasques ?? [],
   panneauGaucheOuvert: true,
@@ -271,6 +286,7 @@ export const useEtat = create<EtatApp>((set, get) => ({
     set((e) => ({ seuils: { ...e.seuils, [e.filiere]: { seuilVert, seuilOrange } } })),
   definirFiltres: (f) => set((e) => ({ filtres: { ...e.filtres, ...f } })),
   reinitialiserFiltres: () => set({ filtres: {} }),
+  definirProfil: (profilId) => set({ profilId }),
   definirEmprise: (empriseCourante) => set({ empriseCourante }),
   basculerLimiteEmprise: () =>
     set((e) => {

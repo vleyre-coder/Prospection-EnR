@@ -38,7 +38,12 @@ import {
   typesSolDuRegime,
 } from '@enr/core';
 import { VueListe } from '../src/components/VueListe.js';
-import type { CouvertureRecherche, LigneListe, TerritoireInterrogeable } from '../src/api/client.js';
+import type {
+  CouvertureRecherche,
+  LigneListe,
+  ProfilApplique,
+  TerritoireInterrogeable,
+} from '../src/api/client.js';
 import { referentiel, rendreResolu, texte } from './aides/rendu.js';
 
 /** Une ligne de resultat minimale : ces tests portent sur le cadre, pas sur les cellules. */
@@ -72,7 +77,13 @@ const TERRITOIRES: { regions: TerritoireInterrogeable[]; departements: Territoir
 };
 
 function afficher(
-  donnees: { total: number; resultats: LigneListe[]; couverture?: CouvertureRecherche },
+  donnees: {
+    total: number;
+    resultats: LigneListe[];
+    couverture?: CouvertureRecherche;
+    /** Bloc du MODE 2 : present seulement quand un profil est applique. */
+    profil?: ProfilApplique;
+  },
   options: { mode?: 'liste' | 'recherche'; etat?: Record<string, unknown> } = {},
 ): string {
   return texte(
@@ -477,5 +488,56 @@ test('LE CAHIER DES CHARGES WORD EST PROPOSÉ, ET RESTE ACTIF SUR UNE LISTE VIDE
    * liste vide interdirait le seul moment où l'on en a le plus besoin.
    */
   const t = afficher({ total: 0, resultats: [] });
+  assert.match(t, /Cahier des charges \(Word\)/);
+});
+
+test('LE BANDEAU DU CAHIER DES CHARGES DIT CE QUI N’A PAS ETE APPLIQUE', () => {
+  /*
+   * LA MOITIE QUI COMPTE. Un seuil saisi par le developpeur et silencieusement ecarte est la pire
+   * des reponses : l'operateur croit son filtre actif, remet un dossier, et personne ne sait que
+   * l'exigence n'a jamais ete verifiee. 250 des 292 contraintes du referentiel n'ont aujourd'hui
+   * aucune grandeur mesuree en face — ce n'est pas un cas limite, c'est le cas courant.
+   */
+  const t = afficher({
+    total: 12,
+    resultats: [LIGNE],
+    profil: {
+      id: '11111111-1111-1111-1111-111111111111',
+      nom: 'Éolien — Développeur X',
+      developpeur: 'Développeur X',
+      seuilsAppliques: 1,
+      seuilsIgnores: [
+        {
+          contrainteId: 'eolien_terrestre__enjeux_chiropteres_recul_lisieres_garde_au_sol',
+          nom: 'Enjeux chiroptères — recul lisières',
+          raison: 'grandeur_non_mesuree',
+          message:
+            '« Enjeux chiroptères — recul lisières » : aucune grandeur du relevé ne mesure cette contrainte, le seuil n’a pas été appliqué.',
+        },
+      ],
+    },
+  });
+
+  assert.match(t, /Cahier des charges\s*«\s*Éolien — Développeur X\s*»/);
+  assert.match(t, /1 seuil appliqué/);
+  assert.match(t, /1 non appliqué/);
+  assert.match(t, /aucune grandeur du relevé ne mesure cette contrainte/);
+});
+
+test('SANS PROFIL, AUCUN BANDEAU DE CAHIER DES CHARGES N’APPARAIT', () => {
+  /*
+   * NON-REGRESSION DU MODE SANS PROFIL. Un bandeau affiche a vide ferait croire a un cahier des
+   * charges applique la ou il n'y en a pas — et l'operateur tiendrait sa liste pour plus filtree
+   * qu'elle ne l'est.
+   */
+  const t = afficher({ total: 12, resultats: [LIGNE] });
+  /*
+   * L'assertion vise le bandeau, PAS la chaine « cahier des charges » : le bouton d'export
+   * « Cahier des charges (Word) » porte deja ces mots, et une assertion large accusait donc un
+   * ecran parfaitement correct. C'est le guillemet ouvrant du NOM du profil qui distingue les deux.
+   */
+  assert.doesNotMatch(t, /Cahier des charges\s*«/);
+  assert.doesNotMatch(t, /seuil appliqué/);
+  // Le bouton d'export, lui, doit toujours etre la : c'est la non-regression du mode sans profil.
   assert.match(t, /Cahier des charges \(Word\)/);
 });
