@@ -2695,6 +2695,140 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-profils.test.ts'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 25 — le moteur de verdict
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 25',
+    /*
+     * LA FAUTE QUE TOUT CE MOTEUR EXISTE POUR EMPECHER : conclure « favorable » sur ce qu'on n'a
+     * pas regarde. La parcelle sort en tete de liste, part dans un dossier remis a un tiers, et
+     * rien ne dit que quarante-neuf de ses cinquante-deux contraintes n'ont jamais ete evaluees.
+     */
+    quoi: 'une contrainte non evaluee cesse d’empecher le verdict « favorable »',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "      : enfreintesReglementaires.length > 0 || aVerifier.length > 0 || absentes.length > 0",
+    vers: "      : enfreintesReglementaires.length > 0 || aVerifier.length > 0",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * UN ZONAGE JAMAIS CROISE PASSE POUR UN ZONAGE ABSENT. La distinction la plus facile a perdre
+     * du moteur : une parcelle hors de tout zonage et une parcelle jamais croisee avec les couches
+     * donnent le meme « aucun recouvrement ». Les confondre declare conforme ce qui n'a pas ete
+     * regarde — et le fait pour les contraintes REDHIBITOIRES, celles qui interdisent.
+     */
+    quoi: 'un zonage jamais croise est compte comme un zonage absent',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "  if (!mesureTrouvee) return { etat: 'donnee_absente', valeur: null, chemin: null };",
+    vers: '  // mutation',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * UN ECART AU CAHIER DES CHARGES REDEVIENT UNE PARCELLE DEFAVORABLE. C'est le defaut que mon
+     * premier moteur portait : a 250 m des habitations, une parcelle conforme au droit (100 m en
+     * declaration, 200 m en enregistrement) ressortait « defavorable » parce qu'un developpeur
+     * exigeait 400 m. L'operateur annonce alors l'inverse de ce que dit la loi.
+     */
+    quoi: 'une exigence de developpeur non tenue rend la parcelle « defavorable »',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "  const bloquantes = enfreintesReglementaires.filter((c) => c.caractere === 'redhibitoire');",
+    vers: "  const bloquantes = enfreintes.filter((c) => c.caractere === 'redhibitoire');",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * LES PROCEDURES REDEVIENNENT DES CONTRAINTES. Un permis de construire est requis pour TOUT
+     * projet : le compter comme une penalite met chaque parcelle « a instruire » pour une
+     * formalite universelle, et le verdict cesse de distinguer quoi que ce soit.
+     */
+    quoi: 'les lignes « cadre » entrent dans le verdict',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    if (etat === 'cadre') cadres.push(evaluee);\n    else contraintes.push(evaluee);",
+    vers: '    contraintes.push(evaluee);',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * UN SEUIL QUI NE TRANCHE PAS SE MET A TRANCHER. `egal` ne veut pas dire « exactement cette
+     * valeur » mais « sens non etabli » : le comparer a l'egalite stricte n'est vrai pour personne
+     * et viderait la liste en silence.
+     */
+    quoi: 'un seuil au sens non etabli est compare a l’egalite stricte',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "  if (applique.condition.operateur === 'egal') return { etat: 'a_verifier', valeur, chemin };",
+    vers: '  // mutation',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * LA CONTRAINTE DECISIVE DEVIENT UNE LACUNE PLUTOT QU'UN FAIT. Nommer « non evaluée » comme
+     * cause quand une interdiction est par ailleurs constatee envoie l'operateur chercher au
+     * mauvais endroit.
+     */
+    quoi: 'la contrainte decisive n’est plus l’infraction constatee',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: '    enfreintesReglementaires.length > 0\n      ? enfreintesReglementaires',
+    vers: '    false\n      ? enfreintesReglementaires',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * UNE CORRESPONDANCE SE BRANCHE SUR UNE GRANDEUR D'UNE AUTRE UNITE. C'est l'erreur reelle que
+     * le rapprochement par motifs produisait : comparer un rayon de 15 km a un tonnage ne leve
+     * rien, cela rend un verdict.
+     */
+    quoi: 'une contrainte est branchee sur une grandeur d’une autre unite',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: "    chemins: ['raccordement.posteLePlusProche.distanceKm'],\n    unite: 'km',",
+    vers: "    chemins: ['raccordement.posteLePlusProche.capaciteResiduelleMw'],\n    unite: 'km',",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 25',
+    /*
+     * L'EXPLICATION CESSE DE NOMMER LE SEUIL REGLEMENTAIRE REMPLACE. Sans cette moitie de phrase,
+     * l'operateur ne peut pas dire au developpeur que l'ecart vient de SA propre exigence, donc
+     * qu'il est negociable.
+     */
+    quoi: 'l’explication ne rappelle plus ce que la reglementation demande',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "          ? ` — la réglementation, elle, demande « ${c.seuilReglementaire} »`",
+    vers: "          ? ''",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
 ];
 
 /**

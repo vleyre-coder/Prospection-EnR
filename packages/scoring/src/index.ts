@@ -837,3 +837,13 @@ export {
 } from './implantation.js';
 export * from './notes.js';
 export { SRC } from './sources.js';
+
+/*
+ * Le moteur de VERDICT, distinct du moteur de score et volontairement garde a part.
+ *
+ * Le score classe les parcelles favorables entre elles ; le verdict dit si une parcelle est
+ * instruisable au regard des 292 contraintes du referentiel. Deux questions, deux reponses, et
+ * les confondre ferait perdre l'une des deux.
+ */
+export * from './verdict.js';
+export * from './verdict-correspondances.js';
