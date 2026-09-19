@@ -177,6 +177,30 @@ export const LIBELLES_TYPE_SOL: Record<TypeSol, string> = {
 };
 
 /**
+ * Gestionnaires de reseau electrique, tels qu'ils doivent s'ECRIRE.
+ *
+ * DEFAUT TROUVE EN RELISANT UN RAPPORT SUR UNE AUTRE PARCELLE. Le tableau des postes sources
+ * imprimait `autre_grd` — la valeur d'enumeration brute — dans la colonne « Gestionnaire », sur un
+ * document remis a un proprietaire. Il ne s'etait jamais vu : les parcelles relues jusqu'ici
+ * avaient RTE ou Enedis pour poste le plus proche, et ces deux valeurs-la s'ecrivent d'elles-memes.
+ *
+ * Sur 1 967 postes du jeu national, le gestionnaire ne porte aucun nom exploitable et tombe dans
+ * cette troisieme valeur : le cas n'a rien de marginal.
+ */
+export const LIBELLES_GESTIONNAIRE: Record<'RTE' | 'Enedis' | 'autre_grd', string> = {
+  RTE: 'RTE',
+  Enedis: 'Enedis',
+  // « GRD » est le terme du secteur, et le developper une fois suffit a le rendre lisible.
+  autre_grd: 'autre gestionnaire de distribution',
+};
+
+/** Libelle d'un gestionnaire, ou la valeur brute si elle sort de l'enumeration. */
+export function libelleGestionnaire(v: string | null | undefined): string | null {
+  if (v == null) return null;
+  return LIBELLES_GESTIONNAIRE[v as keyof typeof LIBELLES_GESTIONNAIRE] ?? v;
+}
+
+/**
  * Rend le libelle d'une nature de sol venue de la base, ou la valeur brute si elle est inconnue.
  *
  * La valeur traverse SQL en `string` : elle peut donc sortir de l'enumeration si le schema evolue

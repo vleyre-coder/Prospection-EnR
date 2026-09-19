@@ -189,8 +189,21 @@ test('une donnee absente ne ressemble jamais a un critere satisfait', () => {
       );
     }
 
+    /*
+     * COMPARAISON SANS ACCENTS, et l'omission etait un faux negatif dormant.
+     *
+     * L'ecran ecrit « donnée indisponible », accentue — c'est la convention du depot pour tout
+     * texte affiche, et un autre garde l'impose. Ce motif-ci etait ecrit sans accents et ne
+     * pouvait donc PAS correspondre au rendu reel. Il passait tout de meme, parce que les fixtures
+     * dataient d'avant l'accentuation de ces libelles : l'assertion verifiait une vieille graphie,
+     * plus celle du produit. Recapturer les fixtures l'a revele.
+     *
+     * La comparaison est donc rendue insensible aux accents : le point verifie ici est la PRESENCE
+     * de la mention, pas sa graphie, qui releve du garde d'orthographe.
+     */
+    const sansAccents = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
     assert.ok(
-      /donnee indisponible|non evalue/.test(t),
+      /donnee indisponible|non evalue/.test(sansAccents),
       `${cas.nom} : ${gris.length} criteres sont gris et rien ne le dit a l’ecran`,
     );
   }

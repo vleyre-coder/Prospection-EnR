@@ -231,12 +231,12 @@ refusé.
 | `tsc --noEmit` (4 espaces de travail + tests + Netlify) | propre |
 | `npm run build` | propre |
 | `@enr/core` | 114 tests |
-| `@enr/scoring` | 128 tests |
-| `@enr/api` (sans base) | 604 tests |
-| `@enr/web` | 207 tests |
+| `@enr/scoring` | 135 tests |
+| `@enr/api` (sans base) | 606 tests |
+| `@enr/web` | 209 tests |
 | `@enr/api` sur base **vierge** (`enr_base24`) | 149 tests |
 | `@enr/api` sur base **de référence** (`enr_e2e`, 34 875 communes, 301 parcelles) | 149 tests |
-| Campagne de mutation | **277 motifs**, tous applicables au code courant |
+| Campagne de mutation | **282 motifs**, tous applicables au code courant |
 
 **Ces nombres-ci sont ceux de l'exécution du 19 septembre 2026, et ils ne sont pas verrouillés** :
 un test de plus les périme, et c'est normal. Ce qui est verrouillé, ce sont les tableaux des §1 et
@@ -262,8 +262,65 @@ protégeait.
 
 1. **Ingérer le GPU et Géorisques** (36 contraintes à elles deux) : c'est le seul chantier qui
    ferait discriminer les quatre filières aujourd'hui non discriminantes.
-2. **Agrivoltaïsme comme filière applicative à part entière** : elle existe dans le référentiel et
-   dans les profils de recherche, mais pas encore dans les pondérations, les knock-outs et le
-   sélecteur de l'interface.
-3. **Relecture juridique du classeur** par un humain compétent. L'application en est un fidèle
+2. **Relecture juridique du classeur** par un humain compétent. L'application en est un fidèle
    rapporteur ; elle n'en est pas la garantie.
+
+---
+
+## 10. L'agrivoltaïsme, cinquième filière
+
+Il n'était jusqu'ici qu'un **régime d'implantation du solaire au sol**. Il est désormais une
+filière applicative complète : métadonnées, pondérations, courbes de notation, knock-outs, seuils
+de recherche, règles de procédure, contrainte de base de données et sélecteur de l'interface.
+
+**Ce qui justifie la séparation**, et ce n'est pas une préférence de rangement : le solaire au sol
+cherche un terrain que l'agriculture a **quitté**, l'agrivoltaïsme un terrain qu'elle **occupe
+encore** et dont elle continuera de vivre — c'est la condition même du régime (L.314-36 du code de
+l'énergie). **Les deux filières trient en sens opposé sur la même donnée.**
+
+| Nature du sol | Solaire au sol | Agrivoltaïsme |
+| --- | --- | --- |
+| Terrain agricole exploité | 45 | **100** |
+| Terrain inculte | 75 | **25** |
+| Terrain dégradé | 100 | **15** |
+| Terrain artificialisé | 100 | **10** |
+| Espace naturel ou forestier | 10 | 5 |
+
+Reprendre la table du solaire au sol aurait été le défaut le plus coûteux de cette filière, et il
+n'aurait levé aucune erreur : le classement aurait remonté en tête exactement les parcelles où le
+projet est impossible. Un test dédié interdit désormais que les deux tables se rejoignent.
+
+**Les huit contraintes de performance agronomique restent en vérification manuelle**, parce que le
+classeur les y met : activité agricole significative, service rendu, perte de rendement ≤ 10 %,
+zone témoin, taux de couverture ≤ 40 %. Elles portent sur le **projet** — son plan de masse, son
+suivi agronomique, ses accords — et non sur le terrain. Aucun knock-out agronomique n'a donc été
+ajouté, et le seul indice parcellaire disponible (la parcelle est-elle déclarée au RPG ?) reste
+porté par le critère de nature du sol, gradué et commenté, parce que le connecteur écrit lui-même
+que l'absence d'îlot RPG reste « à confirmer ».
+
+**Deux knock-outs du solaire au sol sont explicitement écartés** : le document-cadre départemental,
+qui gouverne le régime B — le photovoltaïque au sol sur terrain non exploité depuis dix ans,
+c'est-à-dire précisément ce que l'agrivoltaïsme n'est pas ; et l'AOP viticole, dont le fondement
+est l'opposition de l'INAO à l'**artificialisation** des aires délimitées, qu'un projet
+agrivoltaïque ne produit pas. Le référentiel le confirme : sur 52 contraintes d'agrivoltaïsme,
+aucune ne porte sur une AOP.
+
+### Trois défauts découverts en ouvrant la filière
+
+Aucun ne venait de l'agrivoltaïsme ; tous trois dormaient parce que rien ne les avait atteints.
+
+1. **`REGLES` était indexée par une chaîne libre**, pas par la liste des filières. La nouvelle
+   filière en était absente, et toutes ses règles de procédure rendaient `null` : ni permis de
+   construire, ni évaluation environnementale, ni compensation agricole. Un dossier muet sur ses
+   autorisations, sans une erreur nulle part. Le type est désormais `Record<Filiere | 'commun', …>`.
+2. **Le rapport PDF imprimait `autre_grd`** — la valeur d'énumération du gestionnaire de réseau —
+   dans la synthèse d'un document remis à un propriétaire. Jamais vu jusque-là : les parcelles
+   relues avaient RTE ou Enedis pour poste le plus proche. 1 967 postes du jeu national tombent
+   pourtant dans cette troisième valeur.
+3. **Le point décimal était revenu**, dans le bloc du verdict (« Mesuré : 0.8 ») et dans la liste
+   des postes alternatifs de la fiche — deux blocs qu'aucune fixture ne remplissait.
+
+Et la capture des fixtures elle-même reposait sur une propriété de la base d'alors (« une seule
+parcelle est qualifiée en éolien, et c'est celle qui est écartée »). Elle cherche désormais la page
+qui porte le cas, et **échoue bruyamment** si aucune ne le porte, plutôt que d'écrire un fichier
+valide sur lequel le test ne prouverait plus rien.

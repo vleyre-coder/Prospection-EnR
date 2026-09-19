@@ -3544,6 +3544,95 @@ const MUTATIONS = [
     cwd: 'packages/scoring',
     commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-referentiel.test.ts'],
   },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 35 — l'agrivoltaisme trie a l'inverse du solaire au sol
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 35',
+    /*
+     * LE DEFAUT LE PLUS COUTEUX DE CETTE FILIERE, et il ne leve aucune erreur. L'agrivoltaisme
+     * exige une production agricole maintenue (L.314-36) ; sur une parcelle artificialisee il n'y
+     * a plus d'agriculture a maintenir. Reprendre la table du solaire au sol remonterait en tete
+     * du classement exactement les parcelles ou le projet est impossible, et relegerait celles
+     * qu'il faut prospecter.
+     */
+    quoi: 'l’agrivoltaisme reprend la table de nature du sol du solaire au sol',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '  agrivoltaisme: {\n    agricole_exploite: 100,\n    inculte: 25,\n    degrade: 15,\n    artificialise: 10,\n    naturel_forestier: 5,\n  },',
+    vers: '  agrivoltaisme: {\n    artificialise: 100,\n    degrade: 100,\n    inculte: 75,\n    agricole_exploite: 45,\n    naturel_forestier: 10,\n  },',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/agrivoltaisme.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/agrivoltaisme.test.ts'],
+  },
+  {
+    audit: 'audit 35',
+    /*
+     * UNE FILIERE SANS REGLES DE PROCEDURE N'ANNONCE AUCUNE AUTORISATION. C'est le defaut qu'a
+     * revele l'ouverture de la filiere : `REGLES` etait un `Record<string, …>`, l'agrivoltaisme en
+     * etait absent, `seuil()` rendait `null` pour chacune de ses regles — ni permis de construire,
+     * ni evaluation environnementale, ni compensation agricole. Un dossier muet sur ses
+     * autorisations, sans une erreur nulle part.
+     */
+    quoi: 'l’agrivoltaisme perd toutes ses regles de procedure',
+    fichier: 'packages/core/src/reglementation.ts',
+    de: '  agrivoltaisme: REGLES_SOLAIRE,\n  eolien_terrestre: REGLES_EOLIEN,',
+    vers: '  agrivoltaisme: {},\n  eolien_terrestre: REGLES_EOLIEN,',
+    construire: '@enr/core',
+    tests: ['packages/scoring/test/procedures-transversales.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/procedures-transversales.test.ts'],
+  },
+  {
+    audit: 'audit 35',
+    /*
+     * LE DOCUMENT-CADRE DEPARTEMENTAL REMIS A L'AGRIVOLTAISME. Il gouverne la liste des terrains
+     * eligibles au photovoltaique AU SOL — le regime B, celui qui n'est precisement pas
+     * l'agrivoltaisme. L'y appliquer emettrait un blocage tire d'un dispositif qui ne concerne pas
+     * la filiere : la donnee est juste, son application est fausse.
+     */
+    quoi: 'le knock-out du document-cadre s’applique aussi a l’agrivoltaisme',
+    fichier: 'packages/scoring/src/knockouts.ts',
+    de: '  agrivoltaisme: [...COMMUNS],',
+    vers: '  agrivoltaisme: [...COMMUNS, koDocumentCadre, koAopViticole],',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/agrivoltaisme.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/agrivoltaisme.test.ts'],
+  },
+  {
+    audit: 'audit 35',
+    /*
+     * UNE ICONE INEXISTANTE NE LEVE RIEN : `Icone` retombe sur le soleil. Le selecteur afficherait
+     * alors deux soleils identiques pour le solaire au sol et l'agrivoltaisme, dans la barre ou il
+     * faut precisement les distinguer — et l'operateur prospecterait la mauvaise filiere.
+     */
+    quoi: 'une filiere annonce une icone qui n’existe pas',
+    fichier: 'packages/core/src/filieres.ts',
+    de: "    icone: 'sprout',",
+    vers: "    icone: 'pousse',",
+    construire: '@enr/core',
+    tests: ['apps/web/test/filieres-interface.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/filieres-interface.test.ts'],
+  },
+  {
+    audit: 'audit 35',
+    /*
+     * LA VALEUR D'ENUMERATION BRUTE DANS LA SYNTHESE DU RAPPORT. « Poste de transformation 90 kV
+     * (autre_grd) » — une cle de code donnee pour un nom d'entreprise, dans le document remis a un
+     * proprietaire. Elle ne s'etait jamais vue parce que les parcelles relues avaient RTE ou Enedis
+     * pour poste le plus proche ; 1 967 postes du jeu national tombent pourtant dans ce cas.
+     */
+    quoi: 'le gestionnaire de reseau s’imprime en valeur d’enumeration brute',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: "${poste.nom} (${libelleGestionnaire(poste.gestionnaire)})`,",
+    vers: '${poste.nom} (${poste.gestionnaire})`,',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/agrivoltaisme.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/agrivoltaisme.test.ts'],
+  },
 ];
 
 /**

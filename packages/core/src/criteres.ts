@@ -211,6 +211,65 @@ const POIDS_DEFAUT: Record<Filiere, Record<string, number>> = {
     fonc_maitrise: 2,
     acc_voirie: 2,
   },
+  /**
+   * Agrivoltaïsme — les mêmes critères que le solaire au sol, pondérés à l'inverse.
+   *
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * CE QUI DISTINGUE CETTE FILIERE, ET POURQUOI ELLE N'EST PAS UN REGLAGE DU SOLAIRE AU SOL
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le solaire au sol cherche un terrain que l'agriculture a QUITTE. L'agrivoltaïsme cherche un
+   * terrain que l'agriculture OCCUPE ENCORE, et dont elle continuera de vivre : c'est la condition
+   * même du régime (L.314-36 du code de l'énergie), et le référentiel en tire cinq contraintes
+   * rédhibitoires — activité agricole significative, service rendu à la parcelle, perte de
+   * rendement ≤ 10 %, zone témoin, couverture au sol ≤ 40 %.
+   *
+   * Les deux filières trient donc EN SENS OPPOSE sur la même donnée. `sol_type` pèse 14 dans les
+   * deux, mais la table de notes est inversée : une parcelle artificialisée, idéale pour l'une,
+   * est sans objet pour l'autre puisqu'il n'y a plus d'agriculture à maintenir.
+   *
+   * CE QUI MONTE. Le foncier (`fonc_maitrise` 4 → 8, `fonc_nb_proprietaires` 4 → 8) : il faut
+   * l'accord du propriétaire ET celui de l'exploitant, et le référentiel en fait un rédhibitoire.
+   * L'aptitude de la culture (`sol_culture_compatible` 5 → 12) : la table des groupes RPG a été
+   * écrite pour l'agrivoltaïsme, et c'est ici qu'elle trouve son objet — une vigne et une prairie
+   * permanente ne se prêtent pas du tout au même projet.
+   *
+   * CE QUI DESCEND. L'irradiation (8 → 5) : un projet agrivoltaïque se décide sur l'accord de
+   * l'exploitant, l'avis de la CDPENAF et la doctrine départementale bien avant l'ensoleillement.
+   * Et `sol_potentiel_agronomique` (4 → 2) cesse d'être une pénalité : un bon sol n'est plus un
+   * terrain qu'on regrette de couvrir, c'est celui qui rend l'exploitation viable sous panneaux.
+   */
+  agrivoltaisme: {
+    sol_type: 14,
+    sol_culture_compatible: 12,
+    racc_distance_poste: 10,
+    racc_capacite_residuelle: 8,
+    fonc_nb_proprietaires: 8,
+    fonc_maitrise: 8,
+    surf_utile: 7,
+    surf_un_seul_tenant: 4,
+    surf_compacite: 2,
+    topo_pente: 7,
+    topo_orientation: 3,
+    topo_planeite: 2,
+    gis_irradiation: 5,
+    urb_zonage: 6,
+    urb_zaer: 4,
+    env_proximite_natura2000: 5,
+    env_znieff: 3,
+    env_zone_humide: 4,
+    env_especes_protegees: 3,
+    env_tvb: 2,
+    pat_monuments: 3,
+    pat_sites: 2,
+    pat_archeologie: 1,
+    risq_inondation: 3,
+    risq_argiles_cavites: 1,
+    risq_sites_pollues: 1,
+    sol_potentiel_agronomique: 2,
+    sol_foret: 3,
+    acc_voirie: 2,
+  },
   eolien_terrestre: {
     dist_habitation: 14,
     gis_vent: 14,
@@ -293,6 +352,13 @@ export const PONDERATIONS_DEFAUT: Record<Filiere, ProfilPonderation> = {
   solaire_sol: {
     filiere: 'solaire_sol',
     poids: POIDS_DEFAUT.solaire_sol,
+    seuilVert: 65,
+    seuilOrange: 40,
+    seuilCouvertureDonnees: 0.8,
+  },
+  agrivoltaisme: {
+    filiere: 'agrivoltaisme',
+    poids: POIDS_DEFAUT.agrivoltaisme,
     seuilVert: 65,
     seuilOrange: 40,
     seuilCouvertureDonnees: 0.8,

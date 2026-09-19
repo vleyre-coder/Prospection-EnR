@@ -610,6 +610,38 @@ export type IdKnockOut = (typeof IDS_KNOCK_OUTS)[number];
 
 const REGLES_KO: Record<Filiere, RegleKo[]> = {
   solaire_sol: [...COMMUNS, koDocumentCadre, koAopViticole],
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * AGRIVOLTAISME : LES COMMUNS, ET RIEN DE PLUS — c'est une decision, pas un oubli
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * DEUX KNOCK-OUTS DU SOLAIRE AU SOL SONT ECARTES, chacun pour une raison de fond :
+   *
+   *   - `koDocumentCadre` ne vaut que pour un terrain INCULTE, et le document-cadre departemental
+   *     gouverne le REGIME B (« liste des terrains eligibles au photovoltaique au sol : non
+   *     exploite depuis ≥ 10 ans »). Ce regime est precisement celui qui n'est PAS
+   *     l'agrivoltaisme. L'appliquer ici emettrait un blocage tire d'un dispositif qui ne concerne
+   *     pas la filiere — la forme la plus insidieuse de defaut, ou la donnee est juste et son
+   *     application fausse.
+   *
+   *   - `koAopViticole` se fonde sur l'opposition de l'INAO a l'ARTIFICIALISATION des aires
+   *     delimitees. Un projet agrivoltaique ne les artificialise pas : la vigne reste. Et le
+   *     referentiel le confirme — sur les 52 contraintes d'agrivoltaisme, AUCUNE ne porte sur une
+   *     AOP, alors que le solaire au sol en porte une.
+   *
+   * ET AUCUN KNOCK-OUT AGRONOMIQUE N'EST AJOUTE, alors que la filiere en aurait cinq candidats
+   * evidents — activite agricole significative, service rendu, perte de rendement ≤ 10 %, zone
+   * temoin, couverture ≤ 40 %. LE CLASSEUR LES CLASSE TOUTES LES HUIT EN VERIFICATION MANUELLE.
+   * Aucune ne se lit sur une parcelle : elles portent sur le PROJET (son plan de masse, son suivi
+   * agronomique, ses accords), pas sur le terrain.
+   *
+   * Le seul indice parcellaire disponible — « la parcelle est-elle exploitee ? » — vient de la
+   * presence d'un ilot au RPG, et le connecteur ecrit lui-meme que l'absence d'ilot reste « a
+   * confirmer ». En faire un knock-out ecarterait definitivement les parcelles d'un exploitant qui
+   * ne declare pas. C'est `sol_type` qui porte cette information, gradue et commente, et c'est le
+   * bon niveau de severite pour une donnee de cette qualite.
+   */
+  agrivoltaisme: [...COMMUNS],
   eolien_terrestre: [...COMMUNS, koDistanceHabitation500, koMonumentSiteClasse, koRadar, koEolFaisceauHertzien],
   bess: [...COMMUNS, koBessAccesEngins],
   methanisation: [...COMMUNS, koMethaHabitation200, koMethaCaptage, koMethaCoursEau, koMethaAccesEngins],

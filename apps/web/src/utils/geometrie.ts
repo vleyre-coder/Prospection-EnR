@@ -72,6 +72,23 @@ export function formatNombre(n: number | null | undefined, unite = '', decimales
   return `${fmt(n, decimales)}${unite ? ` ${unite}` : ''}`;
 }
 
+/**
+ * Une MESURE brute, a la francaise, sans decimales inutiles.
+ *
+ * POURQUOI PAS `formatNombre`. Celui-ci fixe le nombre de decimales, ce qui est juste pour une
+ * colonne de tableau — les chiffres s'alignent. C'est faux pour une mesure isolee citee a cote de
+ * son seuil : le verdict ecrivait « Mesuré : 300,00 m » en face de « Référentiel : ≥ 500 m », et
+ * les deux zeros suggerent une precision au centimetre que la BD TOPO n'a pas.
+ *
+ * Les grandeurs concernees vont de la pente en dixiemes de pourcent a la distance en metres
+ * entiers : le nombre de decimales utiles depend de la valeur, pas de la colonne.
+ */
+export function formatMesure(n: number | null | undefined, unite = ''): string {
+  if (n == null) return '—';
+  const texte = n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return `${texte}${unite ? ` ${unite}` : ''}`;
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);

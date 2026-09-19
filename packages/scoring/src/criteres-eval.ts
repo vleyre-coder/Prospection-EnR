@@ -9,7 +9,7 @@
  *   - retourner `{ note: null, ... }`        -> donnee INDISPONIBLE (critere gris)
  */
 
-import { FILIERES_HORS_ZAER, LIBELLES_TYPE_SOL } from '@enr/core';
+import { FILIERES_HORS_ZAER, libelleGestionnaire, LIBELLES_TYPE_SOL } from '@enr/core';
 import type { Filiere, OptionsScoring, ParcelleSnapshot, SeveritePlanPpr, TypeSol } from '@enr/core';
 import { FILIERES_META } from '@enr/core';
 import {
@@ -119,6 +119,24 @@ export const COURBE_DISTANCE_POSTE: Record<Filiere, readonly Palier[]> = {
     [27, 5],
     [40.5, 0],
   ],
+  /*
+   * AGRIVOLTAISME : la meme courbe que le solaire au sol, et c'est une decision, pas un oubli.
+   *
+   * Le cout de raccordement se rapporte a la PUISSANCE EVACUEE, et les deux filieres jouent dans
+   * la meme classe — quelques MWc a quelques dizaines. Ce qui les separe (le maintien de
+   * l'activite agricole, l'accord de l'exploitant, la doctrine departementale) ne change rien au
+   * prix du kilometre de liaison. Inventer une courbe distincte pour marquer la difference
+   * fabriquerait un ecart que rien ne mesure.
+   */
+  agrivoltaisme: [
+    [0, 100],
+    [2.7, 92],
+    [6.75, 72],
+    [10.8, 52],
+    [16.2, 28],
+    [27, 5],
+    [40.5, 0],
+  ],
   eolien_terrestre: [
     [0, 100],
     [4.05, 90],
@@ -152,7 +170,11 @@ const racc_distance_poste: Evaluateur = (s, ctx) => {
     valeurBrute: poste.distanceKm,
     valeurAffichee:
       `${formatNombre(lineaire, 'km')} de tracé estimé ` +
-      `(${formatNombre(poste.distanceKm, 'km')} à vol d'oiseau) - ${poste.nom} (${poste.gestionnaire})`,
+      // `libelleGestionnaire` : la valeur brute `autre_grd` s'imprimait telle quelle dans la
+      // SYNTHESE du rapport remis a un proprietaire — une cle d'enumeration donnee pour un nom
+      // d'entreprise. Elle ne s'etait jamais vue parce que les parcelles relues jusqu'ici avaient
+      // RTE ou Enedis pour poste le plus proche.
+      `(${formatNombre(poste.distanceKm, 'km')} à vol d'oiseau) - ${poste.nom} (${libelleGestionnaire(poste.gestionnaire)})`,
     commentaire:
       `Le linéaire est estimé en majorant la distance à vol d'oiseau de ${Math.round((COEFFICIENT_TRACE - 1) * 100)} % : ` +
       `une liaison suit les emprises publiques et contourne le bâti. ` +
@@ -577,6 +599,37 @@ const NOTES_TYPE_SOL: Record<Filiere, Record<TypeSol, number>> = {
     agricole_exploite: 45,
     naturel_forestier: 10,
   },
+  /**
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * AGRIVOLTAISME : LA TABLE EST INVERSEE, ET C'EST LE POINT LE PLUS IMPORTANT DE CETTE FILIERE
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Toutes les autres filieres cherchent un terrain que l'agriculture a QUITTE : `artificialise`
+   * y vaut 90 a 100, `agricole_exploite` 35 a 80. L'agrivoltaisme cherche exactement l'inverse.
+   *
+   * Sa definition legale (L.314-36 du code de l'energie) exige une PRODUCTION AGRICOLE
+   * SIGNIFICATIVE maintenue sur la parcelle, et le referentiel en tire cinq contraintes
+   * redhibitoires : activite agricole principale, service rendu a la parcelle, perte de rendement
+   * ≤ 10 %, zone temoin, taux de couverture ≤ 40 %. Sur une parcelle artificialisee, il n'y a plus
+   * d'agriculture a maintenir : ce n'est pas un mauvais site agrivoltaique, c'est un projet d'une
+   * AUTRE filiere.
+   *
+   * `inculte` vaut 25 et non davantage, alors que le mot evoque un terrain disponible : le
+   * referentiel le rattache au REGIME B — « liste des terrains eligibles au PV au sol : non
+   * exploite depuis ≥ 10 ans » — qui est precisement le photovoltaique au sol, pas
+   * l'agrivoltaisme. Y voir une opportunite reviendrait a confondre les deux regimes.
+   *
+   * REPRENDRE LA TABLE DU SOLAIRE AU SOL AURAIT ETE LE DEFAUT LE PLUS COUTEUX DE CETTE FILIERE :
+   * le classement aurait remonte en tete exactement les parcelles ou le projet est impossible, et
+   * relegue celles qu'il faut prospecter. Aucune erreur ne se serait levee.
+   */
+  agrivoltaisme: {
+    agricole_exploite: 100,
+    inculte: 25,
+    degrade: 15,
+    artificialise: 10,
+    naturel_forestier: 5,
+  },
   bess: {
     artificialise: 100,
     degrade: 95,
@@ -629,18 +682,42 @@ const sol_type: Evaluateur = (s, ctx) => {
     if (t === 'inculte') regles.push('pv_document_cadre', 'pv_date_inculte');
     if (t === 'agricole_exploite') regles.push('agri_taux_couverture', 'agri_avis_cdpenaf');
   }
+  /*
+   * EN AGRIVOLTAISME, LES DEUX REGLES AGRICOLES S'APPLIQUENT TOUJOURS, et pas seulement sur une
+   * parcelle exploitee : le taux de couverture et l'avis conforme de la CDPENAF conditionnent le
+   * regime lui-meme. Le referentiel en fait deux redhibitoires, sans condition de nature de sol.
+   */
+  if (ctx.filiere === 'agrivoltaisme') regles.push('agri_taux_couverture', 'agri_avis_cdpenaf');
+
+  /*
+   * LE COMMENTAIRE SE LIT DANS LES DEUX SENS, selon la filiere qui le demande.
+   *
+   * « Terrain deja anthropise : configuration la plus favorable » est juste pour le solaire au sol
+   * et FAUX pour l'agrivoltaisme, ou c'est la configuration qui rend le projet impossible. Une
+   * phrase ecrite pour une filiere et servie a une autre est exactement le defaut que la table de
+   * notes ci-dessus existe pour eviter ; la laisser ici l'aurait reintroduite dans le texte.
+   */
+  const agri = ctx.filiere === 'agrivoltaisme';
+  const commentaire =
+    t === 'agricole_exploite'
+      ? agri
+        ? "Terrain agricole exploité : c'est la configuration que le régime agrivoltaïque exige. La production agricole doit rester significative, avec une perte de rendement d'au plus 10 %."
+        : "Terrain agricole exploité : le projet doit être conçu en agrivoltaïsme, avec maintien d'une production agricole significative."
+      : t === 'inculte'
+        ? agri
+          ? "Terrain inculte ou non exploité : sans production agricole à maintenir, le régime agrivoltaïque ne s'applique pas. C'est un terrain de photovoltaïque au sol (régime B), à étudier sous cette filière."
+          : "Le caractère inculte ou non exploité depuis le 10 mars 2013 doit être démontré (historique RPG, photo-interprétation) et la parcelle doit figurer au document-cadre départemental."
+        : t === 'naturel_forestier'
+          ? "Espace naturel ou forestier : défrichement, compensation et forte opposition prévisibles."
+          : agri
+            ? "Terrain déjà anthropisé : aucune activité agricole à maintenir, donc hors du champ de l'agrivoltaïsme. À étudier en photovoltaïque au sol."
+            : "Terrain déjà anthropisé : configuration la plus favorable, sans conflit d'usage agricole.";
+
   return {
     note,
     valeurBrute: t,
     valeurAffichee: LIBELLES_TYPE_SOL[t],
-    commentaire:
-      t === 'inculte'
-        ? "Le caractère inculte ou non exploité depuis le 10 mars 2013 doit être démontré (historique RPG, photo-interprétation) et la parcelle doit figurer au document-cadre départemental."
-        : t === 'agricole_exploite'
-          ? "Terrain agricole exploité : le projet doit être conçu en agrivoltaïsme, avec maintien d'une production agricole significative."
-          : t === 'naturel_forestier'
-            ? "Espace naturel ou forestier : défrichement, compensation et forte opposition prévisibles."
-            : "Terrain déjà anthropisé : configuration la plus favorable, sans conflit d'usage agricole.",
+    commentaire,
     sourceKey: SRC.rpg,
     reglesLiees: regles,
   };
@@ -677,8 +754,27 @@ const NOTES_GROUPE_CULTURE: Record<string, number> = {
 };
 
 const sol_culture_compatible: Evaluateur = (s, ctx) => {
-  if (ctx.filiere !== 'solaire_sol') return null;
+  /*
+   * LA TABLE CI-DESSUS EST INTITULEE « aptitude des groupes de culture a l'agrivoltaisme », et
+   * elle ne servait a aucune filiere de ce nom : l'agrivoltaisme etait un regime du solaire au
+   * sol, et le critere n'y etait interroge que sur une parcelle exploitee. Il trouve ici son
+   * objet — c'est en agrivoltaisme qu'une prairie permanente et une vigne ne designent pas du tout
+   * le meme projet.
+   */
+  if (ctx.filiere !== 'solaire_sol' && ctx.filiere !== 'agrivoltaisme') return null;
   if (s.occupationSol.typeSol && s.occupationSol.typeSol !== 'agricole_exploite') {
+    /*
+     * PAS DE 100 EN AGRIVOLTAISME, et la difference n'est pas un detail de presentation.
+     *
+     * Pour le solaire au sol, une parcelle non agricole est « sans objet » au sens plein : il n'y
+     * a pas de conflit d'usage a arbitrer, et 100 dit cela. Pour l'agrivoltaisme, la meme parcelle
+     * est DISQUALIFIEE — et elle l'est deja par `sol_type`, qui la note entre 5 et 25. Lui donner
+     * 100 ici compenserait en partie cette penalite avec un critere qui n'a rien mesure.
+     *
+     * On retire donc le critere du calcul (`null`), ce qui ne cree ni bonus ni malus : la seule
+     * reponse juste est celle que `sol_type` a deja donnee.
+     */
+    if (ctx.filiere === 'agrivoltaisme') return null;
     return {
       note: 100,
       valeurBrute: 'non_agricole',
@@ -769,6 +865,27 @@ export const COURBE_PENTE: Record<Filiere, readonly Palier[]> = {
     [15, 35],
     [20, 12],
     [30, 0],
+  ],
+  /*
+   * AGRIVOLTAISME : plus severe que le solaire au sol, et pour une raison qui n'a rien a voir avec
+   * la pose des structures.
+   *
+   * En solaire au sol, la pente ne gene que le chantier et le calage des tables. En agrivoltaisme,
+   * LES ENGINS AGRICOLES DOIVENT CONTINUER DE TRAVAILLER SOUS LES PANNEAUX, tracteur et
+   * pulverisateur compris, entre des pieux et sous une hauteur libre contrainte. Le referentiel en
+   * fait la condition du regime : l'activite agricole doit rester significative, et la perte de
+   * rendement ne doit pas depasser 10 %.
+   *
+   * La courbe decroche donc des 10 % la ou le solaire au sol tient encore 65/100.
+   */
+  agrivoltaisme: [
+    [0, 100],
+    [2, 98],
+    [5, 88],
+    [8, 70],
+    [10, 50],
+    [15, 20],
+    [25, 0],
   ],
   bess: [
     [0, 100],

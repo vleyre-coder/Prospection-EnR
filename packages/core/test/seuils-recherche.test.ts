@@ -103,6 +103,13 @@ test('CHAQUE FILIERE PROPOSE DES SEUILS, ET LE PREMIER EST SON CRITERE ROI', () 
    */
   const ROI: Record<string, string> = {
     solaire_sol: 'irradiation',
+    /*
+     * L'AGRIVOLTAISME NE SE DECIDE PAS SUR LE PRODUCTIBLE, et c'est ce qui le separe du solaire au
+     * sol. Le referentiel en fait un rendhibitoire : « Statut du foncier / bail rural / fermage :
+     * accords exploitant + proprietaire ». Un terrain parfaitement ensoleille dont l'exploitant ne
+     * veut pas n'est pas un projet — l'inverse se rattrape.
+     */
+    agrivoltaisme: 'proprietaire',
     eolien_terrestre: 'vent',
     bess: 'capacite',
     methanisation: 'intrants',

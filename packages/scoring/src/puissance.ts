@@ -61,8 +61,16 @@ export function puissanceEstimee(
   surfaceUtileHa: number | null,
   regimeImplantation?: string | null,
 ): PuissanceEstimee {
-  if (filiere === 'solaire_sol') {
-    const agrivoltaique = regimeImplantation === 'agrivoltaisme';
+  if (filiere === 'solaire_sol' || filiere === 'agrivoltaisme') {
+    /*
+     * DEUX CHEMINS VERS LA MEME DENSITE PLAFONNEE, et les deux restent necessaires.
+     *
+     * La filiere `agrivoltaisme` est agrivoltaique par definition. Mais le solaire au sol garde son
+     * REGIME d'implantation agrivoltaique, et des projets existants le portent : le supprimer
+     * changerait la puissance annoncee sur des dossiers deja etablis. Les deux chemins coexistent
+     * donc, et menent au meme plafond du decret du 8 avril 2024.
+     */
+    const agrivoltaique = filiere === 'agrivoltaisme' || regimeImplantation === 'agrivoltaisme';
     const densite = agrivoltaique ? DENSITE_AGRIVOLTAISME_MWC_PAR_HA : DENSITE_PV_MWC_PAR_HA;
     if (surfaceUtileHa == null || !Number.isFinite(surfaceUtileHa) || surfaceUtileHa <= 0) {
       return {
@@ -109,11 +117,26 @@ export function puissanceEstimee(
     };
   }
 
-  return {
-    mwc: null,
-    densiteMwcParHa: null,
-    methode:
-      'Non estimable depuis une surface. La puissance d’une unité de méthanisation suit le tonnage ' +
-      'd’intrants mobilisable dans le rayon d’approvisionnement, pas l’emprise de l’unité.',
-  };
+  if (filiere === 'methanisation') {
+    return {
+      mwc: null,
+      densiteMwcParHa: null,
+      methode:
+        'Non estimable depuis une surface. La puissance d’une unité de méthanisation suit le tonnage ' +
+        'd’intrants mobilisable dans le rayon d’approvisionnement, pas l’emprise de l’unité.',
+    };
+  }
+
+  /*
+   * LE `return` FINAL ETAIT NON GARDE, et c'est le defaut que le test de ce fichier annonçait :
+   * une filiere ajoutee au referentiel tombait dans la branche « methanisation » et heritait de son
+   * explication — « le tonnage d'intrants mobilisable » — sur, mettons, de l'hydroelectricite. Le
+   * compilateur ne voyait rien : la branche existait et rendait le bon type. L'ajout de
+   * l'agrivoltaisme l'a effectivement fait tomber la, et seul le test l'a dit.
+   *
+   * `never` renverse la charge : desormais le COMPILATEUR refuse la prochaine filiere tant que sa
+   * branche n'est pas ecrite, et le defaut ne peut plus atteindre l'execution.
+   */
+  const jamais: never = filiere;
+  throw new Error(`Filiere sans methode d'estimation de puissance : ${String(jamais)}`);
 }

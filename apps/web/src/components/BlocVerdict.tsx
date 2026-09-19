@@ -28,6 +28,7 @@
  */
 
 import type { ContrainteEvaluee, ResultatVerdict } from '@enr/scoring';
+import { formatMesure } from '../utils/geometrie.js';
 
 /** Libelle et couleur de chaque verdict. La couleur reprend la palette des feux du score. */
 const VERDICTS: Record<string, { libelle: string; classe: string; explication: string }> = {
@@ -269,7 +270,16 @@ function LigneContrainte({ contrainte: c }: { contrainte: ContrainteEvaluee }): 
 
       {c.valeurMesuree !== null && c.cheminMesure && (
         <div className="verdict-mesure">
-          Mesuré&nbsp;: {c.valeurMesuree} {c.condition?.unite ?? ''}{' '}
+          {/*
+            `formatNombre` ET NON L'INTERPOLATION BRUTE : c'est le defaut B1 de l'audit 10, et il
+            etait revenu ici. La ligne ecrivait « Mesuré : 0.8 % » et « Mesuré : 42.63 ha », avec
+            un point decimal, a cote d'un seuil de referentiel qui s'ecrit « ≥ ~3-5 ha ». Deux
+            conventions typographiques dans la meme phrase, sur le document qui fonde un verdict.
+            `formatMesure` et non `formatNombre` : celui-ci fixe le nombre de decimales, et
+            ecrivait « Mesuré : 300,00 m » en face de « Référentiel : ≥ 500 m » — deux zeros qui
+            suggerent une precision au centimetre que la BD TOPO n'a pas.
+          */}
+          Mesuré&nbsp;: {formatMesure(c.valeurMesuree, c.condition?.unite ?? '')}{' '}
           {/* Le chemin rend la mesure VERIFIABLE : sans lui, un chiffre faux est indiscernable
               d'un chiffre juste, et l'operateur n'a aucun moyen de remonter a sa source. */}
           <span className="verdict-chemin">({c.cheminMesure})</span>

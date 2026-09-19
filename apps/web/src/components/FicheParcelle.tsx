@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { libelleTypeSol } from '@enr/core';
+import { libelleGestionnaire, libelleTypeSol } from '@enr/core';
 import { BlocVerdict } from './BlocVerdict.js';
 import { BlocCourriers } from './BlocCourriers.js';
 import type {
@@ -37,7 +37,7 @@ import {
   type VerificationAvantContact,
 } from '../api/client.js';
 import { ponderationCourante, STATUTS, useEtat } from '../store/etat.js';
-import { formatDate, formatDateHeure, formatNombre } from '../utils/geometrie.js';
+import { formatDate, formatDateHeure, formatMesure, formatNombre } from '../utils/geometrie.js';
 import { libelleCultureRpg, valeurAffichable } from '../utils/affichage.js';
 
 interface Props {
@@ -1075,7 +1075,7 @@ function RubriquesDonnees({
         referentiel={referentiel}
         enfants={[
           ['Poste source le plus proche', val(poste?.nom)],
-          ['Gestionnaire', val(poste?.gestionnaire)],
+          ['Gestionnaire', val(libelleGestionnaire(poste?.gestionnaire))],
           ['Tension', val(poste?.tension)],
           ['Distance', val(poste?.distanceKm, 'km')],
           ['Capacité résiduelle', val(poste?.capaciteResiduelleMw, 'MW')],
@@ -1098,10 +1098,19 @@ function RubriquesDonnees({
               val(null)
             ) : (
               <>
+                {/*
+                  `formatNombre` ET NON L'INTERPOLATION BRUTE. C'est le defaut B1 de l'audit 10,
+                  reste ici parce qu'aucune fixture ne portait de poste alternatif : la liste
+                  ecrivait « 10.04 km » et « 8.99 km », avec un point decimal, dans une fiche
+                  francaise ou tout le reste passe par `val()`. Decouvert en capturant une
+                  cinquieme fixture, dont la parcelle a trois postes alternatifs.
+                */}
                 {s.raccordement.postesAlternatifs.map((p) => (
                   <div key={p.id}>
-                    {p.nom} — {p.distanceKm} km
-                    {p.capaciteResiduelleMw != null ? `, ${p.capaciteResiduelleMw} MW` : ''}
+                    {p.nom} — {formatMesure(p.distanceKm, 'km')}
+                    {p.capaciteResiduelleMw != null
+                      ? `, ${formatMesure(p.capaciteResiduelleMw, 'MW')}`
+                      : ''}
                     {p.etatSaturation ? ` (${p.etatSaturation})` : ''}
                   </div>
                 ))}
@@ -1256,8 +1265,11 @@ function BlocProspection({
 
         {fiche.lead && fiche.lead.scoreInitial != null && score.scoreGlobal != null && (
           <p style={{ fontSize: 11.5, color: 'var(--texte-faible)', margin: '0 0 8px' }}>
-            Score à la prise en prospection : {fiche.lead.scoreInitial} · score actuel :{' '}
-            {score.scoreGlobal}
+            {/* Deux scores dans la meme phrase : ils doivent s'ecrire de la meme facon, et a la
+                francaise comme le reste de la fiche — « 72.7 » et « 72,7 » se lisent mal cote a
+                cote. */}
+            Score à la prise en prospection : {formatNombre(fiche.lead.scoreInitial)} · score
+            actuel : {formatNombre(score.scoreGlobal)}
             {Math.abs(fiche.lead.scoreInitial - score.scoreGlobal) > 5 &&
               ' — écart notable, les données sources ont évolué.'}
           </p>

@@ -450,9 +450,11 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/knockouts.ts|fixe': 2,
     // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
     'packages/core/src/bornes.ts|bati': 4,
-    // Les deux sont le MEME verbe appliquer, relues une par une : « le reglement national
-    // d'urbanisme s'applique » et « le critere ne s'applique qu'aux projets agrivoltaiques ».
-    'packages/scoring/src/criteres-eval.ts|applique': 2,
+    // Les trois sont le MEME verbe appliquer, relues une par une : « le reglement national
+    // d'urbanisme s'applique », « le critere ne s'applique qu'aux projets agrivoltaiques » et,
+    // depuis l'ouverture de la filiere agrivoltaisme, « le regime agrivoltaique ne s'applique
+    // pas » sur un terrain inculte. Aucune n'est le participe.
+    'packages/scoring/src/criteres-eval.ts|applique': 3,
     // Deux occurrences du NOM « mesure », relues : « la mesure porte sur » et « une mesure
     // compensatoire ». Aucune n'est le participe.
     'packages/scoring/src/criteres-eval.ts|mesure': 2,

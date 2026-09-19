@@ -40,6 +40,7 @@ const CAS = [
   { nom: 'grande-eolien', idu: '283900000A0094', filiere: 'eolien_terrestre', pourquoi: 'meme parcelle, criteres d\'eloignement et de vent' },
   { nom: 'grande-bess', idu: '283900000A0094', filiere: 'bess', pourquoi: 'meme parcelle, profil stockage' },
   { nom: 'grande-methanisation', idu: '283900000A0094', filiere: 'methanisation', pourquoi: 'meme parcelle, tableau d\'intrants et debouches' },
+  { nom: 'grande-agrivoltaisme', idu: '283900000A0094', filiere: 'agrivoltaisme', pourquoi: 'meme parcelle, notee a l\'INVERSE du solaire au sol sur la nature du sol : c\'est le seul cas ou une meme parcelle doit produire deux lectures opposees' },
   { nom: 'minuscule-solaire', idu: '283900000C0843', filiere: 'solaire_sol', pourquoi: 'parcelle de 0,09 ha : LA PARCELLE ECARTEE, seuils de surface franchis' },
 ] as const;
 
@@ -121,31 +122,66 @@ async function principal(): Promise<void> {
   console.log(`liste-solaire.json ecrit — ${l.resultats.length} lignes sur ${l.total}`);
 
   /**
-   * La liste eolienne, capturee parce qu'elle contient LE cas qui compte.
+   * La liste eolienne, capturee parce qu'elle contient LE cas qui compte : une parcelle ECARTEE,
+   * statut rouge, avec un knock-out bloquant. C'est exactement la ligne que le defaut B1 de
+   * l'audit 7 laissait passer pour une parcelle ordinaire.
    *
-   * Une seule parcelle du jeu est qualifiee en eolien, et c'est celle qui est ecartee : statut rouge,
-   * un knock-out bloquant. C'est exactement la ligne que le defaut B1 de l'audit 7 laissait passer
-   * pour une parcelle ordinaire.
+   * TRI CROISSANT, ET C'EST UN CORRECTIF. La capture demandait `score_desc` en s'appuyant sur une
+   * propriete de la base d'alors — « une seule parcelle du jeu est qualifiee en eolien, et c'est
+   * celle qui est ecartee ». Des que la base en a porte davantage, les cinquante premieres par
+   * score decroissant n'ont plus contenu aucune parcelle ecartee, et la fixture a cesse de prouver
+   * quoi que ce soit. Le tri croissant remonte au contraire les parcelles ecartees en tete : la
+   * portee du cas ne depend plus du contenu de la base.
    */
-  const listeEolien = await app.inject({
-    method: 'POST',
-    url: '/api/recherche/parcelles',
-    headers: entetes,
-    payload: { filiere: 'eolien_terrestre', tri: 'score_desc', limite: 50 },
-  });
-  if (listeEolien.statusCode !== 200) {
-    throw new Error(`liste eolien : ${listeEolien.statusCode} ${listeEolien.body.slice(0, 300)}`);
+  /*
+   * LA PAGE EST CHERCHEE, PAS SUPPOSEE. Le tri croissant place les parcelles notees avant celles
+   * qui n'ont pas de note — une parcelle ecartee n'en recoit aucune, et `NULLS LAST` les renvoie
+   * donc en fin de liste. Selon le nombre de parcelles notees dans la base, elles tombent sur la
+   * premiere page ou sur la cinquieme.
+   *
+   * On avance donc de page en page jusqu'a en trouver une qui porte le cas, et c'est celle-la qui
+   * est capturee. La fixture reste une reponse REELLE de la route, simplement choisie exprès.
+   */
+  const PAGE = 50;
+  let listeEolien: Awaited<ReturnType<typeof app.inject>> | null = null;
+  let bloquants = 0;
+  for (let decalage = 0; decalage < 2000; decalage += PAGE) {
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/api/recherche/parcelles',
+      headers: entetes,
+      payload: { filiere: 'eolien_terrestre', tri: 'score_asc', limite: PAGE, decalage },
+    });
+    if (rep.statusCode !== 200) {
+      throw new Error(`liste eolien : ${rep.statusCode} ${rep.body.slice(0, 300)}`);
+    }
+    const page = rep.json() as { resultats: Array<{ nbKnockOutsBloquants: number }> };
+    if (page.resultats.length === 0) break;
+    const n = page.resultats.filter((x) => x.nbKnockOutsBloquants > 0).length;
+    if (n > 0 && page.resultats[0]!.nbKnockOutsBloquants > 0) {
+      listeEolien = rep;
+      bloquants = n;
+      console.log(`liste-eolien : page au decalage ${decalage}, ${n} parcelle(s) ecartee(s)`);
+      break;
+    }
+  }
+  /*
+   * ECHEC BRUYANT PLUTOT QUE FIXTURE MUETTE. Une capture sans parcelle ecartee ecrirait un fichier
+   * parfaitement valide sur lequel le test de la liste ne prouverait plus rien — et il le dirait
+   * plusieurs commits plus tard, loin de la capture.
+   */
+  if (!listeEolien) {
+    throw new Error(
+      'liste-eolien : aucune page ne commence par une parcelle ecartee. La fixture ne prouverait ' +
+        'plus rien — qualifiez en eolien une parcelle ecartee avant de recapturer.',
+    );
   }
   writeFileSync(
     resolve(DESTINATION, 'liste-eolien.json'),
     `${JSON.stringify(listeEolien.json(), null, 2)}\n`,
   );
-  const le = listeEolien.json() as {
-    resultats: Array<{ nbKnockOutsBloquants: number }>;
-  };
-  console.log(
-    `liste-eolien.json ecrit — ${le.resultats.length} ligne(s), ${le.resultats.filter((x) => x.nbKnockOutsBloquants > 0).length} avec knock-out bloquant`,
-  );
+  const le = listeEolien.json() as { resultats: unknown[] };
+  console.log(`liste-eolien.json ecrit — ${le.resultats.length} ligne(s), ${bloquants} avec knock-out bloquant`);
 
   const bord = await app.inject({
     method: 'GET',

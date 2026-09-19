@@ -5,7 +5,7 @@
  * criteres evalues, ponderations par defaut, contenu de la fiche parcelle.
  */
 
-export const FILIERES = ['solaire_sol', 'eolien_terrestre', 'bess', 'methanisation'] as const;
+export const FILIERES = ['solaire_sol', 'agrivoltaisme', 'eolien_terrestre', 'bess', 'methanisation'] as const;
 
 export type Filiere = (typeof FILIERES)[number];
 
@@ -86,6 +86,37 @@ export const FILIERES_META: Record<Filiere, FiliereMeta> = {
     // une centrale de 5 a 20 MWc amortit couramment 5 a 10 km de liaison
     rayonRaccordementKm: 8,
     couchesParDefaut: ['parcelles', 'postes_sources', 'zonage_urba', 'rpg', 'zaer', 'natura2000'],
+  },
+  /**
+   * Agrivoltaïsme — filière à part entière, et non un réglage du solaire au sol.
+   *
+   * LE REFERENTIEL LES SEPARE, avec 52 contraintes propres dont une catégorie entière — la
+   * performance agronomique — qui n'a pas d'équivalent en solaire au sol : activité agricole
+   * significative, service rendu à la parcelle, perte de rendement plafonnée à 10 %, zone témoin,
+   * taux de couverture au sol plafonné à 40 %. Les traiter comme un régime du solaire reviendrait
+   * à ne jamais les évaluer.
+   *
+   * ET LES DEUX FILIERES TRIENT EN SENS OPPOSE. Le solaire au sol cherche un terrain que
+   * l'agriculture a quitté ; l'agrivoltaïsme cherche un terrain qu'elle occupe encore et dont elle
+   * continuera de vivre. Une parcelle artificialisée est idéale pour l'un et sans objet pour
+   * l'autre. Un seul jeu de pondérations ne peut pas dire les deux.
+   */
+  agrivoltaisme: {
+    id: 'agrivoltaisme',
+    libelle: 'Agrivoltaïsme',
+    libelleCourt: 'Agrivoltaïsme',
+    description:
+      "Installation photovoltaïque sur parcelle agricole en exploitation, dont la production agricole reste l'activité principale (L.314-36 du code de l'énergie).",
+    icone: 'sprout',
+    critereRoi: "Accord de l'exploitant et du propriétaire, et aptitude de la culture en place",
+    // Plus basse qu'en solaire au sol : l'installation s'insere dans un ilot cultive et n'a pas a
+    // en occuper toute la surface — le referentiel plafonne la couverture au sol a 40 %.
+    surfaceUtileMinHa: 2,
+    surfaceUtileOptimaleHa: 25,
+    gisementPertinent: true,
+    // meme ordre de grandeur que le solaire au sol : la puissance evacuee est comparable
+    rayonRaccordementKm: 8,
+    couchesParDefaut: ['parcelles', 'postes_sources', 'rpg', 'zonage_urba', 'zaer', 'natura2000'],
   },
   eolien_terrestre: {
     id: 'eolien_terrestre',

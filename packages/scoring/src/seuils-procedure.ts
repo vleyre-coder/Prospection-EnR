@@ -112,9 +112,20 @@ export function construireSeuilsProcedure(
 ): SeuilProcedure[] {
   const out: Array<SeuilProcedure | null> = [...proceduresTransversales(s)];
 
-  if (filiere === 'solaire_sol') {
+  if (filiere === 'solaire_sol' || filiere === 'agrivoltaisme') {
+    /*
+     * LES DEUX FILIERES PHOTOVOLTAIQUES PARTAGENT LEURS PROCEDURES, et c'est exact : permis de
+     * construire, evaluation environnementale, compensation agricole et demantelement se declenchent
+     * sur la puissance et sur la nature du sol, pas sur le regime agrivoltaique.
+     *
+     * CE QUI CHANGE, c'est que le regime agrivoltaique devient INCONDITIONNEL pour la filiere du
+     * meme nom — la ou le solaire au sol ne l'applique que si l'operateur l'a choisi comme regime
+     * d'implantation. Les deux chemins restent ouverts : des dossiers etablis portent le regime sur
+     * la filiere `solaire_sol`, et le leur retirer changerait leurs procedures annoncees.
+     */
+    const agri = filiere === 'agrivoltaisme' || regimeImplantation === 'agrivoltaisme';
     const p =
-      options.puissanceEnvisageeMw ?? puissancePvEstimeeMwc(surfaceHa, regimeImplantation === 'agrivoltaisme');
+      options.puissanceEnvisageeMw ?? puissancePvEstimeeMwc(surfaceHa, agri);
     const pct = p == null ? null : p;
     out.push(
       seuil(
@@ -126,7 +137,7 @@ export function construireSeuilsProcedure(
           // `formatNombre` et non l'interpolation brute : `${pct}` ecrivait « 0.38 MWc », avec un
           // point decimal, dans une phrase qui contient par ailleurs « 0,5 MWc/ha ». Mesure sur
           // 439 parcelles x 4 filieres : 435 occurrences (audit 10, defaut B1).
-          : `Puissance estimée ${formatNombre(pct, 'MWc', 2)} : ${pct >= 3 ? 'permis de construire' : 'déclaration préalable'} (estimation à raison de ${regimeImplantation === 'agrivoltaisme' ? '0,5' : '1'} MWc/ha).`,
+          : `Puissance estimée ${formatNombre(pct, 'MWc', 2)} : ${pct >= 3 ? 'permis de construire' : 'déclaration préalable'} (estimation à raison de ${agri ? '0,5' : '1'} MWc/ha).`,
       ),
       seuil(filiere, 'eval_env_systematique', pct == null ? null : pct >= 3),
       seuil(filiere, 'eval_env_cas_par_cas', pct == null ? null : pct >= 0.3 && pct < 3),
@@ -146,13 +157,13 @@ export function construireSeuilsProcedure(
         'compensation_agricole',
         solAgricole == null ? null : solAgricole === 'agricole_exploite',
         solAgricole === 'agricole_exploite'
-          ? `Sol agricole exploité${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'étude préalable est probablement due. Le seuil de surface est fixé par arrêté préfectoral — le vérifier auprès de la DDT${regimeImplantation === 'agrivoltaisme' ? '. L’étude est due même en agrivoltaïsme : l’article L.112-1-3 y soumet expressément ces projets' : ''}.`
+          ? `Sol agricole exploité${surfaceHa != null ? ` sur ${formatNombre(surfaceHa, 'ha', 2)}` : ''} : l'étude préalable est probablement due. Le seuil de surface est fixé par arrêté préfectoral — le vérifier auprès de la DDT${agri ? '. L’étude est due même en agrivoltaïsme : l’article L.112-1-3 y soumet expressément ces projets' : ''}.`
           : null,
       ),
       seuil(filiere, 'demantelement', true),
     );
 
-    if (regimeImplantation === 'agrivoltaisme') {
+    if (agri) {
       out.push(
         seuil(filiere, 'agri_taux_couverture', true),
         seuil(
@@ -166,14 +177,26 @@ export function construireSeuilsProcedure(
         seuil(filiere, 'agri_avis_cdpenaf', true),
       );
     }
-    if (regimeImplantation === 'pv_sol_document_cadre') {
+    /*
+     * LE DOCUMENT-CADRE DEPARTEMENTAL NE CONCERNE PAS L'AGRIVOLTAISME. Il gouverne la liste des
+     * terrains eligibles au photovoltaique AU SOL (terrain non exploite depuis dix ans), c'est-a-dire
+     * precisement le regime qui n'est pas celui-ci. La garde de filiere est explicite plutot que
+     * laissee au seul regime : un appelant qui transmettrait les deux ferait annoncer a un dossier
+     * agrivoltaique une procedure d'une autre filiere.
+     */
+    if (filiere === 'solaire_sol' && regimeImplantation === 'pv_sol_document_cadre') {
       out.push(
         seuil(filiere, 'document_cadre_departemental', true),
         seuil(filiere, 'date_reference_inculte', true),
       );
     }
     if (s.occupationSol.aop.presente === true) {
-      out.push(seuil(filiere, 'aop_viticole', s.occupationSol.aop.viticole === true));
+      // Reserve au solaire au sol : l'opposition de l'INAO vise l'ARTIFICIALISATION des aires
+      // delimitees, qu'un projet agrivoltaique ne produit pas — la vigne reste. Et sur les 52
+      // contraintes d'agrivoltaisme du referentiel, aucune ne porte sur une AOP.
+      if (filiere === 'solaire_sol') {
+        out.push(seuil(filiere, 'aop_viticole', s.occupationSol.aop.viticole === true));
+      }
     }
   }
 

@@ -56,7 +56,7 @@ let app: Awaited<ReturnType<typeof construireServeur>> | null = null;
 let entetes: Record<string, string> = {};
 /** Filiere -> IDU d'une parcelle qualifiee dans cette filiere. */
 const PARCELLES = new Map<string, string>();
-/** Filiere -> IDU d'une parcelle ECARTEE (statut rouge) dans cette filiere, s'il en existe une. */
+/** Filiere -> IDU d'une parcelle portant un KNOCK-OUT dans cette filiere, s'il en existe une. */
 const ECARTEES = new Map<string, string>();
 
 /** Commune fictive : aucune donnee reelle ne porte le departement 99. */
@@ -96,7 +96,16 @@ before(async () => {
     await semerFiche(semee);
     const f = semee.score.filiere;
     if (!PARCELLES.has(f)) PARCELLES.set(f, semee.parcelle.idu);
-    if (semee.score.statut === 'rouge' && !ECARTEES.has(f)) ECARTEES.set(f, semee.parcelle.idu);
+    /*
+     * ECARTEE PAR UN KNOCK-OUT, ET PAS SEULEMENT ROUGE. La nuance a produit un faux echec, et elle
+     * est reelle : une parcelle passe au rouge pour DEUX raisons distinctes — un critere
+     * redhibitoire (elle est juridiquement fermee), ou une limite de viabilite (0,09 ha, trop
+     * petite pour un projet). La seconde ne produit aucune section « Critères rédhibitoires »,
+     * donc aucun fondement a verifier, et c'est correct.
+     *
+     * Le test qui suit porte sur la base juridique d'un REFUS : il lui faut un knock-out.
+     */
+    if (semee.score.knockOuts.length > 0 && !ECARTEES.has(f)) ECARTEES.set(f, semee.parcelle.idu);
   }
   if (PARCELLES.size === 0) return;
   app = await construireServeur({ secretJwt: SECRET });
@@ -277,7 +286,21 @@ test('LE CAS ECARTE : un rapport de parcelle rejetee porte ses motifs et leur ba
     const t = await rapport(filiere, iduEcartee);
     assert.ok(/rédhibitoire/i.test(t), `${filiere} : la section des criteres redhibitoires doit exister`);
 
-    const fondements = [...t.matchAll(/Fondement\s*:\s*([^\n]{0,120})/g)].map((m) => m[1]!.trim());
+    /*
+     * FENETRE ELARGIE, ET LA PRECEDENTE PRODUISAIT UN FAUX ECHEC. Elle prenait 120 caracteres :
+     * assez pour « Code de l'environnement, art. L.515-44 (en vigueur depuis le 24/08/2021) »,
+     * trop peu pour la reference du zonage d'urbanisme, qui fait a elle seule 137 caracteres avant
+     * meme d'arriver a sa date. Le rapport etait juste ; la mesure tronquait.
+     *
+     * La capture court donc jusqu'au prochain fondement ou a la fin du texte, et les retours a la
+     * ligne sont aplatis : une reference longue est repliee par la mise en page du PDF, et la date
+     * tombe alors sur la ligne suivante.
+     */
+    const fondements = [...t.matchAll(/Fondement\s*:\s*([\s\S]{0,260})/g)].map((m) =>
+      // La fenetre est coupee au fondement suivant, sinon la date de l'un satisferait le controle
+      // de l'autre — et un fondement sans date redeviendrait invisible.
+      m[1]!.split(/Fondement\s*:/)[0]!.replace(/\s+/g, ' ').trim(),
+    );
     assert.ok(fondements.length > 0, `${filiere} : une parcelle ecartee doit citer au moins un fondement`);
     for (const f of fondements) {
       assert.ok(

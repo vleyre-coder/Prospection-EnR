@@ -6,16 +6,16 @@
   "surfaceEnNegociationHa": 0,
   "evolution": [
     {
-      "mois": "2026-08",
+      "mois": "2026-09",
       "nouveaux": 1,
       "securises": 0
     }
   ],
   "repartitionScores": {
     "vert": 0,
-    "orange": 0,
-    "rouge": 0,
-    "gris": 439,
-    "total": 439
+    "orange": 299,
+    "rouge": 1,
+    "gris": 1,
+    "total": 301
   }
 }

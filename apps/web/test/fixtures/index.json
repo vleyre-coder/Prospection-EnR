@@ -24,6 +24,12 @@
     "pourquoi": "meme parcelle, tableau d'intrants et debouches"
   },
   {
+    "nom": "grande-agrivoltaisme",
+    "idu": "283900000A0094",
+    "filiere": "agrivoltaisme",
+    "pourquoi": "meme parcelle, notee a l'INVERSE du solaire au sol sur la nature du sol : c'est le seul cas ou une meme parcelle doit produire deux lectures opposees"
+  },
+  {
     "nom": "minuscule-solaire",
     "idu": "283900000C0843",
     "filiere": "solaire_sol",

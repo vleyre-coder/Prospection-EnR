@@ -136,6 +136,77 @@ export const SEUILS_RECHERCHE: Record<Filiere, readonly SeuilRecherche[]> = {
     },
   ],
 
+  /**
+   * Agrivoltaïsme — et ses seuils ne sont PAS ceux du solaire au sol.
+   *
+   * La différence n'est pas d'intensité, elle est de nature. Le solaire au sol cherche un terrain
+   * que l'agriculture a quitté ; l'agrivoltaïsme cherche un terrain que l'agriculture occupe
+   * ENCORE, et dont elle continuera de vivre — c'est la condition même du régime (L.314-36 du code
+   * de l'énergie). Les deux filières trient donc en sens opposé sur la même donnée.
+   *
+   * Deux conséquences visibles ici : l'irradiation compte moins (l'agrivoltaïsme se joue d'abord
+   * sur l'accord de l'exploitant et sur la doctrine départementale, pas sur le productible), et la
+   * surface d'un seul tenant est plus basse — un îlot cultivé de 5 ha est une opération normale.
+   */
+  agrivoltaisme: [
+    {
+      chemin: 'foncier.nbProprietairesEstime',
+      libelle: 'Nombre de propriétaires maximal',
+      sens: 'max',
+      unite: 'comptes',
+      usuel: 2,
+      aide: "Le critère roi de la filière. Il faut l'accord du propriétaire ET celui de l'exploitant — le référentiel en fait une contrainte rédhibitoire (« Statut du foncier / bail rural / fermage : accords exploitant + propriétaire »). Chaque compte supplémentaire est un droit de veto de plus.",
+    },
+    {
+      chemin: 'foncier.surfaceDunSeulTenantHa',
+      libelle: "Surface d'un seul tenant minimale",
+      sens: 'min',
+      unite: 'ha',
+      usuel: 3,
+      aide: "Plus basse qu'en solaire au sol : l'installation s'insère dans un îlot cultivé et n'a pas à en occuper toute la surface. Le référentiel plafonne d'ailleurs la couverture au sol à 40 % sans technologie éprouvée.",
+    },
+    {
+      chemin: 'gisement.irradiationKwhM2An',
+      libelle: 'Irradiation globale horizontale minimale',
+      sens: 'min',
+      unite: 'kWh/m²/an',
+      usuel: 1200,
+      aide: "Le productible compte, mais il n'arbitre pas : un projet agrivoltaïque se décide sur l'accord de l'exploitant, l'avis de la CDPENAF et la doctrine départementale bien avant l'ensoleillement.",
+    },
+    {
+      chemin: 'acces.distanceVoirieM',
+      libelle: 'Distance à la voirie maximale',
+      sens: 'max',
+      unite: 'm',
+      usuel: 500,
+      aide: "Au-delà, il faut créer une piste d'accès — et la faire cohabiter avec le passage des engins agricoles, qui reste prioritaire.",
+    },
+    {
+      chemin: 'topographie.pentePct',
+      libelle: 'Pente moyenne maximale',
+      sens: 'max',
+      unite: '%',
+      usuel: 10,
+      aide: "Une pente forte complique à la fois l'implantation des structures et le travail des engins sous les panneaux, alors que la poursuite de l'exploitation est la condition du régime.",
+    },
+    {
+      chemin: 'raccordement.posteLePlusProche.quotePartEurParKw',
+      libelle: 'Quote-part S3REnR maximale',
+      sens: 'max',
+      unite: '€/kW',
+      usuel: 100,
+      aide: "Contribution au schéma régional de raccordement, due en plus du coût de raccordement propre. Elle varie d'un facteur dix selon la région.",
+    },
+    {
+      chemin: 'patrimoine.monumentHistorique.distanceM',
+      libelle: 'Distance au monument historique minimale',
+      sens: 'min',
+      unite: 'm',
+      usuel: 500,
+      aide: "500 m est le rayon de protection par défaut de l'article L.621-30 ; au-delà, la covisibilité peut encore être opposée.",
+    },
+  ],
+
   eolien_terrestre: [
     {
       chemin: 'gisement.ventVitesse100mMs',

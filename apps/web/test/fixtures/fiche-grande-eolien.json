@@ -242,7 +242,7 @@
       1.790171762,
       48.156535505
     ],
-    "dateRecuperation": "2026-08-07T10:27:10.164Z"
+    "dateRecuperation": "2026-09-17T22:00:04.672Z"
   },
   "snapshot": {
     "eau": {
@@ -365,60 +365,60 @@
         "url": "https://re.jrc.ec.europa.eu/api/v5_2",
         "millesime": null,
         "connecteur": "gisement",
-        "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densite d'intrants methanisables sont des ESTIMATIONS derivees de donnees indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une etude de gisement d'intrants.",
+        "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "ign_alti": {
-        "nom": "IGN RGE ALTI - service de calcul altimetrique",
+        "nom": "IGN RGE ALTI - service de calcul altimétrique",
         "url": "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest",
         "millesime": null,
         "connecteur": "ign_alti",
-        "avertissement": "Pente et orientation sont estimees par regression sur une grille de points cotes du MNT. Un leve topographique reste necessaire au stade du dimensionnement.",
+        "avertissement": "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "georisques": {
         "nom": "Georisques (BRGM / MTE)",
         "url": "https://georisques.gouv.fr/api/v1",
         "millesime": null,
         "connecteur": "georisques",
-        "avertissement": "Les zonages reglementaires de PPR sont recenses au niveau communal : le zonage applicable a la parcelle doit etre lu sur le reglement du PPR lui-meme.",
+        "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "ign_bdtopo": {
         "nom": "IGN BD TOPO (batiments, voirie, hydrographie)",
         "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=BDTOPO_V3:batiment",
         "millesime": null,
         "connecteur": "ign_bdtopo",
-        "avertissement": "Les distances a l'habitat sont calculees sur le bati de la BD TOPO. Les constructions recentes et les permis en cours n'y figurent pas : verification de terrain indispensable.",
+        "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "reseau_gaz": {
-        "nom": "GRDF / GRTgaz / Terega - reseau gaz et injection biomethane",
+        "nom": "GRDF / GRTgaz / Terega - réseau gaz et injection biomethane",
         "url": "https://opendata.grdf.fr",
         "millesime": null,
         "connecteur": "reseau_gaz",
-        "avertissement": "La faisabilite d'une injection depend du zonage de raccordement et de la capacite du reseau a l'instant du projet, y compris en rebours. A confirmer aupres du gestionnaire.",
+        "avertissement": "La faisabilité d'une injection dépend du zonage de raccordement et de la capacité du réseau a l'instant du projet, y compris en rebours. À confirmer auprès du gestionnaire.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "zaer_local": {
-        "nom": "Zones d'acceleration des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
+        "nom": "Zones d'accélération des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
         "url": "https://data.geopf.fr/wfs/ows",
         "millesime": null,
         "connecteur": "zaer_local",
-        "avertissement": "Une ZAER ne cree aucun droit a construire : elle allege l'instruction et signale un portage politique local. ATTENTION, la filiere de la zone doit etre lue : 68 % des ZAER photovoltaiques recensees portent sur des TOITURES et ne concernent pas le foncier. Les zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.",
+        "avertissement": "Une ZAER ne cree aucun droit à construire : elle allege l'instruction et signale un portage politique local. ATTENTION, la filière de la zone doit être lue : 68 % des ZAER photovoltaïques recensées portent sur des TOITURES et ne concernent pas le foncier. Les zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.543Z"
+        "dateInterrogation": "2026-09-07T00:26:10.015Z"
       },
       "ign_bdforet": {
         "nom": "IGN BD Foret V2",
@@ -427,113 +427,113 @@
         "connecteur": "ign_bdforet",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "aoc_viticole": {
         "nom": "INAO - aires parcellaires AOC viticoles (WFS Geoplateforme)",
         "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=AOC-VITICOLES:aire_parcellaire",
         "millesime": null,
         "connecteur": "aoc_viticole",
-        "avertissement": "Le module AOC de l'API Carto exige une cle FranceAgriMer privee : cette couche passe par le WFS de la Geoplateforme, qui n'expose que la denomination et le comite regional.",
+        "avertissement": "Le module AOC de l'API Carto exige une clé FranceAgriMer privée : cette couche passe par le WFS de la Geoplateforme, qui n'expose que la dénomination et le comite régional.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "apicarto_gpu": {
         "nom": "IGN API Carto - module GPU (Geoportail de l'Urbanisme)",
         "url": "https://apicarto.ign.fr/api/gpu",
         "millesime": null,
         "connecteur": "apicarto_gpu",
-        "avertissement": "Le GPU ne contient que les documents effectivement televerses par les collectivites. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : verifier en mairie.",
+        "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.543Z"
+        "dateInterrogation": "2026-09-07T00:26:10.015Z"
       },
       "apicarto_rpg": {
         "nom": "IGN API Carto - module RPG (registre parcellaire graphique)",
         "url": "https://apicarto.ign.fr/api/rpg",
         "millesime": "2024",
         "connecteur": "apicarto_rpg",
-        "avertissement": "Le RPG recense les ilots declares a la PAC. Une parcelle absente du RPG n'est pas necessairement non exploitee : elle peut relever d'un exploitant non declarant.",
+        "avertissement": "Le RPG recense les ilots déclarés à la PAC. Une parcelle absente du RPG n'est pas nécessairement non exploitée : elle peut relever d'un exploitant non déclarant.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+      },
+      "postes_geopf": {
+        "nom": "IGN BD TOPO - postes de transformation raccordes au reseau HTB",
+        "url": "https://data.geopf.fr/wfs/ows",
+        "millesime": null,
+        "connecteur": "postes_geopf",
+        "avertissement": "Position seulement : la BD TOPO ne publie AUCUNE capacite d'accueil. Un poste retenu ici est un poste de transformation en contact avec une ligne de 150 kV ou moins ; sa capacite reste inconnue et doit etre demandee au gestionnaire de reseau (Capareseau, puis etude de raccordement).",
+        "dateMiseAJour": null,
+        "valeurJuridique": "indicative",
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "patrinat_appb": {
-        "nom": "INPN / PatriNat - arretes de protection de biotope (WFS Geoplateforme)",
+        "nom": "INPN / PatriNat - arrêtés de protection de biotope (WFS Geoplateforme)",
         "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=patrinat_apb:apb",
         "millesime": null,
         "connecteur": "patrinat_appb",
-        "avertissement": "Un arrete de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement a un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'ou cette source distincte.",
+        "avertissement": "Un arrêté de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement à un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'ou cette source distincte.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "zones_humides": {
         "nom": "Zones humides (BCAE / inventaires DREAL)",
         "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=TOURBIERES_ZONES-HUMIDES.BCAE:bcae",
         "millesime": null,
         "connecteur": "zones_humides",
-        "avertissement": "Pre-reperage uniquement. Le caractere humide se determine par sondages pedologiques et releves floristiques (arrete du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingeres.",
+        "avertissement": "Pre-repérage uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingérés.",
         "dateMiseAJour": null,
         "valeurJuridique": "pre_reperage",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "apicarto_nature": {
         "nom": "INPN / MNHN - zonages de protection (via API Carto module Nature)",
         "url": "https://apicarto.ign.fr/api/nature",
         "millesime": null,
         "connecteur": "apicarto_nature",
-        "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
+        "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:10.358Z"
       },
       "foncier_cadastre": {
-        "nom": "Analyse fonciere derivee du parcellaire cadastral",
+        "nom": "Analyse fonciere dérivée du parcellaire cadastral",
         "url": "https://apicarto.ign.fr/api/cadastre",
         "millesime": null,
         "connecteur": "foncier_cadastre",
-        "avertissement": "Le nombre de proprietaires est ESTIME a partir de la structure parcellaire : les donnees nominatives ne sont pas accessibles par API et relevent d'une demande aupres de la DGFiP ou de la mairie.",
+        "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:08.035Z"
+        "dateInterrogation": "2026-09-07T00:26:10.507Z"
       },
       "apicarto_cadastre": {
         "nom": "IGN API Carto - module Cadastre (PCI Express)",
         "url": "https://apicarto.ign.fr/api/cadastre",
         "millesime": null,
         "connecteur": "apicarto_cadastre",
-        "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage etabli par un geometre-expert fait foi.",
+        "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-08-07T09:50:04.370Z"
-      },
-      "patrimoine_culture": {
-        "nom": "Ministere de la Culture - monuments historiques et sites proteges",
-        "url": "https://data.culture.gouv.fr",
-        "millesime": null,
-        "connecteur": "patrimoine_culture",
-        "avertissement": "Le perimetre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilite peut porter bien au-dela du perimetre de protection.",
-        "dateMiseAJour": null,
-        "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.868Z"
+        "dateInterrogation": "2026-09-07T00:26:03.385Z"
       },
       "document_cadre_local": {
-        "nom": "Documents-cadres departementaux photovoltaique au sol (art. L.111-29 CU)",
+        "nom": "Documents-cadres departementaux photovoltaïque au sol (art. L.111-29 CU)",
         "url": "https://www.data.gouv.fr",
         "millesime": null,
         "connecteur": "document_cadre_local",
-        "avertissement": "Arretes prefectoraux departementaux, sans API nationale. Un departement non ingere produit une donnee GRISE et non une absence de contrainte.",
+        "avertissement": "Arrêtés prefectoraux departementaux, sans API nationale. Un département non ingere produit une donnée GRISE et non une absence de contrainte.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-08-07T09:50:07.543Z"
+        "dateInterrogation": "2026-09-07T00:26:10.015Z"
       }
     },
     "gisement": {
       "iaaRayon20km": null,
       "elevagesRayon10km": null,
-      "ventVitesse100mMs": 7.15,
+      "ventVitesse100mMs": null,
       "irradiationKwhM2An": 1473,
       "surfacesEpandageHa": null,
       "productibleKwhKwcAn": 1183,
@@ -566,8 +566,8 @@
       },
       "zonages": [
         {
-          "libelle": "Nj",
-          "typeZone": "N",
+          "libelle": "A",
+          "typeZone": "A",
           "urlReglement": "",
           "dateApprobation": null,
           "partRecouvrement": 0,
@@ -582,8 +582,8 @@
           "destinationDominante": null
         },
         {
-          "libelle": "A",
-          "typeZone": "A",
+          "libelle": "Nj",
+          "typeZone": "N",
           "urlReglement": "",
           "dateApprobation": null,
           "partRecouvrement": 0,
@@ -609,15 +609,15 @@
       },
       "siteClasse": {
         "nom": null,
-        "recouvre": false,
+        "recouvre": null,
         "distanceM": null,
-        "partRecouvrement": 0
+        "partRecouvrement": null
       },
       "siteInscrit": {
-        "nom": "Site inscrit : bourg, ruines du château",
-        "recouvre": false,
-        "distanceM": 7913,
-        "partRecouvrement": 0
+        "nom": null,
+        "recouvre": null,
+        "distanceM": null,
+        "partRecouvrement": null
       },
       "avisAbfRequis": null,
       "covisibiliteIndice": null,
@@ -639,17 +639,85 @@
       "mouvementsTerrain": 0,
       "penteEstimeeParPaires": false
     },
-    "dateSnapshot": "2026-08-07T09:50:08.035Z",
+    "dateSnapshot": "2026-09-07T00:26:10.507Z",
     "raccordement": {
       "reseauGaz": {
-        "gestionnaire": "GRDF",
+        "gestionnaire": null,
         "reboursNecessaire": null,
         "capaciteInjectionNm3h": null,
         "distanceCanalisationKm": null,
-        "distanceSiteInjectionKm": 8.69
+        "distanceSiteInjectionKm": null
       },
-      "posteLePlusProche": null,
-      "postesAlternatifs": []
+      "posteLePlusProche": {
+        "id": "geopf:POSTRANS0000000333389743",
+        "nom": "Poste de transformation 90 kV",
+        "tension": "90 kV",
+        "enProjet": false,
+        "distanceKm": 7.37,
+        "gestionnaire": "autre_grd",
+        "renforcement": {
+          "prevu": false,
+          "horizon": null,
+          "capaciteAttendueMw": null
+        },
+        "fileAttenteMw": null,
+        "etatSaturation": null,
+        "quotePartEurParKw": null,
+        "capaciteResiduelleMw": null
+      },
+      "postesAlternatifs": [
+        {
+          "id": "geopf:POSTRANS0000000337515333",
+          "nom": "Poste de transformation 90 kV",
+          "tension": "90 kV",
+          "enProjet": false,
+          "distanceKm": 10.04,
+          "gestionnaire": "RTE",
+          "renforcement": {
+            "prevu": false,
+            "horizon": null,
+            "capaciteAttendueMw": null
+          },
+          "fileAttenteMw": null,
+          "etatSaturation": null,
+          "quotePartEurParKw": null,
+          "capaciteResiduelleMw": null
+        },
+        {
+          "id": "geopf:POSTRANS0000000333388885",
+          "nom": "Poste de transformation 90 kV",
+          "tension": "90 kV",
+          "enProjet": false,
+          "distanceKm": 8.99,
+          "gestionnaire": "autre_grd",
+          "renforcement": {
+            "prevu": false,
+            "horizon": null,
+            "capaciteAttendueMw": null
+          },
+          "fileAttenteMw": null,
+          "etatSaturation": null,
+          "quotePartEurParKw": null,
+          "capaciteResiduelleMw": null
+        },
+        {
+          "id": "geopf:POSTRANS0000000337515345",
+          "nom": "Poste de transformation 90 kV",
+          "tension": "90 kV",
+          "enProjet": false,
+          "distanceKm": 11.63,
+          "gestionnaire": "RTE",
+          "renforcement": {
+            "prevu": false,
+            "horizon": null,
+            "capaciteAttendueMw": null
+          },
+          "fileAttenteMw": null,
+          "etatSaturation": null,
+          "quotePartEurParKw": null,
+          "capaciteResiduelleMw": null
+        }
+      ]
     },
     "occupationSol": {
       "aop": {
@@ -691,43 +759,43 @@
           "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=BDTOPO_V3:batiment",
           "millesime": null,
           "connecteur": "ign_bdtopo",
-          "avertissement": "Les distances a l'habitat sont calculees sur le bati de la BD TOPO. Les constructions recentes et les permis en cours n'y figurent pas : verification de terrain indispensable.",
+          "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "distances_reglementaires",
-        "libelle": "Eloignement de l'habitat",
-        "commentaire": "500 m est un plancher legal, pas une cible : la plupart des projets autorises se situent au-dela de 700 m. Distance mesuree sur le bati IGN, a verifier sur le terrain (batiments recents, permis en cours).",
+        "libelle": "Éloignement de l'habitat",
+        "commentaire": "500 m est un plancher légal, pas une cible : la plupart des projets autorises se situent au-delà de 700 m. Distance mesurée sur le bâti IGN, à vérifier sur le terrain (bâtiments récents, permis en cours).",
         "reglesLiees": [
           "eol_distance_habitation"
         ],
         "valeurBrute": 26,
         "contribution": 2.13,
-        "valeurAffichee": "26 m du bord, jusqu'a 278 m en implantant au plus loin - 59 habitation(s) < 500 m"
+        "valeurAffichee": "26 m du bord, jusqu'à 278 m en implantant au plus loin - 59 habitation(s) < 500 m"
       },
       {
         "id": "gis_vent",
-        "feu": "vert",
-        "note": 91.5,
+        "feu": "gris",
+        "note": null,
         "poids": 0.1094,
         "source": {
           "nom": "PVGIS (Commission europeenne) et estimations de gisement",
           "url": "https://re.jrc.ec.europa.eu/api/v5_2",
           "millesime": null,
           "connecteur": "gisement",
-          "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densite d'intrants methanisables sont des ESTIMATIONS derivees de donnees indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une etude de gisement d'intrants.",
+          "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "gisement",
         "libelle": "Gisement de vent",
-        "commentaire": "En dessous de 5,5 m/s, la rentabilite d'un parc devient difficile a etablir hors contexte tarifaire favorable. A confirmer par une campagne de mesure.",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
-        "valeurBrute": 7.15,
-        "contribution": 10.01,
-        "valeurAffichee": "7,2 m/s a 100 m"
+        "valeurBrute": null,
+        "contribution": 0,
+        "valeurAffichee": "donnée indisponible"
       },
       {
         "id": "surf_utile",
@@ -739,14 +807,14 @@
           "url": "https://apicarto.ign.fr/api/cadastre",
           "millesime": null,
           "connecteur": "apicarto_cadastre",
-          "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage etabli par un geometre-expert fait foi.",
+          "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:04.370Z"
+          "dateInterrogation": "2026-09-07T00:26:03.385Z"
         },
         "famille": "surface",
         "libelle": "Surface utile",
-        "commentaire": "Aucune deduction : la surface d'un parc eolien se raisonne en positions de machines, non en emprise continue. Seuil economique indicatif pour la filiere : 10 ha minimum, 80 ha pour une pleine competitivite. Ces seuils sont economiques, non reglementaires.",
+        "commentaire": "Aucune déduction : la surface d'un parc éolien se raisonne en positions de machines, non en emprise continue. Seuil économique indicatif pour la filière : 10 ha minimum, 80 ha pour une pleine compétitivité. Ces seuils sont économiques, non réglementaires.",
         "reglesLiees": [],
         "valeurBrute": 19.9867,
         "contribution": 4.58,
@@ -754,17 +822,17 @@
       },
       {
         "id": "racc_distance_poste",
-        "feu": "gris",
-        "note": null,
+        "feu": "vert",
+        "note": 72.5,
         "poids": 0.0703,
         "source": null,
         "famille": "raccordement",
         "libelle": "Distance au poste source",
-        "commentaire": "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+        "commentaire": "Le linéaire est estimé en majorant la distance à vol d'oiseau de 35 % : une liaison suit les emprises publiques et contourne le bâti. Linéaire compatible avec un raccordement économiquement raisonnable, sous réserve de l'étude du gestionnaire.",
         "reglesLiees": [],
-        "valeurBrute": null,
-        "contribution": 0,
-        "valeurAffichee": "donnee indisponible"
+        "valeurBrute": 7.37,
+        "contribution": 5.1,
+        "valeurAffichee": "9,9 km de tracé estimé (7,4 km à vol d'oiseau) - Poste de transformation 90 kV (autre gestionnaire de distribution)"
       },
       {
         "id": "risq_aero_radar",
@@ -776,20 +844,20 @@
           "url": "https://georisques.gouv.fr/api/v1",
           "millesime": null,
           "connecteur": "georisques",
-          "avertissement": "Les zonages reglementaires de PPR sont recenses au niveau communal : le zonage applicable a la parcelle doit etre lu sur le reglement du PPR lui-meme.",
+          "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "risques",
-        "libelle": "Servitudes aeronautiques et radars",
-        "commentaire": "Les distances aux radars sont des seuils de consultation : un avis defavorable de Meteo-France, de la DGAC ou de l'armee est bloquant en pratique.",
+        "libelle": "Servitudes aéronautiques et radars",
+        "commentaire": "Les distances aux radars sont des seuils de consultation : un avis défavorable de Météo-France, de la DGAC ou de l'armée est bloquant en pratique.",
         "reglesLiees": [
           "eol_radar"
         ],
         "valeurBrute": null,
         "contribution": 7.03,
-        "valeurAffichee": "Aucune contrainte aeronautique identifiee"
+        "valeurAffichee": "Aucune contrainte aéronautique identifiée"
       },
       {
         "id": "env_especes_protegees",
@@ -801,18 +869,18 @@
           "url": "https://apicarto.ign.fr/api/nature",
           "millesime": null,
           "connecteur": "apicarto_nature",
-          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
+          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "environnement",
-        "libelle": "Pre-enjeu especes protegees",
-        "commentaire": "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+        "libelle": "Pre-enjeu espèces protégées",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "donnee indisponible"
+        "valeurAffichee": "donnée indisponible"
       },
       {
         "id": "surf_un_seul_tenant",
@@ -820,18 +888,18 @@
         "note": 71.4,
         "poids": 0.0625,
         "source": {
-          "nom": "Analyse fonciere derivee du parcellaire cadastral",
+          "nom": "Analyse fonciere dérivée du parcellaire cadastral",
           "url": "https://apicarto.ign.fr/api/cadastre",
           "millesime": null,
           "connecteur": "foncier_cadastre",
-          "avertissement": "Le nombre de proprietaires est ESTIME a partir de la structure parcellaire : les donnees nominatives ne sont pas accessibles par API et relevent d'une demande aupres de la DGFiP ou de la mairie.",
+          "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:08.035Z"
+          "dateInterrogation": "2026-09-07T00:26:10.507Z"
         },
         "famille": "surface",
         "libelle": "Surface d'un seul tenant",
-        "commentaire": "Un bloc continu evite les servitudes de passage et simplifie fortement la maitrise fonciere et le cablage interne.",
+        "commentaire": "Un bloc continu évite les servitudes de passage et simplifie fortement la maîtrise foncière et le câblage interne.",
         "reglesLiees": [],
         "valeurBrute": 42.63,
         "contribution": 4.46,
@@ -844,12 +912,12 @@
         "poids": 0.0547,
         "source": null,
         "famille": "raccordement",
-        "libelle": "Capacite residuelle du poste source",
-        "commentaire": "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+        "libelle": "Capacité résiduelle du poste source",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "donnee indisponible"
+        "valeurAffichee": "donnée indisponible"
       },
       {
         "id": "env_proximite_natura2000",
@@ -861,14 +929,14 @@
           "url": "https://apicarto.ign.fr/api/nature",
           "millesime": null,
           "connecteur": "apicarto_nature",
-          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
+          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "environnement",
-        "libelle": "Proximite Natura 2000",
-        "commentaire": "Toute proximite declenche une evaluation des incidences Natura 2000, meme sans recouvrement. Un recouvrement rend le projet tres difficile a autoriser.",
+        "libelle": "Proximité Natura 2000",
+        "commentaire": "Toute proximité déclenche une évaluation des incidences Natura 2000, même sans recouvrement. Un recouvrement rend le projet très difficile à autoriser.",
         "reglesLiees": [],
         "valeurBrute": 49,
         "contribution": 0.62,
@@ -879,23 +947,14 @@
         "feu": "gris",
         "note": null,
         "poids": 0.0391,
-        "source": {
-          "nom": "Ministere de la Culture - monuments historiques et sites proteges",
-          "url": "https://data.culture.gouv.fr",
-          "millesime": null,
-          "connecteur": "patrimoine_culture",
-          "avertissement": "Le perimetre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilite peut porter bien au-dela du perimetre de protection.",
-          "dateMiseAJour": null,
-          "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
-        },
+        "source": null,
         "famille": "patrimoine",
         "libelle": "Monuments historiques",
-        "commentaire": "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "donnee indisponible"
+        "valeurAffichee": "donnée indisponible"
       },
       {
         "id": "urb_zonage",
@@ -907,18 +966,18 @@
           "url": "https://apicarto.ign.fr/api/gpu",
           "millesime": null,
           "connecteur": "apicarto_gpu",
-          "avertissement": "Le GPU ne contient que les documents effectivement televerses par les collectivites. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : verifier en mairie.",
+          "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.543Z"
+          "dateInterrogation": "2026-09-07T00:26:10.015Z"
         },
         "famille": "urbanisme",
-        "libelle": "Compatibilite du zonage d'urbanisme",
-        "commentaire": "La compatibilite reelle depend du reglement ecrit de la zone, que l'application ne lit pas automatiquement. Consultez le reglement lie avant tout demarchage.",
+        "libelle": "Compatibilité du zonage d'urbanisme",
+        "commentaire": "La compatibilité réelle dépend du règlement écrit de la zone, que l'application ne lit pas automatiquement. Consultez le règlement lie avant tout démarchage.",
         "reglesLiees": [],
         "valeurBrute": "N",
         "contribution": 1.41,
-        "valeurAffichee": "Zone Nj, N, A (PLUi)"
+        "valeurAffichee": "Zone A, N, Nj (PLUi)"
       },
       {
         "id": "urb_zaer",
@@ -926,22 +985,22 @@
         "note": 45,
         "poids": 0.0313,
         "source": {
-          "nom": "Zones d'acceleration des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
+          "nom": "Zones d'accélération des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
           "url": "https://data.geopf.fr/wfs/ows",
           "millesime": null,
           "connecteur": "zaer_local",
-          "avertissement": "Une ZAER ne cree aucun droit a construire : elle allege l'instruction et signale un portage politique local. ATTENTION, la filiere de la zone doit etre lue : 68 % des ZAER photovoltaiques recensees portent sur des TOITURES et ne concernent pas le foncier. Les zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.",
+          "avertissement": "Une ZAER ne cree aucun droit à construire : elle allege l'instruction et signale un portage politique local. ATTENTION, la filière de la zone doit être lue : 68 % des ZAER photovoltaïques recensées portent sur des TOITURES et ne concernent pas le foncier. Les zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.543Z"
+          "dateInterrogation": "2026-09-07T00:26:10.015Z"
         },
         "famille": "urbanisme",
-        "libelle": "Zone d'acceleration des ENR",
-        "commentaire": "L'absence de ZAER n'est pas bloquante mais prive le projet du portage politique local et de l'instruction allegee.",
+        "libelle": "Zone d'accélération des ENR",
+        "commentaire": "L'absence de ZAER n'est pas bloquante mais prive le projet du portage politique local et de l'instruction allégée.",
         "reglesLiees": [],
         "valeurBrute": false,
         "contribution": 1.41,
-        "valeurAffichee": "Hors zone d'acceleration"
+        "valeurAffichee": "Hors zone d'accélération"
       },
       {
         "id": "fonc_nb_proprietaires",
@@ -949,22 +1008,22 @@
         "note": null,
         "poids": 0.0313,
         "source": {
-          "nom": "Analyse fonciere derivee du parcellaire cadastral",
+          "nom": "Analyse fonciere dérivée du parcellaire cadastral",
           "url": "https://apicarto.ign.fr/api/cadastre",
           "millesime": null,
           "connecteur": "foncier_cadastre",
-          "avertissement": "Le nombre de proprietaires est ESTIME a partir de la structure parcellaire : les donnees nominatives ne sont pas accessibles par API et relevent d'une demande aupres de la DGFiP ou de la mairie.",
+          "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:08.035Z"
+          "dateInterrogation": "2026-09-07T00:26:10.507Z"
         },
         "famille": "foncier",
-        "libelle": "Nombre de proprietaires",
-        "commentaire": "Le nombre de proprietaires n'est alimente par aucune couche ingeree sur ce territoire. Ce n'est pas une absence constatee sur le terrain : l'enjeu n'a pas ete regarde. A obtenir par demande de releve de propriete aupres du service de la publicite fonciere (DGFiP) ou de la mairie, puis a verser dans le registre de l'application. La maitrise fonciere est le premier facteur d'echec d'un projet : une parcelle en indivision peut compter dix ayants droit.",
+        "libelle": "Nombre de propriétaires",
+        "commentaire": "Le nombre de propriétaires n'est alimente par aucune couche ingérée sur ce territoire. Ce n'est pas une absence constatée sur le terrain : l'enjeu n'a pas été regarde. À obtenir par demande de relevé de propriété auprès du service de la publicité foncière (DGFiP) ou de la mairie, puis à verser dans le registre de l'application. La maîtrise foncière est le premier facteur d'échec d'un projet : une parcelle en indivision peut compter dix ayants droit.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "non evalue - aucune source ingeree"
+        "valeurAffichee": "non évalué - aucune source ingérée"
       },
       {
         "id": "env_znieff",
@@ -976,14 +1035,14 @@
           "url": "https://apicarto.ign.fr/api/nature",
           "millesime": null,
           "connecteur": "apicarto_nature",
-          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
+          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "environnement",
         "libelle": "ZNIEFF de type I / II",
-        "commentaire": "Les ZNIEFF n'ont pas de portee reglementaire directe mais pesent lourdement dans l'instruction et le contentieux.",
+        "commentaire": "Les ZNIEFF n'ont pas de portée réglementaire directe mais pèsent lourdement dans l'instruction et le contentieux.",
         "reglesLiees": [],
         "valeurBrute": 2240,
         "contribution": 2.08,
@@ -999,41 +1058,32 @@
           "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=TOURBIERES_ZONES-HUMIDES.BCAE:bcae",
           "millesime": null,
           "connecteur": "zones_humides",
-          "avertissement": "Pre-reperage uniquement. Le caractere humide se determine par sondages pedologiques et releves floristiques (arrete du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingeres.",
+          "avertissement": "Pre-repérage uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingérés.",
           "dateMiseAJour": null,
           "valeurJuridique": "pre_reperage",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "environnement",
         "libelle": "Zone humide",
-        "commentaire": "Pre-reperage cartographique uniquement. Le caractere humide se determine par sondages pedologiques et releves floristiques (arrete du 24 juin 2008 modifie).",
+        "commentaire": "Pre-repérage cartographique uniquement. Le caractère humide se détermine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifié).",
         "reglesLiees": [],
         "valeurBrute": "non",
         "contribution": 2.34,
-        "valeurAffichee": "Hors zone humide cartographiee"
+        "valeurAffichee": "Hors zone humide cartographiée"
       },
       {
         "id": "pat_sites",
-        "feu": "vert",
-        "note": 90,
+        "feu": "gris",
+        "note": null,
         "poids": 0.0234,
-        "source": {
-          "nom": "Ministere de la Culture - monuments historiques et sites proteges",
-          "url": "https://data.culture.gouv.fr",
-          "millesime": null,
-          "connecteur": "patrimoine_culture",
-          "avertissement": "Le perimetre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilite peut porter bien au-dela du perimetre de protection.",
-          "dateMiseAJour": null,
-          "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
-        },
+        "source": null,
         "famille": "patrimoine",
         "libelle": "Sites classes et inscrits",
-        "commentaire": "Un site classe impose une autorisation ministerielle speciale ; un site inscrit, un avis de l'ABF.",
+        "commentaire": "Les sites classes et inscrits n'est alimente par aucune couche ingérée sur ce territoire. Ce n'est pas une absence constatée sur le terrain : l'enjeu n'a pas été regarde. À vérifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou auprès de l'UDAP du département. Un site classe impose une autorisation ministérielle spéciale : son absence ici ne vaut PAS absence de site.",
         "reglesLiees": [],
-        "valeurBrute": 7913,
-        "contribution": 2.11,
-        "valeurAffichee": "7,9 km"
+        "valeurBrute": null,
+        "contribution": 0,
+        "valeurAffichee": "non évalué - aucune source ingérée"
       },
       {
         "id": "topo_altitude",
@@ -1041,18 +1091,18 @@
         "note": 98.4,
         "poids": 0.0234,
         "source": {
-          "nom": "IGN RGE ALTI - service de calcul altimetrique",
+          "nom": "IGN RGE ALTI - service de calcul altimétrique",
           "url": "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest",
           "millesime": null,
           "connecteur": "ign_alti",
-          "avertissement": "Pente et orientation sont estimees par regression sur une grille de points cotes du MNT. Un leve topographique reste necessaire au stade du dimensionnement.",
+          "avertissement": "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "topographie",
         "libelle": "Altitude",
-        "commentaire": "Altitude sans contrainte particuliere.",
+        "commentaire": "Altitude sans contrainte particulière.",
         "reglesLiees": [],
         "valeurBrute": 136.4,
         "contribution": 2.3,
@@ -1064,14 +1114,14 @@
         "note": 99.2,
         "poids": 0.0234,
         "source": {
-          "nom": "IGN RGE ALTI - service de calcul altimetrique",
+          "nom": "IGN RGE ALTI - service de calcul altimétrique",
           "url": "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest",
           "millesime": null,
           "connecteur": "ign_alti",
-          "avertissement": "Pente et orientation sont estimees par regression sur une grille de points cotes du MNT. Un leve topographique reste necessaire au stade du dimensionnement.",
+          "avertissement": "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "topographie",
         "libelle": "Pente",
@@ -1093,15 +1143,15 @@
           "connecteur": "ign_bdforet",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "sol",
-        "libelle": "Enjeu defrichement",
-        "commentaire": "Un defrichement declenche une autorisation, une compensation (souvent 1 a 5 fois la surface) et une forte sensibilite locale.",
+        "libelle": "Enjeu défrichement",
+        "commentaire": "Un défrichement déclenche une autorisation, une compensation (souvent 1 à 5 fois la surface) et une forte sensibilité locale.",
         "reglesLiees": [],
         "valeurBrute": 1,
         "contribution": 0,
-        "valeurAffichee": "100 % boise (Forêt fermée de chênes décidus purs)"
+        "valeurAffichee": "100 % boisé (Forêt fermée de chênes décidus purs)"
       },
       {
         "id": "acc_voirie",
@@ -1113,14 +1163,14 @@
           "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=BDTOPO_V3:batiment",
           "millesime": null,
           "connecteur": "ign_bdtopo",
-          "avertissement": "Les distances a l'habitat sont calculees sur le bati de la BD TOPO. Les constructions recentes et les permis en cours n'y figurent pas : verification de terrain indispensable.",
+          "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "acces",
-        "libelle": "Desserte routiere",
-        "commentaire": "Distance a la voirie carrossable : conditionne le cout de creation de piste et l'acheminement des composants.",
+        "libelle": "Desserte routière",
+        "commentaire": "Distance à la voirie carrossable : conditionne le coût de création de piste et l'acheminement des composants.",
         "reglesLiees": [],
         "valeurBrute": 0,
         "contribution": 2.34,
@@ -1136,18 +1186,18 @@
           "url": "https://apicarto.ign.fr/api/nature",
           "millesime": null,
           "connecteur": "apicarto_nature",
-          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portee reglementaire directe, mais pesent dans l'instruction et le contentieux.",
+          "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "environnement",
         "libelle": "Trame verte et bleue",
-        "commentaire": "La trame verte et bleue n'est alimente par aucune couche ingeree sur ce territoire. Ce n'est pas une absence constatee sur le terrain : l'enjeu n'a pas ete regarde. Consultez le SRADDET de la region (volet continuites ecologiques) et le plan de zonage du PLU, qui la transcrit.",
+        "commentaire": "La trame verte et bleue n'est alimente par aucune couche ingérée sur ce territoire. Ce n'est pas une absence constatée sur le terrain : l'enjeu n'a pas été regarde. Consultez le SRADDET de la région (volet continuités écologiques) et le plan de zonage du PLU, qui la transcrit.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "non evalue - aucune source ingeree"
+        "valeurAffichee": "non évalué - aucune source ingérée"
       },
       {
         "id": "fonc_maitrise",
@@ -1155,55 +1205,55 @@
         "note": null,
         "poids": 0.0156,
         "source": {
-          "nom": "Analyse fonciere derivee du parcellaire cadastral",
+          "nom": "Analyse fonciere dérivée du parcellaire cadastral",
           "url": "https://apicarto.ign.fr/api/cadastre",
           "millesime": null,
           "connecteur": "foncier_cadastre",
-          "avertissement": "Le nombre de proprietaires est ESTIME a partir de la structure parcellaire : les donnees nominatives ne sont pas accessibles par API et relevent d'une demande aupres de la DGFiP ou de la mairie.",
+          "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:08.035Z"
+          "dateInterrogation": "2026-09-07T00:26:10.507Z"
         },
         "famille": "foncier",
-        "libelle": "Facilite de maitrise fonciere",
-        "commentaire": "Aucune donnee exploitable pour ce critere : l'absence de donnee ne vaut pas absence de contrainte.",
+        "libelle": "Facilité de maîtrise foncière",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
         "valeurBrute": null,
         "contribution": 0,
-        "valeurAffichee": "donnee indisponible"
+        "valeurAffichee": "donnée indisponible"
       }
     ],
     "knockOuts": [
       {
         "id": "ko_zonage_naturel",
-        "motif": "La parcelle est en zone N, ou les installations de production d'energie ne sont generalement pas admises. La zone couvre la totalite de la parcelle. Une implantation suppose un secteur de taille et de capacite d'accueil limitees (STECAL) ou une evolution du document d'urbanisme, soit 12 a 24 mois de procedure.",
+        "motif": "La parcelle est en zone N, ou les installations de production d'énergie ne sont généralement pas admises. La zone couvre la totalité de la parcelle. Une implantation suppose un secteur de taille et de capacité d'accueil limitées (STECAL) ou une évolution du document d'urbanisme, soit 12 à 24 mois de procédure.",
         "source": {
           "nom": "IGN API Carto - module GPU (Geoportail de l'Urbanisme)",
           "url": "https://apicarto.ign.fr/api/gpu",
           "millesime": null,
           "connecteur": "apicarto_gpu",
-          "avertissement": "Le GPU ne contient que les documents effectivement televerses par les collectivites. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : verifier en mairie.",
+          "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-08-07T09:50:07.543Z"
+          "dateInterrogation": "2026-09-07T00:26:10.015Z"
         },
         "famille": "urbanisme",
         "libelle": "Zonage naturel (N)",
-        "regleLiee": null,
+        "regleLiee": "commun_zone_n",
         "derogeable": true
       },
       {
         "id": "ko_eol_habitation_500",
-        "motif": "L'habitation la plus proche est a 26 m du bord de la parcelle. Meme en implantant l'aerogenerateur au point le plus eloigne (deport maximal estime 252 m pour 20 ha), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas etre atteint.",
+        "motif": "L'habitation la plus proche est à 26 m du bord de la parcelle. Même en implantant l'aérogénérateur au point le plus éloigné (déport maximal estimé 252 m pour 20 ha), le recul de 500 m exige par l'article L.515-44 du code de l'environnement ne peut pas être atteint.",
         "source": {
           "nom": "IGN BD TOPO (batiments, voirie, hydrographie)",
           "url": "https://data.geopf.fr/wfs/ows?TYPENAMES=BDTOPO_V3:batiment",
           "millesime": null,
           "connecteur": "ign_bdtopo",
-          "avertissement": "Les distances a l'habitat sont calculees sur le bati de la BD TOPO. Les constructions recentes et les permis en cours n'y figurent pas : verification de terrain indispensable.",
+          "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-08-07T09:50:07.868Z"
+          "dateInterrogation": "2026-09-07T00:26:10.358Z"
         },
         "famille": "distances_reglementaires",
         "libelle": "Recul de 500 m impossible sur cette parcelle",
@@ -1211,19 +1261,19 @@
         "derogeable": false
       }
     ],
-    "dateCalcul": "2026-08-07T11:53:19.943Z",
+    "dateCalcul": "2026-09-19T20:26:51.875Z",
     "pointsForts": [
       {
-        "impact": 10.01,
-        "valeur": "7,2 m/s a 100 m",
-        "libelle": "Gisement de vent",
-        "critereId": "gis_vent"
+        "impact": 7.03,
+        "valeur": "Aucune contrainte aéronautique identifiée",
+        "libelle": "Servitudes aéronautiques et radars",
+        "critereId": "risq_aero_radar"
       },
       {
-        "impact": 7.03,
-        "valeur": "Aucune contrainte aeronautique identifiee",
-        "libelle": "Servitudes aeronautiques et radars",
-        "critereId": "risq_aero_radar"
+        "impact": 5.1,
+        "valeur": "9,9 km de tracé estimé (7,4 km à vol d'oiseau) - Poste de transformation 90 kV (autre gestionnaire de distribution)",
+        "libelle": "Distance au poste source",
+        "critereId": "racc_distance_poste"
       },
       {
         "impact": 4.46,
@@ -1233,25 +1283,25 @@
       }
     ],
     "scoreGlobal": null,
-    "versionMoteur": "1.4.0+b24e3f16",
+    "versionMoteur": "1.4.0+c55a88c7",
     "avertissements": [
-      "Les scores et indicateurs presentes sont une aide a la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilite d'un projet. Chaque donnee doit etre re-verifiee au moment du depot du dossier et a l'echelon departemental, aupres des services instructeurs competents.",
-      "Les seuils applicables aux projets ENR changent frequemment : les seuils solaires ont ete modifies deux fois en deux ans. Chaque seuil affiche par l'application porte la date d'entree en vigueur de la regle appliquee et la date de derniere verification du referentiel. Verifiez la version en vigueur a la date de votre depot.",
-      "Couverture de donnees de 74 % : 7 critere(s) n'ont pu etre evalues. L'absence de donnee ne vaut pas absence de contrainte.",
-      "Enjeux determinants non evalues, faute de source : 2 critere(s) n'ont aucune source ingeree sur ce territoire : Trame verte et bleue, Nombre de proprietaires. Ils sont exclus du calcul plutot que comptes comme manquants - sans quoi la filiere entiere basculerait en gris, ce qui n'aiderait a rien. Le score reste donc comparable d'une parcelle a l'autre, mais aucune parcelle ne peut etre declaree propice tant que ces enjeux n'ont pas ete regardes.",
-      "Couverture de donnees insuffisante pour conclure : Seuls 74 % du poids des criteres ont pu etre evalues (7 critere(s) sans donnee). Le score est calcule sur les seuls criteres renseignes : il est donc optimiste, car les donnees manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas etre classee propice tant que la couverture n'atteint pas 90 %."
+      "Les scores et indicateurs présentés sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et à l'échelon départemental, auprès des services instructeurs compétents.",
+      "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifiés deux fois en deux ans. Chaque seuil affiché par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de dernière vérification du référentiel. Vérifiez la version en vigueur à la date de votre dépôt.",
+      "Couverture de données de 69 % : 8 critère(s) n'ont pu être évalués. L'absence de donnée ne vaut pas absence de contrainte.",
+      "Enjeux déterminants non évalués, faute de source : 3 critère(s) n'ont aucune source ingérée sur ce territoire : Trame verte et bleue, Sites classes et inscrits, Nombre de propriétaires. Ils sont exclus du calcul plutôt que comptes comme manquants - sans quoi la filière entière basculerait en gris, ce qui n'aiderait à rien. Le score reste donc comparable d'une parcelle à l'autre, mais aucune parcelle ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.",
+      "Couverture de données insuffisante pour conclure : Seuls 69 % du poids des critères ont pu être évalués (8 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %."
     ],
     "pointsVigilance": [
       {
         "impact": -8.81,
-        "valeur": "26 m du bord, jusqu'a 278 m en implantant au plus loin - 59 habitation(s) < 500 m",
-        "libelle": "Eloignement de l'habitat",
+        "valeur": "26 m du bord, jusqu'à 278 m en implantant au plus loin - 59 habitation(s) < 500 m",
+        "libelle": "Éloignement de l'habitat",
         "critereId": "dist_habitation"
       },
       {
         "impact": -4.07,
         "valeur": "49 m - Beauce et vallée de la Conie",
-        "libelle": "Proximite Natura 2000",
+        "libelle": "Proximité Natura 2000",
         "critereId": "env_proximite_natura2000"
       },
       {
@@ -1263,61 +1313,109 @@
     ],
     "seuilsProcedure": [
       {
-        "libelle": "ICPE rubrique 2980 : autorisation environnementale des que un aerogenerateur depasse 50 m de hauteur de mat",
-        "regleId": "eol_icpe_2980",
-        "reference": "Code de l'environnement, nomenclature ICPE rubrique 2980",
+        "libelle": "Autorisation de défrichement, et compensation",
+        "regleId": "commun_defrichement",
+        "reference": "Code forestier, art. L.341-1 (définition), L.341-3 (autorisation préalable) et L.341-6 (compensation en nature ou financière)",
         "applicable": true,
-        "commentaire": "Declaration pour les parcs dont les mats sont < 50 m et la puissance totale >= 20 MW. En pratique, tout parc contemporain releve de l'autorisation environnementale unique.",
+        "commentaire": "Parcelle boisée à environ 100 % : une autorisation de défrichement et sa compensation sont à prévoir, avec un délai d'instruction propre.",
+        "dateEntreeEnVigueur": "2012-07-01"
+      },
+      {
+        "libelle": "Espèces protégées : interdiction, et dérogation exceptionnelle",
+        "regleId": "commun_especes_protegees",
+        "reference": "Code de l'environnement, art. L.411-1 (interdictions) et L.411-2 (dérogation, dite « dérogation espèces protégées ») ; art. R.411-6 et suivants (procédure)",
+        "applicable": null,
+        "commentaire": "L'interdiction est de PRINCIPE : la dérogation n'est possible qu'à trois conditions cumulatives — absence de solution alternative, raison impérative d'intérêt public majeur, et maintien de l'état de conservation des populations. C'est le motif de contentieux le plus fréquent contre les projets ENR. Aucune source nationale ne permet de le préjuger à la parcelle : l'application ne l'affirme donc jamais et laisse « à vérifier ». Seul un inventaire faune-flore sur quatre saisons conclut.",
+        "dateEntreeEnVigueur": "2000-09-21"
+      },
+      {
+        "libelle": "Évaluation des incidences Natura 2000",
+        "regleId": "commun_natura2000_incidences",
+        "reference": "Code de l'environnement, art. L.414-4 et R.414-19 à R.414-23 (évaluation des incidences sur les sites Natura 2000)",
+        "applicable": true,
+        "commentaire": "Site Natura 2000 recouvrant ou proche : évaluation des incidences à produire.",
+        "dateEntreeEnVigueur": "2010-04-11"
+      },
+      {
+        "libelle": "Archéologie préventive : diagnostic et fouille éventuelle",
+        "regleId": "commun_archeologie_preventive",
+        "reference": "Code du patrimoine, art. L.522-1 et suivants ; art. R.523-1 et R.523-4 (zones de présomption de prescription archéologique)",
+        "applicable": null,
+        "commentaire": "Le service régional de l'archéologie peut prescrire un diagnostic sur un projet d'emprise importante, et une fouille si le diagnostic est positif : compter plusieurs mois et un coût à la charge de l'aménageur. Les zones de présomption sont arrêtées par le préfet de région et ne sont pas publiées de façon homogène : l'application ne les connaît pas et laisse « à vérifier ».",
+        "dateEntreeEnVigueur": "2004-02-24"
+      },
+      {
+        "libelle": "ICPE rubrique 2980 : autorisation environnementale des que un aérogénérateur dépasse 50 m de hauteur de mat",
+        "regleId": "eol_icpe_2980",
+        "reference": "Code de l'environnement, art. R.511-9 (nomenclature des installations classées), rubrique 2980",
+        "applicable": true,
+        "commentaire": "Déclaration pour les parcs dont les mâts sont < 50 m et la puissance totale >= 20 MW. En pratique, tout parc contemporain relève de l'autorisation environnementale unique.",
         "dateEntreeEnVigueur": "2011-08-23"
       },
       {
-        "libelle": "Eloignement minimal de 500 m des constructions a usage d'habitation et des zones destinees a l'habitation",
+        "libelle": "Éloignement minimal de 500 m des constructions à usage d'habitation et des zones destinées à l'habitation",
         "regleId": "eol_distance_habitation",
         "reference": "Code de l'environnement, art. L.515-44",
         "applicable": true,
-        "commentaire": "Distance mesuree depuis le mat de l'aerogenerateur. Le prefet peut imposer une distance superieure au vu de l'etude d'impact. 500 m est un plancher, pas une cible.",
+        "commentaire": "Distance mesurée depuis le mat de l'aérogénérateur. Le préfet peut imposer une distance supérieure au vu de l'étude d'impact. 500 m est un plancher, pas une cible.",
         "dateEntreeEnVigueur": "2010-07-13"
       },
       {
-        "libelle": "Rayon d'affichage de l'enquete publique : 6 km",
+        "libelle": "Rayon d'affichage de l'enquête publique : 6 km",
         "regleId": "eol_rayon_enquete",
         "reference": "Code de l'environnement, art. R.181-36 et annexe de l'art. R.511-9 (rubrique 2980)",
         "applicable": true,
-        "commentaire": "Toutes les communes dont une partie du territoire est a moins de 6 km du projet sont consultees : indicateur d'acceptabilite a anticiper.",
+        "commentaire": "Toutes les communes dont une partie du territoire est à moins de 6 km du projet sont consultées : indicateur d'acceptabilité à anticiper.",
         "dateEntreeEnVigueur": "2017-03-01"
       },
       {
-        "libelle": "Perimetre de protection des monuments historiques : 500 m par defaut (ou PDA), avis de l'ABF",
+        "libelle": "Périmètre de protection des monuments historiques : 500 m par défaut (ou PDA), avis de l'ABF",
         "regleId": "eol_monument_historique",
         "reference": "Code du patrimoine, art. L.621-30 et L.632-1",
         "applicable": null,
-        "commentaire": "Le perimetre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilite peut porter bien au-dela.",
+        "commentaire": "Le périmètre délimité des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà.",
         "dateEntreeEnVigueur": "2016-07-08"
       },
       {
-        "libelle": "Distances minimales aux radars meteorologiques et de l'aviation civile",
+        "libelle": "Distances minimales aux radars météorologiques et de l'aviation civile",
         "regleId": "eol_radar",
-        "reference": "Arrete du 26 aout 2011 modifie relatif aux installations de production d'electricite utilisant l'energie mecanique du vent, art. 4",
+        "reference": "Arrêté du 26 août 2011 modifié relatif aux installations de production d'électricité utilisant l'énergie mécanique du vent, art. 4",
         "applicable": null,
-        "commentaire": "Ordres de grandeur : 30 km (radar meteo bande C), 20 km (bande S), 10 km (radar de l'aviation civile), 5 km (radar portuaire), avec avis possible en deca. Consultation obligatoire de Meteo-France, la DGAC et l'armee.",
+        "commentaire": "Ordres de grandeur : 30 km (radar météo bande C), 20 km (bande S), 10 km (radar de l'aviation civile), 5 km (radar portuaire), avec avis possible en deçà. Consultation obligatoire de Météo-France, la DGAC et l'armée.",
         "dateEntreeEnVigueur": "2011-08-27"
+      },
+      {
+        "libelle": "Servitude de protection d’un centre radioélectrique",
+        "regleId": "eol_faisceaux_hertziens",
+        "reference": "Code des postes et des communications électroniques, art. L.54 à L.56-1 (servitudes de protection des centres radioélectriques d’émission et de réception)",
+        "applicable": false,
+        "commentaire": "Ces servitudes protègent les liaisons hertziennes contre les obstacles : un aérogénérateur de plus de cent mètres en travers d'un faisceau est en principe incompatible. Elles sont annexées au document d'urbanisme et publiées comme servitudes d'utilité publique. Un déplacement de machine suffit parfois à dégager le faisceau, d'ou un caractère dérogeable plutôt que bloquant : c'est une contrainte d'implantation, dont l'issue se juge sur un plan de masse.",
+        "dateEntreeEnVigueur": "2004-06-11"
+      },
+      {
+        "libelle": "Autorisation environnementale : étude d’impact et enquête publique",
+        "regleId": "eol_autorisation_environnementale",
+        "reference": "Code de l'environnement, art. L.181-1 et suivants (autorisation environnementale unique) ; art. L.122-1 (évaluation environnementale) ; art. L.123-1 et suivants (enquête publique)",
+        "applicable": true,
+        "commentaire": "Un parc éolien relevant de l'autorisation au titre de la rubrique 2980 est instruit dans le cadre de l'autorisation environnementale UNIQUE : elle absorbe l'étude d'impact, l'évaluation des incidences Natura 2000, la dérogation espèces protégées si elle est nécessaire, le défrichement et le permis de construire. C'est une bonne nouvelle de procédure — un seul dossier, un seul recours — et une mauvaise de calendrier : compter de dix-huit à trente-six mois entre le dépôt et la décision, plus le contentieux.",
+        "dateEntreeEnVigueur": "2017-03-01"
       }
     ],
     "limitesViabilite": [
       {
         "id": "criteres_sans_source",
-        "motif": "2 critere(s) n'ont aucune source ingeree sur ce territoire : Trame verte et bleue, Nombre de proprietaires. Ils sont exclus du calcul plutot que comptes comme manquants - sans quoi la filiere entiere basculerait en gris, ce qui n'aiderait a rien. Le score reste donc comparable d'une parcelle a l'autre, mais aucune parcelle ne peut etre declaree propice tant que ces enjeux n'ont pas ete regardes.",
-        "libelle": "Enjeux determinants non evalues, faute de source",
+        "motif": "3 critère(s) n'ont aucune source ingérée sur ce territoire : Trame verte et bleue, Sites classes et inscrits, Nombre de propriétaires. Ils sont exclus du calcul plutôt que comptes comme manquants - sans quoi la filière entière basculerait en gris, ce qui n'aiderait à rien. Le score reste donc comparable d'une parcelle à l'autre, mais aucune parcelle ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.",
+        "libelle": "Enjeux déterminants non évalués, faute de source",
         "statutMaximal": "orange"
       },
       {
         "id": "couverture_insuffisante",
-        "motif": "Seuls 74 % du poids des criteres ont pu etre evalues (7 critere(s) sans donnee). Le score est calcule sur les seuls criteres renseignes : il est donc optimiste, car les donnees manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas etre classee propice tant que la couverture n'atteint pas 90 %.",
-        "libelle": "Couverture de donnees insuffisante pour conclure",
+        "motif": "Seuls 69 % du poids des critères ont pu être évalués (8 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %.",
+        "libelle": "Couverture de données insuffisante pour conclure",
         "statutMaximal": "orange"
       }
     ],
-    "couvertureDonnees": 0.738,
+    "couvertureDonnees": 0.689,
     "regimeImplantation": null,
     "ponderationsAppliquees": {
       "env_tvb": 0.0156,
@@ -1346,22 +1444,22 @@
   },
   "lead": null,
   "connecteursEnEchec": [
-    "postes_sources"
+    "patrimoine_culture"
   ],
   "avertissements": [
     {
       "id": "aide_decision",
       "portee": "global",
       "niveau": "attention",
-      "titre": "Aide a la decision, pas une garantie de faisabilite",
-      "texte": "Les scores et indicateurs presentes sont une aide a la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilite d'un projet. Chaque donnee doit etre re-verifiee au moment du depot du dossier et a l'echelon departemental, aupres des services instructeurs competents."
+      "titre": "Aide à la décision, pas une garantie de faisabilité",
+      "texte": "Les scores et indicateurs présentés sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et à l'échelon départemental, auprès des services instructeurs compétents."
     },
     {
       "id": "cadastre_indicatif",
       "portee": "contextuel",
       "niveau": "attention",
       "titre": "Le contour cadastral n'a pas de valeur juridique",
-      "texte": "Les contours parcellaires proviennent du Plan Cadastral Informatise. Ils sont fournis a titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage etabli par un geometre-expert fait foi. Les surfaces calculees sur ces contours peuvent differer de la contenance cadastrale.",
+      "texte": "Les contours parcellaires proviennent du Plan Cadastral Informatisé. Ils sont fournis à titre indicatif et n'ont pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi. Les surfaces calculées sur ces contours peuvent différer de la contenance cadastrale.",
       "cible": [
         "identite",
         "surf_utile",
@@ -1372,15 +1470,15 @@
       "id": "seuils_evolutifs",
       "portee": "global",
       "niveau": "attention",
-      "titre": "Les seuils reglementaires evoluent",
-      "texte": "Les seuils applicables aux projets ENR changent frequemment : les seuils solaires ont ete modifies deux fois en deux ans. Chaque seuil affiche par l'application porte la date d'entree en vigueur de la regle appliquee et la date de derniere verification du referentiel. Verifiez la version en vigueur a la date de votre depot."
+      "titre": "Les seuils réglementaires évoluent",
+      "texte": "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifiés deux fois en deux ans. Chaque seuil affiché par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de dernière vérification du référentiel. Vérifiez la version en vigueur à la date de votre dépôt."
     },
     {
       "id": "capareseau_indicatif",
       "portee": "contextuel",
       "niveau": "attention",
-      "titre": "Capacites de raccordement indicatives",
-      "texte": "Les capacites d'accueil et etats de saturation proviennent de Capareseau et des donnees ouvertes des gestionnaires de reseau. Ils sont indicatifs, evoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une etude de raccordement, puis une proposition technique et financiere du gestionnaire, engagent une capacite.",
+      "titre": "Capacités de raccordement indicatives",
+      "texte": "Les capacités d'accueil et états de saturation proviennent de Capareseau et des données ouvertes des gestionnaires de réseau. Ils sont indicatifs, évoluent en continu au fil des demandes de raccordement, et ne sont pas engageants : seule une étude de raccordement, puis une proposition technique et financière du gestionnaire, engagent une capacité.",
       "cible": [
         "racc_distance_poste",
         "racc_capacite_residuelle",
@@ -1391,8 +1489,8 @@
       "id": "zone_humide_terrain",
       "portee": "contextuel",
       "niveau": "attention",
-      "titre": "Zone humide : pre-reperage a confirmer sur le terrain",
-      "texte": "La cartographie des zones humides est un pre-reperage. Le caractere humide d'une parcelle se determine par sondages pedologiques et releves floristiques, selon l'arrete du 24 juin 2008 modifie. Une parcelle non cartographiee peut etre humide, et inversement.",
+      "titre": "Zone humide : pre-repérage à confirmer sur le terrain",
+      "texte": "La cartographie des zones humides est un pré-repérage. Le caractère humide d'une parcelle se détermine par sondages pédologiques et relevés floristiques, selon l'arrêté du 24 juin 2008 modifié. Une parcelle non cartographiée peut être humide, et inversement.",
       "cible": [
         "env_zone_humide"
       ]
@@ -1401,8 +1499,8 @@
       "id": "especes_terrain",
       "portee": "contextuel",
       "niveau": "attention",
-      "titre": "Especes protegees : inventaires de terrain indispensables",
-      "texte": "Les indicateurs de sensibilite especes, avifaune et chiropteres sont derives de donnees d'occurrence et de zonages d'inventaire. Ils ne remplacent pas un cycle biologique complet d'inventaires de terrain, seul a permettre d'apprecier le risque de derogation especes protegees.",
+      "titre": "Espèces protégées : inventaires de terrain indispensables",
+      "texte": "Les indicateurs de sensibilité espèces, avifaune et chiroptères sont dérives de données d'occurrence et de zonages d'inventaire. Ils ne remplacent pas un cycle biologique complet d'inventaires de terrain, seul à permettre d'apprécier le risque de dérogation espèces protégées.",
       "cible": [
         "env_especes_protegees"
       ]
@@ -1412,7 +1510,7 @@
       "portee": "contextuel",
       "niveau": "info",
       "titre": "Documents-cadres et ZAER : couverture partielle",
-      "texte": "Les zones d'acceleration des ENR et les documents-cadres departementaux relatifs au photovoltaique au sol ne font pas l'objet d'une API nationale consolidee. Leur couverture dans l'application est departementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
+      "texte": "Les zones d'accélération des ENR et les documents-cadres départementaux relatifs au photovoltaïque au sol ne font pas l'objet d'une API nationale consolidée. Leur couverture dans l'application est départementale et partielle : l'absence d'information ne vaut pas absence de contrainte.",
       "cible": [
         "urb_zaer"
       ]
@@ -1421,13 +1519,1701 @@
       "id": "donnees_proprietaires",
       "portee": "contextuel",
       "niveau": "attention",
-      "titre": "Donnees de proprietaires : acces restreint",
-      "texte": "Les informations relatives aux proprietaires sont des donnees a caractere personnel. Leur consultation est journalisee et reservee aux utilisateurs habilites, dans le cadre de la finalite de prospection fonciere declaree. Toute diffusion en dehors de ce cadre est interdite.",
+      "titre": "Données de propriétaires : accès restreint",
+      "texte": "Les informations relatives aux propriétaires sont des données à caractère personnel. Leur consultation est journalisée et réservée aux utilisateurs habilités, dans le cadre de la finalité de prospection foncière déclarée. Toute diffusion en dehors de ce cadre est interdite.",
       "cible": [
         "foncier",
         "fonc_nb_proprietaires",
         "fonc_maitrise"
       ]
     }
-  ]
+  ],
+  "avantContact": [
+    {
+      "id": "bail_rural",
+      "gravite": "arret",
+      "titre": "Un exploitant travaille cette parcelle",
+      "texte": "La parcelle est déclarée à la PAC sur 5 campagnes consécutives : quelqu’un la cultive. Le RPG n’indique pas qui — il est anonymisé — donc rien ne permet de savoir depuis les données si le propriétaire l’exploite lui-même. S’il ne l’exploite pas, la mise à disposition est présumée bail rural même sans écrit, et c’est le preneur qui décide : il a un droit au renouvellement, et sortir la terre de l’usage agricole suppose son accord ou une résiliation assortie d’une indemnité d’éviction. Ici la terre quitte l’usage agricole : l’accord du preneur est une condition, pas une formalité.",
+      "question": "Exploitez-vous vous-même cette parcelle ? Sinon, qui la cultive, et depuis quand ?",
+      "regleLiee": "commun_bail_rural"
+    },
+    {
+      "id": "propriete_inconnue",
+      "gravite": "contexte",
+      "titre": "La propriété n’est pas renseignée",
+      "texte": "L’application ne dispose d’aucune information de propriété pour cette parcelle : ni le nombre de comptes, ni l’indivision, ni le caractère public. Ce n’est pas « un seul propriétaire », c’est « on ne sait pas ». Les données de propriété relèvent d’une demande encadrée auprès du service de la publicité foncière ou de la mairie.",
+      "question": "À obtenir avant l’appel : relevé de propriété."
+    },
+    {
+      "id": "preemption_safer",
+      "gravite": "contexte",
+      "titre": "En cas de vente, la SAFER peut préempter",
+      "texte": "La préemption des SAFER vise les aliénations à titre onéreux de biens agricoles. Un bail emphytéotique ou à construction — la forme habituelle d’un projet ENR — n’est pas une aliénation et y échappe en principe ; une vente, non. Aucune source nationale ne publie les périmètres d’intervention : la SAFER compétente se consulte, elle ne se déduit pas des données.",
+      "question": "Souhaitez-vous vendre ou louer ? La forme retenue change les intervenants et le calendrier.",
+      "regleLiee": "commun_preemption_safer"
+    }
+  ],
+  "verdict": {
+    "filiere": "eolien_terrestre",
+    "verdict": "defavorable",
+    "mode": "reglementaire",
+    "contrainteDecisive": {
+      "contrainteId": "eolien_terrestre__eloignement_500_m_des_habitations",
+      "nom": "Éloignement 500 m des habitations",
+      "categorie": "A. Distances habitations",
+      "caractere": "redhibitoire",
+      "etat": "enfreinte",
+      "seuilReglementaire": "≥ 500 m (modulable à la hausse)",
+      "referenceReglementaire": "Art. L515-44 C. env. ; Arrêté 26/08/2011 art. 3",
+      "coucheSig": "Bâti IGN BD TOPO + Cadastre (DGFiP) ; zonage habitat GPU",
+      "condition": {
+        "operateur": "min",
+        "valeur": 500,
+        "unite": "m"
+      },
+      "origineSeuil": "reglementaire",
+      "conditionReglementaire": null,
+      "motifDeveloppeur": null,
+      "valeurMesuree": 26,
+      "cheminMesure": "bati.distanceHabitationM",
+      "raisons": []
+    },
+    "contraintes": [
+      {
+        "contrainteId": "eolien_terrestre__eloignement_500_m_des_habitations",
+        "nom": "Éloignement 500 m des habitations",
+        "categorie": "A. Distances habitations",
+        "caractere": "redhibitoire",
+        "etat": "enfreinte",
+        "seuilReglementaire": "≥ 500 m (modulable à la hausse)",
+        "referenceReglementaire": "Art. L515-44 C. env. ; Arrêté 26/08/2011 art. 3",
+        "coucheSig": "Bâti IGN BD TOPO + Cadastre (DGFiP) ; zonage habitat GPU",
+        "condition": {
+          "operateur": "min",
+          "valeur": 500,
+          "unite": "m"
+        },
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 26,
+        "cheminMesure": "bati.distanceHabitationM",
+        "raisons": []
+      },
+      {
+        "contrainteId": "eolien_terrestre__zones_a_urbaniser_habitat_u_au",
+        "nom": "Zones à urbaniser habitat (U/AU)",
+        "categorie": "A. Distances habitations",
+        "caractere": "redhibitoire",
+        "etat": "enfreinte",
+        "seuilReglementaire": "≥ 500 m des limites de zone U/AU habitat",
+        "referenceReglementaire": "Art. L515-44 C. env. ; arrêté 26/08/2011",
+        "coucheSig": "GPU (zonages PLU/PLUi/CC)",
+        "condition": {
+          "operateur": "min",
+          "valeur": 500,
+          "unite": "m"
+        },
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 32,
+        "cheminMesure": "bati.distanceZoneHabitatM",
+        "raisons": []
+      },
+      {
+        "contrainteId": "eolien_terrestre__bruit_emergences_acoustiques",
+        "nom": "Bruit / émergences acoustiques",
+        "categorie": "A. Distances habitations",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "+5 dB(A) jour / +3 dB(A) nuit ; 70/60 dB(A) en limite",
+        "referenceReglementaire": "Arrêté 26/08/2011 art. 26-28",
+        "coucheSig": "Modélisation acoustique projet",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__marge_de_recul_locale_renforcee",
+        "nom": "Marge de recul locale renforcée",
+        "categorie": "A. Distances habitations",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Au cas par cas (700-1000 m)",
+        "referenceReglementaire": "Règlement PLU, charte PNR",
+        "coucheSig": "GPU",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__natura_2000_zps_oiseaux",
+        "nom": "Natura 2000 – ZPS (Oiseaux)",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "respectee",
+        "seuilReglementaire": "Cas par cas ; souvent rédhibitoire (avifaune)",
+        "referenceReglementaire": "Art. L414-4 C. env. ; Dir. 2009/147/CE",
+        "coucheSig": "INPN (Natura 2000 ZPS)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.natura2000Oiseaux.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__natura_2000_zsc_sic_habitats",
+        "nom": "Natura 2000 – ZSC/SIC (Habitats)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Art. L414-4 ; Dir. 92/43/CEE",
+        "coucheSig": "INPN (ZSC/SIC/pSIC)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.natura2000Habitats.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__znieff_type_i",
+        "nom": "ZNIEFF type I",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "Cas par cas ; souvent quasi rédhibitoire",
+        "referenceReglementaire": "Circulaire ZNIEFF ; L411-1 A C. env.",
+        "coucheSig": "INPN (ZNIEFF 1)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.znieff1.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__znieff_type_ii",
+        "nom": "ZNIEFF type II",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Inventaire ZNIEFF",
+        "coucheSig": "INPN (ZNIEFF 2)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.znieff2.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__zico",
+        "nom": "ZICO",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas (avifaune)",
+        "referenceReglementaire": "Dir. Oiseaux (inventaire)",
+        "coucheSig": "INPN (ZICO)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__reserves_naturelles_rnn_rnr",
+        "nom": "Réserves naturelles (RNN/RNR)",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdiction dans le périmètre",
+        "referenceReglementaire": "Art. L332-1 s. C. env.",
+        "coucheSig": "INPN (RNN, RNR)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__reserves_biologiques_de_chasse_et_faune_sauvage",
+        "nom": "Réserves biologiques / de chasse et faune sauvage",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "C. env. ; C. forestier",
+        "coucheSig": "INPN",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__arrete_de_protection_biotope_geotope_habitats_appb_a",
+        "nom": "Arrêté de protection biotope/géotope/habitats (APPB/APG/APHN)",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "respectee",
+        "seuilReglementaire": "Interdiction / prescriptions",
+        "referenceReglementaire": "Art. L411-1, R411-15 s. C. env.",
+        "coucheSig": "INPN (APB)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.appb.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__parc_national_c_ur",
+        "nom": "Parc national – cœur",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "respectee",
+        "seuilReglementaire": "Interdiction",
+        "referenceReglementaire": "Art. L331-1 s. C. env.",
+        "coucheSig": "INPN (cœurs de parcs)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.coeurParcNational.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__parc_national_aire_d_adhesion",
+        "nom": "Parc national – aire d'adhésion",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas (charte)",
+        "referenceReglementaire": "Art. L331-1 s. C. env.",
+        "coucheSig": "INPN",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__parc_naturel_regional_pnr",
+        "nom": "Parc naturel régional (PNR)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "Compatibilité charte (souvent rédhibitoire de fait)",
+        "referenceReglementaire": "Art. L333-1 C. env.",
+        "coucheSig": "INPN (PNR) + chartes PNR",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "milieux.parcNaturelRegional.partRecouvrement",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__sites_ramsar",
+        "nom": "Sites Ramsar",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Convention Ramsar",
+        "coucheSig": "INPN / MTE",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__espaces_naturels_sensibles_ens",
+        "nom": "Espaces naturels sensibles (ENS)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Art. L113-8 s. C. urb.",
+        "coucheSig": "Couches départementales (CD)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__conservatoire_du_littoral_cen",
+        "nom": "Conservatoire du littoral / CEN",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Inconstructible",
+        "referenceReglementaire": "Art. L322-1 s. C. env.",
+        "coucheSig": "Conservatoire du littoral (open data), CEN",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__zones_humides",
+        "nom": "Zones humides",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Évitement/compensation ; souvent bloquant",
+        "referenceReglementaire": "Art. L211-1, L214-1 s. C. env. ; arrêté 24/06/2008",
+        "coucheSig": "Enveloppes zones potentiellement humides (DREAL/agences de l'eau) ; INRAE",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__trame_verte_et_bleue_reservoirs_corridors",
+        "nom": "Trame Verte et Bleue (réservoirs & corridors)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Éviter réservoirs/corridors",
+        "referenceReglementaire": "Art. L371-1 s. C. env. ; SRADDET",
+        "coucheSig": "SRADDET/SRCE régional (DREAL/Région)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__couloirs_de_migration_avifaune",
+        "nom": "Couloirs de migration avifaune",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Doctrine ERC ; L411-1",
+        "coucheSig": "Atlas régionaux/LPO (partiels)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__enjeux_chiropteres_recul_lisieres_garde_au_sol",
+        "nom": "Enjeux chiroptères (recul lisières + garde au sol)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ 200 m des lisières/haies ; bas de pale ≥ 30 m (recommandé)",
+        "referenceReglementaire": "Doctrine SFEPM/Eurobats ; PNA Chiroptères ; L411-1",
+        "coucheSig": "IGN BD TOPO + BD Forêt (buffer 200 m)",
+        "condition": {
+          "operateur": "min",
+          "valeur": 200,
+          "unite": "m"
+        },
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": []
+      },
+      {
+        "contrainteId": "eolien_terrestre__boisements_forets_defrichement",
+        "nom": "Boisements / forêts – défrichement",
+        "categorie": "B. Biodiversité",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Autorisation + compensation",
+        "referenceReglementaire": "Art. L341-1 s. C. forestier",
+        "coucheSig": "IGN BD Forêt v2",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__especes_protegees_derogation_dep_cnpn",
+        "nom": "Espèces protégées – dérogation (DEP/CNPN)",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Diagnostic 4 saisons ; dérogation CNPN/CSRPN",
+        "referenceReglementaire": "Art. L411-1 / L411-2 C. env.",
+        "coucheSig": "INPN (occurrences) + atlas régionaux (partiel)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__rapaces_patrimoniaux_sensibles",
+        "nom": "Rapaces patrimoniaux sensibles",
+        "categorie": "B. Biodiversité",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Zones de sensibilité forte",
+        "referenceReglementaire": "Doctrine régionale éolien-biodiversité",
+        "coucheSig": "Cartes sensibilité éolien-avifaune DREAL",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__monuments_historiques_abords_pda_500_m",
+        "nom": "Monuments historiques – abords (PDA/500 m)",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "500 m par défaut (ou PDA) ; avis conforme ABF",
+        "referenceReglementaire": "Art. L621-30 s. C. patrimoine",
+        "coucheSig": "Atlas des patrimoines / POP (MC) ; MH + PDA (GPU/DREAL)",
+        "condition": {
+          "operateur": "egal",
+          "valeur": 500,
+          "unite": "m"
+        },
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": "patrimoine.monumentHistorique.distanceM",
+        "raisons": []
+      },
+      {
+        "contrainteId": "eolien_terrestre__covisibilite_avec_un_mh",
+        "nom": "Covisibilité avec un MH",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas (acuité visuelle)",
+        "referenceReglementaire": "Jurisprudence ; L621-30",
+        "coucheSig": "Analyse ZVI/viewshed sur MNT",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__sites_classes",
+        "nom": "Sites classés",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Autorisation ministérielle",
+        "referenceReglementaire": "Art. L341-10 C. env.",
+        "coucheSig": "INPN / DREAL (sites classés)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__sites_inscrits",
+        "nom": "Sites inscrits",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Avis ABF",
+        "referenceReglementaire": "Art. L341-1 s. C. env.",
+        "coucheSig": "INPN / DREAL (sites inscrits)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__sites_patrimoniaux_remarquables_spr",
+        "nom": "Sites patrimoniaux remarquables (SPR)",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Avis ABF",
+        "referenceReglementaire": "Art. L631-1 s. C. patrimoine",
+        "coucheSig": "GPU / Atlas des patrimoines",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__biens_unesco_zones_tampons",
+        "nom": "Biens UNESCO + zones tampons",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Zone tampon / VUE",
+        "referenceReglementaire": "Convention UNESCO ; doctrine État",
+        "coucheSig": "Couches UNESCO (MC) / DREAL",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__saturation_visuelle_encerclement_des_bourgs",
+        "nom": "Saturation visuelle / encerclement des bourgs",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Respiration ≥ ~160-180° sans éolienne",
+        "referenceReglementaire": "Jurisprudence CAA/CE ; guides DREAL",
+        "coucheSig": "Calcul par village (parcs existants + projets)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__grands_paysages_lignes_de_crete_cones_de_vue",
+        "nom": "Grands paysages / lignes de crête / cônes de vue",
+        "categorie": "C. Patrimoine & paysage",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Atlas de paysages régionaux",
+        "coucheSig": "Atlas de paysages (DREAL) – partiel",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__zonage_plu_plui",
+        "nom": "Zonage PLU/PLUi",
+        "categorie": "D. Urbanisme",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdit si le règlement l'exclut",
+        "referenceReglementaire": "C. urb. L151-1 s.",
+        "coucheSig": "GPU (zonages + règlements)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__carte_communale_rnu",
+        "nom": "Carte communale / RNU",
+        "categorie": "D. Urbanisme",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "C. urbanisme",
+        "coucheSig": "GPU",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__espaces_boises_classes_ebc",
+        "nom": "Espaces boisés classés (EBC)",
+        "categorie": "D. Urbanisme",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdiction absolue",
+        "referenceReglementaire": "Art. L113-1 s. C. urb.",
+        "coucheSig": "GPU (prescriptions surfaciques EBC)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__servitudes_d_utilite_publique_sup",
+        "nom": "Servitudes d'utilité publique (SUP)",
+        "categorie": "D. Urbanisme",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Selon nature",
+        "referenceReglementaire": "Annexes PLU ; L151-43 C. urb.",
+        "coucheSig": "GPU (couche SUP)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__scot",
+        "nom": "SCoT",
+        "categorie": "D. Urbanisme",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Art. L141-1 s. C. urb.",
+        "coucheSig": "Périmètres SCoT (Sudocuh/DGALN)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__loi_littoral",
+        "nom": "Loi Littoral",
+        "categorie": "D. Urbanisme",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Discontinuité difficile ; dérogations limitées",
+        "referenceReglementaire": "Art. L121-1 s. C. urb.",
+        "coucheSig": "Communes loi Littoral (DGALN/observatoire)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__loi_montagne",
+        "nom": "Loi Montagne",
+        "categorie": "D. Urbanisme",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Cas par cas",
+        "referenceReglementaire": "Art. L122-1 s. C. urb.",
+        "coucheSig": "Zones de montagne (couche officielle)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__zones_d_exclusion_eolien_plu",
+        "nom": "Zones d'exclusion éolien (PLU)",
+        "categorie": "D. Urbanisme",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Exclusion opposable",
+        "referenceReglementaire": "Art. L151-7 / L141-5-3 ; loi APER art. 37",
+        "coucheSig": "GPU (une fois intégrées au PLU)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_meteo_meteo_france_bande_s",
+        "nom": "Radar météo Météo-France – bande S",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdit <10 km ; coordination 10-30 km",
+        "referenceReglementaire": "Arrêté 26/08/2011 art. 4 mod. 06/11/2014",
+        "coucheSig": "Positions radars Météo-France (buffers à créer)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_meteo_meteo_france_bande_c",
+        "nom": "Radar météo Météo-France – bande C",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdit <5 km ; coordination 5-20 km",
+        "referenceReglementaire": "Arrêté 26/08/2011 mod.",
+        "coucheSig": "Positions radars Météo-France",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_meteo_meteo_france_bande_x",
+        "nom": "Radar météo Météo-France – bande X",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdit <4 km ; coordination ~10 km",
+        "referenceReglementaire": "Arrêté 26/08/2011 mod.",
+        "coucheSig": "Positions radars Météo-France",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "seuil_approximatif"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_primaire_aviation_civile_dgac",
+        "nom": "Radar primaire aviation civile (DGAC)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdit <5 km ; coordination 5-30 km",
+        "referenceReglementaire": "Arrêté 26/08/2011 art. 4",
+        "coucheSig": "Positions DGAC (consultation obligatoire)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_secondaire_aviation_civile",
+        "nom": "Radar secondaire aviation civile",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Protection ~5 km ; coordination 16-30 km",
+        "referenceReglementaire": "Arrêté 26/08/2011",
+        "coucheSig": "Positions DGAC",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "seuil_approximatif",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radar_de_la_defense",
+        "nom": "Radar de la Défense",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Protection 5 km ; coordination 5-30 km",
+        "referenceReglementaire": "Arrêté 26/08/2011 ; consultation DSAE/Armée",
+        "coucheSig": "Positions Défense (confidentiel – consultation)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__radars_portuaires_maritimes_fluviaux_vts",
+        "nom": "Radars portuaires/maritimes/fluviaux (VTS)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "~20 km (cas par cas)",
+        "referenceReglementaire": "Consultation DGAMPA / grands ports",
+        "coucheSig": "Pas de couche standard",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "seuil_approximatif"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__vor_balises_de_radionavigation",
+        "nom": "VOR / balises de radionavigation",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "~15 km",
+        "referenceReglementaire": "Consultation DGAC/SNA",
+        "coucheSig": "Pas d'open data direct",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "seuil_approximatif"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__servitudes_aeronautiques_de_degagement_t5",
+        "nom": "Servitudes aéronautiques de dégagement (T5)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdiction de dépasser les surfaces (varie par aérodrome)",
+        "referenceReglementaire": "Art. L6351-1 s. C. transports ; PSA",
+        "coucheSig": "GPU (SUP T5) / cartes aérodromes",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__obstacle_navigation_aerienne_50_m_balisage",
+        "nom": "Obstacle navigation aérienne (>50 m) + balisage",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "> 50 m → autorisation SNIA/DGAC + balisage",
+        "referenceReglementaire": "Art. R244-1 C. aviation ; arrêté 25/07/1990",
+        "coucheSig": "Base obstacles SIA",
+        "condition": {
+          "operateur": "min_strict",
+          "valeur": 50,
+          "unite": "m"
+        },
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": []
+      },
+      {
+        "contrainteId": "eolien_terrestre__reseaux_militaires_tres_basse_altitude_rtba",
+        "nom": "Réseaux militaires très basse altitude (RTBA)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Interdiction",
+        "referenceReglementaire": "Arrêtés zones RTBA (SIA/Défense)",
+        "coucheSig": "Cartes RTBA (SIA)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__secteurs_entrainement_basse_altitude_setba_voltac",
+        "nom": "Secteurs entraînement basse altitude (SETBA/VOLTAC)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Limitation de hauteur",
+        "referenceReglementaire": "Consultation Armée de l'air",
+        "coucheSig": "SIA (partiel)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__faisceaux_hertziens_servitudes_radioelectriques_pt1_",
+        "nom": "Faisceaux hertziens / servitudes radioélectriques (PT1/PT2)",
+        "categorie": "E. Servitudes aéro & radars",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Couloir de protection",
+        "referenceReglementaire": "Art. L54 s. CPCE ; SUP PT1/PT2",
+        "coucheSig": "ANFR Cartoradio ; GPU (SUP PT)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__lignes_electriques_ht_tht_rte",
+        "nom": "Lignes électriques HT/THT (RTE)",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ hauteur totale (bout de pale) + garde (souvent 1,5×H)",
+        "referenceReglementaire": "Recommandations RTE ; étude de dangers",
+        "coucheSig": "RTE Open Data (tracé lignes)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__reseau_de_distribution_hta_bt_enedis",
+        "nom": "Réseau de distribution HTA/BT (Enedis)",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ hauteur totale",
+        "referenceReglementaire": "Enedis",
+        "coucheSig": "Enedis Open Data (réseau)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__canalisations_transport_gaz_hydrocarbures",
+        "nom": "Canalisations transport gaz/hydrocarbures",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ hauteur totale de l'éolienne",
+        "referenceReglementaire": "Arrêté 05/03/2014 ; recommandations GRTgaz ; SUP I",
+        "coucheSig": "GPU (SUP I3) ; Géorisques (canalisations TMD)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__routes_structurantes_autoroutes",
+        "nom": "Routes structurantes / autoroutes",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Recul ≥ hauteur totale (bout de pale)",
+        "referenceReglementaire": "Guide EDD éolien (INERIS/SER) ; gestionnaire voirie",
+        "coucheSig": "IGN BD TOPO (routes)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__voies_ferrees",
+        "nom": "Voies ferrées",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ hauteur totale",
+        "referenceReglementaire": "Guide EDD ; SNCF Réseau",
+        "coucheSig": "IGN BD TOPO (voies ferrées)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__voies_navigables_canaux",
+        "nom": "Voies navigables / canaux",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ hauteur totale",
+        "referenceReglementaire": "VNF",
+        "coucheSig": "IGN / VNF",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__distance_inter_eoliennes_sillage",
+        "nom": "Distance inter-éoliennes (sillage)",
+        "categorie": "F. Réseaux & infrastructures",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "3-5 × diamètre du rotor",
+        "referenceReglementaire": "Règles de l'art / projet",
+        "coucheSig": "Calcul projet",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__ppri_inondation",
+        "nom": "PPRi – inondation",
+        "categorie": "G. Risques",
+        "caractere": "redhibitoire",
+        "etat": "respectee",
+        "seuilReglementaire": "Zone rouge = inconstructible",
+        "referenceReglementaire": "Art. L562-1 s. C. env.",
+        "coucheSig": "Géorisques (PPRN/PPRi) ; GPU (SUP)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "risques.ppri.present",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__pprt_sites_seveso",
+        "nom": "PPRT / sites SEVESO",
+        "categorie": "G. Risques",
+        "caractere": "redhibitoire",
+        "etat": "respectee",
+        "seuilReglementaire": "Interdiction/restriction dans périmètres",
+        "referenceReglementaire": "Art. L515-15 s. C. env.",
+        "coucheSig": "Géorisques (PPRT, SEVESO)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "risques.pprt.present",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__retrait_gonflement_des_argiles_rga",
+        "nom": "Retrait-gonflement des argiles (RGA)",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "Aléa fort",
+        "referenceReglementaire": "Cartographie aléa RGA",
+        "coucheSig": "Géorisques (aléa RGA)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": "topographie.aleaArgiles",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__cavites_souterraines_marnieres_carrieres",
+        "nom": "Cavités souterraines / marnières / carrières",
+        "categorie": "G. Risques",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Aléa effondrement",
+        "referenceReglementaire": "Base cavités",
+        "coucheSig": "Géorisques (BD Cavités)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__mouvements_de_terrain_glissements",
+        "nom": "Mouvements de terrain / glissements",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Aléa",
+        "referenceReglementaire": "Base mouvements",
+        "coucheSig": "Géorisques (BD Mvt)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__sismicite",
+        "nom": "Sismicité",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Zones 3 à 5",
+        "referenceReglementaire": "Décret 2010-1255 (zonage sismique)",
+        "coucheSig": "Géorisques (zonage sismique)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__feux_de_foret_pprif_old",
+        "nom": "Feux de forêt (PPRif / OLD)",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "respectee",
+        "seuilReglementaire": "PPRif / OLD",
+        "referenceReglementaire": "C. forestier ; PPRif",
+        "coucheSig": "Géorisques ; DFCI",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "risques.pprif.present",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__remontees_de_nappe",
+        "nom": "Remontées de nappe",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Aléa fort",
+        "referenceReglementaire": "Cartographie remontées",
+        "coucheSig": "Géorisques",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__foudre_niveau_keraunique",
+        "nom": "Foudre / niveau kéraunique",
+        "categorie": "G. Risques",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Densité kéraunique forte",
+        "referenceReglementaire": "Arrêté 26/08/2011 (protection foudre)",
+        "coucheSig": "Données kérauniques Météo-France",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__gisement_de_vent",
+        "nom": "Gisement de vent",
+        "categorie": "H. Technique & projet",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ ~5-6 m/s (selon machine)",
+        "referenceReglementaire": "—",
+        "coucheSig": "Atlas éolien ADEME/régions ; Global Wind Atlas",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": "gisement.ventVitesse100mMs",
+        "raisons": [
+          "seuil_approximatif",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__raccordement_poste_source_s3renr",
+        "nom": "Raccordement – poste source & S3REnR",
+        "categorie": "H. Technique & projet",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Capacité S3REnR dispo ; distance au poste",
+        "referenceReglementaire": "Schéma S3REnR (RTE) ; C. énergie",
+        "coucheSig": "Caparéseau (RTE/Enedis)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__maitrise_fonciere",
+        "nom": "Maîtrise foncière",
+        "categorie": "H. Technique & projet",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Accords signés",
+        "referenceReglementaire": "Droit civil / rural",
+        "coucheSig": "Cadastre (DGFiP) – propriétaires via fichiers fonciers",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__topographie_pente",
+        "nom": "Topographie / pente",
+        "categorie": "H. Technique & projet",
+        "caractere": "penalisant",
+        "etat": "a_verifier",
+        "seuilReglementaire": "Pente forte",
+        "referenceReglementaire": "—",
+        "coucheSig": "IGN RGE ALTI (MNT)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0.8,
+        "cheminMesure": "topographie.pentePct",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__acces_poids_lourds_convois_exceptionnels",
+        "nom": "Accès poids lourds / convois exceptionnels",
+        "categorie": "H. Technique & projet",
+        "caractere": "redhibitoire",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Gabarit convoi exceptionnel",
+        "referenceReglementaire": "Gestionnaires voirie",
+        "coucheSig": "IGN BD TOPO (partiel) + étude d'accès",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__surface_emprise_du_gite",
+        "nom": "Surface / emprise du gîte",
+        "categorie": "H. Technique & projet",
+        "caractere": "penalisant",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "≥ plusieurs machines",
+        "referenceReglementaire": "—",
+        "coucheSig": "Parcellaire (cadastre)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      }
+    ],
+    "ecartsCahierDesCharges": [],
+    "cadres": [
+      {
+        "contrainteId": "eolien_terrestre__regime_icpe_rubrique_2980",
+        "nom": "Régime ICPE – rubrique 2980",
+        "categorie": "H. Technique & projet",
+        "caractere": "cadre",
+        "etat": "cadre",
+        "seuilReglementaire": "Seuils 12 m / 50 m / 20 MW",
+        "referenceReglementaire": "Nomenclature ICPE 2980 ; arrêté 26/08/2011",
+        "coucheSig": "—",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "extraction_incomplete"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__balisage_aerien_diurne_nocturne",
+        "nom": "Balisage aérien diurne/nocturne",
+        "categorie": "H. Technique & projet",
+        "caractere": "cadre",
+        "etat": "cadre",
+        "seuilReglementaire": "> 50 m",
+        "referenceReglementaire": "Arrêté 23/04/2018 (balisage éoliennes)",
+        "coucheSig": "—",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__etude_d_impact_enquete_publique",
+        "nom": "Étude d'impact + enquête publique",
+        "categorie": "H. Technique & projet",
+        "caractere": "cadre",
+        "etat": "cadre",
+        "seuilReglementaire": "Systématique",
+        "referenceReglementaire": "Art. L122-1, R122-2 C. env.",
+        "coucheSig": "—",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__etude_de_dangers_distances_d_effet",
+        "nom": "Étude de dangers – distances d'effet",
+        "categorie": "H. Technique & projet",
+        "caractere": "cadre",
+        "etat": "cadre",
+        "seuilReglementaire": "Projection 500 m ; chute = hauteur totale",
+        "referenceReglementaire": "Arrêté 26/08/2011 ; guide EDD éolien",
+        "coucheSig": "Buffers à générer autour de chaque machine",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__demantelement_garanties_financieres",
+        "nom": "Démantèlement / garanties financières",
+        "categorie": "H. Technique & projet",
+        "caractere": "cadre",
+        "etat": "cadre",
+        "seuilReglementaire": "Provision réglementaire",
+        "referenceReglementaire": "Arrêté 26/08/2011 ; arrêté 10/12/2021",
+        "coucheSig": "—",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "pas_de_couche_nationale",
+          "aucun_seuil_numerique"
+        ]
+      }
+    ],
+    "atouts": [
+      {
+        "contrainteId": "eolien_terrestre__zones_d_acceleration_enr_zaenr",
+        "nom": "Zones d'accélération EnR (ZAEnR)",
+        "categorie": "D. Urbanisme",
+        "caractere": "favorable",
+        "etat": "enfreinte",
+        "seuilReglementaire": "Implantation en ZAEnR = bonus",
+        "referenceReglementaire": "Loi 2023-175 APER ; art. L141-5-3 C. énergie",
+        "coucheSig": "Portail cartographie.enr.gouv.fr (Cerema/IGN)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": 0,
+        "cheminMesure": "urbanisme.zaer.present",
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      },
+      {
+        "contrainteId": "eolien_terrestre__zan_artificialisation",
+        "nom": "ZAN / artificialisation",
+        "categorie": "D. Urbanisme",
+        "caractere": "favorable",
+        "etat": "donnee_absente",
+        "seuilReglementaire": "Sous conditions réversibilité",
+        "referenceReglementaire": "Loi Climat-Résilience 2021 ; loi 2023-630 ; loi APER",
+        "coucheSig": "SPARTE / observatoire artificialisation (Cerema)",
+        "condition": null,
+        "origineSeuil": "reglementaire",
+        "conditionReglementaire": null,
+        "motifDeveloppeur": null,
+        "valeurMesuree": null,
+        "cheminMesure": null,
+        "raisons": [
+          "aucun_seuil_numerique"
+        ]
+      }
+    ],
+    "couverture": {
+      "total": 76,
+      "respectees": 11,
+      "enfreintes": 2,
+      "aVerifier": 1,
+      "donneesAbsentes": 62
+    }
+  }
 }

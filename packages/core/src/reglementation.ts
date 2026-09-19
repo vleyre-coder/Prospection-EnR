@@ -93,6 +93,10 @@
  */
 export const REFERENTIEL_DERNIERE_VERIFICATION = '2026-07-30';
 
+// Importe pour que la table des regles soit indexee par les filieres REELLES, et non par une
+// chaine quelconque : la raison est expliquee sur `REGLES`, en bas de ce fichier.
+import type { Filiere } from './filieres.js';
+
 export interface RegleReglementaire {
   id: string;
   libelle: string;
@@ -1021,9 +1025,35 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
 };
 
-export const REGLES: Record<string, Record<string, RegleReglementaire>> = {
+/**
+ * Regles de procedure, par filiere plus le groupe `commun`.
+ *
+ * LE TYPE EST EXPLICITE, ET IL VIENT D'UN DEFAUT REEL. Il etait `Record<string, ...>`, et l'ajout
+ * de l'agrivoltaisme aux filieres n'a donc rien casse a la compilation : la filiere etait
+ * simplement ABSENTE de cette table, `seuil()` rendait `null` pour chacune de ses regles, et
+ * l'agrivoltaisme n'annoncait AUCUNE procedure — ni permis de construire, ni evaluation
+ * environnementale, ni compensation agricole. Un dossier de site muet sur ses autorisations, sans
+ * une erreur nulle part. Seul un test l'a dit.
+ *
+ * `Record<Filiere | 'commun', ...>` renverse la charge : la prochaine filiere ne compilera pas
+ * tant que ses regles n'auront pas ete decidees.
+ */
+export const REGLES: Record<Filiere | 'commun', Record<string, RegleReglementaire>> = {
   commun: REGLES_COMMUNES,
   solaire_sol: REGLES_SOLAIRE,
+  /*
+   * L'AGRIVOLTAISME PARTAGE LES REGLES DU SOLAIRE AU SOL, et ce n'est pas un raccourci : ce sont
+   * litteralement les memes articles. Le permis de construire au-dela de 3 MWc (R.421-1), les
+   * seuils d'evaluation environnementale, l'etude prealable de compensation agricole (L.112-1-3,
+   * qui vise expressement l'agrivoltaisme) et les garanties de demantelement ne distinguent pas
+   * les deux regimes. Les trois regles proprement agrivoltaiques — taux de couverture, zone
+   * temoin, avis de la CDPENAF — figurent deja dans ce meme groupe.
+   *
+   * Ce qui differe n'est pas la regle, c'est QUAND elle s'applique : le solaire au sol ne
+   * declenche les trois dernieres que sous regime agrivoltaique, cette filiere-ci toujours. Cette
+   * decision-la est prise a l'appel, pas ici.
+   */
+  agrivoltaisme: REGLES_SOLAIRE,
   eolien_terrestre: REGLES_EOLIEN,
   bess: REGLES_BESS,
   methanisation: REGLES_METHANISATION,

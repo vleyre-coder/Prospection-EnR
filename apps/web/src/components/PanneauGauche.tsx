@@ -30,6 +30,11 @@ interface Props {
 /** Criteres de filtre pertinents par filiere. */
 const FILTRES_PAR_FILIERE: Record<Filiere, Array<'pente' | 'distanceHabitation' | 'capacitePoste' | 'typeSol'>> = {
   solaire_sol: ['pente', 'typeSol', 'capacitePoste'],
+  /*
+   * Mêmes filtres qu'au solaire au sol, et `typeSol` y est le plus utile des trois — mais il se
+   * règle en sens inverse : cette filière cherche la parcelle cultivée que l'autre évite.
+   */
+  agrivoltaisme: ['typeSol', 'pente', 'capacitePoste'],
   eolien_terrestre: ['distanceHabitation', 'capacitePoste'],
   bess: ['capacitePoste', 'pente', 'typeSol'],
   methanisation: ['distanceHabitation', 'pente'],

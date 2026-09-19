@@ -104,23 +104,49 @@ test('aucun identifiant de regle n’est revendique par deux filieres', () => {
    * filiere pour fonder un recul. Le recul eolien de 500 m de l'article L.515-44 se ferait
    * remplacer par les 200 m de l'arrete methanisation.
    */
-  const vus = new Map<string, string>();
+  /*
+   * DEUX SITUATIONS SE RESSEMBLENT ET N'ONT RIEN A VOIR, et les confondre rend ce test inutile
+   * dans un sens ou l'autre.
+   *
+   *   - DEUX REGLES DIFFERENTES sous le meme `id` : c'est le defaut, et il est grave. L'une
+   *     disparait de l'index, et la fiche cite le texte de l'autre filiere pour fonder un recul.
+   *   - LA MEME REGLE partagee par deux filieres : l'agrivoltaisme et le solaire au sol pointent
+   *     sur le meme objet, parce que le permis de construire au-dela de 3 MWc est litteralement
+   *     le meme article pour les deux. Rien ne disparait de l'index, et rien n'est cite de
+   *     travers.
+   *
+   * La comparaison porte donc sur l'IDENTITE de l'objet, et non sur la seule presence de l'id.
+   */
+  const vus = new Map<string, { filiere: string; regle: (typeof REGLES)['commun'][string] }>();
   const collisions: string[] = [];
-  let total = 0;
+  const partagees = new Set<string>();
   for (const [filiere, regles] of Object.entries(REGLES)) {
     for (const regle of Object.values(regles)) {
-      total += 1;
       const deja = vus.get(regle.id);
-      if (deja) collisions.push(`${regle.id} : ${deja} et ${filiere}`);
-      else vus.set(regle.id, filiere);
+      if (!deja) vus.set(regle.id, { filiere, regle });
+      else if (deja.regle === regle) partagees.add(regle.id);
+      else collisions.push(`${regle.id} : ${deja.filiere} et ${filiere} portent DEUX regles`);
     }
   }
   assert.deepEqual(collisions, []);
   assert.equal(
     Object.keys(REGLES_PAR_ID).length,
-    total,
+    vus.size,
     "l'aplatissement ne doit perdre aucune regle",
   );
+
+  /*
+   * ET LE PARTAGE RESTE BORNE. Une regle partagee par trois filieres, ou partagee hors du couple
+   * photovoltaique, serait le signe qu'une filiere a ete rattachee a la table d'une autre par
+   * commodite — ce que ce test doit continuer de voir.
+   */
+  const pv = new Set(Object.values(REGLES.solaire_sol).map((r) => r.id));
+  for (const id of partagees) {
+    assert.ok(
+      pv.has(id),
+      `${id} est partagee par deux filieres sans appartenir aux regles photovoltaiques`,
+    );
+  }
 });
 
 test('chaque identifiant de regle porte le prefixe de sa filiere', () => {
@@ -130,6 +156,10 @@ test('chaque identifiant de regle porte le prefixe de sa filiere', () => {
     // `commun` : les contraintes qui ne dependent pas de la filiere (urbanisme, eau, risques, sites).
     commun: ['commun'],
     solaire_sol: ['pv', 'agri'],
+    // Memes prefixes : l'agrivoltaisme pointe sur les memes regles que le solaire au sol, parce
+    // que ce sont les memes articles. `agri_` y designe les trois regles propres au regime
+    // agrivoltaique, que les deux filieres peuvent declencher.
+    agrivoltaisme: ['pv', 'agri'],
     eolien_terrestre: ['eol'],
     bess: ['bess'],
     methanisation: ['metha'],

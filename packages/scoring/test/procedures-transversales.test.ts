@@ -148,10 +148,41 @@ test('CHAQUE FILIERE PORTE SES PROPRES RAPPELS, et pas ceux des autres', () => {
    */
   const attendus: Record<Filiere, string[]> = {
     solaire_sol: ['pv_compensation_agricole', 'pv_demantelement'],
+    /*
+     * LES TROIS RAPPELS QUI N'APPARTIENNENT QU'A CETTE FILIERE. Le solaire au sol peut les porter
+     * lui aussi, mais seulement si l'operateur a choisi le regime agrivoltaique ; ici aucun regime
+     * n'est transmis, donc ils distinguent bien les deux.
+     */
+    agrivoltaisme: ['agri_taux_couverture', 'agri_zone_temoin', 'agri_avis_cdpenaf'],
     eolien_terrestre: ['eol_faisceaux_hertziens', 'eol_autorisation_environnementale'],
     bess: ['bess_acces_engins', 'bess_effets_domino', 'bess_raccordement_s3renr'],
     methanisation: ['metha_sous_produits_animaux', 'metha_acces_engins'],
   };
+
+  /**
+   * Les rappels que DEUX filieres portent legitimement, avec la raison.
+   *
+   * SANS CETTE LISTE, LE TEST AURAIT DEUX ISSUES ET LES DEUX SERAIENT MAUVAISES : soit il refuse un
+   * partage qui est exact — la compensation agricole et le demantelement se declenchent sur la
+   * puissance et sur la nature du sol, identiquement pour les deux filieres photovoltaiques — soit
+   * on affaiblit la regle d'exclusivite pour tout le monde, et un rappel eolien affiche sur du
+   * stockage redevient invisible.
+   *
+   * Le partage est donc NOMME, paire par paire. Il reste un aveu a justifier, pas une exemption.
+   */
+  const PARTAGES: ReadonlyArray<{ ids: readonly string[]; entre: readonly Filiere[]; raison: string }> = [
+    {
+      ids: ['pv_compensation_agricole', 'pv_demantelement'],
+      entre: ['solaire_sol', 'agrivoltaisme'],
+      raison:
+        'ces deux procedures suivent la puissance et la nature du sol, que le projet soit ' +
+        'agrivoltaique ou non — l’article L.112-1-3 soumet expressement l’agrivoltaisme a l’etude ' +
+        'prealable de compensation agricole',
+    },
+  ];
+  const partage = (id: string, a: Filiere, b: Filiere): boolean =>
+    PARTAGES.some((p) => p.ids.includes(id) && p.entre.includes(a) && p.entre.includes(b));
+
   const fautes: string[] = [];
   for (const f of FILIERES) {
     const presents = seuils(snapshot(), f);
@@ -161,7 +192,9 @@ test('CHAQUE FILIERE PORTE SES PROPRES RAPPELS, et pas ceux des autres', () => {
     for (const [autre, ids] of Object.entries(attendus)) {
       if (autre === f) continue;
       for (const id of ids) {
-        if (presents.has(id)) fautes.push(`${f} : ${id} ne devrait pas y figurer`);
+        if (presents.has(id) && !partage(id, f, autre as Filiere)) {
+          fautes.push(`${f} : ${id} ne devrait pas y figurer (rappel de ${autre})`);
+        }
       }
     }
   }

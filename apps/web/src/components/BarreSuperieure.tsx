@@ -16,51 +16,76 @@ interface Props {
   onDeconnexion?: () => void;
 }
 
-/** Icones en ligne : aucune ressource externe, aucun chargement differe. */
+/**
+ * Icones en ligne : aucune ressource externe, aucun chargement differe.
+ *
+ * HISSEE HORS DU COMPOSANT POUR ETRE VERIFIABLE. `Icone` retombe sur le soleil quand le nom est
+ * inconnu — ce qui evite une case vide, mais rend une faute de frappe INVISIBLE. L'ajout de
+ * l'agrivoltaisme l'a montre : sa metadonnee annoncait `sprout`, et le selecteur affichait
+ * simplement un second soleil, identique a celui du solaire au sol, dans la liste ou il faut
+ * precisement les distinguer. Le repli reste, et un test verifie desormais qu'aucune filiere ne
+ * l'atteint.
+ */
+export const CHEMINS_ICONES: Record<string, JSX.Element> = {
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" />
+    </>
+  ),
+  wind: (
+    <>
+      <path d="M3 8h11a3 3 0 1 0-3-3" />
+      <path d="M3 16h8a2.6 2.6 0 1 1-2.6 2.6" />
+      <path d="M3 12h16a2.6 2.6 0 1 0-2.6-2.6" />
+    </>
+  ),
+  battery: (
+    <>
+      <rect x="2" y="7" width="16" height="10" rx="2" />
+      <path d="M20.5 10.5v3" />
+      <path d="M9.5 9.5 7 12.5h3l-1 2.5 3-3.5H9l1-2z" />
+    </>
+  ),
+  leaf: (
+    <>
+      <path d="M4 20c0-8 5-14 16-15 0 11-6 16-13 16H4z" />
+      <path d="M4 20c3-5 7-8 12-9.5" />
+    </>
+  ),
+  /*
+   * Agrivoltaisme : un panneau incline SUR PIEDS, et la plante qui continue de pousser dessous.
+   * C'est la superposition qui nomme la filiere — une feuille seule dirait « methanisation » et
+   * un soleil seul dirait « solaire au sol », ce qui est exactement la confusion a eviter dans
+   * un selecteur ou les trois se cotoient.
+   */
+  sprout: (
+    <>
+      <path d="M3.5 7.2 20.5 4.2" />
+      <path d="M7.2 6.8v4.4M16.8 5.1v6.1" />
+      <path d="M12 21v-4.6" />
+      <path d="M12 16.4c0-2.1-1.5-3.4-3.6-3.4 0 2.1 1.5 3.4 3.6 3.4z" />
+      <path d="M12 16.4c0-2.1 1.5-3.4 3.6-3.4 0 2.1-1.5 3.4-3.6 3.4z" />
+    </>
+  ),
+  loupe: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.5 15.5 21 21" />
+    </>
+  ),
+  alerte: (
+    <>
+      <path d="M12 3.5 22 20H2L12 3.5z" />
+      <path d="M12 9.5v5M12 17.2v.1" />
+    </>
+  ),
+};
+
 function Icone({ nom }: { nom: string }): JSX.Element {
-  const chemins: Record<string, JSX.Element> = {
-    sun: (
-      <>
-        <circle cx="12" cy="12" r="4.2" />
-        <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" />
-      </>
-    ),
-    wind: (
-      <>
-        <path d="M3 8h11a3 3 0 1 0-3-3" />
-        <path d="M3 16h8a2.6 2.6 0 1 1-2.6 2.6" />
-        <path d="M3 12h16a2.6 2.6 0 1 0-2.6-2.6" />
-      </>
-    ),
-    battery: (
-      <>
-        <rect x="2" y="7" width="16" height="10" rx="2" />
-        <path d="M20.5 10.5v3" />
-        <path d="M9.5 9.5 7 12.5h3l-1 2.5 3-3.5H9l1-2z" />
-      </>
-    ),
-    leaf: (
-      <>
-        <path d="M4 20c0-8 5-14 16-15 0 11-6 16-13 16H4z" />
-        <path d="M4 20c3-5 7-8 12-9.5" />
-      </>
-    ),
-    loupe: (
-      <>
-        <circle cx="10.5" cy="10.5" r="6.5" />
-        <path d="M15.5 15.5 21 21" />
-      </>
-    ),
-    alerte: (
-      <>
-        <path d="M12 3.5 22 20H2L12 3.5z" />
-        <path d="M12 9.5v5M12 17.2v.1" />
-      </>
-    ),
-  };
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {chemins[nom] ?? chemins['sun']}
+      {CHEMINS_ICONES[nom] ?? CHEMINS_ICONES['sun']}
     </svg>
   );
 }

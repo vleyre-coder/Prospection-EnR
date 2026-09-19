@@ -18,6 +18,7 @@ import {
   AVERTISSEMENTS,
   FAMILLES_LIBELLES,
   FILIERES_META,
+  libelleGestionnaire,
   libelleGroupeCulture,
   libelleTypeSol,
   LIBELLES_SCORE,
@@ -620,7 +621,7 @@ export function ficheParcellePdf(
         postes.map((p) => ({
           cellules: [
             p.nom,
-            p.gestionnaire,
+            libelleGestionnaire(p.gestionnaire) ?? '-',
             nb(p.distanceKm, 'km', 1),
             p.distanceKm == null ? '-' : nb(lineaireRaccordementKm(p.distanceKm), 'km', 1),
             p.capaciteResiduelleMw != null ? nb(p.capaciteResiduelleMw, 'MW', 1) : 'inconnue',
@@ -1385,7 +1386,7 @@ export function dossierSitePdf(
           cellules: [
             ref(p.parcelle),
             poste.nom,
-            poste.gestionnaire,
+            libelleGestionnaire(poste.gestionnaire) ?? '-',
             nb(poste.distanceKm, 'km', 1),
             nb(lineaireRaccordementKm(poste.distanceKm), 'km', 1),
             poste.capaciteResiduelleMw != null ? nb(poste.capaciteResiduelleMw, 'MW', 1) : 'inconnue',
