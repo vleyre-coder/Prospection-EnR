@@ -490,3 +490,112 @@ test('LE DOSSIER NE CONFOND PAS « AUCUNE DECLARATION PAC » ET « DONNEE INDISP
     ]);
   }
 });
+
+test('LE DOSSIER AVOUE CE QU’IL N’A PAS REGARDE', async () => {
+  if (ignorer()) return;
+
+  /*
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * CE QUI MANQUAIT, ET QUI COUTAIT LE PLUS CHER
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Ce dossier part chez un developpeur, qui engage des frais d'etude sur sa foi. Il presentait
+   * treize sections de donnees mesurees et ne disait NULLE PART ce qui n'avait pas ete regarde.
+   * Or le referentiel compte 292 contraintes et le releve n'en mesure que 42.
+   *
+   * Mesure sur 200 parcelles reelles, en solaire au sol : 51 contraintes non evaluees sur 56, et
+   * aucune enfreinte. Un document qui enumere ce qu'il sait sans enumerer ce qu'il ignore laisse
+   * conclure que le reste va bien — c'est le mensonge le plus couteux que ce PDF puisse porter,
+   * et il est entierement silencieux.
+   */
+  const { code, texte, corps } = await dossier(SOLAIRE.map((p) => p.idu));
+  assert.equal(code, 200, corps);
+
+  assert.ok(contient(texte, 'Verdict réglementaire'), 'le dossier doit porter le verdict du referentiel');
+  assert.ok(
+    contient(texte, 'À vérifier manuellement'),
+    'le dossier doit lister les contraintes qu’il n’a pas pu evaluer',
+  );
+
+  /*
+   * LA PHRASE QUI EMPECHE DE LIRE UNE LACUNE COMME UN FEU VERT. Sans elle, « non évaluée » se lit
+   * « rien à signaler », et le developpeur ne saura pas qu'il doit instruire ces lignes lui-meme.
+   */
+  /*
+   * APOSTROPHE DROITE, et non typographique : `net()` convertit « ’ » en « ' » avant impression,
+   * parce que les polices PDF standard sont encodees en WinAnsi et que tout ce qui sort de
+   * Latin-1 y serait rendu de travers. L'assertion doit donc chercher ce que le PDF PORTE, pas ce
+   * que la source ecrit.
+   */
+  assert.ok(
+    contient(texte, "n'est pas une contrainte absente"),
+    'le dossier doit dire qu’une contrainte non evaluee n’est pas une contrainte absente',
+  );
+  assert.ok(
+    contient(texte, 'ne sont pas réputées respectées'),
+    'le dossier doit refuser de presumer respectees les contraintes non evaluees',
+  );
+
+  /*
+   * ET LE VERDICT EST CELUI DU DROIT. Un dossier remis a un tiers ne peut pas porter un verdict
+   * produit par les exigences commerciales d'un autre developpeur.
+   */
+  assert.ok(
+    contient(texte, 'jamais au cahier des charges'),
+    'le dossier doit dire que le verdict est reglementaire, pas commercial',
+  );
+
+  // La source a consulter est nommee : une lacune sans adresse n'est pas actionnable.
+  assert.ok(contient(texte, 'Source à consulter'), 'chaque lacune doit indiquer ou l’instruire');
+
+  /*
+   * LA COLONNE DES INFRACTIONS NE NOMME PAS UNE LACUNE, et ce defaut a bien existe. Le moteur
+   * designe toujours « ce qui explique le verdict » ; faute d'infraction, il retombe sur la
+   * contrainte non evaluee la plus severe. Le dossier imprimait donc « contrainte décisive :
+   * Terres agricoles cultivées » sur des parcelles dont AUCUNE contrainte n'est enfreinte — un
+   * motif de rejet la ou il n'y a qu'une donnee manquante, et choisi arbitrairement parmi
+   * cinquante et une lacunes.
+   */
+  assert.ok(
+    contient(texte, 'Contrainte non respectée'),
+    'la colonne doit annoncer ce qu’elle contient : une infraction, pas un « point décisif »',
+  );
+  assert.ok(
+    !contient(texte, 'Contrainte décisive'),
+    'le dossier ne doit pas presenter une lacune de donnee comme un motif de rejet',
+  );
+
+  /*
+   * ET C'EST LA CELLULE QU'IL FAUT LIRE, PAS L'EN-TETE. Ma premiere ecriture ne verifiait que le
+   * titre de colonne — la mutation qui remet le nom d'une lacune dans la CELLULE survivait donc,
+   * et le test etait decoratif sur le point meme qu'il pretendait couvrir.
+   *
+   * La rangee s'imprime « <parcelle> À instruire <respectées> <non respectées> <non évaluées>
+   * <cellule> ». Sur ces fixtures aucune contrainte n'est enfreinte, donc la cellule doit valoir
+   * « - » : le tiret suit immediatement les trois comptes.
+   */
+  const nu = sansEspaces(texte);
+  assert.match(
+    nu,
+    /àinstruire\d+-/,
+    'sans infraction, la colonne doit porter « - » et non le nom d’une contrainte non evaluee',
+  );
+});
+
+test('LES PROCEDURES NE SONT PAS PRESENTEES COMME DES CONTRAINTES DE LA PARCELLE', async () => {
+  if (ignorer()) return;
+
+  /*
+   * Un permis de construire est requis pour TOUT projet de la filiere. Le presenter parmi les
+   * contraintes de la parcelle mettrait chaque parcelle « à instruire » pour une formalite
+   * universelle ; l'omettre priverait le developpeur de la liste de ce qu'il devra deposer.
+   */
+  const { code, texte, corps } = await dossier(SOLAIRE.map((p) => p.idu));
+  assert.equal(code, 200, corps);
+
+  assert.ok(contient(texte, 'Procédures applicables au projet'));
+  assert.ok(
+    contient(texte, 'quelle que soit la parcelle'),
+    'le dossier doit dire que ces procedures ne jugent pas la parcelle',
+  );
+});

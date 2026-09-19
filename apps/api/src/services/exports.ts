@@ -28,6 +28,7 @@ import {
 } from '@enr/core';
 import {
   COEFFICIENT_TRACE,
+  evaluerVerdict,
   formatNombre,
   LIBELLES_REGIME,
   LIBELLES_TYPE_SOL,
@@ -962,6 +963,27 @@ function cardinal(deg: number | null): string {
   return `${points[i]} (${Math.round(deg)}°)`;
 }
 
+/**
+ * Libelles des trois verdicts, pour un document remis a un tiers.
+ *
+ * « a_instruire » ne doit PAS s'ecrire « moyen » ni « à étudier » : le mot dit une instruction
+ * reglementaire a mener, pas une appreciation de qualite. Un developpeur qui lit « moyen » croit
+ * a une note ; ce n'en est pas une.
+ */
+const LIBELLES_VERDICT: Record<string, string> = {
+  favorable: 'Favorable',
+  a_instruire: 'À instruire',
+  defavorable: 'Défavorable',
+};
+
+/** Niveaux du referentiel, en clair dans le dossier. */
+const LIBELLES_NIVEAU: Record<string, string> = {
+  redhibitoire: 'Rédhibitoire',
+  penalisant: 'Pénalisant',
+  favorable: 'Favorable',
+  cadre: 'Procédure',
+};
+
 /** Severite d'un plan de prevention, en clair. */
 const LIBELLES_SEVERITE_PLAN: Record<string, string> = {
   interdiction_stricte: 'interdiction stricte',
@@ -1723,6 +1745,163 @@ export function dossierSitePdf(
       doc.moveDown(0.35);
     }
     doc.fillColor(ENCRE).moveDown(0.2);
+  }
+
+  // ============================================ verdict referentiel et verifications manuelles
+  /*
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * CE QUE LE DOSSIER DOIT AVOUER, ET QUI LUI MANQUAIT
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Ce dossier part chez un developpeur. Jusqu'ici il presentait treize sections de donnees
+   * mesurees et ne disait nulle part CE QUI N'AVAIT PAS ETE REGARDE. Or le referentiel compte
+   * 292 contraintes et le releve n'en mesure que 42 : un dossier qui enumere ce qu'il sait sans
+   * enumerer ce qu'il ignore laisse croire que le reste va bien.
+   *
+   * Mesure faite sur 200 parcelles reelles, en solaire au sol : 51 contraintes non evaluees sur
+   * 56, et aucune enfreinte. Le silence sur ces 51 lignes serait le mensonge le plus couteux que
+   * ce document puisse porter — le developpeur engage des frais d'etude sur cette base.
+   *
+   * LE VERDICT EST CELUI DU DROIT, evalue au seuil REGLEMENTAIRE, et le document le dit. Un
+   * dossier remis a un tiers ne peut pas porter un verdict produit par les exigences commerciales
+   * d'un autre developpeur.
+   */
+  const verdicts = parcelles.map((p) => ({
+    parcelle: p.parcelle,
+    resultat: evaluerVerdict(p.snapshot, contexte.filiere, 'reglementaire'),
+  }));
+
+  titreSection(doc, 'Verdict réglementaire (référentiel)', 90);
+  doc.fontSize(7.8).font('Helvetica').fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      'Évalué au seuil réglementaire du référentiel de contraintes, jamais au cahier des charges ' +
+        'd’un développeur. Une contrainte « non évaluée » n’est pas une contrainte absente : la ' +
+        'donnée nécessaire manque au relevé, et elle reste à instruire.',
+    ),
+    MARGE,
+    doc.y,
+    { width: total, align: 'justify' },
+  );
+  doc.moveDown(0.4).fillColor(ENCRE);
+
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.22 },
+      { titre: 'Verdict', part: 0.14 },
+      { titre: 'Respectées', part: 0.11, align: 'right' },
+      { titre: 'Non respectées', part: 0.13, align: 'right' },
+      { titre: 'Non évaluées', part: 0.12, align: 'right' },
+      { titre: 'Contrainte non respectée', part: 0.28 },
+    ],
+    verdicts.map((v) => ({
+      cellules: [
+        ref(v.parcelle),
+        LIBELLES_VERDICT[v.resultat.verdict] ?? v.resultat.verdict,
+        String(v.resultat.couverture.respectees),
+        String(v.resultat.couverture.enfreintes),
+        String(v.resultat.couverture.donneesAbsentes),
+        /*
+         * LA COLONNE NE NOMME QU'UNE INFRACTION CONSTATEE, jamais une lacune.
+         *
+         * DEFAUT VU EN RELISANT LE PDF RENDU. Le moteur designe toujours « ce qui explique le
+         * verdict » : faute d'infraction, il retombe sur la contrainte non evaluee la plus severe.
+         * Le dossier imprimait donc « contrainte décisive : Terres agricoles cultivées » sur une
+         * parcelle dont AUCUNE contrainte n'est enfreinte — et le developpeur lisait un motif de
+         * rejet la ou il n'y a qu'une donnee manquante. Le choix de cette ligne parmi cinquante et
+         * une lacunes est d'ailleurs arbitraire.
+         *
+         * Les lacunes ont deja leur colonne et leur tableau dedie ; celle-ci se tait.
+         */
+        v.resultat.contrainteDecisive?.etat === 'enfreinte'
+          ? v.resultat.contrainteDecisive.nom
+          : '-',
+      ],
+    })),
+  );
+
+  /*
+   * LA LISTE DES VERIFICATIONS MANUELLES, CONSOLIDEE SUR TOUT LE SITE.
+   *
+   * Une contrainte non evaluee sur une parcelle l'est presque toujours sur toutes — la lacune est
+   * dans la couverture de donnees, pas dans la parcelle. On la nomme donc UNE fois, avec la source
+   * qu'il faudrait consulter, plutot que de repeter cinquante lignes par parcelle.
+   */
+  const aVerifier = new Map<string, { nom: string; seuil: string; source: string; niveau: string }>();
+  for (const v of verdicts) {
+    for (const c of v.resultat.contraintes) {
+      if (c.etat !== 'donnee_absente' && c.etat !== 'a_verifier') continue;
+      if (aVerifier.has(c.contrainteId)) continue;
+      aVerifier.set(c.contrainteId, {
+        nom: c.nom,
+        seuil: c.seuilReglementaire,
+        source: c.coucheSig,
+        niveau: LIBELLES_NIVEAU[c.caractere] ?? c.caractere,
+      });
+    }
+  }
+
+  if (aVerifier.size > 0) {
+    titreSection(doc, `À vérifier manuellement - ${aVerifier.size} contrainte(s)`, 90);
+    doc.fontSize(7.8).font('Helvetica').fillColor(ENCRE_FAIBLE);
+    doc.text(
+      net(
+        'Ces contraintes du référentiel n’ont pas pu être évaluées automatiquement : aucune donnée ' +
+          'nationale homogène ne les mesure, ou le seuil réglementaire dépend du projet. Elles ne ' +
+          'sont pas réputées respectées. La colonne « source » indique où les instruire.',
+      ),
+      MARGE,
+      doc.y,
+      { width: total, align: 'justify' },
+    );
+    doc.moveDown(0.4).fillColor(ENCRE);
+
+    tableau(
+      doc,
+      [
+        { titre: 'Contrainte', part: 0.3 },
+        { titre: 'Niveau', part: 0.12 },
+        { titre: 'Seuil au référentiel', part: 0.28 },
+        { titre: 'Source à consulter', part: 0.3 },
+      ],
+      [...aVerifier.values()].map((c) => ({
+        cellules: [c.nom, c.niveau, c.seuil, c.source],
+      })),
+    );
+  }
+
+  /*
+   * LES PROCEDURES APPLICABLES, rendues a part parce qu'elles ne jugent pas la parcelle : permis
+   * de construire, regime ICPE, etude d'impact. Les compter comme des contraintes mettrait chaque
+   * parcelle « a instruire » pour une formalite universelle ; les omettre priverait le developpeur
+   * de la liste de ce qu'il devra deposer.
+   */
+  const cadres = verdicts[0]?.resultat.cadres ?? [];
+  if (cadres.length > 0) {
+    titreSection(doc, 'Procédures applicables au projet', 90);
+    doc.fontSize(7.8).font('Helvetica').fillColor(ENCRE_FAIBLE);
+    doc.text(
+      net(
+        'Applicables à tout projet de la filière, quelle que soit la parcelle : elles n’entrent ' +
+          'donc pas dans le verdict ci-dessus.',
+      ),
+      MARGE,
+      doc.y,
+      { width: total, align: 'justify' },
+    );
+    doc.moveDown(0.4).fillColor(ENCRE);
+    tableau(
+      doc,
+      [
+        { titre: 'Procédure', part: 0.34 },
+        { titre: 'Seuil / critère', part: 0.33 },
+        { titre: 'Référence', part: 0.33 },
+      ],
+      cadres.map((c) => ({
+        cellules: [c.nom, c.seuilReglementaire, c.referenceReglementaire],
+      })),
+    );
   }
 
   // ===================================================================== sources

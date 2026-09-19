@@ -3089,6 +3089,86 @@ const MUTATIONS = [
     cwd: 'apps/api',
     commande: ['tsc', '-p', 'tsconfig.test.json'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 29 — le dossier remis au developpeur avoue ce qu'il n'a pas regarde
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 29',
+    /*
+     * LE DOSSIER CESSE DE LISTER CE QU'IL N'A PAS PU EVALUER. Il part chez un developpeur qui
+     * engage des frais d'etude sur sa foi. Mesure sur des parcelles reelles : 51 contraintes non
+     * evaluees sur 56, aucune enfreinte. Un document qui enumere ce qu'il sait sans enumerer ce
+     * qu'il ignore laisse conclure que le reste va bien.
+     */
+    quoi: 'le dossier ne liste plus les contraintes qu’il n’a pas pu evaluer',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "      if (c.etat !== 'donnee_absente' && c.etat !== 'a_verifier') continue;",
+    vers: '      continue;',
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 29',
+    /*
+     * LE DOSSIER PRESUME RESPECTEES LES CONTRAINTES NON EVALUEES. C'est la phrase qui empeche de
+     * lire une lacune comme un feu vert ; sans elle, « non évaluée » passe pour « rien a
+     * signaler ».
+     */
+    quoi: 'le dossier ne refuse plus de presumer respectees les contraintes non evaluees',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "          'nationale homogène ne les mesure, ou le seuil réglementaire dépend du projet. Elles ne ' +\n          'sont pas réputées respectées. La colonne « source » indique où les instruire.',",
+    vers: "          'nationale homogène ne les mesure. La colonne « source » indique où les instruire.',",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 29',
+    /*
+     * LE DOSSIER PRESENTE UNE LACUNE DE DONNEE COMME UN MOTIF DE REJET. Defaut reel, vu en
+     * relisant le PDF rendu : le moteur retombe sur la contrainte non evaluee la plus severe
+     * faute d'infraction, et la colonne l'annoncait comme « décisive » — arbitrairement choisie
+     * parmi cinquante et une lacunes.
+     */
+    quoi: 'le dossier nomme une lacune de donnee dans la colonne des infractions',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "        v.resultat.contrainteDecisive?.etat === 'enfreinte'\n          ? v.resultat.contrainteDecisive.nom\n          : '-',",
+    vers: "        v.resultat.contrainteDecisive?.nom ?? '-',",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 29',
+    /*
+     * MEME DEFAUT A L'ECRAN. « Contrainte décisive » sur une parcelle dont rien n'est enfreint
+     * fait lire un motif de rejet la ou il n'y a qu'une donnee manquante.
+     */
+    quoi: 'la fiche annonce une lacune comme « contrainte decisive »',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: "            {verdict.contrainteDecisive.etat === 'enfreinte'\n              ? `Contrainte décisive : ${verdict.contrainteDecisive.nom}`\n              : `Premier point à instruire : ${verdict.contrainteDecisive.nom}`}",
+    vers: '            {`Contrainte décisive : ${verdict.contrainteDecisive.nom}`}',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
+  },
+  {
+    audit: 'audit 29',
+    /*
+     * LE DOSSIER CESSE DE DIRE QUE SON VERDICT EST CELUI DU DROIT. Un document remis a un tiers
+     * ne peut pas laisser croire que son verdict vient des exigences commerciales d'un autre
+     * developpeur.
+     */
+    quoi: 'le dossier n’annonce plus que son verdict est reglementaire',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "      'Évalué au seuil réglementaire du référentiel de contraintes, jamais au cahier des charges ' +\n        'd’un développeur. ",
+    vers: "      'Évalué selon le référentiel de contraintes. ",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
 ];
 
 /**

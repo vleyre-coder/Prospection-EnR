@@ -142,6 +142,34 @@ test('« A INSTRUIRE FAUTE DE DONNEE » NE SE DIT PAS COMME « A INSTRUIRE PARCE
   assert.match(t2, /Une contrainte au moins est enfreinte/);
 });
 
+test('UNE LACUNE N’EST PAS ANNONCEE COMME « DECISIVE »', () => {
+  /*
+   * VU EN RELISANT LE PDF RENDU, puis corrige des deux cotes. Le moteur designe toujours ce qui
+   * explique le verdict ; faute d'infraction, il retombe sur la contrainte non evaluee la plus
+   * severe. L'ecran annoncait donc « Contrainte décisive : … » sur une parcelle dont AUCUNE
+   * contrainte n'est enfreinte — un motif de rejet la ou il n'y a qu'une donnee manquante. Le
+   * choix de cette ligne parmi cinquante lacunes est d'ailleurs arbitraire.
+   */
+  const lacune = contrainte({
+    nom: 'Terres agricoles cultivées',
+    etat: 'donnee_absente',
+    valeurMesuree: null,
+    cheminMesure: null,
+  });
+  const t = rendu(
+    resultat({ verdict: 'a_instruire', contraintes: [lacune], contrainteDecisive: lacune }),
+  );
+  assert.doesNotMatch(t, /Contrainte décisive/, 'rien n’a tranche : rien n’est decisif');
+  assert.match(t, /Premier point à instruire\s*:\s*Terres agricoles cultivées/);
+
+  // A l'inverse, une infraction constatee est bien « décisive » : c'est elle qui a fait basculer.
+  const faute = contrainte({ etat: 'enfreinte', valeurMesuree: 300 });
+  const t2 = rendu(
+    resultat({ verdict: 'defavorable', contraintes: [faute], contrainteDecisive: faute }),
+  );
+  assert.match(t2, /Contrainte décisive\s*:\s*Éloignement 500 m des habitations/);
+});
+
 test('LES COMPTES DE COUVERTURE SONT AFFICHES, ET DISTINGUENT LES QUATRE ETATS', () => {
   const v = resultat({
     verdict: 'a_instruire',

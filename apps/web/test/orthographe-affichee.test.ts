@@ -184,6 +184,12 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/reglementation.ts', mot: 'charge', raison: "le NOM charge : « ateliers de charge », « la charge de la preuve », « à la charge de l'aménageur »" },
   { module: 'apps/web/src/components/PanneauProfils.tsx', mot: 'applique', raison: "verbe appliquer : « il s'applique à la recherche »" },
   /*
+   * Deux graphies nues devenues « conflictuelles » par la section du dossier qui porte le verdict
+   * referentiel. Elles etaient justes avant et le restent : un nom et un verbe. Relues.
+   */
+  { module: 'apps/api/src/services/exports.ts', mot: 'charges', raison: "le NOM charges : « jamais au cahier des charges d'un développeur »" },
+  { module: 'apps/api/src/services/exports.ts', mot: 'mesure', raison: "verbe mesurer : « aucune donnée nationale homogène ne les mesure »" },
+  /*
    * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
    * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
    * fait ecrire « le seuil de surface est fixé par arrete » a cote de « le reglement du plan

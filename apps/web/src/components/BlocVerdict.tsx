@@ -121,7 +121,20 @@ export function BlocVerdict({ verdict }: { verdict: ResultatVerdict }): JSX.Elem
 
       {verdict.contrainteDecisive && (
         <div className="verdict-decisive">
-          <strong>Contrainte décisive : {verdict.contrainteDecisive.nom}</strong>
+          {/*
+            « DÉCISIVE » N'EST JUSTE QUE SI QUELQUE CHOSE A REELLEMENT TRANCHE.
+            
+            Le moteur designe toujours ce qui explique le verdict : faute d'infraction, il retombe
+            sur la contrainte non evaluee la plus severe. Annoncer « contrainte décisive » sur une
+            parcelle dont aucune contrainte n'est enfreinte ferait lire un motif de rejet la ou il
+            n'y a qu'une donnee manquante — et le choix de cette ligne parmi cinquante lacunes est
+            arbitraire. Le titre dit donc ce que la ligne est vraiment.
+          */}
+          <strong>
+            {verdict.contrainteDecisive.etat === 'enfreinte'
+              ? `Contrainte décisive : ${verdict.contrainteDecisive.nom}`
+              : `Premier point à instruire : ${verdict.contrainteDecisive.nom}`}
+          </strong>
           <LigneContrainte contrainte={verdict.contrainteDecisive} />
         </div>
       )}
