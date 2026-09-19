@@ -2536,6 +2536,165 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 24 — seuil reglementaire contre seuil developpeur
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 24',
+    /*
+     * LE MODE 1 CESSE D'ETRE REGLEMENTAIRE. C'est l'inversion du §2.3, et elle est parfaitement
+     * muette : aucune erreur, aucun journal. La fiche d'une parcelle se mettrait a repondre selon
+     * le profil du dernier developpeur ouvert, et l'operateur ecarterait du foncier constructible
+     * en croyant lire le droit.
+     */
+    quoi: 'la carte evalue au seuil developpeur au lieu du seuil reglementaire',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: "  if (mode === 'reglementaire') return base;",
+    vers: "  if (mode === 'reglementaire' && seuilsDeveloppeur.size === 0) return base;",
+    tests: ['packages/core/test/seuils-developpeur.test.ts'],
+    cwd: 'packages/core',
+    commande: ['tsx', '--test', 'test/seuils-developpeur.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * LA REFERENCE REDEVIENT LE DECLENCHEUR DE LA REGLE au lieu de l'exigence du classeur. Les
+     * deux sont des `ConditionSeuil` valides et decrivent la meme limite en s'opposant terme a
+     * terme : « ≥ 500 m » contre « < 500 m ». Le controle de durcissement part alors a l'envers,
+     * et accepte 300 m sur un recul legal de 500 m.
+     */
+    quoi: 'la condition de reference redevient le declencheur de la regle, pas l’exigence',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: '  const premier = contrainte.seuilsNumeriques[0];\n  return premier',
+    vers: '  const premier = contrainte.regles.find((r) => r.condition)?.condition ?? contrainte.seuilsNumeriques[0];\n  return premier',
+    tests: ['packages/core/test/seuils-developpeur.test.ts'],
+    cwd: 'packages/core',
+    commande: ['tsx', '--test', 'test/seuils-developpeur.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * UN SEUIL PARTIELLEMENT LU TRANCHE A NOUVEAU. « 100 m (Déclaration) / 200 m
+     * (Enregistrement-Autorisation) » reprendrait sa valeur de « = 100 m » ferme, alors que le
+     * seuil applicable depend du regime ICPE. Faux dans les deux sens, et sans un mot.
+     */
+    quoi: 'une extraction incomplete ne met plus la contrainte en verification manuelle',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: "  if (!contrainte.extractionComplete) raisons.push('extraction_incomplete');",
+    vers: '  // mutation',
+    tests: ['packages/core/test/seuils-developpeur.test.ts'],
+    cwd: 'packages/core',
+    commande: ['tsx', '--test', 'test/seuils-developpeur.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * LE SENS EST DEVINE au lieu d'etre demande. Mesure sur le classeur : les cas ou il n'est pas
+     * etabli vont dans les deux sens — « 500 m des monuments » veut dire au moins, « 0,5 ha de
+     * defrichement » veut dire au plus. Un defaut se tromperait environ une fois sur deux.
+     */
+    quoi: 'le sens d’un seuil ambigu est devine « au moins » au lieu d’etre demande',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: "  return conditionReglementaire(contrainte)?.operateur === 'egal';",
+    vers: '  return false;',
+    tests: ['packages/core/test/seuils-developpeur.test.ts'],
+    cwd: 'packages/core',
+    commande: ['tsx', '--test', 'test/seuils-developpeur.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * L'EMPREINTE DU CLASSEUR CESSE DE COUVRIR LES SEUILS. Une revision du classeur qui ne
+     * toucherait que la colonne « Seuil » passerait alors pour identique, et le referentiel
+     * garderait son ancien millesime : un controle affirme sans avoir eu lieu.
+     */
+    quoi: 'l’empreinte du classeur ne couvre plus la colonne des seuils',
+    fichier: 'scripts/referentiel-contraintes.mjs',
+    de: "      [filiere, categorie, nom, description, seuil, caractere, reference, couche, type].join('\\u001f'),",
+    vers: "      [filiere, categorie, nom, description, caractere, reference, couche, type].join('\\u001f'),",
+    /*
+     * Le controle est le generateur lui-meme en mode `--verifier` : il recalcule l'empreinte et
+     * sort en code 1 si elle ne correspond plus a celle du module. Un test unitaire ne pourrait
+     * pas l'attraper — il lit le module COMMITTE, que muter le generateur ne change pas.
+     */
+    tests: ['scripts/referentiel-contraintes.mjs --verifier'],
+    cwd: '.',
+    commande: ['node', 'scripts/referentiel-contraintes.mjs', '--verifier'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * UN SEUIL PLUS PERMISSIF QUE LA REGLEMENTATION PASSE. La recherche remonterait du foncier que
+     * le droit interdit, dans un dossier remis a un tiers. Le cahier des charges declare le seuil
+     * reglementaire immuable — sans ce refus, il devient modifiable par la fenetre.
+     */
+    quoi: 'un seuil developpeur peut assouplir la reglementation',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: '      return valeurDeveloppeur < reglementaire.valeur;',
+    vers: '      return false;',
+    tests: ['packages/core/test/seuils-developpeur.test.ts'],
+    cwd: 'packages/core',
+    commande: ['tsx', '--test', 'test/seuils-developpeur.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * LE REMPLACEMENT D'UN PROFIL DEVIENT UNE FUSION. Le seuil que l'operateur vient de retirer de
+     * l'ecran reste en base : il le croit supprime, et la recherche continue de l'appliquer.
+     */
+    quoi: 'remplacer un profil conserve les seuils retires de l’ecran',
+    fichier: 'apps/api/src/depots/profils.ts',
+    de: '      await client.query(`DELETE FROM seuil_developpeur WHERE profil_id = $1`, [id]);',
+    vers: '      // mutation',
+    tests: ['apps/api/test/profils-seuils.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/profils-seuils.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * L'UNITE REDEVIENT CELLE DU CLIENT. « 400 » en km la ou la contrainte se mesure en metres :
+     * un facteur mille accepte sans bruit, qui vide ou remplit la recherche selon le sens.
+     */
+    quoi: 'l’unite d’un seuil n’est plus recopiee du referentiel',
+    fichier: 'apps/api/src/routes/profils.ts',
+    de: "  return conditionDeReference(contrainte)?.unite ?? '';",
+    vers: "  return '';",
+    tests: ['apps/api/test/profils-seuils.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/profils-seuils.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * UNE CONTRAINTE D'UNE AUTRE FILIERE EST ACCEPTEE. Le formulaire parait coherent, l'identifiant
+     * existe — et le seuil est enregistre pour ne jamais servir, pendant que le developpeur croit
+     * son exigence prise en compte.
+     */
+    quoi: 'un seuil peut porter sur une contrainte d’une autre filiere',
+    fichier: 'apps/api/src/routes/profils.ts',
+    de: '    if (contrainte.filiere !== filiere) {',
+    vers: '    if (false) {',
+    tests: ['apps/api/test/profils-seuils.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/profils-seuils.test.ts'],
+  },
+  {
+    audit: 'audit 24',
+    /*
+     * LE PANNEAU CESSE DE DIRE QUE LA CARTE RESTE REGLEMENTAIRE. C'est la phrase qui empeche
+     * l'operateur de croire la fiche parcelle influencee par le profil ouvert — soit exactement le
+     * contresens que le §2.3 existe pour eviter.
+     */
+    quoi: 'le panneau des profils ne dit plus que la fiche reste evaluee au seuil reglementaire',
+    fichier: 'apps/web/src/components/PanneauProfils.tsx',
+    de: '            fiche d’une parcelle reste évaluée au seuil réglementaire.',
+    vers: '            recherche tient compte de vos exigences.',
+    tests: ['apps/web/test/rendu-profils.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-profils.test.ts'],
+  },
 ];
 
 /**

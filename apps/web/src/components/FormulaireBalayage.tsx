@@ -48,6 +48,7 @@ import {
 } from '@enr/core';
 import { api, type TerritoireInterrogeable } from '../api/client.js';
 import { useEtat } from '../store/etat.js';
+import { PanneauProfils } from './PanneauProfils.js';
 import { formatNombre } from '../utils/geometrie.js';
 
 /**
@@ -217,6 +218,13 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
 
   return (
     <section className="balayage" aria-label="Recherche de foncier par critères">
+      {/*
+        LES PROFILS EN TETE, ET NON EN BAS. Charger un profil REECRIT les criteres du formulaire :
+        le faire apres les avoir saisis les effacerait. Place au-dessus, l'ordre de lecture est
+        aussi l'ordre des gestes — on part du cahier des charges du developpeur, puis on l'ajuste.
+      */}
+      <PanneauProfils />
+
       <div className="balayage-grille">
         {/* --- 1. Surface ------------------------------------------------- */}
         <div className="balayage-bloc">

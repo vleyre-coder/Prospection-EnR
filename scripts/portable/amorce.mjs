@@ -77,6 +77,11 @@ export const TABLES_ECARTEES = {
   document: "pieces jointes par l'utilisateur",
   filtre_sauvegarde: "filtres enregistres par l'utilisateur",
   profil_ponderation: "ponderations de scoring personnalisees par l'utilisateur",
+  // Un profil de recherche porte le CAHIER DES CHARGES COMMERCIAL d'un developpeur nomme, avec les
+  // seuils qu'il exige. Meme famille que `filtre_sauvegarde` : c'est le travail de l'utilisateur,
+  // et ici en plus une information d'affaires qui n'a rien a faire dans une archive distribuee.
+  profil_recherche: "cahiers des charges des developpeurs — information commerciale",
+  seuil_developpeur: 'seuils propres a un projet, attaches a un profil',
   demande_qualification: "file de travail, propre a une instance",
   tache_qualification: 'file de travail, propre a une instance',
   parcelle:

@@ -45,6 +45,10 @@ import type {
   Feu,
   Filiere,
   FiliereMeta,
+  // Les cinq filieres du REFERENTIEL, agrivoltaisme compris. Distinctes de `Filiere`, qui est la
+  // liste des filieres scorees par l'application : c'est du referentiel que viennent les
+  // contraintes parametrables, donc c'est sa liste qui fait foi pour un profil.
+  FiliereReferentiel,
   Lead,
   ParcelleSnapshot,
   ProfilPonderation,
@@ -596,6 +600,87 @@ export interface TerritoireInterrogeable {
   parcellesQualifiees: number | null;
 }
 
+
+/**
+ * Une contrainte du referentiel qu'un developpeur peut parametrer.
+ *
+ * TOUT CE QUE L'INTERFACE AFFICHE VIENT D'ICI, et notamment `seuilReglementaire`, recopie du
+ * classeur. Reformuler ce texte cote client — « au moins 500 m » pour « ≥ 500 m (modulable à la
+ * hausse) » — ferait perdre la nuance que l'operateur doit pouvoir citer au developpeur.
+ */
+export interface ContrainteParametrable {
+  id: string;
+  filiere: FiliereReferentiel;
+  categorie: string;
+  nom: string;
+  description: string;
+  /** Texte du classeur, tel quel. */
+  seuilReglementaire: string;
+  referenceReglementaire: string;
+  coucheSig: string;
+  caractere: 'redhibitoire' | 'penalisant' | 'favorable' | 'cadre';
+  unite: string;
+  valeurReglementaire: number | null;
+  operateurReglementaire: string | null;
+  /** Sens etabli par le classeur, `null` s'il ne le dit pas. */
+  sensEtabli: 'min' | 'max' | null;
+  /** Le formulaire doit demander le sens : aucun defaut n'est defendable. */
+  sensRequis: boolean;
+  /**
+   * Le seuil REGLEMENTAIRE est-il ferme ?
+   *
+   * `false` n'empeche pas de parametrer — c'est meme la que l'exigence du developpeur sert le
+   * plus — mais l'interface doit le DIRE, sinon l'operateur croira que le filtre etablit la
+   * conformite de la parcelle.
+   */
+  reglementaireEtabli: boolean;
+  raisons: string[];
+}
+
+export interface SeuilDeveloppeurSaisi {
+  contrainteId: string;
+  valeur: number;
+  unite: string;
+  sens: 'min' | 'max' | null;
+  motif: string;
+  majPar?: string | null;
+  majLe?: string;
+}
+
+export interface ProfilResume {
+  id: string;
+  nom: string;
+  filiere: FiliereReferentiel;
+  developpeur: string | null;
+  notes: string | null;
+  creePar: string | null;
+  creeLe: string;
+  majLe: string;
+  nbSeuils: number;
+}
+
+export interface ProfilRecherche extends ProfilResume {
+  criteres: Partial<FiltresRecherche>;
+  seuils: SeuilDeveloppeurSaisi[];
+  /**
+   * Seuils dont la contrainte n'existe plus au referentiel, apres une revision du classeur.
+   *
+   * Signales, jamais effaces : les supprimer ferait disparaitre une exigence du developpeur sans
+   * trace, les ignorer ferait croire qu'elle s'applique encore.
+   */
+  seuilsOrphelins: string[];
+}
+
+/** Ce que l'ecriture d'un profil envoie. `unite` n'y figure pas : elle vient du referentiel. */
+export interface EcritureProfil {
+  nom: string;
+  filiere: FiliereReferentiel;
+  developpeur?: string | null;
+  notes?: string | null;
+  criteres?: Partial<FiltresRecherche>;
+  seuils: Array<{ contrainteId: string; valeur: number; sens?: 'min' | 'max'; motif?: string }>;
+}
+
 export interface TableauDeBord {
   parStatut: Record<string, number>;
   surfaceSecuriseeHa: number;
@@ -821,6 +906,33 @@ export const api = {
   /** URL de telechargement direct (le navigateur gere le flux). */
   urlPdf: (idu: string, filiere: Filiere) =>
     `/api/exports/parcelle/${encodeURIComponent(idu)}.pdf?filiere=${filiere}`,
+
+  // --- Profils de recherche, et seuils developpeur -------------------------
+  contraintesParametrables: (filiere?: FiliereReferentiel) =>
+    appeler<ContrainteParametrable[]>(
+      `/api/profils/contraintes${filiere ? `?filiere=${filiere}` : ''}`,
+    ),
+
+  profils: (filiere?: FiliereReferentiel) =>
+    appeler<ProfilResume[]>(`/api/profils${filiere ? `?filiere=${filiere}` : ''}`),
+
+  profil: (id: string) => appeler<ProfilRecherche>(`/api/profils/${encodeURIComponent(id)}`),
+
+  creerProfil: (corps: EcritureProfil) =>
+    appeler<ProfilRecherche>('/api/profils', { methode: 'POST', corps }),
+
+  /**
+   * Remplace un profil et TOUS ses seuils.
+   *
+   * Remplacement integral, jamais fusion : une fusion conserverait un seuil que l'operateur vient
+   * de retirer de l'ecran, et la recherche continuerait de l'appliquer pendant qu'il le croit
+   * supprime.
+   */
+  remplacerProfil: (id: string, corps: EcritureProfil) =>
+    appeler<ProfilRecherche>(`/api/profils/${encodeURIComponent(id)}`, { methode: 'PUT', corps }),
+
+  supprimerProfil: (id: string) =>
+    appeler<void>(`/api/profils/${encodeURIComponent(id)}`, { methode: 'DELETE' }),
 
   exporter: async (
     format: 'geojson' | 'shapefile' | 'csv' | 'dossier' | 'cahier-des-charges',

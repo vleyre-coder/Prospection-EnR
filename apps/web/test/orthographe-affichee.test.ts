@@ -106,6 +106,7 @@ export const MODULES_TEXTE: readonly string[] = [
   'apps/web/src/components/FicheParcelle.tsx',
   'apps/web/src/components/FormulaireBalayage.tsx',
   'apps/web/src/components/PanneauGauche.tsx',
+  'apps/web/src/components/PanneauProfils.tsx',
   'apps/web/src/components/PanneauZones.tsx',
   'apps/web/src/components/TableauDeBord.tsx',
   'apps/web/src/components/VueListe.tsx',
@@ -172,6 +173,15 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'apps/web/src/App.tsx', mot: 'mesure', raison: "le NOM mesure : l'outil de mesure de la carte" },
   // « cahier des charges » (le NOM) contre « departements chargés » (participe, panneau des zones).
   { module: 'apps/web/src/components/VueListe.tsx', mot: 'charges', raison: "le NOM charges : « Cahier des charges (Word) », et son infobulle" },
+  /*
+   * Trois graphies nues devenues « conflictuelles » par l'arrivee du panneau des profils, qui
+   * ecrit « Profil chargé », « un seuil chiffré au référentiel » et « il s'applique à la
+   * recherche ». Les formes nues qu'elles accusent etaient la depuis l'origine et sont justes :
+   * ce sont un verbe et deux noms. Relues une par une.
+   */
+  { module: 'packages/core/src/reglementation.ts', mot: 'chiffre', raison: "verbe chiffrer : « L'étude chiffre l'effet sur l'économie agricole »" },
+  { module: 'packages/core/src/reglementation.ts', mot: 'charge', raison: "le NOM charge : « ateliers de charge », « la charge de la preuve », « à la charge de l'aménageur »" },
+  { module: 'apps/web/src/components/PanneauProfils.tsx', mot: 'applique', raison: "verbe appliquer : « il s'applique à la recherche »" },
   /*
    * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
    * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
@@ -422,6 +432,9 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // s'applique qu'au solaire au sol » et « tant que la case est vide, le critere ne s'applique
     // pas ». Aucune n'est le participe.
     'apps/web/src/components/FormulaireBalayage.tsx|applique': 2,
+    // Les trois sont le MEME nom « charge », relues une par une : « ateliers de charge »,
+    // « la charge de la preuve » et « à la charge de l'aménageur ». Aucune n'est le participe.
+    'packages/core/src/reglementation.ts|charge': 3,
   };
   const compte = new Map<string, number>();
   /*

@@ -25,6 +25,7 @@ import { routesReferentiel } from './routes/referentiel.js';
 import { routesCarte } from './routes/carte.js';
 import { routesParcelles } from './routes/parcelles.js';
 import { routesProspection } from './routes/prospection.js';
+import { routesProfils } from './routes/profils.js';
 import { routesZones } from './routes/zones.js';
 import { routesDivers } from './routes/divers.js';
 import statique from '@fastify/static';
@@ -241,6 +242,7 @@ export async function construireServeur(options: OptionsServeur = {}) {
   await app.register(routesCarte);
   await app.register(routesParcelles);
   await app.register(routesProspection);
+  await app.register(routesProfils);
   await app.register(routesZones);
   await app.register(routesDivers);
 

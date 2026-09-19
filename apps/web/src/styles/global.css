@@ -2515,3 +2515,131 @@ button:focus-visible,
 .avant-contact.gravite-contexte {
   border-left-color: var(--accent);
 }
+
+/* ─── Profils de recherche et seuils developpeur ────────────────────────────────────────────── */
+
+.profils {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--fond-panneau-2);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+/*
+  La barre se replie d'elle-meme en colonne sous 720 px : le panneau de recherche descend jusqu'a
+  la largeur d'un panneau lateral, ou six controles en ligne deviendraient illisibles.
+*/
+.profils-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.profils-barre label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--texte-doux);
+}
+
+.profils-barre select,
+.profils-barre input[type='text'] {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.profils-message {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vert);
+}
+
+.profils-erreur {
+  color: var(--rouge);
+}
+
+.profils-seuils {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profils-seuil {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--fond-panneau);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+}
+
+.profils-seuil-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.profils-categorie {
+  font-size: 11px;
+  color: var(--texte-faible);
+}
+
+.profils-reglementaire {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--texte-doux);
+}
+
+.profils-avertissement {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--orange);
+}
+
+.profils-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.profils-saisie label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.profils-saisie input[type='number'] {
+  width: 96px;
+}
+
+.profils-unite,
+.profils-sens {
+  font-size: 12px;
+  color: var(--texte-doux);
+}
+
+.profils-motif {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+.profils-repli > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.profils-repli[open] > summary {
+  margin-bottom: 8px;
+}

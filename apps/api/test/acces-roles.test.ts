@@ -42,7 +42,12 @@ function entetes(app: App, role: 'admin' | 'prospection' | 'lecture') {
 }
 
 /** Routes d'ecriture qui doivent toutes refuser un compte en lecture seule. */
-const ECRITURES: Array<{ nom: string; methode: 'POST' | 'DELETE'; url: string; corps?: unknown }> = [
+const ECRITURES: Array<{
+  nom: string;
+  methode: 'POST' | 'PUT' | 'DELETE';
+  url: string;
+  corps?: unknown;
+}> = [
   {
     nom: 'creation de site',
     methode: 'POST',
@@ -90,6 +95,31 @@ const ECRITURES: Array<{ nom: string; methode: 'POST' | 'DELETE'; url: string; c
     methode: 'POST',
     url: '/api/qualification/rafraichir',
     corps: {},
+  },
+  /**
+   * Les trois routes d'ecriture des profils de recherche.
+   *
+   * Un profil porte le cahier des charges commercial d'un developpeur et ses seuils propres. Un
+   * compte en lecture seule qui pourrait en creer, en modifier ou en supprimer un changerait les
+   * criteres sous les pieds de toute l'equipe — et la recherche suivante rendrait un resultat
+   * different sans que personne ne sache pourquoi.
+   */
+  {
+    nom: 'creation de profil de recherche',
+    methode: 'POST',
+    url: '/api/profils',
+    corps: { nom: 'Profil refuse', filiere: 'methanisation', seuils: [] },
+  },
+  {
+    nom: 'remplacement de profil de recherche',
+    methode: 'PUT',
+    url: '/api/profils/11111111-1111-1111-1111-111111111111',
+    corps: { nom: 'Profil refuse', filiere: 'methanisation', seuils: [] },
+  },
+  {
+    nom: 'suppression de profil de recherche',
+    methode: 'DELETE',
+    url: '/api/profils/11111111-1111-1111-1111-111111111111',
   },
 ];
 

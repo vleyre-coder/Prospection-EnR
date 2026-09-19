@@ -485,14 +485,32 @@ test('C8 : toute route mutante fait passer son corps par le lecteur de validatio
       /**
        * Validateurs reconnus, et non le seul `lecteur(`.
        *
-       * Deux routes delegent a `filtresValides()`, qui appelle `lecteur()` en interne et refuse les
-       * cles inconnues — elles sont validees, simplement pas en ligne. Exiger l'appel direct aurait
-       * force a dupliquer une validation deja centralisee : le controle doit verifier qu'une
-       * validation A LIEU, pas la forme qu'elle prend.
+       * Plusieurs routes DELEGUENT la validation a une fonction qui appelle `lecteur()` en interne
+       * et refuse les cles inconnues — elles sont validees, simplement pas en ligne. Exiger
+       * l'appel direct aurait force a dupliquer une validation deja centralisee : le controle doit
+       * verifier qu'une validation A LIEU, pas la forme qu'elle prend.
+       *
+       * CHAQUE DELEGATAIRE DEFINI DANS LE FICHIER EST VERIFIE, et non simplement admis. Une liste
+       * de noms autorises est une promesse que personne ne tient : il suffirait de nommer
+       * `ecritureValide` une fonction qui ne valide rien pour desarmer ce garde en le faisant
+       * passer au vert. Quand la fonction est definie ici, on lit son corps et on exige qu'il
+       * appelle `lecteur()`. `filtresValides` vient d'un autre module et reste admise sur parole —
+       * son propre fichier de test la couvre.
        */
-      const VALIDATEURS = [/\blecteur\(/, /\bfiltresValides\(/];
+      const DELEGATAIRES = ['filtresValides', 'ecritureValide'];
+      const VALIDATEURS = [/\blecteur\(/, ...DELEGATAIRES.map((d) => new RegExp(`\\b${d}\\(`))];
       if (!VALIDATEURS.some((v) => v.test(bloc))) {
         manquantes.push(`${fichier} ${m[1]!.toUpperCase()} ${m[2]}`);
+        continue;
+      }
+
+      for (const delegataire of DELEGATAIRES) {
+        if (!new RegExp(`\\b${delegataire}\\(`).test(bloc)) continue;
+        // La definition dans ce fichier, s'il y en a une, jusqu'a la prochaine declaration.
+        const def = new RegExp(`function ${delegataire}\\b[\\s\\S]*?\\n}`).exec(source);
+        if (def && !/\blecteur\(/.test(def[0])) {
+          manquantes.push(`${fichier} ${m[1]!.toUpperCase()} ${m[2]} (${delegataire} ne valide rien)`);
+        }
       }
 
       for (const brut of bloc.matchAll(/req\.body as \{\s*([a-zA-Z]+)/g)) {
