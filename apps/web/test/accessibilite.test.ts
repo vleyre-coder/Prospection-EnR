@@ -31,36 +31,137 @@ function composants(): Array<{ nom: string; source: string }> {
 }
 
 /**
- * Texte lisible d'un fragment JSX.
+ * Fin de la balise ouvrante commencee a `depart`, en tenant compte des accolades et des chaines.
  *
- * Les balises sont retirees, mais PAS le contenu des expressions : un libelle est tres souvent
- * conditionnel — `{enCours ? 'Connexion…' : 'Se connecter'}` porte bien un nom accessible. Ma
- * premiere version supprimait les accolades avec leur contenu et signalait donc ce bouton comme
- * muet, a tort. On conserve donc les chaines litterales trouvees dans les expressions.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * POURQUOI CETTE FONCTION EXISTE, ET CE QUE SON ABSENCE COUTAIT
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce fichier cherchait la balise ouvrante avec `<button\b([^>]*)>`. Or `[^>]*` s'arrete au PREMIER
+ * `>` rencontre — et dans `onClick={() => …}`, ce `>` est celui de la FLECHE. Mesure sur les
+ * composants du projet : 39 boutons sur 50 etaient decoupes a cet endroit.
+ *
+ * Consequence : pour ces 39 boutons, `attributs` s'arretait au milieu du gestionnaire et le
+ * « contenu » examine commencait par le CORPS DE LA FONCTION. Le garde ne lisait donc pas le
+ * libelle du bouton, mais du code — et il passait parce que ce code contient des identifiants de
+ * trois lettres. Un `aria-label` place apres un gestionnaire n'etait pas vu non plus. Autrement
+ * dit, la mesure portait sur autre chose que ce qu'elle annonçait, et dans le sens le plus
+ * trompeur : elle validait.
+ *
+ * Revele par un bouton dont le libelle vient d'une table : il a ete signale muet, et l'examen de
+ * ce qui lui etait reproche — « { setType(t); » — a montre que le decoupage etait faux.
  */
-function texteLisible(fragment: string): string {
-  const chaines = [...fragment.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)]
-    .map((m) => m[1] ?? m[2] ?? m[3] ?? '')
-    .join(' ');
-  const horsBalises = fragment.replace(/<[^>]*>/g, ' ').replace(/\{[^}]*\}/g, ' ');
-  return `${horsBalises} ${chaines}`.trim();
+function finBalise(source: string, depart: number): number {
+  let profondeur = 0;
+  let guillemet: string | null = null;
+  for (let i = depart; i < source.length; i += 1) {
+    const c = source[i];
+    if (guillemet) {
+      if (c === guillemet && source[i - 1] !== '\\') guillemet = null;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') guillemet = c;
+    else if (c === '{') profondeur += 1;
+    else if (c === '}') profondeur -= 1;
+    else if (c === '>' && profondeur === 0) return i;
+  }
+  return -1;
+}
+
+/** Les balises JSX d'un fragment, retirees sans se faire piéger par un `=>` dans un attribut. */
+function retirerBalises(fragment: string): string {
+  let sortie = '';
+  let i = 0;
+  while (i < fragment.length) {
+    if (fragment[i] === '<') {
+      const fin = finBalise(fragment, i);
+      if (fin === -1) break;
+      sortie += ' ';
+      i = fin + 1;
+    } else {
+      sortie += fragment[i];
+      i += 1;
+    }
+  }
+  return sortie;
+}
+
+/**
+ * Un fragment JSX donne-t-il un nom au controle qui le contient ?
+ *
+ * TROIS FORMES NOMMENT, et il a fallu les distinguer pour ne pas accuser a tort :
+ *
+ *   1. du TEXTE NU entre les balises — « Fermer » ;
+ *   2. une CHAINE dans une expression — `{enCours ? 'Connexion…' : 'Se connecter'}` ;
+ *   3. une EXPRESSION QUI REND UNE VALEUR — `{libelle}`, `{fam.libelle}`. Sept boutons du projet
+ *      sont dans ce cas : leur libelle vient d'une table ou d'une prop, et aucun n'est muet pour
+ *      autant. L'ancienne version supprimait les accolades avec leur contenu ; une fois le
+ *      decoupage corrige, elle aurait signale ces sept-la — sept accusations fausses, sur un garde
+ *      dont l'en-tete rappelle qu'« un garde qui accuse a tort finit desactive ».
+ *
+ * CE QUI RESTE MUET, et c'est la cible reelle : un contenu qui ne porte QUE des elements — une
+ * icone seule — ou rien du tout. Un lecteur d'ecran n'a alors rien a annoncer.
+ */
+function porteUnNom(fragment: string): boolean {
+  const horsBalises = retirerBalises(fragment);
+  // Texte nu, accolades otees : « Fermer », « Réessayer ».
+  if (/[A-Za-zÀ-ÿ]{3,}/.test(horsBalises.replace(/\{[\s\S]*?\}/g, ' '))) return true;
+  for (const m of horsBalises.matchAll(/\{([\s\S]*?)\}/g)) {
+    const expression = (m[1] ?? '').trim();
+    // Un commentaire JSX ne rend rien : `{/* … */}` ne nomme pas un bouton.
+    if (expression.startsWith('/*')) continue;
+    if (/[A-Za-zÀ-ÿ]{3,}/.test(expression)) return true;
+  }
+  return false;
 }
 
 test('chaque bouton porte un nom accessible', () => {
   // Un bouton dont le contenu est une icone seule est muet pour un lecteur d'ecran : il lui faut
-  // un `aria-label`. Un bouton dont le contenu est du texte se nomme tout seul.
+  // un `aria-label`. Un bouton dont le contenu rend du texte se nomme tout seul.
   const muets: string[] = [];
   for (const { nom, source } of composants()) {
-    for (const m of source.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)) {
-      const [, attributs, contenu] = m;
+    for (const debut of source.matchAll(/<button\b/g)) {
+      const fin = finBalise(source, debut.index);
+      if (fin === -1) continue;
+      const attributs = source.slice(debut.index, fin);
+      // Un `<button … />` auto-ferme n'a pas de contenu : seul un `aria-label` peut le nommer.
+      const contenu =
+        source[fin - 1] === '/' ? '' : source.slice(fin + 1, source.indexOf('</button>', fin));
       const aUnLibelle =
-        /aria-label/.test(attributs ?? '') ||
-        /aria-labelledby/.test(attributs ?? '') ||
-        /[A-Za-zÀ-ÿ]{3,}/.test(texteLisible(contenu ?? ''));
-      if (!aUnLibelle) muets.push(`${nom} : ${(contenu ?? '').trim().slice(0, 40)}`);
+        /aria-label/.test(attributs) ||
+        /aria-labelledby/.test(attributs) ||
+        porteUnNom(contenu);
+      if (!aUnLibelle) muets.push(`${nom} : ${contenu.trim().slice(0, 40)}`);
     }
   }
   assert.deepEqual(muets, [], `bouton(s) sans nom accessible : ${muets.join(' | ')}`);
+});
+
+/**
+ * Le garde attrape-t-il encore un bouton REELLEMENT muet ?
+ *
+ * SANS CE TEST, LA CORRECTION CI-DESSUS SERAIT INVERIFIABLE. Elle assouplit le critere — elle
+ * accepte desormais `{libelle}` — et un assouplissement mal borne rend un garde qui ne refuse plus
+ * rien. On lui soumet donc les trois formes muettes connues, et les trois formes nommees.
+ */
+test('le garde de nom accessible refuse encore ce qui est vraiment muet', () => {
+  const muet = [
+    '<Icone nom="fermer" />',
+    '{/* une icone viendra ici */}',
+    '',
+  ];
+  for (const contenu of muet) {
+    assert.equal(porteUnNom(contenu), false, `« ${contenu} » ne nomme aucun bouton`);
+  }
+
+  const nomme = ['Fermer', "{enCours ? 'Connexion…' : 'Se connecter'}", '{fam.libelle}'];
+  for (const contenu of nomme) {
+    assert.equal(porteUnNom(contenu), true, `« ${contenu} » nomme bien le bouton`);
+  }
+
+  // Et le decoupage de la balise ne se laisse plus prendre par la fleche d'un gestionnaire.
+  const source = '<button onClick={() => f(a > b)} aria-label="Trier">X</button>';
+  assert.equal(source.slice(0, finBalise(source, 0) + 1).includes('aria-label'), true);
 });
 
 test('chaque champ de saisie est associe a un libelle', () => {

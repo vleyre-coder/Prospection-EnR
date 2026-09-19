@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libelleTypeSol } from '@enr/core';
 import { BlocVerdict } from './BlocVerdict.js';
+import { BlocCourriers } from './BlocCourriers.js';
 import type {
   Avertissement,
   EvaluationCritere,
@@ -203,6 +204,8 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
         <AvantContact points={fiche.avantContact ?? []} referentiel={referentiel} />
 
         <BlocProspection fiche={fiche} filiere={filiere} score={score} />
+
+        <BlocCourriers idu={idu} />
 
         <BlocExports idu={idu} filiere={filiere} />
 

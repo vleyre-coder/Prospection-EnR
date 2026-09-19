@@ -302,6 +302,24 @@ button:focus-visible,
   cursor: not-allowed;
 }
 
+/*
+ * Un bouton qui sert d'onglet doit montrer LEQUEL est actif, sans quoi l'operateur prepare le
+ * mauvais courrier et ne s'en apercoit qu'a la relecture. `aria-pressed` porte deja l'etat pour
+ * les lecteurs d'ecran : on s'appuie dessus plutot que sur une classe parallele, qui finirait par
+ * diverger de l'attribut.
+ */
+.bouton[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-texte);
+  font-weight: 600;
+}
+
+.bouton[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
 .bouton-principal {
   background: var(--accent);
   border-color: var(--accent);

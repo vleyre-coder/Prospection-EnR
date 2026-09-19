@@ -20,6 +20,13 @@ import {
 } from '../services/qualification.js';
 import { requeteUne } from '../bdd.js';
 import { erreur, refuserLectureSeule } from './erreurs.js';
+import {
+  construireCourrier,
+  TYPES_COURRIER,
+  versEml,
+  type ContexteCourrier,
+  type TypeCourrier,
+} from '../services/courriers.js';
 import { lecteur, ponderationValide, type Lecteur } from '../validation.js';
 
 /**
@@ -272,6 +279,88 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       ),
     };
   });
+
+  // --- Courriers de prospection -------------------------------------------
+  /**
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * PREPARER UN COURRIER — demande d'identite, ou premier contact
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * DEUX COURRIERS, DEUX REGIMES, et il faut les distinguer.
+   *
+   * Le courrier SDIF ne contient AUCUNE donnee personnelle : son objet meme est d'en obtenir,
+   * puisque le depot etablit qu'aucune API publique ne les expose legalement. Il n'appelle donc
+   * ni habilitation ni journalisation particuliere.
+   *
+   * Le courrier au PROPRIETAIRE peut en porter — le nom et l'adresse que l'operateur saisit. Le
+   * regime retenu par le proprietaire du projet est la saisie libre et persistee, sans barriere
+   * d'habilitation. Deux choses ne dependent pas de cet arbitrage et sont tenues ici : ces donnees
+   * n'entrent jamais dans une tuile ni dans un export qu'on n'a pas demande, et la preparation
+   * d'un courrier NOMINATIF est journalisee.
+   *
+   * La journalisation est conditionnee au caractere nominatif, et non au type de courrier : un
+   * courrier au proprietaire sans nom saisi n'a rien de personnel a tracer, et journaliser a vide
+   * noierait les traces qui comptent.
+   */
+  app.post<{ Params: { idu: string; type: string } }>(
+    '/api/parcelles/:idu/courrier/:type',
+    async (req, rep) => {
+      if (refuserLectureSeule(req, rep)) return rep;
+
+      const type = req.params.type;
+      if (!(TYPES_COURRIER as readonly string[]).includes(type)) {
+        return erreur(
+          rep,
+          400,
+          'type_courrier_invalide',
+          `Type de courrier inconnu : ${type}. Attendu : ${TYPES_COURRIER.join(', ')}.`,
+        );
+      }
+
+      const c = lecteur(req.body ?? {});
+      const contexte: ContexteCourrier = {
+        expediteur: c.texteOuVide('expediteur', { max: 200 }),
+        signataire: c.texteOuVide('signataire', { max: 120 }),
+        qualite: c.texteOuVide('qualite', { max: 120 }),
+        coordonnees: c.texteOuVide('coordonnees', { max: 300 }),
+        projet: c.texteOuVide('projet', { max: 200 }),
+        destinataire: c.texteOuVide('destinataire', { max: 200 }),
+        adresse: c.texteOuVide('adresse', { max: 500 }),
+      };
+      const format = c.parmi('format', ['texte', 'eml'] as const) ?? 'texte';
+      c.refuserInconnus();
+
+      const idu = req.params.idu.toUpperCase();
+      const parcelle = await depotParcelles.parcelleParIdu(idu);
+      if (!parcelle) {
+        return erreur(rep, 404, 'parcelle_introuvable', `Parcelle ${idu} introuvable au cadastre`);
+      }
+
+      const courrier = construireCourrier(type as TypeCourrier, parcelle, contexte);
+
+      /*
+       * JOURNALISATION DU SEUL COURRIER NOMINATIF. `journaliserStrict` echoue si la trace ne peut
+       * pas etre ecrite, et c'est le comportement voulu : un courrier nominatif prepare sans trace
+       * est exactement ce que le dispositif doit empecher.
+       */
+      if (contexte.destinataire?.trim()) {
+        await journaliserStrict('preparation_courrier_nominatif', {
+          utilisateurId: req.utilisateur?.id,
+          email: req.utilisateur?.email,
+          cible: idu,
+          details: { type, format },
+        });
+      }
+
+      if (format === 'eml') {
+        return rep
+          .header('Content-Type', 'message/rfc822; charset=utf-8')
+          .header('Content-Disposition', `attachment; filename="courrier-${type}-${idu}.eml"`)
+          .send(versEml(courrier, contexte.destinataire));
+      }
+      return courrier;
+    },
+  );
 
   // --- Donnees de proprietaire (RGPD : habilitation + motif + journal) ----
   app.get<{ Params: { idu: string } }>('/api/parcelles/:idu/proprietaire', async (req, rep) => {

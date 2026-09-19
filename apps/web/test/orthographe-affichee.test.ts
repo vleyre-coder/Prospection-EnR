@@ -99,6 +99,7 @@ export const MODULES_TEXTE: readonly string[] = [
   'packages/core/src/types.ts',
   'apps/web/src/App.tsx',
   'apps/web/src/components/BandeauAvertissements.tsx',
+  'apps/web/src/components/BlocCourriers.tsx',
   'apps/web/src/components/BlocVerdict.tsx',
   'apps/web/src/components/BarreSuperieure.tsx',
   'apps/web/src/components/Carte.tsx',
@@ -211,6 +212,21 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/reglementation.ts', mot: 'programme', raison: 'le NOM programme (« programme d’actions national nitrates »), pas le participe « programmé »' },
   { module: 'packages/core/src/bornes.ts', mot: 'bati', raison: 'chemins de champ `bati.distanceHabitationM`, `bati.densiteBati1km`, etc.' },
   { module: 'packages/core/src/reglementation.ts', mot: 'fixe', raison: 'verbe fixer : « il fixe les surfaces ouvertes aux projets », « R.181-13 fixe le contenu commun du dossier », « l’acte de classement fixe le detail »' },
+  /*
+   * « laisse » (verbe laisser) contre « laissé » (participe) : les cinq verbes etaient la depuis
+   * l'origine ; le participe est entre avec le bloc des courriers — « le fondement de la demande
+   * est laissé à compléter », qui dit a l'operateur que ce trou est VOLONTAIRE et non un oubli.
+   *
+   * Relues une par une : les cinq occurrences sont bien le verbe conjugue.
+   *
+   * ET LE PASSAGE A SERVI, comme les precedents : il a revele une vraie faute, « les
+   * enregistrements ne seront pas conserves » dans le bandeau d'API injoignable de `App.tsx` —
+   * du texte reellement affiche, et le seul mot de la phrase sans son accent. Corrigee plutot
+   * qu'exceptee.
+   */
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'laisse', raison: "verbe laisser : « moins assurée que la couverture globale ne le laisse paraitre »" },
+  { module: 'packages/core/src/bornes.ts', mot: 'laisse', raison: "verbe laisser : « -20 laisse la marge d’une donnée altimétrique bruitée »" },
+  { module: 'packages/core/src/reglementation.ts', mot: 'laisse', raison: "verbe laisser : « l’application ne les connaît pas et laisse “à vérifier” »" },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -451,6 +467,12 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // Les trois sont le MEME nom « charge », relues une par une : « ateliers de charge »,
     // « la charge de la preuve » et « à la charge de l'aménageur ». Aucune n'est le participe.
     'packages/core/src/reglementation.ts|charge': 3,
+    // Les deux sont le MEME verbe laisser, relues une par une : « -20 laisse la marge d'une
+    // donnee altimetrique bruitee » et « 30 laisse la marge ». Aucune n'est le participe.
+    'packages/core/src/bornes.ts|laisse': 2,
+    // Idem, deux occurrences : « le critere ne tranche donc jamais et laisse "a verifier" » et
+    // « l'application ne les connait pas et laisse "a verifier" ».
+    'packages/core/src/reglementation.ts|laisse': 2,
   };
   const compte = new Map<string, number>();
   /*

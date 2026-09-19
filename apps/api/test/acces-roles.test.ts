@@ -121,6 +121,23 @@ const ECRITURES: Array<{
     methode: 'DELETE',
     url: '/api/profils/11111111-1111-1111-1111-111111111111',
   },
+  /**
+   * La preparation d'un courrier de prospection.
+   *
+   * ELLE N'ECRIT AUCUNE DONNEE METIER, et figure pourtant ici. Ce qu'elle produit est un acte de
+   * prospection sortant : un courrier sur papier a en-tete, adresse a un service de l'Etat ou a un
+   * particulier, qui engage l'entreprise. Un compte de consultation n'a pas a en emettre.
+   *
+   * Et la variante nominative laisse une trace au journal. Un role de lecture qui pourrait
+   * declencher des ecritures au journal d'acces aux donnees de proprietaires brouillerait
+   * exactement les traces que ce journal existe pour tenir.
+   */
+  {
+    nom: 'preparation d’un courrier de prospection',
+    methode: 'POST',
+    url: '/api/parcelles/283900000C0843/courrier/proprietaire',
+    corps: { destinataire: 'Monsieur Dupont' },
+  },
 ];
 
 for (const cas of ECRITURES) {

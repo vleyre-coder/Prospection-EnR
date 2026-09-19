@@ -188,6 +188,27 @@ async function appeler<T>(
 // Types de reponse
 // ---------------------------------------------------------------------------
 
+/** Les deux courriers de la prospection : demande d'identite, puis premier contact. */
+export type TypeCourrier = 'sdif' | 'proprietaire';
+
+/** Ce que l'operateur saisit, et que le modele ne peut pas deviner. Tout est facultatif. */
+export interface ContexteCourrier {
+  expediteur?: string;
+  signataire?: string;
+  qualite?: string;
+  coordonnees?: string;
+  projet?: string;
+  destinataire?: string;
+  adresse?: string;
+}
+
+export interface CourrierPrepare {
+  objet: string;
+  corps: string;
+  /** Les trous restants, nommes. Un courrier qui part avec `[ADRESSE]` dedans est une faute. */
+  aCompleter: string[];
+}
+
 export interface EtatSource {
   connecteur: string;
   nom: string;
@@ -978,37 +999,73 @@ export const api = {
   supprimerProfil: (id: string) =>
     appeler<void>(`/api/profils/${encodeURIComponent(id)}`, { methode: 'DELETE' }),
 
-  exporter: async (
+  exporter: (
     format: 'geojson' | 'shapefile' | 'csv' | 'dossier' | 'cahier-des-charges',
     corps: unknown,
     nomFichier: string,
-  ): Promise<void> => {
-    const reponse = await fetch(`${RACINE_API}/api/exports/${format}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(jetonEnregistre() ? { Authorization: `Bearer ${jetonEnregistre()}` } : {}),
-      },
-      body: JSON.stringify(corps),
-    });
-    if (!reponse.ok) {
-      const corpsErreur = (await reponse.json().catch(() => null)) as
-        | { erreur?: { message?: string } }
-        | null;
-      throw new ErreurApi(
-        'export',
-        corpsErreur?.erreur?.message ?? `Export impossible (${reponse.status})`,
-        reponse.status,
-      );
-    }
-    const blob = await reponse.blob();
-    const url = URL.createObjectURL(blob);
-    const lien = document.createElement('a');
-    lien.href = url;
-    lien.download = nomFichier;
-    document.body.appendChild(lien);
-    lien.click();
-    lien.remove();
-    URL.revokeObjectURL(url);
-  },
+  ): Promise<void> =>
+    telechargerBinaire(`/api/exports/${format}`, corps, nomFichier, 'Export impossible'),
+
+  /**
+   * Prepare un courrier, et le rend en texte pour relecture AVANT tout envoi.
+   *
+   * L'operateur relit toujours : le courrier porte des trous nommes, et la designation cadastrale
+   * qu'il contient engage l'entreprise. Rien ne part d'ici — c'est le client de messagerie de
+   * l'operateur qui envoie, depuis son propre compte.
+   */
+  courrier: (idu: string, type: TypeCourrier, contexte: ContexteCourrier) =>
+    appeler<CourrierPrepare>(
+      `/api/parcelles/${encodeURIComponent(idu)}/courrier/${type}`,
+      { methode: 'POST', corps: contexte },
+    ),
+
+  /** Le meme courrier en fichier `.eml`, ouvrable d'un double-clic dans le client de messagerie. */
+  telechargerCourrier: (idu: string, type: TypeCourrier, contexte: ContexteCourrier) =>
+    telechargerBinaire(
+      `/api/parcelles/${encodeURIComponent(idu)}/courrier/${type}`,
+      { ...contexte, format: 'eml' },
+      `courrier-${type}-${idu}.eml`,
+      'Préparation du courrier impossible',
+    ),
 };
+
+/**
+ * Appelle une route qui rend un FICHIER et le fait telecharger.
+ *
+ * `appeler` ne convient pas : il lit systematiquement la reponse en JSON, et un ZIP lu en JSON
+ * leve. Le corps d'erreur, lui, reste du JSON — d'ou le traitement dissymetrique.
+ */
+async function telechargerBinaire(
+  chemin: string,
+  corps: unknown,
+  nomFichier: string,
+  messageEchec: string,
+): Promise<void> {
+  const reponse = await fetch(`${RACINE_API}${chemin}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jetonEnregistre() ? { Authorization: `Bearer ${jetonEnregistre()}` } : {}),
+    },
+    body: JSON.stringify(corps),
+  });
+  if (!reponse.ok) {
+    const corpsErreur = (await reponse.json().catch(() => null)) as
+      | { erreur?: { code?: string; message?: string } }
+      | null;
+    throw new ErreurApi(
+      corpsErreur?.erreur?.code ?? 'export',
+      corpsErreur?.erreur?.message ?? `${messageEchec} (${reponse.status})`,
+      reponse.status,
+    );
+  }
+  const blob = await reponse.blob();
+  const url = URL.createObjectURL(blob);
+  const lien = document.createElement('a');
+  lien.href = url;
+  lien.download = nomFichier;
+  document.body.appendChild(lien);
+  lien.click();
+  lien.remove();
+  URL.revokeObjectURL(url);
+}

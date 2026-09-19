@@ -3365,6 +3365,116 @@ const MUTATIONS = [
     cwd: 'packages/scoring',
     commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
   },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 33 — les deux courriers : ce qu'ils affirment, et ce qu'ils gardent
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 33',
+    /*
+     * LA PARENTHESE QUI A DEJA COUTE LA CONTENANCE ENTIERE. `a ?? b == null ? x : y` se lit
+     * `(a ?? (b == null)) ? x : y` : avec une surface renseignee la condition vaut `124800`, donc
+     * vrai, donc `null`. La contenance ne s'imprimait jamais — et rien ne le signalait, puisqu'une
+     * designation sans contenance reste une phrase correcte.
+     */
+    quoi: 'la contenance disparait de la designation cadastrale, sans erreur',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: '  const surface = p.surfaceCalculeeM2 ?? p.contenanceM2;\n  const ha = surface == null ? null',
+    vers: '  const surface = p.surfaceCalculeeM2;\n  const ha = p.surfaceCalculeeM2 ?? p.contenanceM2 == null ? null',
+    tests: ['apps/api/test/courriers.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * LE PIRE DEFAUT POSSIBLE DE CE MODULE : faire citer au courrier un article de loi que
+     * personne n'a verifie. Le depot n'en tient AUCUNE source sure — il ecrit seulement que la
+     * donnee « s'obtient apres demande documentee ». Le courrier part sur papier a en-tete.
+     */
+    quoi: 'le courrier invente un fondement juridique precis',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: "    `Fondement de la demande : ${trou('à compléter et à vérifier auprès du service saisi')}.`,",
+    vers: "    `Fondement de la demande : article L. 107 A du livre des procédures fiscales.`,",
+    tests: ['apps/api/test/courriers.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * UN MONTANT AVANCE PAR UN GENERATEUR ENGAGE L'EXPEDITEUR. Le loyer est un element de
+     * negociation que seul le developpeur fixe ; un modele qui le suggere fait signer une offre.
+     */
+    quoi: 'le premier contact avance un ordre de grandeur de loyer',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: "    'À ce stade, il s’agit d’une étude préalable : aucune décision n’est prise, et rien ne vous ' +",
+    vers: "    'À ce stade, il s’agit d’une étude préalable (de l’ordre de 3 000 € par hectare et par an) : ' +\n      'aucune décision n’est prise, et rien ne vous ' +",
+    tests: ['apps/api/test/courriers.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * LE REPLI D'EN-TETE COMPTE EN OCTETS, PAS EN CARACTERES — et la nuance a survecu a une
+     * premiere correction. Vingt-quatre caracteres accentues font 48 octets, donc 64 de base64,
+     * donc 76 avec l'habillage, donc 85 une fois « Subject: » devant. Le repli existait, et la
+     * ligne depassait quand meme.
+     */
+    quoi: 'le budget d’un mot encode se compte en caracteres et non en octets',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: "      const taille = Buffer.byteLength(caracteres[fin]!, 'utf8');",
+    vers: '      const taille = 1;',
+    tests: ['apps/api/test/courriers.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * LE NOM DU PROPRIETAIRE RESTE SUR LE POSTE. Il y dormirait sans trace, sans effacement et
+     * sans rapport avec la parcelle ouverte — jusqu'a reapparaitre dans le courrier suivant,
+     * adresse a quelqu'un d'autre. C'est le genre d'ajout qui se fait par commodite (« on garde
+     * aussi l'adresse, c'est plus pratique ») et qui ne se voit qu'une fois le courrier parti.
+     */
+    quoi: 'le nom du destinataire entre dans ce que le poste memorise',
+    fichier: 'apps/web/src/components/BlocCourriers.tsx',
+    de: "export const CHAMPS_MEMORISES = ['expediteur', 'signataire', 'qualite', 'coordonnees', 'projet'] as const;",
+    vers: "export const CHAMPS_MEMORISES = ['expediteur', 'signataire', 'qualite', 'coordonnees', 'projet', 'destinataire', 'adresse'] as const;",
+    tests: ['apps/web/test/rendu-courriers.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * LE `mailto:` TRONQUE EN SILENCE. Le client ouvre un brouillon qui a l'air complet, et la
+     * phrase manquante ne se decouvre qu'a la reception. Sans plafond, le raccourci est offert
+     * pour n'importe quelle longueur.
+     */
+    quoi: 'le lien de messagerie est offert quelle que soit la longueur du courrier',
+    fichier: 'apps/web/src/components/BlocCourriers.tsx',
+    de: '  return url.length <= PLAFOND ? url : null;',
+    vers: '  return url;',
+    tests: ['apps/web/test/rendu-courriers.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-courriers.test.ts'],
+  },
+  {
+    audit: 'audit 33',
+    /*
+     * LE GARDE D'ACCESSIBILITE NE REFUSE PLUS RIEN. La correction de son decoupage a ASSOUPLI son
+     * critere — il accepte desormais `{libelle}` — et un assouplissement mal borne transforme un
+     * garde en decoration. On verifie donc qu'un bouton reellement muet est encore attrape.
+     */
+    quoi: 'le garde de nom accessible accepte un bouton sans aucun contenu',
+    fichier: 'apps/web/test/accessibilite.test.ts',
+    de: "    if (expression.startsWith('/*')) continue;",
+    vers: "    if (expression.startsWith('/*')) return true;",
+    tests: ['apps/web/test/accessibilite.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/accessibilite.test.ts'],
+  },
 ];
 
 /**

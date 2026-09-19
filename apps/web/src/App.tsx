@@ -248,7 +248,7 @@ export function App(): JSX.Element {
           <Icone nom="alerte" />
           <p>
             L&apos;API ne répond plus. Les données affichées peuvent être obsolètes et les
-            enregistrements ne seront pas conserves.
+            enregistrements ne seront pas conservés.
           </p>
         </div>
       )}
