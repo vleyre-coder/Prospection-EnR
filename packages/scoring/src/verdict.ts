@@ -24,6 +24,9 @@
  *     examinee ;
  *   - « favorable » exige donc que TOUTE contrainte du classeur ait ete evaluee et respectee.
  *
+ * LES LIGNES NOTEES « favorable » PAR LE CLASSEUR N'ENTRENT PAS NON PLUS DANS LE VERDICT. « En
+ * ZAEnR = bonus » : ne pas en beneficier n'est pas une infraction. Voir `atouts`.
+ *
  * LES CONTRAINTES `cadre` N'ENTRENT PAS DANS LE VERDICT. Ce sont les procedures applicables a tout
  * projet de la filiere — regime ICPE, permis de construire, etude d'impact, balisage. Les compter
  * mettrait CHAQUE parcelle « a instruire » pour un permis toujours requis, et le verdict cesserait
@@ -119,6 +122,22 @@ export interface ResultatVerdict {
   ecartsCahierDesCharges: ContrainteEvaluee[];
   /** Les procedures applicables a tout projet, hors verdict. */
   cadres: ContrainteEvaluee[];
+  /**
+   * Les ATOUTS : les lignes que le classeur note « favorable », hors verdict elles aussi.
+   *
+   * POURQUOI ELLES NE PEUVENT PAS ETRE DES CONTRAINTES. « Implantation en ZAEnR = bonus »,
+   * « ~1,5 a 5 ha » pour une unite de methanisation : ne pas en beneficier n'est pas une
+   * infraction. Les compter parmi les enfreintes ferait passer « a instruire » une parcelle
+   * simplement moins avantageuse — et, pire, permettrait de la NOMMER comme contrainte decisive.
+   *
+   * Le defaut existait deja en germe : `methanisation__superficie_de_la_parcelle` etait rattachee
+   * et de niveau favorable. Elle ne mordait pas encore, son seuil etant au sens non etabli, mais
+   * elle aurait mordu des qu'un seuil ferme lui aurait ete donne.
+   *
+   * Elles sont EVALUEES et rendues : un atout present est une information utile au dossier. Il ne
+   * degrade simplement jamais le verdict.
+   */
+  atouts: ContrainteEvaluee[];
   /** Ce que le verdict a reellement pu regarder. */
   couverture: {
     total: number;
@@ -214,7 +233,9 @@ function evaluerDrapeau(
 
   if (valeur !== null && valeur !== undefined) {
     if (typeof valeur === 'boolean') {
-      return { etat: valeur ? 'enfreinte' : 'respectee', valeur: valeur ? 1 : 0, chemin };
+      // `declencheSi` vaut `true` par defaut : pour un ATOUT, c'est l'absence qui prive du bonus.
+      const declenche = valeur === (correspondance.declencheSi ?? true);
+      return { etat: declenche ? 'enfreinte' : 'respectee', valeur: valeur ? 1 : 0, chemin };
     }
     const mot = String(valeur);
     if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: null, chemin };
@@ -287,6 +308,7 @@ export function evaluerVerdict(
 ): ResultatVerdict {
   const contraintes: ContrainteEvaluee[] = [];
   const cadres: ContrainteEvaluee[] = [];
+  const atouts: ContrainteEvaluee[] = [];
 
   for (const contrainte of contraintesDeFiliere(filiere)) {
     const applique = seuilApplique(contrainte, mode, seuilsDeveloppeur);
@@ -329,6 +351,7 @@ export function evaluerVerdict(
     };
 
     if (etat === 'cadre') cadres.push(evaluee);
+    else if (contrainte.caractere === 'favorable') atouts.push(evaluee);
     else contraintes.push(evaluee);
   }
 
@@ -388,6 +411,7 @@ export function evaluerVerdict(
     contraintes,
     ecartsCahierDesCharges,
     cadres,
+    atouts,
     couverture: {
       total: contraintes.length,
       respectees: contraintes.filter((c) => c.etat === 'respectee').length,

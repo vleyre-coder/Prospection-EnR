@@ -190,6 +190,13 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'apps/api/src/services/exports.ts', mot: 'charges', raison: "le NOM charges : « jamais au cahier des charges d'un développeur »" },
   { module: 'apps/api/src/services/exports.ts', mot: 'mesure', raison: "verbe mesurer : « aucune donnée nationale homogène ne les mesure »" },
   /*
+   * « constate » (verbe) contre « constatés » (participe, « Atouts constatés »). L'ajout des atouts
+   * a fait apparaitre le participe, et donc le conflit. Les deux graphies sont justes ; l'accent
+   * REELLEMENT oublie, lui — « les 1 666 % constates » dans `bornes.ts` — a ete corrige plutot
+   * qu'excepte.
+   */
+  { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'constate', raison: "verbe constater : « la culture déclarée oriente, elle ne constate pas l'usage du jour »" },
+  /*
    * « fixe » (verbe fixer) contre « fixé » (participe) : les deux orthographes sont justes, et les
    * deux sont necessaires. Apparues ensemble avec le releve Legifrance du 7 septembre 2026, qui a
    * fait ecrire « le seuil de surface est fixé par arrete » a cote de « le reglement du plan

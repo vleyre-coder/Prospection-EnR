@@ -1872,6 +1872,50 @@ export function dossierSitePdf(
   }
 
   /*
+   * LES ATOUTS, rendus a part eux aussi. Le classeur les note « favorable » — « en ZAEnR = bonus » —
+   * et ne pas en beneficier n'est pas une infraction. Un developpeur, lui, veut les connaitre :
+   * une zone d'acceleration des ENR change l'acceptabilite d'un projet.
+   */
+  const atouts = new Map<string, { nom: string; seuil: string; refs: string[] }>();
+  for (const v of verdicts) {
+    for (const a of v.resultat.atouts) {
+      if (a.etat !== 'respectee') continue;
+      const existant = atouts.get(a.contrainteId);
+      if (existant) existant.refs.push(ref(v.parcelle));
+      else atouts.set(a.contrainteId, { nom: a.nom, seuil: a.seuilReglementaire, refs: [ref(v.parcelle)] });
+    }
+  }
+  if (atouts.size > 0) {
+    titreSection(doc, 'Atouts constatés', 90);
+    doc.fontSize(7.8).font('Helvetica').fillColor(ENCRE_FAIBLE);
+    doc.text(
+      net(
+        'Éléments favorables relevés par le référentiel. Ils n’entrent pas dans le verdict — ne pas ' +
+          'en bénéficier n’est pas un défaut — mais ils pèsent sur l’acceptabilité d’un projet.',
+      ),
+      MARGE,
+      doc.y,
+      { width: total, align: 'justify' },
+    );
+    doc.moveDown(0.4).fillColor(ENCRE);
+    tableau(
+      doc,
+      [
+        { titre: 'Atout', part: 0.34 },
+        { titre: 'Au référentiel', part: 0.33 },
+        { titre: 'Parcelles concernées', part: 0.33 },
+      ],
+      [...atouts.values()].map((a) => ({
+        cellules: [
+          a.nom,
+          a.seuil,
+          a.refs.length === parcelles.length ? 'toutes' : a.refs.join(', '),
+        ],
+      })),
+    );
+  }
+
+  /*
    * LES PROCEDURES APPLICABLES, rendues a part parce qu'elles ne jugent pas la parcelle : permis
    * de construire, regime ICPE, etude d'impact. Les compter comme des contraintes mettrait chaque
    * parcelle « a instruire » pour une formalite universelle ; les omettre priverait le developpeur

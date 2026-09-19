@@ -599,3 +599,50 @@ test('LES PROCEDURES NE SONT PAS PRESENTEES COMME DES CONTRAINTES DE LA PARCELLE
     'le dossier doit dire que ces procedures ne jugent pas la parcelle',
   );
 });
+
+test('LES ATOUTS SONT RENDUS A PART, ET NE PASSENT PAS POUR DES CONTRAINTES', async () => {
+  if (ignorer()) return;
+
+  /*
+   * Le classeur note ces lignes « favorable » — « en ZAEnR = bonus » — et toutes les communes n'ont
+   * pas delibere. Les compter parmi les contraintes ferait passer « a instruire » une parcelle
+   * simplement moins avantageuse. Elles doivent pourtant FIGURER au dossier : une zone
+   * d'acceleration change l'acceptabilite d'un projet, et le developpeur veut le savoir.
+   *
+   * La ZAEnR est posee ici plutot que cherchee dans la base : 60 parcelles sur 301 y sont, et
+   * rien ne garantit que les fixtures solaires en fassent partie. Un test qui depend du contenu
+   * de la machine ne prouve que l'etat de cette machine.
+   */
+  const cible = SOLAIRE[0]!;
+  const avant = await requete<{ snapshot: unknown }>(
+    `SELECT snapshot FROM parcelle_snapshot WHERE idu = $1`,
+    [cible.idu],
+  );
+  try {
+    await requete(
+      `UPDATE parcelle_snapshot
+          SET snapshot = jsonb_set(snapshot, '{urbanisme,zaer,present}', 'true'::jsonb, true)
+        WHERE idu = $1`,
+      [cible.idu],
+    );
+    const { code, texte, corps } = await dossier([cible.idu]);
+    assert.equal(code, 200, corps);
+
+    assert.ok(contient(texte, 'Atouts constatés'), 'le dossier doit porter les atouts releves');
+    // Apostrophe DROITE : `net()` convertit « ’ » en « ' » avant impression (polices WinAnsi).
+    assert.ok(
+      contient(texte, "n'entrent pas dans le verdict"),
+      'le dossier doit dire qu’un atout ne juge pas la conformite',
+    );
+    assert.ok(
+      contient(texte, "ne pas en bénéficier n'est pas un défaut"),
+      'le dossier doit dire que l’absence d’atout n’est pas un defaut',
+    );
+    assert.ok(contient(texte, 'accélération'), 'la ZAEnR doit etre nommee');
+  } finally {
+    await requete(`UPDATE parcelle_snapshot SET snapshot = $2::jsonb WHERE idu = $1`, [
+      cible.idu,
+      JSON.stringify(avant[0]!.snapshot),
+    ]);
+  }
+});

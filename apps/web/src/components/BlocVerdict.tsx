@@ -184,6 +184,40 @@ export function BlocVerdict({ verdict }: { verdict: ResultatVerdict }): JSX.Elem
         </ul>
       </details>
 
+      {verdict.atouts.length > 0 && (
+        <details className="verdict-detail">
+          {/*
+            LES ATOUTS NE SONT PAS DES CONTRAINTES, et l'ecran doit le dire. Le classeur les note
+            « favorable » — « en ZAEnR = bonus » — et toutes les communes n'ont pas delibere :
+            l'absence de bonus n'est pas un defaut. Les melanger aux contraintes ferait lire un
+            « hors ZAEnR » comme un probleme.
+          */}
+          <summary>
+            {verdict.atouts.filter((a) => a.etat === 'respectee').length} atout
+            {verdict.atouts.filter((a) => a.etat === 'respectee').length > 1 ? 's' : ''} constaté
+            {verdict.atouts.filter((a) => a.etat === 'respectee').length > 1 ? 's' : ''} sur{' '}
+            {verdict.atouts.length}
+          </summary>
+          <p className="verdict-lacune">
+            Éléments favorables du référentiel. Ils n’entrent pas dans le verdict&nbsp;: ne pas en
+            bénéficier n’est pas un défaut.
+          </p>
+          <ul className="verdict-liste">
+            {verdict.atouts.map((a) => (
+              <li key={a.contrainteId} className="verdict-item verdict-cadre">
+                <div className="verdict-item-entete">
+                  <span className="verdict-etat">
+                    {a.etat === 'respectee' ? 'Acquis' : a.etat === 'donnee_absente' ? 'Non évalué' : 'Absent'}
+                  </span>
+                  <span className="verdict-nom">{a.nom}</span>
+                </div>
+                <div className="verdict-reglementaire">{a.seuilReglementaire}</div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {verdict.cadres.length > 0 && (
         <details className="verdict-detail">
           {/*

@@ -2758,8 +2758,8 @@ const MUTATIONS = [
      */
     quoi: 'les lignes « cadre » entrent dans le verdict',
     fichier: 'packages/scoring/src/verdict.ts',
-    de: "    if (etat === 'cadre') cadres.push(evaluee);\n    else contraintes.push(evaluee);",
-    vers: '    contraintes.push(evaluee);',
+    de: "    if (etat === 'cadre') cadres.push(evaluee);",
+    vers: '    if (false) cadres.push(evaluee);',
     construire: '@enr/scoring',
     tests: ['packages/scoring/test/verdict.test.ts'],
     cwd: 'packages/scoring',
@@ -3250,6 +3250,69 @@ const MUTATIONS = [
     tests: ['packages/scoring/test/verdict.test.ts'],
     cwd: 'packages/scoring',
     commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 31 — un atout n'est pas une contrainte
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 31',
+    /*
+     * LES LIGNES « favorable » REDEVIENNENT DES CONTRAINTES. « En ZAEnR = bonus », et toutes les
+     * communes n'ont pas delibere : compter l'absence de bonus parmi les enfreintes ferait passer
+     * « a instruire » une parcelle simplement moins avantageuse, et permettrait meme de la NOMMER
+     * comme contrainte decisive.
+     */
+    quoi: 'une ligne « favorable » degrade le verdict comme une contrainte',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    else if (contrainte.caractere === 'favorable') atouts.push(evaluee);",
+    vers: '    // mutation',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 31',
+    /*
+     * LA POLARITE D'UN ATOUT S'INVERSE. Pour `urbanisme.zaer.present`, c'est l'ABSENCE qui prive du
+     * bonus. Lire le drapeau a l'endroit ferait declarer « acquis » un atout dont la parcelle ne
+     * beneficie pas — et « absent » celui dont elle beneficie.
+     */
+    quoi: 'la polarite d’un atout est lue a l’envers',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: '      const declenche = valeur === (correspondance.declencheSi ?? true);',
+    vers: '      const declenche = valeur;',
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 31',
+    /*
+     * LE DOSSIER CESSE DE DIRE QU'UN ATOUT NE JUGE PAS LA CONFORMITE. Sans la phrase, « hors
+     * ZAEnR » se lit comme un manquement, alors que c'est seulement un argument de moins.
+     */
+    quoi: 'le dossier ne dit plus qu’un atout n’entre pas dans le verdict',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "        'Éléments favorables relevés par le référentiel. Ils n’entrent pas dans le verdict — ne pas ' +\n          'en bénéficier n’est pas un défaut — mais ils pèsent sur l’acceptabilité d’un projet.',",
+    vers: "        'Éléments favorables relevés par le référentiel pour ces parcelles.',",
+    tests: ['apps/api/test/dossier-site.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/dossier-site.test.ts'],
+  },
+  {
+    audit: 'audit 31',
+    /*
+     * MEME PHRASE A L'ECRAN, meme contresens.
+     */
+    quoi: 'la fiche ne dit plus qu’un atout absent n’est pas un defaut',
+    fichier: 'apps/web/src/components/BlocVerdict.tsx',
+    de: '            Éléments favorables du référentiel. Ils n’entrent pas dans le verdict&nbsp;: ne pas en\n            bénéficier n’est pas un défaut.',
+    vers: '            Éléments favorables du référentiel.',
+    tests: ['apps/web/test/rendu-verdict.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
   },
 ];
 

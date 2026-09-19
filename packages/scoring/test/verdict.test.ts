@@ -203,8 +203,11 @@ describe('la table de correspondance', () => {
      * Effet mesure sur la base de reference, en eolien : 230 parcelles « defavorable » contre 301
      * « a instruire » avant. Le recul de 500 m mord enfin, et les 71 parcelles qui restent sont
      * exactement celles mesurees a 500 m ou plus d'une habitation.
+     *
+     * Les quatre dernieres sont des ATOUTS (zones d'acceleration des ENR) : elles n'entrent pas
+     * dans le verdict, mais elles etaient connues de l'application et dites nulle part.
      */
-    assert.equal(CORRESPONDANCES.length, 64, `${CORRESPONDANCES.length} correspondances au lieu de 64`);
+    assert.equal(CORRESPONDANCES.length, 68, `${CORRESPONDANCES.length} correspondances au lieu de 68`);
     // Et chaque filiere en a au moins une : un verdict qui ne regarderait rien pour une filiere
     // entiere rendrait « a instruire » a tout, ce qui ne distingue rien.
     for (const f of ['eolien_terrestre', 'solaire_sol', 'agrivoltaisme', 'bess', 'methanisation'] as const) {
@@ -285,9 +288,9 @@ describe('les procedures ne sont pas des contraintes', () => {
     assert.ok(r.cadres.length > 0, 'la filiere porte des procedures applicables a tout projet');
     for (const c of r.cadres) assert.equal(c.etat, 'cadre');
     for (const c of r.contraintes) assert.notEqual(c.caractere, 'cadre');
-    // Et rien ne se perd entre les deux listes.
+    // Et rien ne se perd entre les TROIS listes : contraintes, procedures, atouts.
     assert.equal(
-      r.contraintes.length + r.cadres.length,
+      r.contraintes.length + r.cadres.length + r.atouts.length,
       contraintesDeFiliere('eolien_terrestre').length,
     );
   });
@@ -594,6 +597,74 @@ describe('un drapeau se lit en TROIS etats, jamais deux', () => {
     const ppri = r.contraintes.find((c) => c.contrainteId === ID_PPRI);
     assert.ok(ppri);
     assert.equal(ppri.etat, 'donnee_absente', 'sans donnee, on ne conclut pas');
+  });
+});
+
+describe('un atout n’est pas une contrainte', () => {
+  const ID_ZAER = 'solaire_sol__zones_d_acceleration_enr_zaenr';
+
+  it('etre hors ZAEnR ne degrade PAS le verdict', () => {
+    /*
+     * LE DEFAUT QUE CE MODELE EMPECHE. Le classeur note ces lignes « favorable » — « en ZAEnR =
+     * bonus » — et toutes les communes n'ont pas delibere. Compter l'absence de bonus parmi les
+     * enfreintes ferait passer « a instruire » une parcelle simplement moins avantageuse, et
+     * permettrait meme de la NOMMER comme contrainte decisive.
+     *
+     * Le germe existait deja : `methanisation__superficie_de_la_parcelle` etait rattachee et de
+     * niveau favorable. Elle ne mordait pas encore — son seuil est au sens non etabli — mais elle
+     * aurait mordu des qu'un seuil ferme lui aurait ete donne.
+     */
+    const dans = evaluerVerdict(
+      parcelle((s) => {
+        s.urbanisme.zaer.present = true;
+      }),
+      'solaire_sol',
+      'reglementaire',
+    );
+    const hors = evaluerVerdict(
+      parcelle((s) => {
+        s.urbanisme.zaer.present = false;
+      }),
+      'solaire_sol',
+      'reglementaire',
+    );
+
+    assert.equal(hors.verdict, dans.verdict, 'le bonus ne change pas la conformite au droit');
+    assert.equal(hors.couverture.enfreintes, dans.couverture.enfreintes);
+  });
+
+  it('l’atout est tout de meme EVALUE et rendu, car le dossier s’en sert', () => {
+    const dans = evaluerVerdict(
+      parcelle((s) => {
+        s.urbanisme.zaer.present = true;
+      }),
+      'solaire_sol',
+      'reglementaire',
+    );
+    const zaer = dans.atouts.find((c) => c.contrainteId === ID_ZAER);
+    assert.ok(zaer, 'la ZAEnR doit figurer parmi les atouts');
+    assert.equal(zaer.etat, 'respectee', 'en ZAEnR, le bonus s’applique');
+
+    const hors = evaluerVerdict(
+      parcelle((s) => {
+        s.urbanisme.zaer.present = false;
+      }),
+      'solaire_sol',
+      'reglementaire',
+    );
+    assert.equal(hors.atouts.find((c) => c.contrainteId === ID_ZAER)?.etat, 'enfreinte');
+  });
+
+  it('aucune ligne « favorable » ne se retrouve parmi les contraintes du verdict', () => {
+    const r = evaluerVerdict(parcelleSansRien('methanisation'), 'methanisation', 'reglementaire');
+    for (const c of r.contraintes) {
+      assert.notEqual(c.caractere, 'favorable', `${c.contrainteId} est un atout, pas une contrainte`);
+    }
+    // Et rien ne se perd entre les trois listes.
+    assert.equal(
+      r.contraintes.length + r.cadres.length + r.atouts.length,
+      contraintesDeFiliere('methanisation').length,
+    );
   });
 });
 

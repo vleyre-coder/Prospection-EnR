@@ -107,6 +107,15 @@ export interface Correspondance {
    * troisieme voie, 301 contraintes resteraient « non evaluees » alors que la reponse est connue.
    */
   cheminAbsence?: string;
+  /**
+   * Drapeau booleen seulement : la valeur qui DECLENCHE la regle. `true` par defaut.
+   *
+   * POURQUOI CE REGLAGE EXISTE. Un atout s'ecrit a l'envers d'une contrainte : pour
+   * `urbanisme.zaer.present`, c'est l'ABSENCE de zone d'acceleration qui prive du bonus, pas sa
+   * presence. Sans ce reglage il faudrait soit inventer un champ inverse au releve, soit lire la
+   * ligne a l'envers dans sa justification — et personne ne relit une justification.
+   */
+  declencheSi?: boolean;
   /** Pourquoi ce chemin et pas un autre. Lu en revue, pas decoratif. */
   justification: string;
 }
@@ -553,6 +562,36 @@ export const CORRESPONDANCES: readonly Correspondance[] = [
    * pedologique conclura l'inverse. Le garde de la table refuse d'ailleurs toute correspondance
    * vers une contrainte non `auto_sig` — c'est lui qui a rattrape cette entree.
    */
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // ATOUTS — les lignes que le classeur note « favorable »
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // `urbanisme.zaer.present` est renseigne sur 301 parcelles sur 301 depuis l'origine. Le bonus
+  // est donc connu de l'application, et n'etait dit nulle part.
+  ...(
+    [
+      'eolien_terrestre__zones_d_acceleration_enr_zaenr',
+      'solaire_sol__zones_d_acceleration_enr_zaenr',
+      'agrivoltaisme__zones_d_acceleration_enr_zaenr',
+      'methanisation__zones_d_acceleration_enr_zaenr',
+    ] as const
+  ).map((contrainteId) => ({
+    contrainteId,
+    mode: 'drapeau' as const,
+    chemins: ['urbanisme.zaer.present'],
+    unite: 'drapeau',
+    /*
+     * C'est l'ABSENCE de ZAEnR qui prive du bonus. La ligne est notee « favorable » au classeur,
+     * donc elle n'entre pas dans le verdict : elle se lit dans les atouts, ou « respectee » veut
+     * dire « le bonus s'applique ».
+     */
+    declencheSi: false,
+    justification:
+      'Zone d’acceleration des ENR delibereee par la commune (loi APER), portee directement par le ' +
+      'releve. Toutes les communes n’ont pas delibere : l’absence de ZAEnR n’est pas un obstacle, ' +
+      'seulement un argument de moins — d’ou le niveau « favorable » du classeur.',
+  })),
 ];
 
 const PAR_ID = new Map(CORRESPONDANCES.map((c) => [c.contrainteId, c]));

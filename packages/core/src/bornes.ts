@@ -52,7 +52,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     motif:
       "100 % vaut 45 degrés. Aucune parcelle cadastrale exploitable n'à une pente MOYENNE de " +
       "45 degrés : au-delà on décrit une falaise, pas un terrain. C'est la borne qui aurait " +
-      'arrêté les 1 666 % constates.',
+      'arrêté les 1 666 % constatés.',
   },
   {
     chemin: 'topographie.penteMaxPct',

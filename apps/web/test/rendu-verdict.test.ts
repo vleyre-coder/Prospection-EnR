@@ -58,6 +58,7 @@ function resultat(p: Partial<ResultatVerdict> = {}): ResultatVerdict {
     contraintes,
     ecartsCahierDesCharges: [],
     cadres: [],
+    atouts: [],
     couverture: {
       total: contraintes.length,
       respectees: contraintes.filter((c) => c.etat === 'respectee').length,
@@ -223,6 +224,32 @@ test('UN SEUIL DEVELOPPEUR APPLIQUE NOMME LES DEUX VALEURS', () => {
   assert.match(t, /exigence du développeur \(1500 m\)/);
   assert.match(t, /La réglementation, elle, demande/);
   assert.match(t, /Politique interne/);
+});
+
+test('LES ATOUTS SONT RENDUS A PART, ET NE PASSENT PAS POUR DES PROBLEMES', () => {
+  /*
+   * Le classeur note ces lignes « favorable » — « en ZAEnR = bonus » — et toutes les communes
+   * n'ont pas delibere. Les melanger aux contraintes ferait lire un « hors ZAEnR » comme un
+   * defaut, alors que c'est seulement un argument de moins.
+   */
+  const t = rendu(
+    resultat({
+      atouts: [
+        contrainte({
+          contrainteId: 'solaire_sol__zones_d_acceleration_enr_zaenr',
+          nom: 'Zones d’accélération ENR (ZAEnR)',
+          caractere: 'favorable',
+          etat: 'respectee',
+          seuilReglementaire: 'En ZAEnR = bonus ; hors ZAEnR possible',
+        }),
+      ],
+    }),
+  );
+
+  assert.match(t, /1 atout constaté sur 1/);
+  assert.match(t, /Acquis/);
+  assert.match(t, /ne pas en\s+bénéficier n’est pas un défaut/);
+  assert.match(t, /Zones d’accélération ENR/);
 });
 
 test('LES PROCEDURES SONT RENDUES A PART, ET LE DISENT', () => {
