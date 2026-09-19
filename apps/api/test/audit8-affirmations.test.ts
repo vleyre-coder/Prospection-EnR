@@ -17,7 +17,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { identiteDepuisIdu, snapshotVide, type ParcelleSnapshot } from '@enr/core';
+import { identiteDepuisIdu, snapshotVide, type Filiere, type ParcelleSnapshot } from '@enr/core';
 import { calculerScore, sourceEnEchec } from '@enr/scoring';
 import { contexteFoncier } from '../src/connecteurs/cadastre.js';
 import { aleaInondation, famillesRisque, presenceFamille } from '../src/connecteurs/georisques.js';
@@ -30,7 +30,16 @@ function snapshot(): ParcelleSnapshot {
   return s;
 }
 
-function critere(s: ParcelleSnapshot, id: string, filiere = 'solaire_sol' as const, options = {}) {
+/*
+ * `filiere` est une `Filiere`, et non le litteral de son defaut.
+ *
+ * `filiere = 'solaire_sol' as const` narrait le PARAMETRE au seul type `'solaire_sol'` : passer
+ * `'eolien_terrestre'` ou `'methanisation'` ne compilait pas. Ces deux filieres sont pourtant
+ * bien passees a l'execution — le test les exerce depuis son ecriture — et JavaScript ne verifie
+ * rien. La signature mentait donc sur ce que la fonction accepte, sans consequence visible, et
+ * c'est exactement ce qu'un test non compile laisse passer.
+ */
+function critere(s: ParcelleSnapshot, id: string, filiere: Filiere = 'solaire_sol', options = {}) {
   const r = calculerScore(s, filiere, options);
   const c = r.criteres.find((c) => c.id === id);
   assert.ok(c, `le critere ${id} doit etre evalue pour la filiere ${filiere}`);

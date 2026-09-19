@@ -1,0 +1,27 @@
+{
+  "//": [
+    "TYPAGE DES TESTS DE L'API — configuration SEPAREE, et elle doit l'etre.",
+    "",
+    "`tsconfig.json` sert a CONSTRUIRE : il porte `rootDir: src` et `outDir: dist`, ce qui fait",
+    "emettre `dist/serveur.js`, le point d'entree declare par le paquet. Y ajouter `test/**/*`",
+    "obligerait a retirer `rootDir`, et TypeScript deduirait alors une racine commune a `src` et",
+    "`test` — la sortie partirait dans `dist/src/`, et le paquet ne demarrerait plus.",
+    "",
+    "Cette configuration-ci ne construit rien (`noEmit`) et n'existe que pour VERIFIER. Les tests",
+    "de `apps/api` etaient ecrits en TypeScript, executes par `tsx`, et jamais soumis au",
+    "compilateur : 31 erreurs a l'ouverture du perimetre, dont des jeux d'essai qui ne",
+    "correspondaient plus aux types qu'ils pretendaient verifier. Un test qui se trompe de type ne",
+    "prouve plus ce qu'il annonce."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "./dist/tsconfig.test.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ]
+}

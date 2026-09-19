@@ -341,7 +341,15 @@ test('RGPD : le role admin ne dispense PAS de l’habilitation', async () => {
 // Routes d'administration
 // ---------------------------------------------------------------------------
 
-const ROUTES_ADMIN: Array<{ methode: 'GET' | 'POST'; url: string; corps?: unknown }> = [
+/*
+ * `corps` est un `object`, et non un `unknown`.
+ *
+ * `app.inject` attend un `payload` d'un type precis ; lui passer un `unknown` fait echouer la
+ * resolution de surcharge, et les erreurs qui suivent — « statusCode n'existe pas » — ne sont que
+ * la consequence de ce premier refus. Le typage des tests de ce paquet n'existait pas, donc ces
+ * neuf erreurs dormaient depuis l'ecriture du fichier.
+ */
+const ROUTES_ADMIN: Array<{ methode: 'GET' | 'POST'; url: string; corps?: object }> = [
   { methode: 'GET', url: '/api/admin/ingestions' },
   { methode: 'GET', url: '/api/admin/journal' },
   { methode: 'POST', url: '/api/admin/purge-rgpd', corps: {} },
@@ -393,7 +401,7 @@ test('toute erreur de l’API porte un code et un message exploitables', async (
    * qu'ils se lisent tous de la meme facon.
    */
   const app = await serveur();
-  const cas: Array<{ methode: 'GET' | 'POST'; url: string; entetes?: Record<string, string>; corps?: unknown }> = [
+  const cas: Array<{ methode: 'GET' | 'POST'; url: string; entetes?: Record<string, string>; corps?: object }> = [
     { methode: 'GET', url: '/api/admin/journal' },
     { methode: 'GET', url: '/api/admin/journal', entetes: {} },
     { methode: 'GET', url: '/api/carte/couche/inconnu?bbox=1,48,2,49' },

@@ -19,6 +19,27 @@ import assert from 'node:assert/strict';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { limiterDebit, nbSeaux, reinitialiserDebit } from '../src/debit.js';
 
+/**
+ * Le garde, appele DIRECTEMENT, sans passer par Fastify.
+ *
+ * POURQUOI CETTE ENVELOPPE. Un hook Fastify declare `this: FastifyInstance` : le cadre le lie
+ * lui-meme a l'enregistrement. Ces tests, eux, exercent la FERMETURE rendue par `limiterDebit` —
+ * sa logique de seaux et de quotas — et non le mecanisme d'enregistrement de Fastify. Le garde
+ * n'utilise `this` nulle part.
+ *
+ * L'enveloppe le dit une fois, ici, plutot que de laisser quinze appels porter chacun un
+ * transtypage. Elle est apparue quand les tests de ce paquet ont ete soumis au compilateur pour la
+ * premiere fois : quinze appels parfaitement corrects etaient refuses, sur un `this` que personne
+ * ne lit.
+ */
+function appelerGarde(
+  garde: ReturnType<typeof limiterDebit>,
+  req: FastifyRequest,
+  rep: FastifyReply,
+): Promise<unknown> {
+  return (garde as unknown as (r: FastifyRequest, p: FastifyReply) => Promise<unknown>)(req, rep);
+}
+
 /** Requete minimale : le limiteur ne lit que l'IP et l'utilisateur. */
 const requete = (ip: string, utilisateurId?: string): FastifyRequest =>
   ({
@@ -52,7 +73,7 @@ test('un appelant dans son quota passe', async () => {
   const garde = limiterDebit({ max: 3, fenetreMs: 60_000, operation: 'sonde' });
   for (let i = 0; i < 3; i += 1) {
     const rep = reponse();
-    await garde(requete('10.0.0.1'), rep);
+    await appelerGarde(garde, requete('10.0.0.1'), rep);
     assert.equal(rep.statut, null, `appel ${i + 1} refuse a tort`);
   }
 });
@@ -60,10 +81,10 @@ test('un appelant dans son quota passe', async () => {
 test('au-dela du quota, un 429 avec Retry-After', async () => {
   reinitialiserDebit();
   const garde = limiterDebit({ max: 2, fenetreMs: 60_000, operation: 'sonde' });
-  await garde(requete('10.0.0.1'), reponse());
-  await garde(requete('10.0.0.1'), reponse());
+  await appelerGarde(garde, requete('10.0.0.1'), reponse());
+  await appelerGarde(garde, requete('10.0.0.1'), reponse());
   const rep = reponse();
-  await garde(requete('10.0.0.1'), rep);
+  await appelerGarde(garde, requete('10.0.0.1'), rep);
   assert.equal(rep.statut, 429);
   // Sans Retry-After, l'appelant ne sait pas quand revenir et reessaie en boucle.
   assert.ok(Number(rep.entetes['Retry-After']) > 0, `Retry-After = ${rep.entetes['Retry-After']}`);
@@ -72,9 +93,9 @@ test('au-dela du quota, un 429 avec Retry-After', async () => {
 test('deux appelants distincts ont chacun leur quota', async () => {
   reinitialiserDebit();
   const garde = limiterDebit({ max: 1, fenetreMs: 60_000, operation: 'sonde' });
-  await garde(requete('10.0.0.1'), reponse());
+  await appelerGarde(garde, requete('10.0.0.1'), reponse());
   const rep = reponse();
-  await garde(requete('10.0.0.2'), rep);
+  await appelerGarde(garde, requete('10.0.0.2'), rep);
   assert.equal(rep.statut, null, 'le quota d’un appelant ne doit pas consommer celui d’un autre');
 });
 
@@ -83,9 +104,9 @@ test('l’utilisateur authentifie prime sur l’adresse IP', async () => {
   // seau : le premier utilisateur consommerait le quota de tous ses collegues.
   reinitialiserDebit();
   const garde = limiterDebit({ max: 1, fenetreMs: 60_000, operation: 'sonde' });
-  await garde(requete('10.0.0.1', 'alice'), reponse());
+  await appelerGarde(garde, requete('10.0.0.1', 'alice'), reponse());
   const rep = reponse();
-  await garde(requete('10.0.0.1', 'bob'), rep);
+  await appelerGarde(garde, requete('10.0.0.1', 'bob'), rep);
   assert.equal(rep.statut, null, 'meme IP, utilisateurs differents : quotas distincts');
 });
 
@@ -93,9 +114,9 @@ test('deux operations distinctes ne partagent pas leur quota', async () => {
   reinitialiserDebit();
   const a = limiterDebit({ max: 1, fenetreMs: 60_000, operation: 'export' });
   const b = limiterDebit({ max: 1, fenetreMs: 60_000, operation: 'qualification' });
-  await a(requete('10.0.0.1'), reponse());
+  await appelerGarde(a, requete('10.0.0.1'), reponse());
   const rep = reponse();
-  await b(requete('10.0.0.1'), rep);
+  await appelerGarde(b, requete('10.0.0.1'), rep);
   assert.equal(rep.statut, null);
 });
 
@@ -103,14 +124,14 @@ test('le seau se remplit continument, sans attendre la fin d’une fenetre', asy
   reinitialiserDebit();
   // Fenetre de 200 ms pour 4 jetons : un jeton se regenere toutes les 50 ms.
   const garde = limiterDebit({ max: 4, fenetreMs: 200, operation: 'sonde' });
-  for (let i = 0; i < 4; i += 1) await garde(requete('10.0.0.1'), reponse());
+  for (let i = 0; i < 4; i += 1) await appelerGarde(garde, requete('10.0.0.1'), reponse());
   const refus = reponse();
-  await garde(requete('10.0.0.1'), refus);
+  await appelerGarde(garde, requete('10.0.0.1'), refus);
   assert.equal(refus.statut, 429, 'quota epuise');
 
   await new Promise((r) => setTimeout(r, 120));
   const apres = reponse();
-  await garde(requete('10.0.0.1'), apres);
+  await appelerGarde(garde, requete('10.0.0.1'), apres);
   assert.equal(apres.statut, null, 'au moins un jeton doit s’etre regenere en 120 ms');
 });
 
@@ -122,14 +143,14 @@ test('la purge retire les seaux inactifs, et seulement eux', async () => {
   // 500 appelants distincts : c'est le seuil de declenchement de la purge. Aucun n'est encore
   // purgeable, ils viennent d'etre crees.
   for (let i = 0; i < 500; i += 1) {
-    await garde(requete(`10.1.${Math.floor(i / 256)}.${i % 256}`), reponse());
+    await appelerGarde(garde, requete(`10.1.${Math.floor(i / 256)}.${i % 256}`), reponse());
   }
   assert.equal(nbSeaux(), 500, 'aucun seau recent ne doit etre purge');
 
   // Apres expiration, 500 nouvelles creations declenchent la purge : les 500 premiers partent.
   await new Promise((r) => setTimeout(r, 260));
   for (let i = 0; i < 500; i += 1) {
-    await garde(requete(`10.2.${Math.floor(i / 256)}.${i % 256}`), reponse());
+    await appelerGarde(garde, requete(`10.2.${Math.floor(i / 256)}.${i % 256}`), reponse());
   }
   assert.equal(
     nbSeaux(),

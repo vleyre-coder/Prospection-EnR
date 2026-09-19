@@ -13,7 +13,7 @@
  * echelle.
  */
 
-import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
+import type { FastifyReply, FastifyRequest, preHandlerAsyncHookHandler } from 'fastify';
 import { erreur } from './routes/erreurs.js';
 
 interface Seau {
@@ -80,7 +80,16 @@ export interface OptionsDebit {
  * quota recupere un jeton au bout de `fenetreMs / max`, sans attendre la fin d'une fenetre
  * entiere. Cela evite l'a-coup ou tout le monde repart en meme temps.
  */
-export function limiterDebit(options: OptionsDebit): preHandlerHookHandler {
+/*
+ * LE TYPE DE RETOUR EST `preHandlerAsyncHookHandler`, ET NON `preHandlerHookHandler`.
+ *
+ * Les deux s'enregistrent aussi bien aupres de Fastify, mais ils ne decrivent pas la meme chose :
+ * le second declare un troisieme parametre `done`, la forme a rappel. Le garde rendu ici est
+ * asynchrone et n'en prend que deux — c'est la forme `Async`. La difference etait invisible tant
+ * que les tests n'etaient pas types ; des qu'ils l'ont ete, quinze appels parfaitement corrects
+ * ont ete refuses pour un argument manquant qui n'existe pas.
+ */
+export function limiterDebit(options: OptionsDebit): preHandlerAsyncHookHandler {
   const { max, fenetreMs, operation } = options;
   const parJetonMs = fenetreMs / max;
 

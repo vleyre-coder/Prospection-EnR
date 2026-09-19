@@ -3017,6 +3017,78 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-recherche-criteres.test.ts'],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 28 — le typage des tests de l'API
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 28',
+    /*
+     * LE PERIMETRE DE TYPAGE SE RETRECIT. C'est le mode de defaillance qui a laisse les cinquante
+     * fichiers de test de ce paquet non compiles pendant dix-sept audits : le typage reste vert et
+     * la couverture tombe a zero, sans un mot. Un test qui se trompe de type ne prouve plus ce
+     * qu'il annonce.
+     */
+    quoi: 'les tests de l’API sortent du perimetre du compilateur',
+    fichier: 'apps/api/tsconfig.test.json',
+    de: '"src/**/*",\n    "test/**/*"',
+    vers: '"src/**/*"',
+    tests: ['apps/api/test/typage-des-tests.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
+  },
+  {
+    audit: 'audit 28',
+    /*
+     * LA CONFIGURATION DE TYPAGE EXISTE MAIS N'EST PLUS LANCEE. Troisieme mecanisme ecrit puis
+     * oublie du depot : correct, complet, et jamais execute. L'integration continue appelle
+     * `typecheck` ; c'est donc cette commande qui doit porter les deux configurations.
+     */
+    quoi: 'la commande typecheck cesse de verifier les tests',
+    fichier: 'apps/api/package.json',
+    de: '"typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"',
+    vers: '"typecheck": "tsc -p tsconfig.json --noEmit"',
+    tests: ['apps/api/test/typage-des-tests.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
+  },
+  {
+    audit: 'audit 28',
+    /*
+     * LA CONSTRUCTION PERD SA RACINE. TypeScript deduit alors une racine commune a `src` et
+     * `test`, la sortie part dans `dist/src/serveur.js`, et `main` ne resout plus rien : le paquet
+     * construit sans erreur et ne demarre pas.
+     */
+    quoi: 'la configuration de construction perd `rootDir`',
+    fichier: 'apps/api/tsconfig.json',
+    de: '"rootDir": "src",',
+    vers: '',
+    tests: ['apps/api/test/typage-des-tests.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/typage-des-tests.test.ts'],
+  },
+  {
+    audit: 'audit 28',
+    /*
+     * LE GARDE DE DEBIT REDEVIENT UN HOOK A RAPPEL. Les deux types s'enregistrent aussi bien
+     * aupres de Fastify, mais `preHandlerHookHandler` declare un troisieme parametre `done` que
+     * la fonction rendue ne prend pas — et quinze appels corrects redeviennent des erreurs.
+     */
+    quoi: 'le limiteur de debit ment sur le nombre de parametres qu’il rend',
+    fichier: 'apps/api/src/debit.ts',
+    de: 'export function limiterDebit(options: OptionsDebit): preHandlerAsyncHookHandler {',
+    vers: 'export function limiterDebit(options: OptionsDebit): preHandlerHookHandler {',
+    /*
+     * LE CONTROLE EST `tsc`, ET IL NE POUVAIT PAS ETRE AUTRE CHOSE. Ma premiere ecriture lancait
+     * `tsx --test test/debit.test.ts` — et la mutation survivait, forcement : `tsx` EFFACE les
+     * types sans les verifier. Aucun test execute par lui ne peut attraper une regression de
+     * typage. C'est precisement pourquoi les tests de ce paquet ont pu se tromper de type pendant
+     * dix-sept audits sans que rien ne bronche, et pourquoi le compilateur doit les voir.
+     */
+    tests: ['apps/api/tsconfig.test.json (tsc)'],
+    cwd: 'apps/api',
+    commande: ['tsc', '-p', 'tsconfig.test.json'],
+  },
 ];
 
 /**

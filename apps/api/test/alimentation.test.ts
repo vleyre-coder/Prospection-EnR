@@ -413,7 +413,14 @@ test('aucun connecteur ne renseigne un champ du snapshot par une constante litte
    * constate — sont ecrits comme des expressions, non comme des affectations litterales de champ de
    * snapshot. La liste des exceptions est donc courte, et le restera.
    */
-  const CONSTANTES_LEGITIMES = new Set([
+  /*
+   * `Set<string>` explicite, et non `new Set([])`.
+   *
+   * Un ensemble vide sans annotation est infere `Set<never>` : `has(champ)` ne compile pas, et le
+   * garde ne pouvait donc pas accueillir la premiere exception legitime sans une erreur de type
+   * incomprehensible. Invisible tant que les tests de ce paquet n'etaient pas compiles.
+   */
+  const CONSTANTES_LEGITIMES = new Set<string>([
     // `partRecouvrement: l[0].contient ? 1 : 0` est une expression, pas une constante : elle ne
     // matche pas le motif. Rien ne figure ici pour l'instant, et c'est le but.
   ]);

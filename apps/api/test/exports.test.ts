@@ -39,6 +39,16 @@ function ligne(sur: Partial<LigneResultatFiltre> = {}): LigneResultatFiltre {
     nbKnockOutsBloquants: 0,
     statutProspection: null,
     distancePosteKm: 4.2,
+    /*
+     * `lineaireRaccordementKm` avait DISPARU de cette fixture, et rien ne l'avait signale.
+     *
+     * Le champ a ete ajoute a `LigneResultatFiltre` — le vol d'oiseau mesure d'un cote, le
+     * lineaire de trace reellement pose de l'autre — sans que cette fixture suive. Les tests
+     * d'export s'exercaient donc depuis sur une forme que la recherche ne produit plus, ce que le
+     * commentaire de la fixture voisine met en garde de faire. Invisible : les tests de ce paquet
+     * n'etaient pas compiles.
+     */
+    lineaireRaccordementKm: 5.67,
     pentePct: 3.1,
     // Une valeur REELLE du domaine (`TypeSol`), et non une invention : c'est elle qui doit se
     // traduire en libelle. Le repli sur une valeur inconnue est teste separement.
@@ -61,6 +71,8 @@ function snapshot(): ParcelleSnapshot {
       idu: '01001000AA0001',
       codeInsee: '01001',
       nomCommune: 'Villeneuve',
+      // `prefixe` est requis par `Identite` et manquait ici : meme derive que ci-dessus.
+      prefixe: '000',
       section: 'AA',
       numero: '0001',
       contenanceM2: 125000,

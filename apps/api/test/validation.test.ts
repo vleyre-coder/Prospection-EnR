@@ -163,7 +163,15 @@ test('une pente filtree au-dela du plausible est refusee', () => {
 });
 
 test('un filtre vide ne produit aucune contrainte fantome', () => {
-  const f = filtresValides(base) as Record<string, unknown>;
+  /*
+   * Le transtypage passe par `unknown`, et ce n'est pas une formalite.
+   *
+   * `FiltresParcelles` declare des champs FACULTATIFS ; `Record<string, unknown>` exige un index.
+   * Les deux types ne se recouvrent pas assez pour une conversion directe, et TypeScript a raison
+   * de le dire — ce test parcourt justement les cles pour verifier qu'aucune ne s'est materialisee
+   * toute seule, donc il a besoin de la vue par index. Passer par `unknown` l'assume.
+   */
+  const f = filtresValides(base) as unknown as Record<string, unknown>;
   assert.equal(f['filiere'], 'solaire_sol');
   for (const [cle, valeur] of Object.entries(f)) {
     if (cle === 'filiere') continue;
