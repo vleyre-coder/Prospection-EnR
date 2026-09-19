@@ -3314,6 +3314,57 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-verdict.test.ts'],
   },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 32 — le meme alea, cinq seuils differents
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 32',
+    /*
+     * LES CINQ FILIERES SONT APLATIES SUR UN SEUIL UNIQUE. Le classeur retient « Aléa fort » en
+     * eolien, agrivoltaisme et methanisation, mais « Aléa moyen/fort » en solaire et en BESS. Les
+     * confondre trahit le classeur DANS LES DEUX SENS : trop severe pour trois filieres, trop
+     * permissif pour deux. Sur la base de reference, l'ecart porte sur 52 parcelles.
+     */
+    quoi: 'le seuil d’alea argiles devient le meme pour les cinq filieres',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: "  ...rga(['solaire_sol', 'bess'], ['moyen', 'fort'], 'Aléa moyen/fort'),",
+    vers: "  ...rga(['solaire_sol', 'bess'], ['fort'], 'Aléa fort'),",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 32',
+    /*
+     * ET DANS L'AUTRE SENS : les trois filieres qui ne retiennent que l'alea fort se mettent a
+     * penaliser l'alea moyen. 52 parcelles ecartees a tort, sans qu'aucune erreur ne soit levee.
+     */
+    quoi: 'les filieres qui ne retiennent que l’alea fort penalisent l’alea moyen',
+    fichier: 'packages/scoring/src/verdict-correspondances.ts',
+    de: "  ...rga(['eolien_terrestre', 'agrivoltaisme', 'methanisation'], ['fort'], 'Aléa fort'),",
+    vers: "  ...rga(['eolien_terrestre', 'agrivoltaisme', 'methanisation'], ['moyen', 'fort'], 'Aléa moyen/fort'),",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 32',
+    /*
+     * UNE VALEUR CONNUE QUI NE DECLENCHE PAS CESSE D'ETRE UNE REPONSE. « alea nul » ETABLIT que la
+     * parcelle n'est pas concernee ; le confondre avec une donnee absente remettrait 249 parcelles
+     * en « non evaluee » alors que la reponse est mesuree.
+     */
+    quoi: 'une valeur connue qui ne declenche pas repasse pour une donnee absente',
+    fichier: 'packages/scoring/src/verdict.ts',
+    de: "    return { etat: 'respectee', valeur: null, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
+    vers: "    return { etat: 'donnee_absente', valeur: null, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
+    construire: '@enr/scoring',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
 ];
 
 /**

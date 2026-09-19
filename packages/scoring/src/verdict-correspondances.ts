@@ -151,6 +151,30 @@ function ppr(famille: string, racine: string, contraintes: readonly string[]): C
 }
 
 /**
+ * Fabrique les correspondances de retrait-gonflement des argiles.
+ *
+ * `niveaux` porte les aleas que le classeur juge penalisants POUR CETTE FILIERE — ils different, et
+ * c'est tout l'interet : voir le bloc RGA plus bas.
+ */
+function rga(
+  filieres: readonly string[],
+  niveaux: readonly string[],
+  libelle: string,
+): Correspondance[] {
+  return filieres.map((filiere) => ({
+    contrainteId: `${filiere}__retrait_gonflement_des_argiles_rga`,
+    mode: 'drapeau' as const,
+    chemins: ['topographie.aleaArgiles'],
+    unite: 'drapeau',
+    valeursDeclenchantes: niveaux,
+    justification:
+      `Alea de retrait-gonflement des argiles, porte par le releve. Le classeur retient « ${libelle} » ` +
+      'pour cette filiere : les seuils different d’une filiere a l’autre, et les aplatir trahirait ' +
+      'le classeur dans les deux sens.',
+  }));
+}
+
+/**
  * Fabrique les correspondances de pente.
  *
  * Le classeur donne des fourchettes approximatives — « > ~10-15 % », « < ~3-5 % » — donc aucune ne
@@ -592,6 +616,22 @@ export const CORRESPONDANCES: readonly Correspondance[] = [
       'releve. Toutes les communes n’ont pas delibere : l’absence de ZAEnR n’est pas un obstacle, ' +
       'seulement un argument de moins — d’ou le niveau « favorable » du classeur.',
   })),
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // RETRAIT-GONFLEMENT DES ARGILES — le meme alea, cinq seuils differents
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // LE CAS QUI MONTRE POURQUOI ON NE RECOPIE PAS UNE LIGNE POUR CINQ FILIERES. Le classeur donne
+  // « Aléa fort » en eolien, agrivoltaisme et methanisation — une eolienne se fonde profond, une
+  // unite de methanisation aussi — mais « Aléa moyen/fort » en solaire au sol et en BESS, ou les
+  // structures sont legeres et posees. Aplatir les cinq sur le meme seuil trahirait le classeur
+  // dans les deux sens.
+  //
+  // `topographie.aleaArgiles` est renseigne sur 301 parcelles sur 301 : 249 « nul », 52 « moyen ».
+  // La distinction porte donc sur du reel — 52 parcelles penalisees en solaire et en BESS, aucune
+  // dans les trois autres filieres.
+  ...rga(['eolien_terrestre', 'agrivoltaisme', 'methanisation'], ['fort'], 'Aléa fort'),
+  ...rga(['solaire_sol', 'bess'], ['moyen', 'fort'], 'Aléa moyen/fort'),
 ];
 
 const PAR_ID = new Map(CORRESPONDANCES.map((c) => [c.contrainteId, c]));

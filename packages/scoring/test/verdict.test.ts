@@ -86,6 +86,8 @@ function parcelleSansRien(filiere: 'eolien_terrestre' | 'methanisation'): Parcel
      * d'etre atteignable. C'est le test qui a rattrape la fixture, pas l'inverse.
      */
     s.risques.ppri.present = false;
+    s.topographie.aleaArgiles = 'nul';
+    s.urbanisme.zaer.present = true;
     s.risques.pprif.present = false;
     s.risques.pprt.present = false;
     s.topographie.pentePct = 2;
@@ -207,7 +209,7 @@ describe('la table de correspondance', () => {
      * Les quatre dernieres sont des ATOUTS (zones d'acceleration des ENR) : elles n'entrent pas
      * dans le verdict, mais elles etaient connues de l'application et dites nulle part.
      */
-    assert.equal(CORRESPONDANCES.length, 68, `${CORRESPONDANCES.length} correspondances au lieu de 68`);
+    assert.equal(CORRESPONDANCES.length, 73, `${CORRESPONDANCES.length} correspondances au lieu de 73`);
     // Et chaque filiere en a au moins une : un verdict qui ne regarderait rien pour une filiere
     // entiere rendrait « a instruire » a tout, ce qui ne distingue rien.
     for (const f of ['eolien_terrestre', 'solaire_sol', 'agrivoltaisme', 'bess', 'methanisation'] as const) {
@@ -665,6 +667,67 @@ describe('un atout n’est pas une contrainte', () => {
       r.contraintes.length + r.cadres.length + r.atouts.length,
       contraintesDeFiliere('methanisation').length,
     );
+  });
+});
+
+describe('le meme alea, cinq seuils differents selon la filiere', () => {
+  /*
+   * LE CAS QUI MONTRE POURQUOI ON NE RECOPIE PAS UNE LIGNE POUR CINQ FILIERES. Le classeur retient
+   * « Aléa fort » pour le retrait-gonflement des argiles en eolien, agrivoltaisme et methanisation
+   * — ces projets se fondent profond — mais « Aléa moyen/fort » en solaire au sol et en BESS, ou
+   * les structures sont legeres et posees.
+   *
+   * Aplatir les cinq sur un seuil unique trahirait le classeur DANS LES DEUX SENS : trop severe
+   * pour trois filieres, trop permissif pour deux. Et l'ecart porte sur du reel — sur la base de
+   * reference, 52 parcelles sur 301 sont en alea « moyen ».
+   */
+  const ALEA_MOYEN = (s: ParcelleSnapshot): void => {
+    s.topographie.aleaArgiles = 'moyen';
+  };
+  const idRga = (filiere: string): string => `${filiere}__retrait_gonflement_des_argiles_rga`;
+
+  it('un alea MOYEN penalise le solaire et le BESS, et eux seuls', () => {
+    for (const filiere of ['solaire_sol', 'bess'] as const) {
+      const r = evaluerVerdict(parcelle(ALEA_MOYEN), filiere, 'reglementaire');
+      const rga = r.contraintes.find((c) => c.contrainteId === idRga(filiere));
+      assert.ok(rga, `${filiere} : la contrainte RGA doit etre evaluee`);
+      assert.equal(rga.etat, 'enfreinte', `${filiere} retient « Aléa moyen/fort »`);
+    }
+
+    for (const filiere of ['eolien_terrestre', 'agrivoltaisme', 'methanisation'] as const) {
+      const r = evaluerVerdict(parcelle(ALEA_MOYEN), filiere, 'reglementaire');
+      const rga = r.contraintes.find((c) => c.contrainteId === idRga(filiere));
+      assert.ok(rga, `${filiere} : la contrainte RGA doit etre evaluee`);
+      assert.equal(rga.etat, 'respectee', `${filiere} ne retient que « Aléa fort »`);
+    }
+  });
+
+  it('un alea FORT penalise les cinq filieres', () => {
+    for (const filiere of ['solaire_sol', 'bess', 'eolien_terrestre', 'agrivoltaisme', 'methanisation'] as const) {
+      const r = evaluerVerdict(
+        parcelle((s) => {
+          s.topographie.aleaArgiles = 'fort';
+        }),
+        filiere,
+        'reglementaire',
+      );
+      assert.equal(r.contraintes.find((c) => c.contrainteId === idRga(filiere))?.etat, 'enfreinte');
+    }
+  });
+
+  it('un alea NUL n’en penalise aucune, et c’est un fait mesure', () => {
+    for (const filiere of ['solaire_sol', 'eolien_terrestre'] as const) {
+      const r = evaluerVerdict(
+        parcelle((s) => {
+          s.topographie.aleaArgiles = 'nul';
+        }),
+        filiere,
+        'reglementaire',
+      );
+      const rga = r.contraintes.find((c) => c.contrainteId === idRga(filiere));
+      // `respectee`, et non `donnee_absente` : « nul » est une reponse, pas une absence.
+      assert.equal(rga?.etat, 'respectee');
+    }
   });
 });
 
