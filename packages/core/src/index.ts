@@ -9,5 +9,6 @@ export * from './snapshot.js';
 export * from './bornes.js';
 export * from './contraintes-referentiel.js';
 export * from './cultures.js';
+export * from './seuils-developpeur.js';
 export * from './seuils-recherche.js';
 export * from './territoires.js';

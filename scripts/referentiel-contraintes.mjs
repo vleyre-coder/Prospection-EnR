@@ -20,6 +20,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -342,6 +343,29 @@ function estApproximatif(texte) {
   return /~|environ|quelques|selon|variable|ordre de|à confirmer|voire|souvent/i.test(texte);
 }
 
+/**
+ * L'extraction a-t-elle lu TOUS les nombres que porte le texte du seuil ?
+ *
+ * DEUXIEME DEFAUT DE MEME NATURE, trouve en preparant le seuil developpeur. Le cas nomme par le
+ * cahier des charges lui-meme — methanisation, distance aux tiers — porte
+ * « 100 m (Déclaration) / 200 m (Enregistrement-Autorisation) » et ressort avec UNE condition :
+ * « = 100 m ». Le seuil reglementaire applicable depend en realite du regime ICPE, donc du
+ * tonnage, donc du projet. Trancher un verdict sur « = 100 m » serait faux dans les deux sens :
+ * trop permissif pour un projet en enregistrement, et faussement ferme pour tout le monde.
+ *
+ * La mesure est volontairement brutale et ne cherche pas a etre fine : si le texte contient plus
+ * de nombres que l'extraction n'a produit de conditions, l'extraction est INCOMPLETE. Mesure sur
+ * le classeur : 58 contraintes sur 292. Elles restent affichees avec leur texte integral, mais ne
+ * tranchent aucun verdict automatique — exactement comme un seuil approximatif.
+ *
+ * Le sens de l'erreur est le bon : une contrainte a tort declaree incomplete part en verification
+ * manuelle, ce qui est prudent. L'inverse — un nombre partiel qui tranche — ne se rattrape pas.
+ */
+function extractionComplete(texte, conditions) {
+  const nombres = texte.match(/\d+(?:[.,]\d+)?/g) ?? [];
+  return nombres.length <= conditions.length;
+}
+
 /** Identifiant stable, derive du nom. Une collision est signalee, jamais resolue en silence. */
 function identifiant(filiere, nom, vus) {
   const base = nom
@@ -367,7 +391,7 @@ function identifiant(filiere, nom, vus) {
 
 const echapper = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
 
-function rendre(contraintes, millesime, parFiliere) {
+function rendre(contraintes, millesime, parFiliere, empreinteClasseur) {
   const lignes = contraintes
     .map(
       (c) =>
@@ -379,6 +403,7 @@ function rendre(contraintes, millesime, parFiliere) {
         `    description: '${echapper(c.description)}',\n` +
         `    seuilReglementaire: '${echapper(c.seuilReglementaire)}',\n` +
         `    seuilsNumeriques: ${JSON.stringify(c.seuilsNumeriques)},\n` +
+        `    extractionComplete: ${c.extractionComplete},\n` +
         `    caractere: '${c.caractere}',\n` +
         `    caractereBrut: '${echapper(c.caractereBrut)}',\n` +
         `    regles: ${JSON.stringify(c.regles)},\n` +
@@ -474,8 +499,8 @@ export interface SeuilNumerique extends ConditionSeuil {
  * Une regle de la contrainte : un niveau, et la condition qui le declenche.
  *
  * Une contrainte a caractere composite en porte PLUSIEURS : « Rédhibitoire (<500 m) / Pénalisant »
- * devient un buffer d'interdiction a 500 m dans un buffer de coordination. C'est le cas de 100 des
- * ${contraintes.length} contraintes.
+ * devient un buffer d'interdiction a 500 m dans un buffer de coordination. C'est le cas de
+ * ${contraintes.filter((c) => c.regles.length > 1).length} des ${contraintes.length} contraintes.
  */
 export interface RegleContrainte {
   caractere: CaractereContrainte;
@@ -491,10 +516,19 @@ export interface ContrainteReferentiel {
   categorie: string;
   nom: string;
   description: string;
-  /** Texte d'origine du seuil. Toujours conserve : 207 seuils sur ${contraintes.length} n'ont aucun nombre. */
+  /** Texte d'origine du seuil. Toujours conserve : ${contraintes.filter((c) => c.seuilsNumeriques.length === 0).length} seuils sur ${contraintes.length} n'ont aucun nombre. */
   seuilReglementaire: string;
   /** Conditions numeriques extraites du seuil, dans l'ordre d'apparition. */
   seuilsNumeriques: SeuilNumerique[];
+  /**
+   * \`false\` quand le texte du seuil porte plus de nombres que l'extraction n'en a converti.
+   *
+   * ${contraintes.filter((c) => !c.extractionComplete).length} contraintes sur ${contraintes.length} : regimes ICPE a deux seuils
+   * (« 100 m (Déclaration) / 200 m (Enregistrement-Autorisation) »), fourchettes (« 700-1000 m »),
+   * multiples d'une grandeur du projet (« 3-5 × diamètre du rotor »). Le texte reste affiche en
+   * entier ; la contrainte ne tranche simplement aucun verdict automatique.
+   */
+  extractionComplete: boolean;
   /** Niveau dominant, le plus severe des regles. */
   caractere: CaractereContrainte;
   caractereBrut: string;
@@ -509,6 +543,14 @@ export interface ContrainteReferentiel {
 
 /** Millesime du classeur dont ce module est issu. */
 export const MILLESIME_REFERENTIEL = '${millesime}';
+
+/**
+ * Empreinte des cellules du classeur, telles que lues.
+ *
+ * Elle seule decide si le referentiel doit etre redate : ni un commentaire reecrit, ni un champ
+ * calcule ajoute ici ne constituent une verification du classeur.
+ */
+export const EMPREINTE_CLASSEUR = '${empreinteClasseur}';
 
 export const CONTRAINTES_REFERENTIEL: readonly ContrainteReferentiel[] = [
 ${lignes}
@@ -536,6 +578,8 @@ const feuilles = lireClasseur(CLASSEUR);
 const contraintes = [];
 const vus = new Set();
 const parFiliere = new Map();
+/** Cellules du classeur, telles que lues, dans l'ordre. Sert a dater le referentiel. */
+const cellulesSource = [];
 
 for (const [nomFeuille, filiere] of FILIERES) {
   const lignes = feuilles.get(nomFeuille);
@@ -562,6 +606,11 @@ for (const [nomFeuille, filiere] of FILIERES) {
       }
     }
 
+    cellulesSource.push(
+      [filiere, categorie, nom, description, seuil, caractere, reference, couche, type].join('\u001f'),
+    );
+
+    const conditions = seuilsNumeriques(seuil);
     const regles = decouperCaractere(caractere);
     const dominant = regles.reduce((a, b) => (SEVERITE[b.caractere] > SEVERITE[a.caractere] ? b : a));
     const typeNormalise = typeIntegration(type);
@@ -573,7 +622,8 @@ for (const [nomFeuille, filiere] of FILIERES) {
       nom,
       description,
       seuilReglementaire: seuil,
-      seuilsNumeriques: seuilsNumeriques(seuil),
+      seuilsNumeriques: conditions,
+      extractionComplete: extractionComplete(seuil, conditions),
       caractere: dominant.caractere,
       caractereBrut: caractere,
       regles,
@@ -600,10 +650,47 @@ const ancien = (() => {
 const millesimeAncien = /MILLESIME_REFERENTIEL = '([\d-]+)'/.exec(ancien ?? '')?.[1] ?? null;
 const aujourdHui = new Date().toISOString().slice(0, 10);
 
-const sansMillesime = (t) => (t ?? '').replace(/millesime [\d-]+/g, '').replace(/MILLESIME_REFERENTIEL = '[\d-]+'/, '');
-const candidat = rendre(contraintes, aujourdHui, parFiliere);
-const inchange = ancien != null && sansMillesime(candidat) === sansMillesime(ancien);
-const contenu = inchange && millesimeAncien ? rendre(contraintes, millesimeAncien, parFiliere) : candidat;
+/**
+ * Le millesime date LE CLASSEUR, donc il se compare sur LES CELLULES DU CLASSEUR.
+ *
+ * DEUX FAUX REDATAGES OBSERVES, ET POURQUOI LA COMPARAISON A DEMENAGE DEUX FOIS.
+ *
+ *   1. La premiere version comparait les deux fichiers generes en entier. En rendant calculables
+ *      deux nombres que j'avais figes a la main dans un commentaire (« 100 des 292 composites »
+ *      pour 94, « 207 seuils sans nombre » pour 239), j'ai vu le millesime sauter a la date du
+ *      jour sans qu'une seule contrainte ait bouge : ma prose datait le referentiel.
+ *   2. Restreindre la comparaison au tableau `CONTRAINTES_REFERENTIEL` ne suffisait pas : ajouter
+ *      `extractionComplete` — un champ CALCULE a partir du classeur, pas lu dedans — l'a redate
+ *      une seconde fois. Un changement de code enrichissant le referentiel n'est pas une
+ *      verification du referentiel.
+ *
+ * La seule chose qui doive dater ce module est donc ce qui vient du classeur et rien d'autre :
+ * les huit cellules de chacune de ses 292 lignes, telles que lues. L'empreinte est ECRITE dans le
+ * module genere, ce qui rend la comparaison independante de tout le reste du rendu.
+ *
+ * Pas une empreinte des octets du .xlsx : un simple reenregistrement par Excel les change sans
+ * qu'aucun contenu ne bouge, et redaterait pour rien.
+ */
+const empreinteClasseur = createHash('sha256').update(cellulesSource.join('\u001e')).digest('hex').slice(0, 16);
+const empreinteAncienne = /EMPREINTE_CLASSEUR = '([0-9a-f]+)'/.exec(ancien ?? '')?.[1] ?? null;
+/**
+ * Fichier genere AVANT que l'empreinte existe : on ne peut pas comparer, donc on ne redate pas.
+ *
+ * Redater serait affirmer une verification du classeur que rien n'etaye. Conserver le millesime
+ * n'affirme rien de plus que ce qui etait deja ecrit. Cette branche ne sert qu'une fois — des la
+ * premiere regeneration, l'empreinte est dans le module — et elle le dit a voix haute.
+ */
+if (ancien != null && empreinteAncienne == null) {
+  console.warn(
+    'Module genere avant l\'empreinte du classeur : millesime conserve, classeur non compare.',
+  );
+}
+const inchange = empreinteAncienne == null ? ancien != null : empreinteAncienne === empreinteClasseur;
+const candidat = rendre(contraintes, aujourdHui, parFiliere, empreinteClasseur);
+const contenu =
+  inchange && millesimeAncien
+    ? rendre(contraintes, millesimeAncien, parFiliere, empreinteClasseur)
+    : candidat;
 
 if (process.argv.includes('--verifier')) {
   if (inchange) {

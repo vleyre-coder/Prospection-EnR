@@ -21,8 +21,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   CONTRAINTES_REFERENTIEL,
+  EMPREINTE_CLASSEUR,
   FILIERES_REFERENTIEL,
   MILLESIME_REFERENTIEL,
   contrainteParId,
@@ -276,12 +278,17 @@ test('UN SEUIL EXTRAIT D’UN TEXTE VAGUE EST MARQUE APPROXIMATIF', () => {
 
 test('LE TEXTE D’ORIGINE DU SEUIL EST TOUJOURS CONSERVE', () => {
   /*
-   * 223 des 292 seuils ne portent AUCUNE condition numerique exploitable — « Interdit hors liste du
+   * 239 des 292 seuils ne portent AUCUNE condition numerique exploitable — « Interdit hors liste du
    * document-cadre », « Avis conforme de l'ABF ». Une extraction qui pretendrait les resumer les
    * trahirait ; le texte reste donc la source de verite de l'affichage et du dossier.
+   *
+   * LE COMPTE EST FIGE, ET NON « PLUS DE 200 ». La borne lache laissait trois chiffres differents
+   * circuler dans les commentaires du depot pour la meme mesure — 207, 223, 239 — sans qu'aucun
+   * test ne bronche. Un commentaire faux se propage : il sert de reference a la relecture
+   * suivante.
    */
   const sansNombre = CONTRAINTES_REFERENTIEL.filter((c) => c.seuilsNumeriques.length === 0);
-  assert.ok(sansNombre.length > 200, `${sansNombre.length} seuils sans condition numerique`);
+  assert.equal(sansNombre.length, 239, `${sansNombre.length} seuils sans condition numerique`);
   for (const c of sansNombre) {
     assert.ok(c.seuilReglementaire.trim().length > 0, `${c.id} : seuil vide`);
   }
@@ -301,4 +308,74 @@ test('LE MILLESIME EST DATE ET PLAUSIBLE', () => {
   assert.match(MILLESIME_REFERENTIEL, /^\d{4}-\d{2}-\d{2}$/);
   // Le classeur annonce un cadre « a jour 2024-2026 » : un millesime anterieur decrirait autre chose.
   assert.ok(MILLESIME_REFERENTIEL >= '2024-01-01', 'millesime anterieur au cadre decrit');
+});
+
+test('UN SEUIL DONT TOUS LES NOMBRES N’ONT PAS ETE LUS EST MARQUE COMME TEL', () => {
+  /*
+   * POURQUOI CE CHAMP EXISTE. Le cas que le cahier des charges cite lui-meme au §9.2 —
+   * methanisation, distance aux tiers — porte « 100 m (Déclaration) / 200 m
+   * (Enregistrement-Autorisation) » et ressort de l'extraction avec UNE condition : « = 100 m ».
+   * Le seuil reglementaire applicable depend du regime ICPE, donc du tonnage, donc du projet.
+   * Trancher un verdict sur « = 100 m » serait faux dans les deux sens : trop permissif pour un
+   * projet en enregistrement, faussement ferme pour tous les autres.
+   *
+   * Le marqueur est volontairement grossier — plus de nombres dans le texte que de conditions
+   * extraites — et le sens de son erreur est le bon : une contrainte declaree incomplete a tort
+   * part en verification manuelle, ce qui est prudent. L'inverse ne se rattrape pas.
+   */
+  const incompletes = CONTRAINTES_REFERENTIEL.filter((c) => !c.extractionComplete);
+  assert.equal(incompletes.length, 58, `${incompletes.length} extractions incompletes au lieu de 58`);
+
+  // Le marqueur doit DIRE LA VERITE sur chaque ligne, dans les deux sens.
+  for (const c of CONTRAINTES_REFERENTIEL) {
+    const nombres = (c.seuilReglementaire.match(/\d+(?:[.,]\d+)?/g) ?? []).length;
+    assert.equal(
+      c.extractionComplete,
+      nombres <= c.seuilsNumeriques.length,
+      `${c.id} : ${nombres} nombres dans « ${c.seuilReglementaire} » pour ${c.seuilsNumeriques.length} conditions`,
+    );
+  }
+
+  // Le temoin nomme par le §9.2.
+  const tiers = contrainteParId('methanisation__distance_d_implantation_aux_tiers_habitations_erp');
+  assert.ok(tiers);
+  assert.equal(tiers.extractionComplete, false, 'le cas a deux regimes ICPE ne peut pas trancher seul');
+});
+
+test('L’EMPREINTE DU CLASSEUR CHANGE AVEC LE CLASSEUR, ET AVEC LUI SEUL', () => {
+  /*
+   * ELLE SEULE DECIDE DU REDATAGE, et c'est le fruit de deux faux redatages observes. Comparer les
+   * deux fichiers generes redatait le referentiel des qu'un COMMENTAIRE changeait ; comparer le
+   * seul tableau des contraintes le redatait des qu'on y ajoutait un champ CALCULE. Ni l'un ni
+   * l'autre n'est une verification du classeur, et un millesime avance a tort affirme un controle
+   * qui n'a pas eu lieu — exactement ce que le garde devait empecher.
+   *
+   * L'empreinte ne couvre donc que les huit cellules de chacune des 292 lignes, telles que lues.
+   */
+  assert.match(EMPREINTE_CLASSEUR, /^[0-9a-f]{16}$/);
+
+  /*
+   * Elle est RECALCULABLE ici : le test refait la somme a partir des champs recopies du classeur,
+   * et la compare a celle qu'a ecrite le generateur. Une empreinte figee a la main — ou laissee en
+   * arriere apres une revision du classeur — ne passerait pas.
+   */
+  const cellules = CONTRAINTES_REFERENTIEL.map((c) =>
+    [
+      c.filiere,
+      c.categorie,
+      c.nom,
+      c.description,
+      c.seuilReglementaire,
+      c.caractereBrut,
+      c.referenceReglementaire,
+      c.coucheSig,
+      c.typeIntegrationBrut,
+    ].join('\u001f'),
+  ).join('\u001e');
+  const recalculee = createHash('sha256').update(cellules).digest('hex').slice(0, 16);
+  assert.equal(
+    recalculee,
+    EMPREINTE_CLASSEUR,
+    'l’empreinte ne correspond plus aux cellules embarquees : regenerer le referentiel',
+  );
 });
