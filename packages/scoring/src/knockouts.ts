@@ -547,7 +547,7 @@ const koBessAccesEngins: RegleKo = (s) => {
     'Aucun accès poids lourds',
     `Aucun accès poids lourds n'a été identifié depuis le réseau routier${
       s.acces.distanceVoirieM != null ? ` (voirie la plus proche à ${formatDistance(s.acces.distanceVoirieM)})` : ''
-    }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un accès peut être créé — élargissement, convention de passage, renforcement de chaussée — mais le coût et le délai doivent être chiffres avant toute promesse au propriétaire.`,
+    }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un accès peut être créé — élargissement, convention de passage, renforcement de chaussée — mais le coût et le délai doivent être chiffrés avant toute promesse au propriétaire.`,
     'acces',
     'bess_acces_engins',
     true,

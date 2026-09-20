@@ -460,10 +460,10 @@ export function calculerScore(
       libelle: 'Enjeux déterminants non évalués, faute de source',
       motif:
         `${criteresSansSource.length} critère(s) n'ont aucune source ingérée sur ce territoire : ` +
-        `${criteresSansSource.join(', ')}. Ils sont exclus du calcul plutôt que comptes comme ` +
-        `manquants - sans quoi la filière entière basculerait en gris, ce qui n'aiderait à ` +
+        `${criteresSansSource.join(', ')}. Ils sont exclus du calcul plutôt que comptés comme ` +
+        `manquants — sans quoi la filière entière basculerait en gris, ce qui n'aiderait à ` +
         `rien. Le score reste donc comparable d'une parcelle à l'autre, mais aucune parcelle ` +
-        `ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.`,
+        `ne peut être déclarée propice tant que ces enjeux n'ont pas été regardés.`,
       statutMaximal: 'orange',
     });
   }

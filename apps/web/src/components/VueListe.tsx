@@ -139,7 +139,7 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
               {' '}
               — {requete.data.total} résultat{requete.data.total > 1 ? 's' : ''}
               {requete.data.total > requete.data.resultats.length &&
-                ` (${requete.data.resultats.length} affiches)`}
+                ` (${requete.data.resultats.length} affichés)`}
               {borne
                 ? ' — dans la zone affichée'
                 : ' — sur tout le territoire qualifié'}

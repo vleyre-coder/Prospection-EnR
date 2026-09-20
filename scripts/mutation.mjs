@@ -4003,6 +4003,27 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-liste-tableau.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE DEFAUT REPRODUIT TEL QUEL. Le garde comparait des squelettes EXACTS : « regardes » et
+     * « regardé » n'en faisaient pas un seul, et accentuer le singulier quelque part ne disait
+     * rien du pluriel ailleurs. Quatre fautes vivaient dans cet angle mort, toutes dans du texte
+     * affiche — « ces enjeux n'ont pas été regardes », « Propriétaires estimes », « coûts de
+     * chantier majores », « (300 affiches) ».
+     *
+     * CE MOTIF REMET LA FAUTE, plutot que de casser la regle qui la detecte. Un motif qui retire
+     * la regle est bien attrape, mais par le test de VIVACITE des exceptions — celles des pluriels
+     * ne couvriraient plus rien — c'est-a-dire pour une raison de comptabilite interne, sans
+     * prouver que le garde protege un texte lu. Remettre la faute le prouve.
+     */
+    quoi: 'un participe pluriel reperd son accent dans du texte affiche',
+    fichier: 'packages/scoring/src/index.ts',
+    de: "        `ne peut être déclarée propice tant que ces enjeux n'ont pas été regardés.`,",
+    vers: "        `ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.`,",
+    cwd: 'apps/web',
+    tests: ['test/orthographe-affichee.test.ts'],
+  },
 ];
 
 /**

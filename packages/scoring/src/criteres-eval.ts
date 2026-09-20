@@ -1033,7 +1033,7 @@ const topo_altitude: Evaluateur = (s) => {
     valeurAffichee: formatNombre(a, 'm', 0),
     commentaire:
       a > 900
-        ? "Altitude élevée : givre, turbulence, accès hivernal et coûts de chantier majores."
+        ? "Altitude élevée : givre, turbulence, accès hivernal et coûts de chantier majorés."
         : "Altitude sans contrainte particulière.",
     sourceKey: SRC.alti,
   };

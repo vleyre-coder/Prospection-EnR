@@ -1211,7 +1211,7 @@ function RubriquesDonnees({
         cible="foncier"
         referentiel={referentiel}
         enfants={[
-          ['Propriétaires estimes', val(s.foncier.nbProprietairesEstime)],
+          ['Propriétaires estimés', val(s.foncier.nbProprietairesEstime)],
           ['Indivision probable', val(s.foncier.indivisionProbable)],
           ['Surface d’un seul tenant', val(s.foncier.surfaceDunSeulTenantHa, 'ha')],
           ['Indice de morcellement', val(s.foncier.morcellementIndice, '/100')],

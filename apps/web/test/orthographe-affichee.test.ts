@@ -260,6 +260,16 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
    */
   { module: 'apps/api/src/connecteurs/base.ts', mot: 'publie', raison: "verbe publier : « la BD TOPO ne publie AUCUNE capacité d’accueil »" },
   { module: 'apps/api/src/connecteurs/base.ts', mot: 'mesure', raison: "le NOM mesure : « une campagne de mesure de vent », « une campagne de mesure sur site »" },
+  /*
+   * CINQ NOMS AU PLURIEL, exceptes avec l'elargissement du garde aux pluriels (audit 13). La regle
+   * confronte desormais un mot nu en `-es` a son SINGULIER accentue : elle a trouve quatre vraies
+   * fautes — « regardes », « estimes », « majores », « chiffres » (participe) — et bute ici sur
+   * cinq noms, exactement comme la regle exacte bute sur « mesure » ou « charge ».
+   */
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'comptes', raison: 'le NOM compte cadastral : « issue du nombre de comptes cadastraux »' },
+  { module: 'packages/core/src/bornes.ts', mot: 'comptes', raison: 'le NOM compte cadastral : unite et motif de la borne `foncier.nbProprietairesEstime`' },
+  { module: 'apps/api/src/services/exports.ts', mot: 'limites', raison: "le NOM limite : titre de section « Limites de viabilité économique »" },
+  { module: 'apps/api/src/services/exports.ts', mot: 'chiffres', raison: "le NOM chiffre : « Le site en chiffres », « Les deux chiffres ci-dessus »" },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -386,9 +396,35 @@ export function relever(modules: readonly string[], racine: string): Releve {
   return { accentues, nus };
 }
 
-/** Les occurrences ou le meme mot existe aussi, ailleurs, en version accentuee. */
+/**
+ * Les occurrences ou le meme mot existe aussi, ailleurs, en version accentuee.
+ *
+ * ═══ LE PLURIEL COMPTE COMME LE SINGULIER, et cette ligne est payee par quatre fautes
+ *
+ * La comparaison portait sur le squelette EXACT. « regardes » et « regardé » n'en font donc pas
+ * un seul : accentuer le singulier quelque part ne disait rien du pluriel ailleurs, et le garde
+ * se taisait. Quatre fautes vivaient dans cet angle mort, toutes dans du texte affiche :
+ *
+ *     « ces enjeux n'ont pas été regardes »        limite de viabilite, fiche et dossier
+ *     « Propriétaires estimes »                    libelle de la fiche
+ *     « coûts de chantier majores »                critere d'altitude
+ *     « le coût et le délai doivent être chiffres » couperet d'acces poids lourds
+ *     « (300 affiches) »                           en-tete de la liste
+ *
+ * LA REGLE AJOUTEE : un mot nu en `-es` est aussi confronte a son singulier. Elle ne cree pas de
+ * faux positif nouveau — « mesures » face a « mesuré », « charges » face a « chargé » relevent des
+ * memes EXCEPTIONS nommees que leurs singuliers, et le troisieme test verifie qu'aucune exception
+ * ne couvre deux sens differents.
+ *
+ * ELLE NE COUVRE PAS TOUT, et il faut le dire : un feminin (`-ee`), un participe irregulier ou un
+ * mot ecrit nu partout restent invisibles. Ce garde tient la COHERENCE, jamais l'exhaustivite.
+ */
 export function incoherences(releve: Releve): Occurrence[] {
-  return releve.nus.filter((o) => releve.accentues.has(sansAccent(o.mot)));
+  return releve.nus.filter((o) => {
+    const nu = sansAccent(o.mot);
+    if (releve.accentues.has(nu)) return true;
+    return nu.length > 5 && nu.toLowerCase().endsWith('es') && releve.accentues.has(nu.slice(0, -1));
+  });
 }
 
 /**
@@ -443,7 +479,14 @@ test('aucun mot du texte affiche ne s’ecrit a la fois avec et sans accent', ()
   const restantes = incoherences(releve).filter((o) => !excepte(o));
   const rapport = restantes
     .map((o) => {
-      const graphies = [...(releve.accentues.get(sansAccent(o.mot)) ?? [])].join(' / ');
+      /*
+       * LE MESSAGE DOIT NOMMER LA GRAPHIE QUI A DECLENCHE, y compris quand c'est le SINGULIER.
+       * Ecrit pour la seule regle exacte, il rendait « alors que «  » est ecrit ailleurs » sur un
+       * conflit de pluriel — une accusation sans piece jointe, que personne ne peut instruire.
+       */
+      const nu = sansAccent(o.mot);
+      const trouvees = releve.accentues.get(nu) ?? releve.accentues.get(nu.slice(0, -1));
+      const graphies = [...(trouvees ?? [])].join(' / ');
       return `  ${o.module}:${o.ligne}  « ${o.mot} » alors que « ${graphies} » est ecrit ailleurs\n      ${o.contexte}`;
     })
     .join('\n');
@@ -491,6 +534,9 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/knockouts.ts|fixe': 2,
     // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
     'packages/core/src/bornes.ts|bati': 4,
+    // Les deux occurrences sont le NOM chiffre, relues une par une : le titre de section « Le site
+    // en chiffres » et l'encadre « Les deux chiffres ci-dessus ne disent pas la meme chose ».
+    'apps/api/src/services/exports.ts|chiffres': 2,
     // Les deux occurrences sont le NOM mesure, relues une par une : « ni une campagne de mesure
     // de vent » (PVGIS) et « ne remplace pas une campagne de mesure sur site » (Global Wind
     // Atlas). Aucune n'est le participe « mesuré ».
