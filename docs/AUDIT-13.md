@@ -41,6 +41,7 @@ regardé ici ». C'est-à-dire le défaut fondateur de ces treize audits, rouver
 | Bout en bout | **27 verts, 2 hors suite** | Chromium local + base semée |
 | Captures de revue | **3 verts, 9 images** | `E2E_REVUE=1 --grep @revue` |
 | Motifs de mutation | **297 applicables** | dont 5 écrits par cet audit, tous attrapés |
+| Motifs de bout en bout | **9 joués, 9 attrapés** | jamais joués avant cet audit |
 
 **Les 18 tests « ignorés » sont tous expliqués et tous verts** une fois qu'on leur donne ce qu'ils
 demandent : 14 exigent une base de données, 4 sont les tests destructifs de migration, qui
@@ -58,6 +59,12 @@ Ce qui fonctionne aussi, et qui mérite d'être nommé parce que c'est le cœur 
   essayait de l'enfreindre.
 - **Le moteur n'a produit aucun faux vert** sur les 1 505 scores de la base, y compris là où la
   donnée manquait le plus.
+- **Les 9 motifs de mutation de bout en bout, jamais joués jusqu'ici, sont tous attrapés.** Ils
+  étaient exclus par défaut faute de navigateur, et personne n'avait jamais vérifié que les tests
+  qu'ils visent tombent réellement. Ils tombent, les neuf : jeton des tuiles de calque, minuteur de
+  l'écran d'ouverture, couche du cadastre complet, bouton du dossier sans sélection, case de
+  sélection de ligne, troncature des titres du §12, dépliage du §12, levée de la restriction à
+  l'emprise, route des territoires.
 
 ---
 
@@ -276,6 +283,13 @@ C'est le constat n° 1 de cet audit, et la correction d'un échec ne le règle p
 navigateur et une base semée ; elle n'est donc jouée ni par `npm test`, ni par la campagne de
 mutation par défaut. **Tant qu'elle n'est pas dans un enchaînement automatique, elle se re-cassera
 en silence** — c'est exactement ce qui vient d'arriver.
+
+Le même raisonnement vaut pour les 9 motifs de mutation de bout en bout : ils viennent d'être joués
+pour la première fois et passent tous, mais rien ne les rejouera. Un point pratique relevé en les
+jouant : `--filtre` porte sur `audit + quoi + fichier`, et les neuf n'ont aucune chaîne commune —
+il faut donc les appeler un par un, ou lancer la campagne entière (environ quatre heures). Un
+drapeau `--e2e-seulement` les rendrait jouables en une commande d'une vingtaine de minutes, ce qui
+est la différence entre une vérification qu'on fait et une qu'on remet.
 
 ### 7.6 Ce qui reste du travail juridique, et qui n'est pas automatisable
 
