@@ -4091,6 +4091,22 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/ci-mutation-e2e.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * L'OUTIL DE REVUE REPERD UNE VUE. C'est l'etat mesure a l'audit 13 : des quatre vues de la
+     * barre — carte, liste, recherche, tableau de bord —, la RECHERCHE n'etait capturee nulle
+     * part. C'est pourtant la vue ou l'operateur pose ses criteres, et celle ou vivent les
+     * pastilles de typologie dont cet audit a corrige l'ambiguite « Agrivoltaisme » : sans
+     * capture, la correction ne se relit pas.
+     */
+    quoi: 'l’outil de revue cesse de capturer la vue « recherche »',
+    fichier: 'apps/web/e2e/captures.spec.ts',
+    de: '  await page.screenshot({ path: `${SORTIE}/11-recherche.png` });',
+    vers: '  // mutation : la vue de recherche n’est plus capturee',
+    cwd: 'apps/web',
+    tests: ['test/revue-couvre-les-vues.test.ts'],
+  },
 ];
 
 /**

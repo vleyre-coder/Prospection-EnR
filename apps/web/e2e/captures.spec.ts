@@ -207,6 +207,22 @@ test('@revue captures des vues principales', async ({ page }) => {
     await page.screenshot({ path: `${SORTIE}/10-liste-selection.png` });
   }
 
+  /*
+   * 4 bis. LE FORMULAIRE DE RECHERCHE PAR CRITERES.
+   *
+   * CETTE VUE N'ETAIT CAPTUREE NULLE PART, et c'est un trou de l'outil de revue lui-meme : des
+   * quatre vues de la barre — Carte, Liste, Recherche, Tableau de bord —, seule la troisieme
+   * manquait. C'est pourtant celle ou l'operateur POSE ses criteres, donc celle qui oriente tout
+   * le reste du travail. Un outil de revue qui ne montre pas une vue sur quatre laisse ses defauts
+   * hors de portee du seul controle qui les verrait.
+   *
+   * Elle est aussi la vue ou vivent les pastilles de typologie, dont l'ambiguite « Agrivoltaisme »
+   * a ete corrigee par cet audit : sans capture, la correction ne se relit pas.
+   */
+  await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: /recherche/i }).click();
+  await laisserPeindre(page);
+  await page.screenshot({ path: `${SORTIE}/11-recherche.png` });
+
   // 5. Tableau de bord.
   await page.getByRole('group', { name: 'Vue' }).getByRole('button', { name: /tableau/i }).click();
   await laisserPeindre(page);
