@@ -4024,6 +4024,21 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/orthographe-affichee.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LA COLONNE « TRACE ESTIME » REDEVIENT MUETTE QUAND ELLE EST VIDE. Sur un territoire sans
+     * postes ingeres, elle rend « — » sur chaque ligne et sert de clef de tri : cliquer son
+     * en-tete ne change rien, sans un mot. Deux causes produisent le meme tiret — couche non
+     * ingeree, parcelle non requalifiee — et aucune n'est « aucun poste a proximite ».
+     */
+    quoi: 'une cellule de trace estime vide cesse de dire pourquoi elle l’est',
+    fichier: 'apps/web/src/components/VueListe.tsx',
+    de: "                        ? 'Distance au poste source non renseignée : soit la couche des postes ' +",
+    vers: '                        ? undefined && (',
+    cwd: 'apps/web',
+    tests: ['test/rendu-liste-tableau.test.ts'],
+  },
 ];
 
 /**

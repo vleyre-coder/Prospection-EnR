@@ -437,14 +437,27 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
                       </>
                     )}
                   </td>
-                  {/* La colonne donne le trace estime — la grandeur notee et facturee — et
-                      rappelle le vol d'oiseau en infobulle plutot que d'afficher deux
-                      nombres dans une cellule etroite. */}
+                  {/*
+                    La colonne donne le trace estime — la grandeur notee et facturee — et rappelle
+                    le vol d'oiseau en infobulle plutot que d'afficher deux nombres dans une
+                    cellule etroite.
+
+                    UN TIRET SANS EXPLICATION EST UNE AFFIRMATION VIDE. Sur un territoire ou la
+                    couche des postes sources n'est pas ingeree, cette colonne rend « — » sur
+                    CHAQUE ligne, et elle sert en plus de clef de tri : cliquer son en-tete ne
+                    change alors rien, sans un mot. Mesure avant l'ingestion des postes : 301
+                    lignes sur 301 vides, et rien a l'ecran pour distinguer « pas de poste
+                    a proximite » de « on n'a pas regarde ». L'infobulle le dit maintenant, et
+                    nomme les deux causes possibles plutot que d'en choisir une au hasard.
+                  */}
                   <td
                     className="num"
                     title={
                       l.distancePosteKm == null
-                        ? undefined
+                        ? 'Distance au poste source non renseignée : soit la couche des postes ' +
+                          "n'est pas ingérée sur ce territoire, soit cette parcelle n'a pas été " +
+                          'requalifiée depuis sa dernière ingestion. Ce n’est pas une absence de ' +
+                          'poste à proximité.'
                         : `${formatNombre(l.distancePosteKm, 'km', 1)} à vol d'oiseau`
                     }
                   >

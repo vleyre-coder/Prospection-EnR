@@ -277,3 +277,36 @@ test('SANS LIMITE DE VIABILITE, LE ROUGE GARDE LE LIBELLE DU SCORE', () => {
   );
   assert.match(t, new RegExp(referentiel.palette.libellesScore.rouge, 'i'));
 });
+
+test('UNE CELLULE « TRACE ESTIME » VIDE DIT POURQUOI ELLE L’EST', () => {
+  /**
+   * UN TIRET SANS EXPLICATION EST UNE AFFIRMATION VIDE. Sur un territoire ou la couche des postes
+   * sources n'est pas ingeree, cette colonne rend « — » sur CHAQUE ligne, et elle sert en plus de
+   * clef de tri : cliquer son en-tete ne change alors rien, sans un mot. Mesure avant l'ingestion
+   * des postes sur la base de bout en bout : 301 lignes sur 301 vides.
+   *
+   * CE QUE L'INFOBULLE DOIT REFUSER DE FAIRE : choisir une cause. « Pas de poste ingere » et
+   * « parcelle non requalifiee » produisent le meme tiret, et les deux appellent des gestes
+   * differents. Elle nomme donc les deux, et interdit explicitement la lecture « aucun poste a
+   * proximite » — celle qui ferait ecarter une parcelle pour une raison inexistante.
+   */
+  const base = listeSolaire.resultats[0]!;
+  const html = rendreResolu(
+    h(VueListe, { filiere: 'solaire_sol', referentiel, onOuvrir: () => undefined }),
+    {
+      liste: {
+        total: 1,
+        resultats: [{ ...base, distancePosteKm: null, lineaireRaccordementKm: null }],
+      },
+    },
+    { limiterALEmprise: false },
+  );
+  assert.match(html, /non renseignée/i, `l’infobulle doit exister — ${html.slice(0, 200)}`);
+  assert.match(html, /pas ingérée sur ce territoire/i, 'la premiere cause doit etre nommee');
+  assert.match(html, /requalifiée/i, 'la seconde cause doit etre nommee');
+  assert.match(
+    html,
+    /n(&#x27;|’)est pas une absence de/i,
+    'l’infobulle doit refuser la lecture « aucun poste a proximite »',
+  );
+});
