@@ -141,11 +141,13 @@ export function Resultats({
     );
   }
 
+  const rangs = rangsParTitre(donnees.zones);
+
   return (
     <>
       <ul className="liste-zones">
         {donnees.zones.map((z) => (
-          <Zone key={z.id} zone={z} onAllerVers={onAllerVers} />
+          <Zone key={z.id} zone={z} rang={rangs.get(z.id)} onAllerVers={onAllerVers} />
         ))}
       </ul>
       {/*
@@ -162,20 +164,75 @@ export function Resultats({
   );
 }
 
+/** Le titre sous lequel une zone s'affiche — commune d'abord, a defaut son propre nom. */
+export function titreZone(zone: Pick<ZoneProposee, 'id' | 'nom' | 'nomCommune'>): string {
+  return zone.nomCommune ?? zone.nom ?? `Zone ${zone.id}`;
+}
+
+/**
+ * Le rang de chaque zone parmi celles qui portent LE MEME TITRE, quand elles sont plusieurs.
+ *
+ * LE DEFAUT QUE CELA CORRIGE, vu sur une capture de la vue reelle. Une commune designe souvent
+ * plusieurs zones d'acceleration, et le titre d'une carte est le nom de la COMMUNE : la liste
+ * affichait « Écrosnes (28) » en 2e position et « Écrosnes (28) » en 8e, avec des surfaces
+ * differentes et rien pour les distinguer. L'operateur lit un doublon, soupconne un defaut
+ * d'affichage, et n'ouvre pas la seconde.
+ *
+ * AUCUN AUTRE CHAMP NE LES SEPARE, et c'est pour cela que le rang est la seule reponse honnete :
+ * `nom_commune` est joint depuis la table des communes, donc identique par construction, et le nom
+ * porte par la deliberation ne vaut pas mieux — mesure sur la base de bout en bout, 7 664 zones ne
+ * portent que 448 noms distincts, le plus souvent le nom de la commune en capitales.
+ *
+ * Les zones seules n'ont pas de rang : numeroter « 1 sur 1 » ajouterait du bruit a la majorite des
+ * cartes pour ne rien dire.
+ */
+export function rangsParTitre(
+  zones: ReadonlyArray<Pick<ZoneProposee, 'id' | 'nom' | 'nomCommune'>>,
+): Map<string, { i: number; n: number }> {
+  const parTitre = new Map<string, string[]>();
+  for (const z of zones) {
+    const titre = titreZone(z);
+    const deja = parTitre.get(titre);
+    if (deja) deja.push(z.id);
+    else parTitre.set(titre, [z.id]);
+  }
+  const rangs = new Map<string, { i: number; n: number }>();
+  for (const ids of parTitre.values()) {
+    if (ids.length < 2) continue;
+    ids.forEach((id, i) => rangs.set(id, { i: i + 1, n: ids.length }));
+  }
+  return rangs;
+}
+
 function Zone({
   zone,
+  rang,
   onAllerVers,
 }: {
   zone: ZoneProposee;
+  rang: { i: number; n: number } | undefined;
   onAllerVers: (bbox: [number, number, number, number]) => void;
 }): JSX.Element {
-  const titre = zone.nomCommune ?? zone.nom ?? `Zone ${zone.id}`;
+  const titre = titreZone(zone);
   return (
     <li>
       <button type="button" className="zone" onClick={() => onAllerVers(zone.bbox)}>
         <span className="zone-titre">
           {titre}
           {zone.codeDepartement && <span className="zone-dep"> ({zone.codeDepartement})</span>}
+          {/*
+            LE RANG N'APPARAIT QUE S'IL Y A AMBIGUITE : deux cartes de meme titre dans la meme
+            liste. Il dit « ce n'est pas la meme zone », ce qu'aucun autre champ affiche ne dit.
+          */}
+          {rang && (
+            <span
+              className="zone-dep"
+              title={`Cette commune a désigné ${rang.n} zones d’accélération. Elles sont listées séparément, de la plus grande à la plus petite.`}
+            >
+              {' '}
+              — zone {rang.i} sur {rang.n}
+            </span>
+          )}
         </span>
         <span className="zone-mesures">
           <strong>{formatNombre(zone.surfaceUtileHa, 'ha', 1)}</strong> utiles sur{' '}

@@ -881,8 +881,8 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   ebc: {
     id: 'commun_ebc',
-    libelle: 'Espace boisé classe : défrichement rejeté de plein droit',
-    reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boisés classes)",
+    libelle: 'Espace boisé classé : défrichement rejeté de plein droit',
+    reference: "Code de l'urbanisme, art. L.113-1 et L.113-2 (espaces boisés classés)",
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000031210299`,
     commentaire:
@@ -1004,14 +1004,14 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   site_classe: {
     id: 'commun_site_classe',
-    libelle: 'Site classe : travaux soumis à autorisation spéciale',
+    libelle: 'Site classé : travaux soumis à autorisation spéciale',
     reference:
       "Code de l'environnement, art. L.341-1 (classement) et L.341-10 (travaux soumis à autorisation " +
       'spéciale)',
     dateEntreeEnVigueur: '2000-09-21',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033036041`,
     commentaire:
-      "En site classe, aucun travail modifiant l’état ou l’aspect des lieux ne peut être entrepris sans " +
+      "En site classé, aucun travail modifiant l’état ou l’aspect des lieux ne peut être entrepris sans " +
       'autorisation SPÉCIALE : c’est une procédure lourde, dont l’issue est défavorable pour un ' +
       'aménagement de production d’énergie dans la quasi-totalité des cas. La date retenue est celle de ' +
       'l’entrée en vigueur du code de l’environnement, qui a recodifie la loi du 2 mai 1930. — Relevé du ' +

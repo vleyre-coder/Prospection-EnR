@@ -151,7 +151,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
 
     // -- Patrimoine --------------------------------------------------------
     def('pat_monuments', 'patrimoine', 'Monuments historiques', "Distance au monument le plus proche et présence dans un périmètre de protection ou un PDA, déclenchant l'avis de l'ABF.", 'm'),
-    def('pat_sites', 'patrimoine', 'Sites classes et inscrits', "Un site classe impose une autorisation ministérielle. Un site inscrit, un avis de l'ABF.", 'm'),
+    def('pat_sites', 'patrimoine', 'Sites classés et inscrits', "Un site classé impose une autorisation ministérielle. Un site inscrit, un avis de l'ABF.", 'm'),
     def('pat_archeologie', 'patrimoine', 'Sensibilité archéologique', "Zone de présomption de prescription archéologique : risque de diagnostic et de fouille préventive, impactant le calendrier.", ),
 
     // -- Risques -----------------------------------------------------------

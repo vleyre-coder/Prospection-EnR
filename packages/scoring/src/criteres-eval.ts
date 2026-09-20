@@ -1368,8 +1368,8 @@ const pat_sites: Evaluateur = (s) => {
     return aucuneCouche
       ? sansSource(
           SRC.patrimoine,
-          'Les sites classes et inscrits',
-          "À vérifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou auprès de l'UDAP du département. Un site classe impose une autorisation ministérielle spéciale : son absence ici ne vaut PAS absence de site.",
+          'Les sites classés et inscrits',
+          "À vérifier sur l'Atlas des patrimoines (atlas.patrimoines.culture.fr) ou auprès de l'UDAP du département. Un site classé impose une autorisation ministérielle spéciale : son absence ici ne vaut PAS absence de site.",
         )
       : indispo(SRC.patrimoine);
   }
@@ -1379,19 +1379,19 @@ const pat_sites: Evaluateur = (s) => {
   // distance est nulle : c'est une absence de site, non une absence de donnee. Le libelle
   // doit le dire, sans quoi un feu vert s'afficherait avec la mention « indisponible ».
   const libelle = s.patrimoine.siteClasse.recouvre
-    ? `Site classe - ${s.patrimoine.siteClasse.nom ?? 'sans nom'}`
+    ? `Site classé - ${s.patrimoine.siteClasse.nom ?? 'sans nom'}`
     : s.patrimoine.siteInscrit.recouvre
       ? `Site inscrit - ${s.patrimoine.siteInscrit.nom ?? 'sans nom'}`
       : distance != null
         ? formatDistance(distance)
-        : "Aucun site classe ni inscrit dans le rayon d'analyse";
+        : "Aucun site classé ni inscrit dans le rayon d'analyse";
 
   return {
     note,
     valeurBrute: distance,
     valeurAffichee: libelle,
     commentaire:
-      "Un site classe impose une autorisation ministérielle spéciale ; un site inscrit, un avis de l'ABF.",
+      "Un site classé impose une autorisation ministérielle spéciale ; un site inscrit, un avis de l'ABF.",
     sourceKey: SRC.patrimoine,
   };
 };

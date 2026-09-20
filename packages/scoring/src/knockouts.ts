@@ -163,8 +163,8 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
   if (ebc) {
     return ko(
       'ko_ebc',
-      'Espace boisé classe',
-      "La parcelle est grevée d'un espace boisé classe : tout défrichement et tout changement d'affectation du sol compromettant la conservation des boisements est interdit. Le déclassement suppose une révision du PLU.",
+      'Espace boisé classé',
+      "La parcelle est grevée d'un espace boisé classé : tout défrichement et tout changement d'affectation du sol compromettant la conservation des boisements est interdit. Le déclassement suppose une révision du PLU.",
       'urbanisme',
       'commun_ebc',
     );
@@ -326,8 +326,8 @@ const koMonumentSiteClasse: RegleKo = (s) => {
   if (s.patrimoine.siteClasse.recouvre === true) {
     return ko(
       'ko_eol_site_classe',
-      'Site classe',
-      `La parcelle est en site classe${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc éolien y est incompatible avec l'objectif de conservation du site : tout travail y suppose une autorisation spéciale.`,
+      'Site classé',
+      `La parcelle est en site classé${s.patrimoine.siteClasse.nom ? ` (${s.patrimoine.siteClasse.nom})` : ''}. Un parc éolien y est incompatible avec l'objectif de conservation du site : tout travail y suppose une autorisation spéciale.`,
       'patrimoine',
       'commun_site_classe',
     );

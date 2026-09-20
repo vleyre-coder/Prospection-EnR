@@ -101,17 +101,16 @@ function exigerHunspell() {
  * d'un chemin de module ET exister sur le disque. La panne redevient bruyante si la liste change
  * encore de forme.
  */
-function modulesTexte() {
+export function modulesTexte() {
   const src = readFileSync(
     resolve(RACINE, 'apps/web/test/orthographe-affichee.test.ts'),
     'utf8',
   );
   const bloc = /export const MODULES_TEXTE: readonly string\[\] = \[([\s\S]*?)\n\];/.exec(src);
   if (!bloc) {
-    console.error(
+    throw new Error(
       'MODULES_TEXTE introuvable dans orthographe-affichee.test.ts : le perimetre a change de forme.',
     );
-    process.exit(1);
   }
   const sansCommentaires = bloc[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
   const modules = [...sansCommentaires.matchAll(/'([^']+)'/g)].map((m) => m[1]);
@@ -119,89 +118,109 @@ function modulesTexte() {
     (m) => !/^(apps|packages)\/[\w./-]+\.tsx?$/.test(m) || !existsSync(resolve(RACINE, m)),
   );
   if (modules.length === 0 || inattendus.length > 0) {
-    console.error(
+    throw new Error(
       `Le perimetre lu n'est pas une liste de modules : ${modules.length} entree(s), dont ` +
         `${inattendus.length} sans fichier correspondant.\n` +
         inattendus.map((m) => `  - ${JSON.stringify(m.slice(0, 70))}`).join('\n'),
     );
-    process.exit(1);
   }
   return modules;
 }
 
-exigerHunspell();
+/**
+ * Le balayage lui-meme.
+ *
+ * ISOLE DANS UNE FONCTION, et appele seulement en lancement direct, pour que `modulesTexte()` soit
+ * IMPORTABLE : son garde peut alors verifier la lecture du perimetre sans hunspell, donc partout.
+ * C'etait le defaut a l'origine de sa panne — un code de balayage qui s'executait a l'import ne
+ * pouvait etre teste que par un test qui exigeait le dictionnaire, c'est-a-dire par aucun.
+ */
+async function principal() {
+  exigerHunspell();
 
-// `relever` fait l'analyse TypeScript des litteraux affiches : c'est la MEME fonction que les gardes
-// utilisent, importee et non reecrite.
-const { relever } = await import(
-  resolve(RACINE, 'apps/web/test/orthographe-affichee.test.ts')
-);
+  // `relever` fait l'analyse TypeScript des litteraux affiches : c'est la MEME fonction que les gardes
+  // utilisent, importee et non reecrite.
+  const { relever } = await import(
+    resolve(RACINE, 'apps/web/test/orthographe-affichee.test.ts')
+  );
 
-const releve = relever(modulesTexte(), RACINE);
-const parMot = new Map();
-for (const o of releve.nus) {
-  const clef = o.mot.toLowerCase();
-  if (!parMot.has(clef)) parMot.set(clef, []);
-  parMot.get(clef).push(o);
-}
-const distincts = [...parMot.keys()];
+  const releve = relever(modulesTexte(), RACINE);
+  const parMot = new Map();
+  for (const o of releve.nus) {
+    const clef = o.mot.toLowerCase();
+    if (!parMot.has(clef)) parMot.set(clef, []);
+    parMot.get(clef).push(o);
+  }
+  const distincts = [...parMot.keys()];
 
-const ENV = { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' };
-const options = ['-d', 'fr_FR', '-i', 'UTF-8'];
+  const ENV = { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' };
+  const options = ['-d', 'fr_FR', '-i', 'UTF-8'];
 
-const refuses = new Set(
-  execFileSync('hunspell', [...options, '-l'], {
-    input: `${distincts.join('\n')}\n`,
+  const refuses = new Set(
+    execFileSync('hunspell', [...options, '-l'], {
+      input: `${distincts.join('\n')}\n`,
+      encoding: 'utf8',
+      env: ENV,
+    })
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+
+  // `^` protege chaque mot : sans lui, hunspell lirait certaines lignes comme des commandes.
+  const liste = [...refuses];
+  const verdicts = execFileSync('hunspell', [...options, '-a'], {
+    input: `${liste.map((m) => `^${m}`).join('\n')}\n`,
     encoding: 'utf8',
     env: ENV,
   })
     .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean),
-);
+    .slice(1)
+    .filter((l) => l.trim() !== '');
 
-// `^` protege chaque mot : sans lui, hunspell lirait certaines lignes comme des commandes.
-const liste = [...refuses];
-const verdicts = execFileSync('hunspell', [...options, '-a'], {
-  input: `${liste.map((m) => `^${m}`).join('\n')}\n`,
-  encoding: 'utf8',
-  env: ENV,
-})
-  .split('\n')
-  .slice(1)
-  .filter((l) => l.trim() !== '');
+  const plie = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const plie = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const candidats = [];
+  liste.forEach((mot, i) => {
+    const ligne = verdicts[i] ?? '';
+    const suggestions = ligne.includes(':') ? ligne.split(':')[1].trim().split(', ') : [];
+    // On exige une difference d'ACCENT, pas de casse : « aot » suggerant « AOT » n'est pas une faute
+    // d'accent, c'est un sigle.
+    const accentuees = suggestions.filter(
+      (s) => plie(s) === mot.toLowerCase() && s.toLowerCase() !== mot.toLowerCase(),
+    );
+    if (accentuees.length > 0) candidats.push({ mot, accentuees, occurrences: parMot.get(mot) });
+  });
 
-const candidats = [];
-liste.forEach((mot, i) => {
-  const ligne = verdicts[i] ?? '';
-  const suggestions = ligne.includes(':') ? ligne.split(':')[1].trim().split(', ') : [];
-  // On exige une difference d'ACCENT, pas de casse : « aot » suggerant « AOT » n'est pas une faute
-  // d'accent, c'est un sigle.
-  const accentuees = suggestions.filter(
-    (s) => plie(s) === mot.toLowerCase() && s.toLowerCase() !== mot.toLowerCase(),
+  const occurrences = candidats.reduce((t, c) => t + c.occurrences.length, 0);
+  console.log(
+    `${distincts.length} mots distincts dans le texte affiche | ${refuses.size} refuses par hunspell | ` +
+      `${candidats.length} dont un accent manquant explique le refus (${occurrences} occurrences)\n`,
   );
-  if (accentuees.length > 0) candidats.push({ mot, accentuees, occurrences: parMot.get(mot) });
-});
 
-const occurrences = candidats.reduce((t, c) => t + c.occurrences.length, 0);
-console.log(
-  `${distincts.length} mots distincts dans le texte affiche | ${refuses.size} refuses par hunspell | ` +
-    `${candidats.length} dont un accent manquant explique le refus (${occurrences} occurrences)\n`,
-);
+  for (const { mot, accentuees, occurrences: occ } of candidats.sort((a, b) => a.mot.localeCompare(b.mot))) {
+    console.log(`== ${mot}  ->  ${accentuees.join(' / ')}`);
+    for (const o of occ) {
+      console.log(`   ${`${o.module}:${o.ligne}`.padEnd(52)} ${o.contexte.slice(0, 96)}`);
+    }
+  }
 
-for (const { mot, accentuees, occurrences: occ } of candidats.sort((a, b) => a.mot.localeCompare(b.mot))) {
-  console.log(`== ${mot}  ->  ${accentuees.join(' / ')}`);
-  for (const o of occ) {
-    console.log(`   ${`${o.module}:${o.ligne}`.padEnd(52)} ${o.contexte.slice(0, 96)}`);
+  if (candidats.length > 0) {
+    console.log(
+      '\nLisez chaque occurrence : le dictionnaire ne distingue pas le verbe du participe. Corrigez ce ' +
+        "qui est faux, puis ajoutez les graphies au garde `orthographe-dictionnaire.test.ts` pour qu'elles " +
+        'ne reviennent pas.',
+    );
   }
 }
 
-if (candidats.length > 0) {
-  console.log(
-    '\nLisez chaque occurrence : le dictionnaire ne distingue pas le verbe du participe. Corrigez ce ' +
-      "qui est faux, puis ajoutez les graphies au garde `orthographe-dictionnaire.test.ts` pour qu'elles " +
-      'ne reviennent pas.',
-  );
+import { pathToFileURL } from 'node:url';
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    await principal();
+  } catch (erreur) {
+    console.error(erreur instanceof Error ? erreur.message : String(erreur));
+    process.exit(1);
+  }
 }

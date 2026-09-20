@@ -164,6 +164,39 @@ function BarresEmpilees({
   );
 }
 
+/**
+ * Les valeurs portees par l'axe vertical, de haut en bas, sans doublon.
+ *
+ * LE DEFAUT QUE CETTE FONCTION REMPLACE, mesure sur le portefeuille de bout en bout. L'axe etait
+ * fixe a trois graduations — `[0, 0.5, 1]` fois le maximum — et chaque libelle etait arrondi. Sur
+ * un portefeuille d'un seul lead, donc `maxi = 1`, `Math.round(0.5)` vaut 1 en JavaScript : l'axe
+ * affichait **1, 1, 0**, deux fois le meme nombre a deux hauteurs differentes. Un point valant 1 se
+ * lisait alors aussi bien au sommet qu'au milieu du graphique. Ce n'est pas un defaut de coin :
+ * c'est l'etat NORMAL d'un portefeuille qui demarre, c'est-a-dire ce que l'operateur voit le
+ * premier jour.
+ *
+ * LA REGLE : les comptages sont des ENTIERS, donc l'axe n'en montre jamais deux identiques. En
+ * dessous de quatre, chaque entier a sa graduation ; au-dela, on garde les trois reperes habituels
+ * (0, la moitie, le maximum) et le doublon devient impossible par construction — pour tout
+ * `haut >= 4`, `Math.round(haut / 2)` tombe entre 2 et `haut - 2`, donc jamais sur 0 ni sur `haut`.
+ *
+ * UN `new Set` ENVELOPPAIT CE RETOUR, et il a ete retire : la campagne de mutation l'a montre
+ * MORT. Casser la premiere branche ne faisait echouer aucun test, parce que le Set rattrapait le
+ * doublon ; casser le Set n'en faisait echouer aucun non plus, parce que la premiere branche
+ * couvrait deja tous les cas ou un doublon pouvait naitre. Deux protections dont aucune n'est
+ * necessaire, c'est du code que personne ne peut plus raisonner — la lecon du bloc mort de
+ * `verdict.ts`. La garantie tient desormais a une seule regle, ecrite, et le garde la mesure sur
+ * toute la plage utile.
+ *
+ * `Math.max(1, …)` PORTE LE CAS DU PORTEFEUILLE VIDE : sans lui l'axe se replierait sur la seule
+ * graduation 0, et le graphique perdrait son cadre le jour ou il est le plus consulte — le premier.
+ */
+export function graduations(maxi: number): number[] {
+  const haut = Math.max(1, Math.round(maxi));
+  if (haut <= 3) return [...Array(haut + 1).keys()];
+  return [0, Math.round(haut / 2), haut];
+}
+
 function Courbes({
   donnees,
 }: {
@@ -188,18 +221,18 @@ function Courbes({
   return (
     <div style={{ overflowX: 'auto' }}>
       <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: '100%', minWidth: 420, height: 'auto' }} role="img" aria-label="Activité sur 12 mois">
-        {[0, 0.5, 1].map((r) => (
-          <g key={r}>
+        {graduations(maxi).map((v) => (
+          <g key={v}>
             <line
               x1={marge.gauche}
               x2={largeur - marge.droite}
-              y1={y(maxi * r)}
-              y2={y(maxi * r)}
+              y1={y(v)}
+              y2={y(v)}
               stroke="var(--bordure)"
               strokeWidth="1"
             />
-            <text x={4} y={y(maxi * r) + 3.5} fontSize="9" fill="var(--texte-faible)">
-              {Math.round(maxi * r)}
+            <text x={4} y={y(v) + 3.5} fontSize="9" fill="var(--texte-faible)">
+              {v}
             </text>
           </g>
         ))}

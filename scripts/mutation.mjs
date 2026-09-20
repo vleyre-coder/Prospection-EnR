@@ -3812,6 +3812,76 @@ const MUTATIONS = [
     cwd: 'packages/core',
     commande: ['node', '--test', '--experimental-strip-types', 'test/relecture-juridique.test.ts'],
   },
+
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE DEFAUT D'ORIGINE, vu sur la capture du tableau de bord : trois graduations figees a 0, la
+     * moitie et le maximum, chaque libelle arrondi. Sur un portefeuille d'UN lead — l'etat du
+     * premier jour — `Math.round(0.5)` vaut 1, et l'axe affichait 1, 1, 0 : le meme nombre a deux
+     * hauteurs, un point valant 1 lisible aussi bien au sommet qu'au milieu.
+     *
+     * LE MOTIF VISE LE PLANCHER, et non la branche des petits comptages, parce que c'est lui qui
+     * porte encore quelque chose. La premiere version de ce motif cassait `haut <= 3` et SURVIVAIT
+     * — un `new Set` rattrapait le doublon derriere. Les deux protections se couvraient l'une
+     * l'autre sans qu'aucune soit necessaire ; le Set a ete retire, et ce qui reste se mesure. Sans
+     * le plancher, un portefeuille VIDE replie l'axe sur la seule graduation 0 et le graphique perd
+     * son cadre le jour ou il est le plus regarde : le premier.
+     */
+    quoi: 'l’axe du graphique d’activite perd son cadre sur un portefeuille vide',
+    fichier: 'apps/web/src/components/TableauDeBord.tsx',
+    de: '  const haut = Math.max(1, Math.round(maxi));',
+    vers: '  const haut = Math.round(maxi);',
+    cwd: 'apps/web',
+    tests: ['test/rendu-liste-tableau.test.ts'],
+  },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * DEUX ZONES D'UNE MEME COMMUNE REDEVIENNENT UN DOUBLON APPARENT. Le titre d'une carte est le
+     * nom de la commune, et une commune en designe souvent plusieurs : sans le rang, la liste
+     * affiche « Écrosnes (28) » deux fois, a des places eloignees, avec des surfaces differentes et
+     * rien pour dire que ce sont deux zones. Aucun autre champ ne les separe — 7 664 zones pour
+     * 448 noms distincts sur la base de bout en bout.
+     */
+    quoi: 'deux zones d’une meme commune se relisent comme un doublon d’affichage',
+    fichier: 'apps/web/src/components/PanneauZones.tsx',
+    de: '    if (ids.length < 2) continue;',
+    vers: '    if (ids.length < 999) continue;',
+    cwd: 'apps/web',
+    tests: ['test/rendu-zones.test.ts'],
+  },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE CATALOGUE DES CONNECTEURS RESSORT DU GARDE D'ORTHOGRAPHE. Ses champs `nom` et
+     * `avertissement` sont servis a l'interface par `sourceRef()` : ils s'affichent sous chaque
+     * critere de la fiche, dans le panneau des calques et dans le dossier PDF. Hors perimetre, ils
+     * portaient 28 fautes d'accent lues par l'operateur a longueur de journee.
+     */
+    quoi: 'le catalogue des connecteurs ressort du perimetre du garde d’orthographe',
+    fichier: 'apps/web/test/orthographe-affichee.test.ts',
+    de: "  'apps/api/src/connecteurs/base.ts',\n];",
+    vers: '];',
+    cwd: 'apps/web',
+    tests: ['test/orthographe-affichee.test.ts'],
+  },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE BALAYAGE ORTHOGRAPHIQUE REDEVIENT MUET. Son perimetre est lu dans la liste du garde ; sans
+     * le retrait des commentaires, les apostrophes francaises de ces commentaires passent pour des
+     * chemins de module et le script meurt sur un ENOENT, APRES une sortie qui ressemble a un
+     * succes. Un outil de recherche en panne ne rend pas d'erreur utile : il rend zero faute.
+     */
+    quoi: 'le balayage orthographique reprend les apostrophes des commentaires pour des chemins de module',
+    fichier: 'scripts/orthographe-dictionnaire.mjs',
+    de: "  const sansCommentaires = bloc[1].replace(/\\/\\*[\\s\\S]*?\\*\\//g, '').replace(/\\/\\/[^\\n]*/g, '');",
+    vers: '  const sansCommentaires = bloc[1];',
+    tests: ['apps/web/test/garde-balayage-orthographe.test.ts'],
+    cwd: 'apps/web',
+    commande: ['tsx', '--test', 'test/garde-balayage-orthographe.test.ts'],
+  },
 ];
 
 /**

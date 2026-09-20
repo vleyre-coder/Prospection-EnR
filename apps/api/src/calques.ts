@@ -328,7 +328,7 @@ export const CALQUES: DefinitionCalque[] = [
   },
   {
     id: 'sites_patrimoniaux',
-    libelle: 'Sites classes, inscrits et périmètres ABF',
+    libelle: 'Sites classés, inscrits et périmètres ABF',
     groupe: 'patrimoine',
     couleur: '#6d28d9',
     mode: 'vecteur_api',
@@ -343,7 +343,7 @@ export const CALQUES: DefinitionCalque[] = [
       valeurJuridique: 'opposable',
     },
     legende:
-      "Servitudes de protection du patrimoine : abords de monuments (AC1), sites classes et inscrits (AC2), sites patrimoniaux remarquables (AC4).",
+      "Servitudes de protection du patrimoine : abords de monuments (AC1), sites classés et inscrits (AC2), sites patrimoniaux remarquables (AC4).",
     avertissement:
       "La couverture du Geoportail de l'Urbanisme dépend du versement par chaque service instructeur : une absence de servitude n'est pas une garantie d'absence de protection.",
   },

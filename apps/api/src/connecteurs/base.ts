@@ -43,7 +43,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
   },
   apicarto_gpu: {
     connecteur: 'apicarto_gpu',
-    nom: "IGN API Carto - module GPU (Geoportail de l'Urbanisme)",
+    nom: "IGN API Carto - module GPU (Géoportail de l'Urbanisme)",
     url: 'https://apicarto.ign.fr/api/gpu',
     modeAcces: 'api',
     valeurJuridique: 'opposable',
@@ -61,7 +61,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: 365,
     avertissement:
-      "Le RPG recense les ilots déclarés à la PAC. Une parcelle absente du RPG n'est pas nécessairement non exploitée : elle peut relever d'un exploitant non déclarant.",
+      "Le RPG recense les îlots déclarés à la PAC. Une parcelle absente du RPG n'est pas nécessairement non exploitée : elle peut relever d'un exploitant non déclarant.",
   },
   aoc_viticole: {
     connecteur: 'aoc_viticole',
@@ -72,7 +72,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: 180,
     avertissement:
-      "Le module AOC de l'API Carto exige une clé FranceAgriMer privée : cette couche passe par le WFS de la Geoplateforme, qui n'expose que la dénomination et le comite régional.",
+      "Le module AOC de l'API Carto exige une clé FranceAgriMer privée : cette couche passe par le WFS de la Geoplateforme, qui n'expose que la dénomination et le comité régional.",
   },
   apicarto_nature: {
     connecteur: 'apicarto_nature',
@@ -83,7 +83,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
+      "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pèsent dans l'instruction et le contentieux.",
   },
   patrinat_appb: {
     connecteur: 'patrinat_appb',
@@ -94,18 +94,18 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Un arrêté de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement à un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'ou cette source distincte.",
+      "Un arrêté de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement à un zonage N, il n'est pas dérogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'où cette source distincte.",
   },
   georisques: {
     connecteur: 'georisques',
-    nom: 'Georisques (BRGM / MTE)',
+    nom: 'Géorisques (BRGM / MTE)',
     url: 'https://georisques.gouv.fr/api/v1',
     modeAcces: 'api',
     valeurJuridique: 'opposable',
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
+      "Les zonages réglementaires de PPR sont recensés au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
   },
   ign_alti: {
     connecteur: 'ign_alti',
@@ -116,22 +116,22 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
+      "Pente et orientation sont estimées par régression sur une grille de points cotés du MNT. Un levé topographique reste nécessaire au stade du dimensionnement.",
   },
   ign_bdtopo: {
     connecteur: 'ign_bdtopo',
-    nom: 'IGN BD TOPO (batiments, voirie, hydrographie)',
+    nom: 'IGN BD TOPO (bâtiments, voirie, hydrographie)',
     url: 'https://data.geopf.fr/wfs/ows?TYPENAMES=BDTOPO_V3:batiment',
     modeAcces: 'api',
     valeurJuridique: 'indicative',
     couverture: 'nationale',
     periodiciteJours: 180,
     avertissement:
-      "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
+      "Les distances à l'habitat sont calculées sur le bâti de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
   },
   ign_bdforet: {
     connecteur: 'ign_bdforet',
-    nom: 'IGN BD Foret V2',
+    nom: 'IGN BD Forêt V2',
     url: 'https://data.geopf.fr/wfs/ows?TYPENAMES=LANDCOVER.FORESTINVENTORY.V2:formation_vegetale',
     modeAcces: 'api',
     valeurJuridique: 'indicative',
@@ -147,7 +147,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'partielle',
     periodiciteJours: 365,
     avertissement:
-      "Pre-repérage uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingérés.",
+      "Pré-repérage uniquement. Le caractère humide se détermine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifié). Les inventaires départementaux ne sont pas tous ingérés.",
   },
   postes_sources: {
     connecteur: 'postes_sources',
@@ -158,7 +158,7 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: 30,
     avertissement:
-      "Capacités indicatives et non engageantes, evolutives au fil des demandes de raccordement. Seule une étude de raccordement puis une proposition technique et financiere du gestionnaire engagent une capacité.",
+      "Capacités indicatives et non engageantes, évolutives au fil des demandes de raccordement. Seule une étude de raccordement puis une proposition technique et financière du gestionnaire engagent une capacité.",
   },
   /**
    * SECOND CHEMIN VERS LES POSTES SOURCES, quand Capareseau n'est pas joignable.
@@ -169,40 +169,40 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
    */
   postes_geopf: {
     connecteur: 'postes_geopf',
-    nom: 'IGN BD TOPO - postes de transformation raccordes au reseau HTB',
+    nom: 'IGN BD TOPO - postes de transformation raccordés au réseau HTB',
     url: 'https://data.geopf.fr/wfs/ows',
     modeAcces: 'ingestion',
     valeurJuridique: 'indicative',
     couverture: 'nationale',
     periodiciteJours: 180,
     avertissement:
-      "Position seulement : la BD TOPO ne publie AUCUNE capacite d'accueil. Un poste retenu ici est un poste de transformation en contact avec une ligne de 150 kV ou moins ; sa capacite reste inconnue et doit etre demandee au gestionnaire de reseau (Capareseau, puis etude de raccordement).",
+      "Position seulement : la BD TOPO ne publie AUCUNE capacité d'accueil. Un poste retenu ici est un poste de transformation en contact avec une ligne de 150 kV ou moins ; sa capacité reste inconnue et doit être demandée au gestionnaire de réseau (Capareseau, puis étude de raccordement).",
   },
   reseau_gaz: {
     connecteur: 'reseau_gaz',
-    nom: 'GRDF / GRTgaz / Terega - réseau gaz et injection biomethane',
+    nom: 'GRDF / GRTgaz / Terega - réseau gaz et injection biométhane',
     url: 'https://opendata.grdf.fr',
     modeAcces: 'ingestion',
     valeurJuridique: 'indicative',
     couverture: 'nationale',
     periodiciteJours: 90,
     avertissement:
-      "La faisabilité d'une injection dépend du zonage de raccordement et de la capacité du réseau a l'instant du projet, y compris en rebours. À confirmer auprès du gestionnaire.",
+      "La faisabilité d'une injection dépend du zonage de raccordement et de la capacité du réseau à l'instant du projet, y compris en rebours. À confirmer auprès du gestionnaire.",
   },
   gisement: {
     connecteur: 'gisement',
-    nom: 'PVGIS (Commission europeenne) et estimations de gisement',
+    nom: 'PVGIS (Commission européenne) et estimations de gisement',
     url: 'https://re.jrc.ec.europa.eu/api/v5_2',
     modeAcces: 'api',
     valeurJuridique: 'indicative',
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
+      "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants méthanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
   },
   vent_100m: {
     connecteur: 'vent_100m',
-    nom: 'Global Wind Atlas - vitesse moyenne du vent a 100 m',
+    nom: 'Global Wind Atlas - vitesse moyenne du vent à 100 m',
     url: 'https://globalwindatlas.info',
     modeAcces: 'ingestion',
     valeurJuridique: 'indicative',
@@ -223,21 +223,21 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: 90,
     avertissement:
-      "Une ZAER ne cree aucun droit à construire : elle allege l'instruction et signale un portage " +
+      "Une ZAER ne crée aucun droit à construire : elle allège l'instruction et signale un portage " +
       'politique local. ATTENTION, la filière de la zone doit être lue : 68 % des ZAER ' +
       'photovoltaïques recensées portent sur des TOITURES et ne concernent pas le foncier. Les ' +
       'zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.',
   },
   patrimoine_sites: {
     connecteur: 'patrimoine_sites',
-    nom: 'Sites classes et inscrits (WFS Geoplateforme, couches STE)',
+    nom: 'Sites classés et inscrits (WFS Geoplateforme, couches STE)',
     url: 'https://data.geopf.fr/wfs/ows',
     modeAcces: 'ingestion',
     valeurJuridique: 'opposable',
     couverture: 'nationale',
     periodiciteJours: 180,
     avertissement:
-      'Un site classe impose une autorisation ministerielle spéciale (art. L. 341-10 du code de ' +
+      'Un site classé impose une autorisation ministérielle spéciale (art. L. 341-10 du code de ' +
       "l'environnement), jamais accordée pour un parc éolien ; un site inscrit, un avis de " +
       "l'architecte des bâtiments de France (art. L. 341-1). Les labels « Grand Site de France » et " +
       '« Patrimoine mondial » ne sont PAS ingérés comme des sites protégés : ils n\'ont pas de ' +
@@ -246,14 +246,14 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
   },
   document_cadre_local: {
     connecteur: 'document_cadre_local',
-    nom: 'Documents-cadres departementaux photovoltaïque au sol (art. L.111-29 CU)',
+    nom: 'Documents-cadres départementaux photovoltaïque au sol (art. L.111-29 CU)',
     url: 'https://www.data.gouv.fr',
     modeAcces: 'manuel',
     valeurJuridique: 'opposable',
     couverture: 'departementale',
     periodiciteJours: 180,
     avertissement:
-      "Arrêtés prefectoraux departementaux, sans API nationale. Un département non ingere produit une donnée GRISE et non une absence de contrainte.",
+      "Arrêtés préfectoraux départementaux, sans API nationale. Un département non ingéré produit une donnée GRISE et non une absence de contrainte.",
   },
   patrimoine_culture: {
     connecteur: 'patrimoine_culture',
@@ -264,18 +264,18 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
     couverture: 'nationale',
     periodiciteJours: 180,
     avertissement:
-      "Le périmètre delimite des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà du périmètre de protection.",
+      "Le périmètre délimité des abords (PDA) se substitue au rayon de 500 m lorsqu'il existe. La covisibilité peut porter bien au-delà du périmètre de protection.",
   },
   foncier_cadastre: {
     connecteur: 'foncier_cadastre',
-    nom: 'Analyse fonciere dérivée du parcellaire cadastral',
+    nom: 'Analyse foncière dérivée du parcellaire cadastral',
     url: 'https://apicarto.ign.fr/api/cadastre',
     modeAcces: 'api',
     valeurJuridique: 'indicative',
     couverture: 'nationale',
     periodiciteJours: null,
     avertissement:
-      "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
+      "Le nombre de propriétaires est ESTIMÉ à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relèvent d'une demande auprès de la DGFiP ou de la mairie.",
   },
 };
 

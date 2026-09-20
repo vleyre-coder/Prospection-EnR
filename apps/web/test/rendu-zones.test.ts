@@ -15,7 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement as h } from 'react';
-import { Resultats } from '../src/components/PanneauZones.js';
+import { rangsParTitre, Resultats } from '../src/components/PanneauZones.js';
 import { rendre, texte } from './aides/rendu.js';
 import type { ReponseZones, ZoneProposee } from '../src/api/client.js';
 
@@ -179,4 +179,63 @@ test('UNE DESIGNATION D’ECHELLE COMMUNALE EST DITE TELLE QUELLE', () => {
         'devine pas en designation territoriale',
     );
   }
+});
+
+test('DEUX ZONES D’UNE MEME COMMUNE NE SE LISENT PAS COMME UN DOUBLON', () => {
+  /**
+   * LE DEFAUT MESURE, sur une capture de la vue reelle. Le titre d'une carte est le nom de la
+   * COMMUNE, et une commune designe souvent plusieurs zones d'acceleration : la liste affichait
+   * « Écrosnes (28) » en 2e position et « Écrosnes (28) » en 8e, avec des surfaces differentes et
+   * rien pour dire que ce sont deux zones. L'operateur lit un doublon et n'ouvre pas la seconde.
+   *
+   * Aucun autre champ ne les separe : `nomCommune` est joint depuis la table des communes, donc
+   * identique par construction, et le nom de la deliberation ne vaut pas mieux — 7 664 zones pour
+   * 448 noms distincts sur la base de bout en bout.
+   */
+  const t = rendu({
+    zones: [
+      { ...ZONE, id: '1', surfaceHa: 90, surfaceUtileHa: 85 },
+      { ...ZONE, id: '2', surfaceHa: 40, surfaceUtileHa: 36 },
+      { ...ZONE, id: '3', nomCommune: 'Écrosnes', nom: 'ECROSNES' },
+    ],
+    couverture: { departementsIngeres: ['28'], donneePresente: true },
+    surfaceUtileMinHa: 1,
+    nbTropPetites: 0,
+  });
+  assert.match(t, /zone 1 sur 2/, `la 1re zone de Dammarie doit porter son rang — obtenu : ${t.slice(0, 400)}`);
+  assert.match(t, /zone 2 sur 2/, 'la 2e zone de Dammarie doit porter son rang');
+
+  // ET LA ZONE SEULE N'EN PORTE PAS : « 1 sur 1 » sur la majorite des cartes serait du bruit, et
+  // un marqueur toujours present ne distingue rien — meme raison que l'etiquette ci-dessus.
+  assert.doesNotMatch(t, /zone 1 sur 1/, 'une commune a zone unique ne doit pas etre numerotee');
+
+  const seule = rendu({
+    zones: [ZONE],
+    couverture: { departementsIngeres: ['28'], donneePresente: true },
+    surfaceUtileMinHa: 1,
+    nbTropPetites: 0,
+  });
+  assert.doesNotMatch(seule, /zone \d+ sur/, 'une liste d’une seule zone ne porte aucun rang');
+});
+
+test('le rang se calcule sur le TITRE AFFICHE, pas sur un champ que l’ecran ne montre pas', () => {
+  /**
+   * Deux zones de communes DIFFERENTES ne doivent jamais etre numerotees ensemble, et deux zones
+   * sans commune joignable — titre replie sur le nom de la deliberation — doivent l'etre si ce nom
+   * est le meme. Le rang suit donc exactement ce que l'operateur lit.
+   */
+  assert.equal(rangsParTitre([{ id: 'a', nom: 'X', nomCommune: 'Dammarie' },
+                              { id: 'b', nom: 'Y', nomCommune: 'Écrosnes' }]).size, 0);
+
+  const sansCommune = rangsParTitre([
+    { id: 'a', nom: 'CHATENAY', nomCommune: null },
+    { id: 'b', nom: 'CHATENAY', nomCommune: null },
+  ]);
+  assert.deepEqual(sansCommune.get('a'), { i: 1, n: 2 });
+  assert.deepEqual(sansCommune.get('b'), { i: 2, n: 2 });
+
+  // Sans nom du tout, le titre se replie sur l'identifiant : deux zones ne peuvent alors pas se
+  // confondre, et rien ne doit etre numerote.
+  assert.equal(rangsParTitre([{ id: 'a', nom: null, nomCommune: null },
+                              { id: 'b', nom: null, nomCommune: null }]).size, 0);
 });

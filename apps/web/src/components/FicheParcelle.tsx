@@ -823,7 +823,7 @@ function RubriquesDonnees({
                 {s.urbanisme.prescriptions.map((p, i) => (
                   <div key={i}>
                     {p.libelle ?? p.type}
-                    {p.estEbc && ' — espace boisé classe'}
+                    {p.estEbc && ' — espace boisé classé'}
                     {p.estEmplacementReserve && ' — emplacement réserve'}
                   </div>
                 ))}
@@ -1021,7 +1021,7 @@ function RubriquesDonnees({
           ['Monument historique le plus proche', val(s.patrimoine.monumentHistorique.nom)],
           ['Distance', val(s.patrimoine.monumentHistorique.distanceM, 'm')],
           ['Dans un périmètre de protection', val(s.patrimoine.monumentHistorique.dansPerimetreProtection)],
-          ['Site classe', zonageTexte(s.patrimoine.siteClasse)],
+          ['Site classé', zonageTexte(s.patrimoine.siteClasse)],
           ['Site inscrit', zonageTexte(s.patrimoine.siteInscrit)],
           ['Site patrimonial remarquable', zonageTexte(s.patrimoine.spr)],
           ['Avis de l’ABF requis', val(s.patrimoine.avisAbfRequis)],

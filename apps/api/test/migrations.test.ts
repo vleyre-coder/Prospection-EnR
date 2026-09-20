@@ -42,7 +42,16 @@ async function motifExclusion(): Promise<string | null> {
       baseDisponible = false;
     }
   }
-  return baseDisponible ? null : 'ignore : base indisponible';
+  /*
+   * LE MOTIF NOMME POSTGIS, et ce n'est pas un detail de redaction. La sonde n'est pas un ping :
+   * c'est `postgis_version()`, qui echoue aussi bien sur une base injoignable que sur une base
+   * joignable ou l'extension manque. « base indisponible » envoie alors chercher un probleme de
+   * connexion sur une base parfaitement connectee — mesure pendant l'audit 13, ou une base jetable
+   * fraichement creee a rendu ce motif jusqu'a ce que `CREATE EXTENSION postgis` soit passe.
+   */
+  return baseDisponible
+    ? null
+    : 'ignore : base injoignable, ou extension PostGIS absente (CREATE EXTENSION postgis)';
 }
 
 async function nbFichiers(): Promise<number> {

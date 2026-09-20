@@ -24,7 +24,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createElement as h } from 'react';
 import { VueListe } from '../src/components/VueListe.js';
-import { TableauDeBord } from '../src/components/TableauDeBord.js';
+import { graduations, TableauDeBord } from '../src/components/TableauDeBord.js';
 import type { LigneListe } from '../src/api/client.js';
 import { referentiel, rendreResolu, texte } from './aides/rendu.js';
 
@@ -150,6 +150,31 @@ test('le tableau de bord rend ses agregats, et sans faute typographique', () => 
   const { decimaux, iso } = fautesTypographiques(t);
   assert.deepEqual(decimaux, [], `tableau de bord : points decimaux ${decimaux.join(', ')}`);
   assert.deepEqual(iso, [], `tableau de bord : dates ISO ${iso.join(', ')}`);
+});
+
+test('l’axe du graphique d’activite ne porte jamais deux fois le meme nombre', () => {
+  /**
+   * LE DEFAUT MESURE : l'axe etait fige a trois graduations, `[0, 0.5, 1]` fois le maximum, chaque
+   * libelle arrondi. Sur un portefeuille d'UN lead — l'etat normal du premier jour — `maxi` vaut 1,
+   * `Math.round(0.5)` vaut 1 en JavaScript, et l'axe affichait **1, 1, 0** : le meme nombre a deux
+   * hauteurs. Un point valant 1 se lisait aussi bien au sommet qu'au milieu.
+   *
+   * Le test balaie les maximums que rencontre un portefeuille reel, du premier lead au millier,
+   * plutot que le seul cas repare : un axe qui redoublerait a 7 serait le meme defaut.
+   */
+  for (let maxi = 0; maxi <= 200; maxi++) {
+    const g = graduations(maxi);
+    assert.equal(new Set(g).size, g.length, `maxi=${maxi} : graduations en double — ${g.join(', ')}`);
+    assert.ok(
+      g.every((v) => Number.isInteger(v) && v >= 0),
+      `maxi=${maxi} : une graduation de comptage doit etre un entier positif — ${g.join(', ')}`,
+    );
+    // Le sommet de l'axe doit porter le maximum, sans quoi la courbe sortirait du cadre.
+    assert.equal(Math.max(...g), Math.max(1, maxi), `maxi=${maxi} : le sommet de l'axe ne porte pas le maximum`);
+    assert.ok(g.includes(0), `maxi=${maxi} : l'axe doit porter le zero`);
+  }
+  // Le cas exact du defaut, nomme pour qu'il ne se reperde pas dans la boucle.
+  assert.deepEqual(graduations(1), [0, 1]);
 });
 
 test('une liste vide se distingue d’une liste en chargement', () => {

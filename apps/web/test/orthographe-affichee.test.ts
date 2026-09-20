@@ -115,6 +115,16 @@ export const MODULES_TEXTE: readonly string[] = [
   'apps/web/src/utils/affichage.ts',
   'apps/api/src/enrichissement.ts',
   'apps/api/src/services/exports.ts',
+  /*
+   * LE CATALOGUE DES CONNECTEURS EST DU TEXTE AFFICHE, et il manquait a cette liste — c'est le
+   * trou que l'audit 13 a trouve. Ses champs `nom` et `avertissement` sont servis a l'interface
+   * par `sourceRef()` : ils s'affichent sous chaque critere de la fiche, dans le panneau des
+   * calques, dans le bandeau « Etat des donnees » et dans le dossier PDF. Hors perimetre, ils
+   * portaient 28 fautes d'accent — « Sites classes et inscrits », « la capacite du reseau a
+   * l'instant du projet », « elle allege l'instruction » — lues par l'operateur a longueur de
+   * journee. Un module de texte absent d'un garde de texte est un garde qui ne garde pas.
+   */
+  'apps/api/src/connecteurs/base.ts',
 ];
 
 /**
@@ -244,6 +254,12 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
    * equipement ». La majuscule est une emphase du texte, pas une clef.
    */
   { module: 'packages/core/src/reglementation.ts', mot: 'destine', raison: "verbe destiner : « la réserve n’interdit pas d’occuper le terrain, elle le DESTINE à un équipement »" },
+  /*
+   * Le catalogue des connecteurs, entre au perimetre par l'audit 13. Ses 28 fautes ont ete
+   * corrigees ; ces trois graphies nues, elles, sont justes.
+   */
+  { module: 'apps/api/src/connecteurs/base.ts', mot: 'publie', raison: "verbe publier : « la BD TOPO ne publie AUCUNE capacité d’accueil »" },
+  { module: 'apps/api/src/connecteurs/base.ts', mot: 'mesure', raison: "le NOM mesure : « une campagne de mesure de vent », « une campagne de mesure sur site »" },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -475,6 +491,10 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/knockouts.ts|fixe': 2,
     // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
     'packages/core/src/bornes.ts|bati': 4,
+    // Les deux occurrences sont le NOM mesure, relues une par une : « ni une campagne de mesure
+    // de vent » (PVGIS) et « ne remplace pas une campagne de mesure sur site » (Global Wind
+    // Atlas). Aucune n'est le participe « mesuré ».
+    'apps/api/src/connecteurs/base.ts|mesure': 2,
     // Les trois sont le MEME verbe appliquer, relues une par une : « le reglement national
     // d'urbanisme s'applique », « le critere ne s'applique qu'aux projets agrivoltaiques » et,
     // depuis l'ouverture de la filiere agrivoltaisme, « le regime agrivoltaique ne s'applique
