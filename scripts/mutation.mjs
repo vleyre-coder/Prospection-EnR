@@ -13,6 +13,44 @@
  *
  * Ce n'est pas un outil de mutation generique : la liste est choisie, chaque entree correspond a
  * un defaut REELLEMENT survenu, et porte la reference de l'audit qui l'a trouve.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * COMMENT LE LANCER
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ *   node scripts/mutation.mjs                    # tout sauf le bout en bout
+ *   node scripts/mutation.mjs --avec-e2e         # la campagne complete
+ *   node scripts/mutation.mjs --e2e-seulement    # les seuls motifs de bout en bout
+ *   node scripts/mutation.mjs --filtre "audit 11"
+ *
+ * Les motifs de bout en bout exigent un navigateur (`E2E_CHROMIUM`) et une base semee
+ * (`DATABASE_URL`) ; une quarantaine d'autres motifs exigent la base seule. Sans elle, ils sont
+ * comptes comme non mesurables plutot que comme reussis.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LE FAIRE TOURNER HORS DE L'ARBRE DE TRAVAIL — a lire avant une campagne complete
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce script MUTE un fichier source, lance les tests, puis le restaure. Pendant toute la duree de
+ * la campagne, l'arbre de travail est donc SALE par construction, et un `git status` y voit un
+ * fichier modifie qui est un bug volontaire. Deux consequences a connaitre :
+ *
+ *   - tout controle qui exige un arbre propre entre en conflit avec la campagne, et le reflexe de
+ *     « commiter ce qui traine » pousserait la mutation elle-meme ;
+ *   - une interruption laisse le fichier mute. Le marqueur `.mutation-en-cours` le nomme, et la
+ *     commande suivante — quelle qu'elle soit — le restaure en l'annoncant.
+ *
+ * La reponse est de jouer la campagne sur une COPIE placee hors de l'arbre suivi :
+ *
+ *     cp -a . /chemin/hors/depot/campagne && cd /chemin/hors/depot/campagne
+ *     readlink -f node_modules/@enr/core     # doit pointer DANS la copie
+ *     DATABASE_URL=… E2E_CHROMIUM=… node scripts/mutation.mjs --avec-e2e
+ *
+ * Cela fonctionne sans rien reinstaller parce que les liens `node_modules/@enr/*` sont RELATIFS
+ * (`../../packages/core`) : dans une copie, ils pointent vers les paquets de la copie. LA
+ * VERIFICATION `readlink` N'EST PAS DECORATIVE — si le lien pointait hors de la copie, les tests
+ * ne verraient aucune mutation et TOUS les motifs « survivraient » pour une raison sans rapport
+ * avec ce qu'ils mesurent.
  */
 
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -3920,6 +3958,21 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/theme-carte.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * L'OPERATEUR CESSE D'ETRE AVERTI QU'UNE COUCHE EST ANNONCEE SANS DONNEES. Le controle
+     * resterait dans `GET /api/sante` — mais une sonde de deploiement est lue par qui deploie, pas
+     * par qui prospecte. Celui qui decide verrait une absence de contrainte la ou il n'y a aucune
+     * donnee, sans rien a l'ecran pour le lui dire.
+     */
+    quoi: 'le bandeau cesse de dire qu’une couche est annoncee sans donnees',
+    fichier: 'apps/web/src/components/BandeauAvertissements.tsx',
+    de: '  const incoherentes = couverturesIncoherentes.length > 0;',
+    vers: '  const incoherentes = false;',
+    cwd: 'apps/web',
+    tests: ['test/rendu-bandeau.test.ts'],
+  },
 ];
 
 /**
@@ -3994,15 +4047,40 @@ restaurerApresInterruption();
 const iFiltre = process.argv.indexOf('--filtre');
 const filtre = iFiltre >= 0 ? (process.argv[iFiltre + 1] ?? '') : null;
 const avecE2e = process.argv.includes('--avec-e2e');
-const candidates = filtre || avecE2e ? MUTATIONS : MUTATIONS.filter((m) => !m.e2e);
+/**
+ * `--e2e-seulement` : ne jouer QUE les motifs de bout en bout.
+ *
+ * POURQUOI CE DRAPEAU EXISTE, audit 13. Les neuf motifs de bout en bout sont exclus par defaut
+ * faute de navigateur, et ils n'avaient donc jamais ete joues dans ce depot. Pour les jouer, il
+ * fallait ou bien les appeler UN PAR UN — `--filtre` porte sur `audit + quoi + fichier`, et les
+ * neuf n'ont aucune chaine commune —, ou bien lancer la campagne entiere. C'est la difference
+ * entre une verification qu'on fait et une qu'on remet : les neuf se jouent en une vingtaine de
+ * minutes, la campagne complete en trois quarts d'heure a plusieurs heures selon la machine.
+ */
+const e2eSeulement = process.argv.includes('--e2e-seulement');
+const candidates = e2eSeulement
+  ? MUTATIONS.filter((m) => m.e2e)
+  : filtre || avecE2e
+    ? MUTATIONS
+    : MUTATIONS.filter((m) => !m.e2e);
 const ecartees = MUTATIONS.length - candidates.length;
 const A_JOUER = filtre
   ? candidates.filter((m) => `${m.audit} ${m.quoi} ${m.fichier}`.toLowerCase().includes(filtre.toLowerCase()))
   : candidates;
+/*
+ * LE MESSAGE DIT CE QUI A ETE ECARTE, ET NON L'INVERSE. Ecrit pour le seul cas par defaut, il
+ * annoncait « 289 mutations de bout en bout ecartees » sous `--e2e-seulement`, alors que ce sont
+ * les 289 AUTRES qui le sont. Un perimetre reduit annonce a l'envers est pire qu'un perimetre
+ * reduit en silence : il donne une fausse assurance.
+ */
 if (ecartees > 0) {
   console.log(
-    `${ecartees} mutation(s) de bout en bout ecartee(s) : elles exigent un navigateur. ` +
-      'Lancez `node scripts/mutation.mjs --avec-e2e` pour les inclure.\n',
+    e2eSeulement
+      ? `${ecartees} mutation(s) hors bout en bout ecartee(s) : --e2e-seulement ne joue que ` +
+          'les motifs qui exigent un navigateur.\n'
+      : `${ecartees} mutation(s) de bout en bout ecartee(s) : elles exigent un navigateur. ` +
+          'Lancez `node scripts/mutation.mjs --avec-e2e` pour toute la campagne, ou ' +
+          '`--e2e-seulement` pour ces seules mutations.\n',
   );
 }
 

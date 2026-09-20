@@ -240,6 +240,7 @@ export function App(): JSX.Element {
         referentiel={ref}
         sourcesPerimees={sante.data?.sourcesPerimees ?? []}
         parcellesARafraichir={sante.data?.parcellesARafraichir ?? null}
+        couverturesIncoherentes={sante.data?.couverturesIncoherentes ?? []}
         role={moi.data?.role ?? null}
       />
 

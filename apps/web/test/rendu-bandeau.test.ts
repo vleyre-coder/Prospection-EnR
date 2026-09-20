@@ -32,6 +32,7 @@ function bandeau(
   options: {
     sourcesPerimees?: string[];
     parcellesARafraichir?: number | null;
+    couverturesIncoherentes?: Array<{ connecteur: string; type: string; objetsAnnonces: number; departements: number }>;
     role?: Role;
     avertissementsMasques?: string[];
   } = {},
@@ -42,6 +43,7 @@ function bandeau(
         referentiel: referentiel as never,
         sourcesPerimees: options.sourcesPerimees ?? [],
         parcellesARafraichir: options.parcellesARafraichir ?? null,
+        couverturesIncoherentes: options.couverturesIncoherentes ?? [],
         role: options.role ?? 'prospection',
       }),
       [],
@@ -61,6 +63,7 @@ function html(
       referentiel: referentiel as never,
       sourcesPerimees: options.sourcesPerimees ?? [],
       parcellesARafraichir: options.parcellesARafraichir ?? null,
+      couverturesIncoherentes: options.couverturesIncoherentes ?? [],
       role: options.role ?? 'prospection',
     }),
     [],
@@ -217,4 +220,39 @@ test('le bandeau n’ecrit aucun nombre a point decimal ni aucune date ISO', () 
     .filter((s) => s.split('.').length === 2);
   assert.deepEqual(decimaux, [], `points decimaux dans le bandeau : ${decimaux.join(', ')}`);
   assert.deepEqual(t.match(/\d{4}-\d{2}-\d{2}/g) ?? [], [], 'dates ISO dans le bandeau');
+});
+
+test('UNE COUCHE ANNONCEE SANS DONNEES EST DITE A L’OPERATEUR, ET CHIFFREE', () => {
+  /**
+   * POURQUOI CE MESSAGE EXISTE, audit 13. `couverture_ingestion` est la table sur laquelle le
+   * moteur s'appuie pour separer « aucune contrainte trouvee ici » de « on n'a rien regarde ici ».
+   * Mesure sur la base de bout en bout : elle annoncait 2 830 postes sources sur 101 departements
+   * quand `poste_source` etait vide. Le controle existait deja dans `GET /api/sante` — mais une
+   * sonde de deploiement est lue par qui deploie, pas par qui prospecte.
+   *
+   * CE QUE LE MESSAGE DOIT PORTER : le nom de la couche, et l'AMPLEUR. « Une couche est
+   * incoherente » n'aide personne a decider s'il faut s'arreter ; « 2 830 objets sur 101
+   * departements » dit tout de suite que la donnee manque partout.
+   */
+  const t = bandeau({
+    couverturesIncoherentes: [
+      { connecteur: 'postes_geopf', type: 'poste_source', objetsAnnonces: 2830, departements: 101 },
+    ],
+  });
+  assert.match(t, /couche\(s\) annoncée\(s\) sans données/i, `resume absent — ${t.slice(0, 300)}`);
+  assert.match(t, /postes_geopf/, 'le nom de la couche doit etre nomme');
+  assert.match(t, /2\s*830/, "l'ampleur doit etre chiffree : 2 830 objets");
+  assert.match(t, /101/, 'le nombre de departements doit etre dit');
+  // Et la CONSEQUENCE, sans quoi le chiffre ne dit pas quoi en faire.
+  assert.match(t, /absence de contrainte/i, 'le message doit dire ce que le defaut produit');
+});
+
+test('SANS INCOHERENCE, LE BANDEAU N’EN PARLE PAS', () => {
+  /*
+   * Un bandeau qui annonce « 0 couche incoherente » ferait passer une absence de controle pour un
+   * controle fait — et userait l'attention pour rien. Le contre-exemple est indispensable : un
+   * garde qui parle toujours ne signale plus rien.
+   */
+  const t = bandeau({ sourcesPerimees: ['zaer_local'] });
+  assert.doesNotMatch(t, /annoncée\(s\) sans données/i, 'aucune incoherence : rien ne doit en parler');
 });

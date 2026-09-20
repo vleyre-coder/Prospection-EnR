@@ -271,6 +271,19 @@ export interface Sante {
    * continuaient d'afficher l'etat d'avant sans que rien ne l'indique.
    */
   parcellesARafraichir?: number | null;
+  /**
+   * Couches dont la couverture d'ingestion annonce des objets alors que leur table est vide.
+   *
+   * Vide en fonctionnement normal. Optionnel : une instance plus ancienne que l'audit 13 ne rend
+   * pas ce champ, et l'interface doit alors se taire plutot que d'afficher un compte de zero qui
+   * ressemblerait a une verification faite.
+   */
+  couverturesIncoherentes?: Array<{
+    connecteur: string;
+    type: string;
+    objetsAnnonces: number;
+    departements: number;
+  }>;
 }
 
 /** Avancement d'une campagne de qualification menee en arriere-plan. */

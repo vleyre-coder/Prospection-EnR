@@ -26,11 +26,21 @@ export function BandeauAvertissements({
   referentiel,
   sourcesPerimees,
   parcellesARafraichir,
+  couverturesIncoherentes,
   role,
 }: {
   referentiel: Referentiel;
   sourcesPerimees: string[];
   parcellesARafraichir: number | null;
+  /**
+   * Couches dont la couverture annonce des objets alors que leur table est VIDE.
+   *
+   * REMONTE A L'OPERATEUR, et non seulement a `GET /api/sante` — audit 13. Une sonde de
+   * deploiement est lue par qui deploie ; celui qui prospecte, lui, verrait une absence de
+   * contrainte la ou il n'y a aucune donnee, sans rien pour le lui dire. C'est la faute que ce
+   * depot traque depuis treize audits, et elle merite d'etre a l'ecran de celui qui decide.
+   */
+  couverturesIncoherentes: Array<{ connecteur: string; type: string; objetsAnnonces: number; departements: number }>;
   role: 'admin' | 'prospection' | 'lecture' | null;
 }): JSX.Element | null {
   const etat = useEtat();
@@ -41,10 +51,11 @@ export function BandeauAvertissements({
   );
 
   const enRetard = parcellesARafraichir != null && parcellesARafraichir > 0;
+  const incoherentes = couverturesIncoherentes.length > 0;
   // Un rafraichissement consomme le quota des sources publiques : la route le refuse a un compte en
   // lecture seule, et l'interface ne doit pas proposer une action vouee au 403.
   const peutRafraichir = role === 'admin' || role === 'prospection';
-  if (globaux.length === 0 && sourcesPerimees.length === 0 && !enRetard) return null;
+  if (globaux.length === 0 && sourcesPerimees.length === 0 && !enRetard && !incoherentes) return null;
 
   return (
     <>
@@ -120,7 +131,7 @@ export function BandeauAvertissements({
         garantit pas. Celle-ci se replie d'emblee, parce qu'un chiffre suffit a decider s'il faut
         aller voir.
       */}
-      {(sourcesPerimees.length > 0 || enRetard) && (
+      {(sourcesPerimees.length > 0 || enRetard || incoherentes) && (
         <details className="bandeau bandeau-etat">
           <summary>
             <Icone nom="alerte" />
@@ -130,6 +141,10 @@ export function BandeauAvertissements({
             )}
             {sourcesPerimees.length > 0 && enRetard && <span> ·</span>}
             {enRetard && <span> {parcellesARafraichir} parcelle(s) en retard sur la donnée</span>}
+            {(sourcesPerimees.length > 0 || enRetard) && incoherentes && <span> ·</span>}
+            {incoherentes && (
+              <span> {couverturesIncoherentes.length} couche(s) annoncée(s) sans données</span>
+            )}
           </summary>
           <div className="bandeau-detail">
             {sourcesPerimees.length > 0 && (
@@ -137,6 +152,22 @@ export function BandeauAvertissements({
                 <strong>Sources à rafraîchir.</strong> {sourcesPerimees.length} source(s) dépassent
                 leur périodicité de mise à jour ({sourcesPerimees.join(', ')}). Les critères
                 concernés peuvent être obsolètes ou indisponibles.
+              </p>
+            )}
+            {incoherentes && (
+              <p>
+                <strong>Couches annoncées sans données.</strong> Le registre d&apos;ingestion
+                affirme avoir couvert{' '}
+                {couverturesIncoherentes
+                  .map(
+                    (c) =>
+                      `${c.connecteur} (${c.objetsAnnonces.toLocaleString('fr-FR')} objet(s) sur ${c.departements} département(s))`,
+                  )
+                  .join(', ')}
+                , mais la table correspondante est <strong>vide</strong>. Les critères qui
+                s&apos;appuient sur ces couches peuvent conclure à une absence de contrainte là où
+                il n&apos;y a aucune donnée. Relancez l&apos;ingestion, ou purgez les lignes de
+                couverture, avant de vous fier à un verdict qui les concerne.
               </p>
             )}
             {enRetard && (
