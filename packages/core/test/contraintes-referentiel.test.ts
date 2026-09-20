@@ -170,11 +170,18 @@ test('LES CARACTERES COMPOSITES SONT ECLATES EN PLUSIEURS REGLES', () => {
 
 test('LA NORMALISATION NE PERD NI NE FABRIQUE DE NIVEAU', () => {
   /*
-   * Quatre niveaux, et le quatrieme est assume : `cadre` couvre les quatorze lignes qui ne jugent
+   * Quatre niveaux, et le quatrieme est assume : `cadre` couvre les treize lignes qui ne jugent
    * pas la parcelle mais decrivent une procedure applicable a tout projet — regime ICPE, permis de
    * construire, etude d'impact, balisage. Les ramener a « penalisant » mettrait CHAQUE parcelle
    * « a instruire » pour un permis toujours requis, et le verdict cesserait de distinguer quoi que
    * ce soit.
+   *
+   * QUATORZE AUPARAVANT, ET LA QUATORZIEME N'AVAIT RIEN A Y FAIRE. Le libelle « Variable »
+   * n'apparait qu'une fois dans les 292 lignes — les servitudes d'utilite publique en
+   * agrivoltaisme — et l'extracteur le rangeait avec les « Cadre … ». Consequence invisible :
+   * cette filiere ignorait SILENCIEUSEMENT les SUP, que les quatre autres traitent en
+   * redhibitoire avec le meme seuil « Selon SUP ». « Cadre procedural » dit « ceci s'applique
+   * toujours » ; « Variable » dit « le niveau depend du cas ». Ce sont deux choses opposees.
    */
   const comptes = new Map<string, number>();
   for (const c of CONTRAINTES_REFERENTIEL) {
@@ -182,15 +189,18 @@ test('LA NORMALISATION NE PERD NI NE FABRIQUE DE NIVEAU', () => {
   }
   assert.deepEqual(
     Object.fromEntries([...comptes].sort()),
-    { cadre: 14, favorable: 11, penalisant: 134, redhibitoire: 133 },
+    { cadre: 13, favorable: 11, penalisant: 135, redhibitoire: 133 },
   );
 
   // Et chaque niveau normalise est coherent avec le libelle d'origine de sa regle.
   const DEBUT: Record<string, RegExp> = {
     redhibitoire: /^r[ée]dhibitoire/i,
-    penalisant: /^(très\s+)?p[ée]nalisant/i,
+    // « Variable » rejoint « Pénalisant » : le classeur ne fixe pas le niveau de cette ligne, et
+    // le niveau le plus bas qui entre ENCORE dans le verdict est le seul qui ne la fasse pas
+    // disparaitre. Voir le commentaire de `NIVEAUX` dans `scripts/referentiel-contraintes.mjs`.
+    penalisant: /^(très\s+)?p[ée]nalisant|^variable/i,
     favorable: /^favorable/i,
-    cadre: /^(cadre|variable)/i,
+    cadre: /^cadre/i,
   };
   for (const c of CONTRAINTES_REFERENTIEL) {
     for (const r of c.regles) {

@@ -3757,6 +3757,32 @@ const MUTATIONS = [
   {
     audit: 'audit 36',
     /*
+     * « VARIABLE » REDEVIENT « CADRE », ET UNE FILIERE CESSE DE VOIR LES SERVITUDES.
+     *
+     * `cadre` n'entre jamais dans le verdict — a juste titre, puisqu'il designe le permis de
+     * construire, l'etude d'impact, le regime ICPE, c'est-a-dire ce qui s'applique a TOUT projet.
+     * Y ranger le libelle « Variable », qui n'apparait qu'une fois dans les 292 lignes, faisait
+     * disparaitre les servitudes d'utilite publique de l'agrivoltaisme — sans un mot dans la
+     * fiche, alors que les quatre autres filieres les traitent en redhibitoire.
+     */
+    quoi: 'le libelle « Variable » du classeur est range avec les « Cadre »',
+    fichier: 'scripts/referentiel-contraintes.mjs',
+    de: "  [/^variable/i, 'penalisant'],",
+    vers: "  [/^variable/i, 'cadre'],",
+    /*
+     * LE REFERENTIEL EST GENERE : muter l'extracteur ne change rien tant qu'on ne le rejoue pas.
+     * `construire` ne suffit donc pas — la regeneration precede la compilation, et c'est elle qui
+     * porte la mutation jusqu'au module que les tests lisent.
+     */
+    avant: ['node', 'scripts/referentiel-contraintes.mjs'],
+    construire: '@enr/core',
+    tests: ['packages/core/test/contraintes-referentiel.test.ts'],
+    cwd: 'packages/core',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/contraintes-referentiel.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
      * LE DOSSIER DE RELECTURE ANNONCE UN COMPTE FAUX. Le cout n'est pas le meme que pour le rapport
      * de verification : c'est du temps de juriste passe sur une divergence deja resolue — ou, pire,
      * une divergence qu'on ne lui signale plus.
@@ -3976,6 +4002,15 @@ for (const m of A_JOUER) {
   writeFileSync(m.fichier, original.replace(m.de, m.vers));
   let attrapee = false;
   try {
+    /*
+     * UNE ETAPE AVANT LA CONSTRUCTION, pour les sources qui en GENERENT d'autres.
+     *
+     * `scripts/referentiel-contraintes.mjs` produit `contraintes-referentiel.ts` : muter
+     * l'extracteur ne change rien tant qu'on ne l'a pas rejoue, et la mutation passerait en
+     * signalant a tort un test decoratif. C'est la meme raison que `construire`, un cran plus
+     * haut dans la chaine.
+     */
+    if (m.avant) execFileSync(m.avant[0], m.avant.slice(1), { stdio: 'pipe' });
     // Les paquets sont consommes construits : sans cette etape, muter la source ne change rien au
     // code execute par les tests, et la mutation passe en signalant a tort un test decoratif.
     if (m.construire) {
@@ -3990,6 +4025,13 @@ for (const m of A_JOUER) {
     attrapee = true;
   } finally {
     writeFileSync(m.fichier, original);
+    /*
+     * SYMETRIQUE, ET C'EST INDISPENSABLE. Restaurer l'extracteur ne restaure pas le fichier qu'il
+     * a genere : `contraintes-referentiel.ts` resterait mute dans l'arbre de travail, et toutes
+     * les mutations suivantes — comme les tests lances ensuite — porteraient sur un referentiel
+     * faux. Le rejouer remet le fichier genere en accord avec la source restauree.
+     */
+    if (m.avant) execFileSync(m.avant[0], m.avant.slice(1), { stdio: 'pipe' });
     // Restaurer la source ne suffit pas : le `dist/` mute survivrait a l'execution et fausserait
     // toutes les mutations suivantes, ainsi que les tests lances ensuite.
     if (m.construire) {

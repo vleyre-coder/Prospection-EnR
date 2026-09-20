@@ -98,7 +98,7 @@ mais elles ne sont nulle part motivées, et trois d'entre elles changent le verd
 
 | Contrainte | Traitement selon la filière | Enjeu |
 | --- | --- | --- |
-| **Servitudes d'utilité publique** | rédhibitoire en éolien / solaire / BESS / méthanisation, **`cadre` en agrivoltaïsme** | Une ligne `cadre` n'entre **jamais** dans le verdict : l'agrivoltaïsme ignore donc les SUP, avec le même seuil « Selon SUP » que les quatre autres. **Le plus suspect de la liste.** |
+| **Servitudes d'utilité publique** | rédhibitoire en éolien / solaire / BESS / méthanisation, **pénalisant en agrivoltaïsme** | Même seuil « Selon SUP » dans les cinq filières. **La moitié de cette divergence était de mon fait** — *cf.* l'encadré ci-dessous. |
 | **Loi Montagne** | pénalisant en éolien, rédhibitoire en solaire et agrivoltaïsme | Même article cité (L.122-1 s. C. urb.) |
 | **Espèces protégées** | rédhibitoire en solaire / agri / métha, **pénalisant en BESS** | Même article (L.411-1/-2 C. env.) |
 | **Feux de forêt (PPRif / OLD)** | pénalisant en éolien, rédhibitoire en solaire et agri | Même code forestier |
@@ -106,6 +106,21 @@ mais elles ne sont nulle part motivées, et trois d'entre elles changent le verd
 | **Maîtrise foncière** | rédhibitoire en éolien et BESS, **pénalisant en solaire** | Même « Accords signés » |
 | **ZAN / artificialisation** | **favorable** en éolien, **pénalisant** en BESS | Sens opposé |
 | **Enquête publique / participation** | `cadre` en solaire, pénalisant en agri et métha | Même « Selon EE » |
+
+**Le cas des SUP était à moitié un défaut d'extraction, et il est corrigé.** Le classeur n'écrit pas
+« Cadre » sur la ligne agrivoltaïsme : il écrit **« Variable »**, un libellé qui n'apparaît **qu'une
+seule fois dans les 292 lignes**. Mon extracteur le rangeait avec les « Cadre procédural », « Cadre
+(acceptabilité) », « Cadre (coût) » — c'est-à-dire avec le permis de construire, l'étude d'impact et
+le régime ICPE, qui s'appliquent à **tout** projet et n'entrent donc jamais dans le verdict.
+
+Conséquence, invisible nulle part : **l'agrivoltaïsme ignorait silencieusement les servitudes
+d'utilité publique**, et sa fiche n'en disait pas un mot. « Cadre procédural » dit « ceci s'applique
+toujours » ; « Variable » dit « le niveau dépend du cas ». Ce sont deux choses opposées.
+
+La ligne est désormais **pénalisante** : comptée, affichée, instruite — mais elle n'écarte aucune
+parcelle à elle seule. Aligner sur le rédhibitoire des quatre autres filières aurait été commode et
+aurait été **inventer**, puisque le classeur n'écrit pas ce mot-là. → *La divergence subsiste donc,
+et c'est bien au juriste de la trancher : pénalisant ou rédhibitoire ?*
 
 ### 2.3 Les 57 contraintes, en 18 groupes, dont le seuil varie selon la filière
 
@@ -154,8 +169,8 @@ qu'on ne savait pas quel texte fondait `bess_securite_incendie`.
 ## 4. Ordre de travail proposé
 
 1. **§2.1** — statuer sur les 3 lignes sans fondement (une heure).
-2. **§2.2** — les 8 divergences de sévérité, en commençant par les SUP en agrivoltaïsme, qui est
-   probablement une erreur de saisie du classeur.
+2. **§2.2** — les 8 divergences de sévérité. Celle des SUP est désormais réduite à une vraie
+   question de fond (pénalisant ou rédhibitoire ?) et non plus à un silence.
 3. **§2.3** — les 17 groupes de seuils divergents non encore examinés.
 4. **§2.4** — les 50 rédhibitoires sans article numéroté, en commençant par les 28 qui ne citent
    qu'un code ou un interlocuteur.

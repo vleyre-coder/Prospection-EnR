@@ -27,7 +27,7 @@ précisément les endroits où elle est indispensable avant toute décision.
 | Filières couvertes | **5** (éolien terrestre, solaire au sol, agrivoltaïsme, BESS, méthanisation) |
 | Contraintes dont le seuil ne porte **aucun nombre** | **239** |
 | Contraintes dont l'extraction numérique est **incomplète** | **58** |
-| Rédhibitoires / pénalisantes / favorables / cadre | **133 / 134 / 11 / 14** |
+| Rédhibitoires / pénalisantes / favorables / cadre | **133 / 135 / 11 / 13** |
 
 **Le texte du seuil est toujours recopié, jamais reformulé.** C'est la règle la plus importante de
 l'intégration, et elle explique les deux lignes « 239 » et « 58 ».
@@ -107,7 +107,7 @@ le classeur lui-même les a écartées, et passer outre serait trahir sa propre 
 | --- | --- | --- | --- | --- |
 | Éolien terrestre | 230 défavorable · 71 à instruire | 76 | **16,8** | 2,0 |
 | Solaire au sol | 301 à instruire | 54 | **11,0** | 5,0 |
-| Agrivoltaïsme | 301 à instruire | 48 | **8,9** | 3,0 |
+| Agrivoltaïsme | 301 à instruire | 49 | **8,9** | 3,0 |
 | BESS | 301 à instruire | 41 | **9,0** | 2,0 |
 | Méthanisation | 301 à instruire | 48 | **8,0** | 5,0 |
 
@@ -128,6 +128,14 @@ raccordées qui ne concluent pas — le zonage d'urbanisme en est l'essentiel, p
 « interdit si le règlement l'exclut » et qu'aucune couche ne lit un règlement. Elles ne sont pas
 inutiles pour autant : l'opérateur lit désormais la famille de zonage applicable au lieu d'un
 « non évalué », donc il sait quel règlement aller ouvrir.
+
+**L'agrivoltaïsme pèse 49 contraintes et non 48 depuis une correction d'extraction.** Le classeur
+écrit « Variable » sur ses servitudes d'utilité publique — un libellé unique dans les 292 lignes —
+et l'extracteur le rangeait avec les « Cadre … », qui n'entrent jamais dans le verdict. Cette
+filière ignorait donc **silencieusement** une contrainte que les quatre autres traitent en
+rédhibitoire, avec le même seuil « Selon SUP ». Elle est désormais pénalisante : comptée, affichée,
+instruite. Le choix entre pénalisant et rédhibitoire reste au juriste
+([docs/RELECTURE-JURIDIQUE.md](RELECTURE-JURIDIQUE.md), §2.2).
 
 **Les quatre autres filières ne discriminent toujours pas, et le tableau le dit au lieu de le
 masquer.** Leurs contraintes rédhibitoires restantes sont des zones humides, des espèces protégées
@@ -283,7 +291,7 @@ refusé.
 | `@enr/web` | 209 tests |
 | `@enr/api` sur base **vierge** (`enr_base24`) | 149 tests |
 | `@enr/api` sur base **de référence** (`enr_e2e`, 34 875 communes, 301 parcelles) | 149 tests |
-| Campagne de mutation | **291 motifs**, dont **282 joués et 282 rattrapés** ; 9 écartés (navigateur requis) |
+| Campagne de mutation | **292 motifs**, dont **283 joués et 283 rattrapés** ; 9 écartés (navigateur requis) |
 
 **Ces nombres-ci sont ceux de l'exécution du 20 septembre 2026, et ils ne sont pas verrouillés** :
 un test de plus les périme, et c'est normal. Ce qui est verrouillé, ce sont les tableaux des §1 et

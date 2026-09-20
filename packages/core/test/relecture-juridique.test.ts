@@ -160,19 +160,29 @@ test('LES CONTRADICTIONS INTERNES DU CLASSEUR SONT COMPTEES', () => {
   assert.equal(seuil.length, 18, 'groupes a seuil divergent');
   assert.equal(seuil.reduce((n, l) => n + l.length, 0), 57, 'contraintes concernees');
 
-  // Le cas le plus suspect est nomme dans le dossier, avec sa consequence.
+  /*
+   * LE CAS LE PLUS SUSPECT A ETE A MOITIE TRANCHE, ET PAS PAR UN JURISTE.
+   *
+   * Les servitudes d'utilite publique ressortaient en `cadre` pour l'agrivoltaisme et en
+   * redhibitoire pour les quatre autres filieres — donc SILENCIEUSEMENT ignorees d'un cote. La
+   * moitie du defaut venait de l'extracteur, qui rangeait le libelle « Variable » du classeur avec
+   * les « Cadre … ». Corrige : cette ligne est desormais penalisante, donc comptee et affichee.
+   *
+   * LA DIVERGENCE SUBSISTE POUR AUTANT — penalisant contre redhibitoire, sur le meme seuil
+   * « Selon SUP » — et c'est bien au juriste de trancher. Le test verifie qu'elle reste NOMMEE :
+   * une divergence corrigee a moitie et silencieuse serait pire que l'originale.
+   */
+  const sup = caractere.find((l) => l[0]!.nom.includes("Servitudes d'utilité publique"));
+  assert.ok(sup, 'les SUP doivent rester dans les groupes a severite divergente');
   assert.ok(
-    caractere.some(
-      (l) =>
-        // Apostrophe DROITE : c'est celle du classeur, et une apostrophe typographique ne
-        // correspondrait a rien. Le libelle est recopie, pas normalise.
-        l[0]!.nom.includes("Servitudes d'utilité publique") &&
-        l.some((c) => c.caractere === 'cadre') &&
-        l.some((c) => c.caractere === 'redhibitoire'),
-    ),
-    'les SUP doivent bien porter deux caracteres opposes selon la filiere',
+    sup.some((c) => c.caractere === 'penalisant') && sup.some((c) => c.caractere === 'redhibitoire'),
+    `severites relevees : ${sup.map((c) => `${c.filiere}=${c.caractere}`).join(', ')}`,
   );
-  assert.match(DOSSIER, /`cadre` en agrivoltaïsme/);
+  assert.ok(
+    !sup.some((c) => c.caractere === 'cadre'),
+    'plus aucune filiere ne doit ignorer silencieusement les servitudes d’utilite publique',
+  );
+  assert.match(DOSSIER, /pénalisant en agrivoltaïsme/);
 });
 
 test('LE DOSSIER DECRIT LE MILLESIME QU’IL A EXAMINE', () => {

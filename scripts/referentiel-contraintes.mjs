@@ -178,7 +178,33 @@ const NIVEAUX = [
   [/^tr[èe]s p[ée]nalisant/i, 'penalisant'],
   [/^favorable/i, 'favorable'],
   [/^cadre/i, 'cadre'],
-  [/^variable/i, 'cadre'],
+  /*
+   * ═════════════════════════════════════════════════════════════════════════════════════════
+   * « VARIABLE » N'EST PAS « CADRE », ET LES CONFONDRE FAISAIT DISPARAITRE UNE CONTRAINTE
+   * ═════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * DEFAUT DE CET EXTRACTEUR, trouve en relisant les contradictions internes du classeur. Le
+   * libelle « Variable » n'apparait qu'UNE SEULE FOIS dans les 292 lignes : sur les servitudes
+   * d'utilite publique en agrivoltaisme. Les quatre autres filieres portent la meme contrainte,
+   * avec la meme couche et le meme seuil « Selon SUP », en REDHIBITOIRE.
+   *
+   * Le ranger en `cadre` avait une consequence qui ne se voyait nulle part : `cadre` n'entre pas
+   * dans le verdict — a juste titre, puisqu'il designe le permis de construire, l'etude d'impact,
+   * le regime ICPE, c'est-a-dire ce qui s'applique a TOUT projet. L'agrivoltaisme ignorait donc
+   * SILENCIEUSEMENT les servitudes d'utilite publique, et sa fiche n'en disait pas un mot.
+   *
+   * « Cadre procedural » dit « ceci s'applique toujours ». « Variable » dit « le niveau depend du
+   * cas ». Ce sont deux choses opposees : la premiere est une information, la seconde est une
+   * contrainte dont on ne sait pas encore la force.
+   *
+   * POURQUOI `penalisant` ET PAS `redhibitoire`. Aligner sur les quatre autres filieres serait
+   * commode et ce serait inventer : le classeur n'ecrit pas « Rédhibitoire » sur cette ligne. On
+   * retient donc le niveau le plus BAS qui entre encore dans le verdict — la contrainte est
+   * comptee, affichee et instruite, mais elle n'ecarte aucune parcelle a elle seule. L'arbitrage
+   * entre les deux lectures revient au juriste, et il est nomme au §2.2 de
+   * `docs/RELECTURE-JURIDIQUE.md`.
+   */
+  [/^variable/i, 'penalisant'],
 ];
 
 /** Severite, pour retenir le niveau dominant d'une contrainte a plusieurs regles. */
