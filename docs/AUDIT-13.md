@@ -40,7 +40,7 @@ regardé ici ». C'est-à-dire le défaut fondateur de ces treize audits, rouver
 | Tests destructifs de migration | **4 verts** | base jetable + `TESTS_MIGRATIONS=1` |
 | Bout en bout | **27 verts, 2 hors suite** | Chromium local + base semée |
 | Captures de revue | **3 verts, 9 images** | `E2E_REVUE=1 --grep @revue` |
-| Motifs de mutation | **297 applicables** | dont 5 écrits par cet audit, tous attrapés |
+| Campagne de mutation complète | **297 / 297 attrapés, 0 survivant** | `--avec-e2e`, base semée + Chromium |
 | Motifs de bout en bout | **9 joués, 9 attrapés** | jamais joués avant cet audit |
 
 **Les 18 tests « ignorés » sont tous expliqués et tous verts** une fois qu'on leur donne ce qu'ils
@@ -287,9 +287,26 @@ en silence** — c'est exactement ce qui vient d'arriver.
 Le même raisonnement vaut pour les 9 motifs de mutation de bout en bout : ils viennent d'être joués
 pour la première fois et passent tous, mais rien ne les rejouera. Un point pratique relevé en les
 jouant : `--filtre` porte sur `audit + quoi + fichier`, et les neuf n'ont aucune chaîne commune —
-il faut donc les appeler un par un, ou lancer la campagne entière (environ quatre heures). Un
-drapeau `--e2e-seulement` les rendrait jouables en une commande d'une vingtaine de minutes, ce qui
-est la différence entre une vérification qu'on fait et une qu'on remet.
+il faut donc les appeler un par un, ou lancer la campagne entière. Un drapeau `--e2e-seulement`
+les rendrait jouables en une commande d'une vingtaine de minutes, ce qui est la différence entre
+une vérification qu'on fait et une qu'on remet.
+
+### 7.5 bis Faire tourner la campagne hors de l'arbre de travail
+
+La campagne mute un fichier source, lance les tests, puis le restaure. Pendant toute sa durée,
+**l'arbre de travail est donc sale par construction**, et un `git status` y voit un fichier modifié
+qui est un bug volontaire. C'est une gêne réelle : tout contrôle qui exige un arbre propre entre en
+conflit avec elle, et le réflexe de « commiter ce qui traîne » pousserait la mutation elle-même.
+
+La campagne finale de cet audit a donc été jouée sur une **copie du dépôt placée hors de l'arbre
+suivi**, ce qui l'a laissé propre de bout en bout. C'est possible sans rien réinstaller parce que
+les liens `node_modules/@enr/*` sont **relatifs** (`../../packages/core`) : dans une copie, ils
+pointent vers les paquets de la copie. Une vérification s'impose avant de lancer plusieurs heures —
+que `@enr/core` s'y résolve bien, sans quoi les tests ne verraient aucune mutation et **les 297
+motifs « survivraient » pour une raison sans rapport**.
+
+Documenter cette façon de faire dans l'en-tête de `scripts/mutation.mjs` éviterait de la
+redécouvrir.
 
 ### 7.6 Ce qui reste du travail juridique, et qui n'est pas automatisable
 
@@ -339,6 +356,15 @@ E2E_REVUE=1 … npx playwright test --grep @revue
 # Recherche de fautes nouvelles (demande hunspell + hunspell-fr)
 node scripts/orthographe-dictionnaire.mjs
 
-# Campagne de mutation complete, y compris les 9 motifs de bout en bout
+# Campagne de mutation complete, y compris les 9 motifs de bout en bout.
+# Jouee sur une COPIE hors de l'arbre suivi : la campagne mute un fichier a la fois, et
+# laisserait sinon l'arbre sale pendant toute sa duree. Les liens node_modules/@enr/* sont
+# relatifs, donc une copie est auto-coherente — a verifier avant de lancer plusieurs heures.
+cp -a . /chemin/hors/depot/campagne && cd /chemin/hors/depot/campagne
+readlink -f node_modules/@enr/core   # doit pointer DANS la copie
 DATABASE_URL=… E2E_CHROMIUM=… node scripts/mutation.mjs --avec-e2e
 ```
+
+**Résultat du 20 septembre 2026 : 297 / 297 attrapés, 0 survivant, 0 échec.** Si une campagne est
+interrompue, le marqueur `.mutation-en-cours` nomme le fichier resté muté ; la commande suivante le
+restaure en l'annonçant, quelle qu'elle soit.
