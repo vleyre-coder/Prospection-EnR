@@ -272,6 +272,14 @@ export const SEUILS_RECHERCHE: Record<Filiere, readonly SeuilRecherche[]> = {
       usuel: 1000,
       aide: "Au-delà du rayon de 500 m, la covisibilité porte bien plus loin pour une machine de 150 m de haut : c'est le premier motif de refus en éolien.",
     },
+    {
+      chemin: 'risques.zoneSismique',
+      libelle: 'Zone de sismicité maximale',
+      sens: 'max',
+      unite: 'zone',
+      usuel: 2,
+      aide: "Classement communal de l'article D.563-8-1 du code de l'environnement, de 1 (très faible) à 5 (forte). Le référentiel pénalise les zones 3 à 5 : au-delà, les règles parasismiques renchérissent les fondations et les structures.",
+    },
   ],
 
   bess: [
@@ -330,6 +338,14 @@ export const SEUILS_RECHERCHE: Record<Filiere, readonly SeuilRecherche[]> = {
       unite: '%',
       usuel: 3,
       aide: "Une plateforme de conteneurs se veut plane : au-delà, le terrassement devient un poste de coût à part entière.",
+    },
+    {
+      chemin: 'risques.zoneSismique',
+      libelle: 'Zone de sismicité maximale',
+      sens: 'max',
+      unite: 'zone',
+      usuel: 2,
+      aide: "Classement communal de l'article D.563-8-1 du code de l'environnement, de 1 (très faible) à 5 (forte). Le référentiel pénalise les zones 3 à 5 : au-delà, les règles parasismiques renchérissent les fondations et les structures.",
     },
   ],
 
@@ -397,6 +413,14 @@ export const SEUILS_RECHERCHE: Record<Filiere, readonly SeuilRecherche[]> = {
       unite: 'comptes',
       usuel: 2,
       aide: "L'unité tient sur une emprise réduite : le montage se simplifie fortement avec un seul propriétaire, souvent l'exploitant porteur.",
+    },
+    {
+      chemin: 'risques.zoneSismique',
+      libelle: 'Zone de sismicité maximale',
+      sens: 'max',
+      unite: 'zone',
+      usuel: 2,
+      aide: "Classement communal de l'article D.563-8-1 du code de l'environnement, de 1 (très faible) à 5 (forte). Le référentiel pénalise les zones 3 à 5 : au-delà, les règles parasismiques renchérissent les fondations et les structures.",
     },
   ],
 };

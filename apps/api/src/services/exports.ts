@@ -20,6 +20,8 @@ import {
   FILIERES_META,
   libelleGestionnaire,
   libelleGroupeCulture,
+  LIBELLES_RADON,
+  LIBELLES_SISMICITE,
   libelleTypeSol,
   LIBELLES_SCORE,
   LIBELLE_REDHIBITOIRE,
@@ -1687,6 +1689,77 @@ export function dossierSitePdf(
         'Les valeurs sont dérivées du modèle numérique de terrain : elles situent le site, elles ne ' +
         'remplacent pas un levé topographique, qui reste nécessaire au plan de masse et au calcul ' +
         'des terrassements.',
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total, align: 'justify' },
+  );
+  doc.fillColor(ENCRE).moveDown(0.3);
+
+  // ======================================================================== risques recenses
+  /*
+   * POURQUOI UNE SECTION A PART, ET POURQUOI MAINTENANT. Trois de ces colonnes — sismicite,
+   * radon, etablissement SEVESO le plus proche — n'existaient pas : le classeur les nomme, et
+   * aucune couche n'etait interrogee. Les ingerer sans les imprimer les rendrait invisibles a
+   * celui qui lit le dossier, c'est-a-dire a celui qui decide.
+   *
+   * LA COLONNE SEVESO DISTINGUE TROIS ETATS. « Aucun < 2 km » est une reponse mesuree ; « non
+   * renseigné » dit que la couche n'a pas repondu. Les ecrire pareil ferait passer une lacune
+   * pour une absence de risque, dans le sens rassurant — la direction dangereuse de l'erreur.
+   */
+  titreSection(doc, 'Risques recensés', 90);
+  tableau(
+    doc,
+    [
+      { titre: 'Parcelle', part: 0.17 },
+      { titre: 'Sismicité', part: 0.17 },
+      { titre: 'Potentiel radon', part: 0.19 },
+      { titre: 'SEVESO le plus proche', part: 0.27 },
+      { titre: 'Sites pollués < 500 m', part: 0.2, align: 'right' },
+    ],
+    parcelles.map((p) => {
+      const r = p.snapshot.risques;
+      // `?.` : un releve anterieur a l'ingestion ne porte pas ce champ, et un dossier doit
+      // s'imprimer malgre tout — la colonne dit alors « non renseigné », ce qui est exact.
+      const seveso =
+        r.sevesoProche?.statut == null
+          ? 'non renseigné'
+          : r.sevesoProche.statut === 'aucun'
+            ? 'aucun < 2 km'
+            : `${r.sevesoProche.statut === 'seuil_haut' ? 'seuil haut' : 'seuil bas'}` +
+              (r.sevesoProche.distanceKm != null ? ` à ${nb(r.sevesoProche.distanceKm, 'km', 2)}` : '') +
+              (r.sevesoProche.nom ? ` - ${r.sevesoProche.nom}` : '');
+      return {
+        cellules: [
+          ref(p.parcelle),
+          r.zoneSismique == null
+            ? 'non renseigné'
+            : `zone ${r.zoneSismique}/5 - ${LIBELLES_SISMICITE[r.zoneSismique] ?? '?'}`,
+          r.potentielRadon == null
+            ? 'non renseigné'
+            : `catégorie ${r.potentielRadon}/3 - ${LIBELLES_RADON[r.potentielRadon] ?? '?'}`,
+          seveso,
+          nb(r.sitesPollues),
+        ],
+        pastille: (r.sevesoProche?.statut === 'seuil_haut'
+          ? 'rouge'
+          : r.sevesoProche?.statut === 'seuil_bas'
+            ? 'orange'
+            : r.sevesoProche?.statut == null
+              ? 'gris'
+              : 'vert') as Feu,
+      };
+    }),
+  );
+  doc.fontSize(7.6).fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      'La zone de sismicité et le potentiel radon sont des classements COMMUNAUX, fixés ' +
+        "respectivement par l'article D.563-8-1 du code de l'environnement et par l'arrêté du " +
+        '27 juin 2018 : il n\'existe pas d\'échelon inférieur, et la valeur de la commune est ' +
+        "celle qui s'applique à la parcelle. La recherche d'établissements SEVESO porte sur un " +
+        "rayon de deux kilomètres autour du centroïde ; la règle des effets dominos, elle, dépend des " +
+        "installations du projet et reste à instruire.",
     ),
     MARGE,
     doc.y + 2,

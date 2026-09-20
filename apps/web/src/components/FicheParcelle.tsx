@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { libelleGestionnaire, libelleTypeSol } from '@enr/core';
+import { libelleGestionnaire, libelleTypeSol, LIBELLES_RADON, LIBELLES_SISMICITE } from '@enr/core';
 import { BlocVerdict } from './BlocVerdict.js';
 import { BlocCourriers } from './BlocCourriers.js';
 import type {
@@ -1063,8 +1063,58 @@ function RubriquesDonnees({
           ['Servitudes aéronautiques', val(s.risques.servitudesAeronautiques)],
           ['Faisceaux hertziens', val(s.risques.faisceauxHertziens)],
           ['Réseaux enterres', s.risques.reseauxEnterres.length ? <>{s.risques.reseauxEnterres.join(', ')}</> : val(null)],
-          ['Sites et sols pollues (< 500 m)', val(s.risques.sitesPollues)],
+          ['Sites et sols pollués (< 500 m)', val(s.risques.sitesPollues)],
           ['ICPE à proximité', val(s.risques.icpeProches)],
+          [
+            'Établissement SEVESO le plus proche',
+            /*
+              TROIS ETATS, ET TROIS PHRASES DIFFERENTES. « aucun » est une REPONSE — la couche a
+              repondu, et rien ne figure dans le rayon — la que `null` veut dire que
+              l'interrogation a echoue. Les afficher pareil ramenerait ici le defaut que le champ
+              a ete concu pour eviter.
+            */
+            /*
+              `?.` ET NON UN ACCES DIRECT, pour la meme raison que le bloc verdict : un releve mis
+              en cache avant l'arrivee de ce champ, ou servi par une instance plus ancienne, ne le
+              porte pas. Perdre une ligne est benin ; perdre la fiche entiere parce qu'un champ
+              manque ne l'est pas — et c'est exactement ce qui s'est produit ici, sur les cinq
+              fixtures capturees avant l'ingestion.
+            */
+            s.risques.sevesoProche?.statut == null ? (
+              val(null)
+            ) : s.risques.sevesoProche.statut === 'aucun' ? (
+              <>Aucun dans un rayon de 2 km</>
+            ) : (
+              <>
+                {s.risques.sevesoProche.nom ?? 'établissement non nommé'} —{' '}
+                {s.risques.sevesoProche.statut === 'seuil_haut' ? 'seuil haut' : 'seuil bas'}
+                {s.risques.sevesoProche.distanceKm != null
+                  ? ` à ${formatMesure(s.risques.sevesoProche.distanceKm, 'km')}`
+                  : ' (non géolocalisé)'}
+              </>
+            ),
+          ],
+          [
+            'Zone de sismicité',
+            s.risques.zoneSismique == null ? (
+              val(null)
+            ) : (
+              <>
+                {s.risques.zoneSismique} sur 5 — {LIBELLES_SISMICITE[s.risques.zoneSismique] ?? '—'}
+              </>
+            ),
+          ],
+          [
+            'Potentiel radon',
+            s.risques.potentielRadon == null ? (
+              val(null)
+            ) : (
+              <>
+                catégorie {s.risques.potentielRadon} sur 3 —{' '}
+                {LIBELLES_RADON[s.risques.potentielRadon] ?? '—'}
+              </>
+            ),
+          ],
           ['Obligation de débroussaillement', val(s.risques.obligationDebroussaillement)],
         ]}
       />

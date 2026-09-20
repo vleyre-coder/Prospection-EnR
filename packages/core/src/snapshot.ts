@@ -21,6 +21,8 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
       zonages: [],
       prescriptions: [],
       servitudes: [],
+      presenceEbc: null,
+      familleZoneDominante: null,
       zaer: { present: null, filieres: [], source: null, dateDeliberation: null },
       documentCadrePvSol: { departementCouvert: false, parcelleEligible: null, dateArrete: null },
     },
@@ -93,6 +95,9 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
       sitesPollues: null,
       icpeProches: null,
       obligationDebroussaillement: null,
+      zoneSismique: null,
+      potentielRadon: null,
+      sevesoProche: { statut: null, distanceKm: null, nom: null },
     },
     raccordement: {
       posteLePlusProche: null,

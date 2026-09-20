@@ -147,6 +147,9 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/scoring/src/knockouts.ts', mot: 'applique', raison: "verbe appliquer : « le seuil de 500 m s'applique aussi aux zones destinees a l'habitation »" },
   { module: 'packages/core/src/reglementation.ts', mot: 'applique', raison: "verbe appliquer : « S'applique aux ouvrages de stockage et aux epandages »" },
   { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'applique', raison: "verbe appliquer : « le regime d'implantation ne s'applique qu'au solaire au sol »" },
+  // Entre avec la note du tableau des risques du dossier : « la valeur de la commune est celle
+  // qui s'applique a la parcelle ». Verbe, et une seule occurrence dans ce module.
+  { module: 'apps/api/src/services/exports.ts', mot: 'applique', raison: "verbe appliquer : « la valeur de la commune est celle qui s'applique a la parcelle »" },
   // « charges » (le NOM, dans « cahier des charges ») contre « chargés » (participe, « departements
   // chargés » du panneau des zones). Deux mots differents qui se confondent une fois desaccentues.
   { module: 'packages/core/src/reglementation.ts', mot: 'charges', raison: "le NOM charges : « arrete approuvant un cahier des charges pour la mise sur le marche »" },
@@ -472,6 +475,10 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // Les deux sont le MEME verbe laisser, relues une par une : « -20 laisse la marge d'une
     // donnee altimetrique bruitee » et « 30 laisse la marge ». Aucune n'est le participe.
     'packages/core/src/bornes.ts|laisse': 2,
+    // Deux occurrences du NOM « mesure », relues : « la mesure est bornee » et, depuis l'ingestion
+    // Georisques, « la mesure ne porte plus sur le voisinage de la parcelle ». Aucune n'est le
+    // participe.
+    'packages/core/src/bornes.ts|mesure': 2,
     // Idem, deux occurrences : « le critere ne tranche donc jamais et laisse "a verifier" » et
     // « l'application ne les connait pas et laisse "a verifier" ».
     'packages/core/src/reglementation.ts|laisse': 2,

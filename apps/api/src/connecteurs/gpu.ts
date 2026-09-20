@@ -16,6 +16,54 @@ import { partsCouvertesExactes } from './distances.js';
 
 const CONNECTEUR = 'apicarto_gpu';
 
+/**
+ * Famille du zonage d'urbanisme, ramenee aux quatre que le classeur nomme.
+ *
+ * LES LIBELLES REELS SONT UNE CENTAINE. Releve sur la base de reference : « A », « Ap », « N »,
+ * « Nj », « 1AUx », « UBa »… Chaque document d'urbanisme invente ses suffixes. Le classeur, lui,
+ * raisonne sur quatre familles (« U/AU éco favorable ; A/N défavorable »), et laisser chaque
+ * lecteur refaire le prefixe a sa facon garantit qu'un « Ah » sera range en zone A par l'un et en
+ * zone inconnue par l'autre.
+ *
+ * L'ORDRE DES TESTS COMPTE : « AU » doit etre reconnu AVANT « A », sans quoi « 1AUx » tomberait en
+ * zone agricole — une zone a urbaniser presentee comme une terre agricole, sur la donnee qui
+ * gouverne la constructibilite.
+ */
+export function familleZone(typeZone: string | null | undefined): 'U' | 'AU' | 'A' | 'N' | null {
+  const t = (typeZone ?? '').trim().toUpperCase();
+  if (!t) return null;
+  // Un chiffre de tete numerote les zones a urbaniser (« 1AU », « 2AUx ») : il se retire.
+  const nu = t.replace(/^\d+/, '');
+  if (nu.startsWith('AU')) return 'AU';
+  if (nu.startsWith('U')) return 'U';
+  if (nu.startsWith('A')) return 'A';
+  if (nu.startsWith('N')) return 'N';
+  return null;
+}
+
+/**
+ * La famille du zonage qui couvre la plus grande part de la parcelle.
+ *
+ * DOMINANT SE MESURE, IL NE SE PREND PAS EN PREMIER. 82 des 382 zonages releves portent sur des
+ * parcelles a cheval sur plusieurs zones ; retenir le premier de la liste rendrait le resultat
+ * dependant de l'ordre de la reponse du GPU, qui n'est pas un ordre de surface.
+ *
+ * Une part NULLE ne disqualifie pas : c'est le cas quand le calcul d'intersection a echoue, et un
+ * zonage unique reste alors le zonage applicable.
+ */
+export function zoneDominante(
+  zonages: ReadonlyArray<{ typeZone: string | null; partRecouvrement: number | null }>,
+): 'U' | 'AU' | 'A' | 'N' | null {
+  let meilleure: { famille: 'U' | 'AU' | 'A' | 'N'; part: number } | null = null;
+  for (const z of zonages) {
+    const famille = familleZone(z.typeZone);
+    if (famille == null) continue;
+    const part = z.partRecouvrement ?? 0;
+    if (meilleure == null || part > meilleure.part) meilleure = { famille, part };
+  }
+  return meilleure?.famille ?? null;
+}
+
 interface ProprietesZoneUrba {
   libelle?: string | null;
   libelong?: string | null;
@@ -64,6 +112,29 @@ interface ProprietesMunicipality {
  */
 function estEbc(typepsc: string | null | undefined): boolean {
   return typepsc === '01';
+}
+
+/**
+ * Un espace boise classe recouvre-t-il la parcelle ? Trois etats.
+ *
+ * POURQUOI LE TROISIEME. La couche des prescriptions rend une liste vide aussi bien pour un
+ * territoire sans EBC que pour un territoire dont le document n'est pas publie au GPU. Compter le
+ * second pour une absence d'EBC ferait conclure « contrainte respectee » — redhibitoire, dans le
+ * sens favorable — sur une question jamais posee.
+ *
+ * LIMITE CONNUE, ET ELLE VAUT D'ETRE ECRITE : `estEbc` repose sur le code CNIG `01`, et AUCUNE des
+ * 301 parcelles de la base de reference n'en porte. Des sondages sur une dizaine de communes
+ * francaises n'en ont pas fait apparaitre non plus. La branche `true` n'est donc exercee que par
+ * le test unitaire ; le jour ou une parcelle en portera un, c'est cette fonction qu'il faudra
+ * confronter a la realite du terrain avant de croire le verdict.
+ */
+export function presenceEbc(
+  prescriptions: ReadonlyArray<{ estEbc: boolean }>,
+  couvertParGpu: boolean | null,
+): boolean | null {
+  if (prescriptions.some((p) => p.estEbc)) return true;
+  // Sans document publie, l'absence de prescription ne prouve rien.
+  return couvertParGpu === true ? false : null;
 }
 
 function estEmplacementReserve(typepsc: string | null | undefined): boolean {
@@ -153,6 +224,7 @@ export async function urbanismeParcelle(
     for (let i = 0; i < (urbanisme.zonages?.length ?? 0); i += 1) {
       urbanisme.zonages![i]!.partRecouvrement = parts[i] ?? null;
     }
+    urbanisme.familleZoneDominante = zoneDominante(urbanisme.zonages ?? []);
   } else {
     echecs.push('gpu/zone-urba');
   }
@@ -164,6 +236,9 @@ export async function urbanismeParcelle(
       estEbc: estEbc(f.properties.typepsc),
       estEmplacementReserve: estEmplacementReserve(f.properties.typepsc),
     }));
+    // Pose provisoirement sans le document : `couvertParGpu` n'est connu qu'apres l'appel
+    // `municipality`, plus bas, ou la valeur est recalculee avec les trois etats.
+    urbanisme.presenceEbc = urbanisme.prescriptions.some((x) => x.estEbc) ? true : null;
   } else {
     echecs.push('gpu/prescription-surf');
   }
@@ -193,6 +268,13 @@ export async function urbanismeParcelle(
       urbanisme.couvertParGpu = false;
     } else {
       urbanisme.couvertParGpu = municipality.value.features.length > 0;
+    }
+    /*
+     * LE TROISIEME ETAT SE POSE ICI, une fois le document connu. `prescriptions` vaut `[]` quand
+     * l'appel a echoue comme quand il n'y a rien : c'est `couvertParGpu` qui distingue les deux.
+     */
+    if (prescriptions.status === 'fulfilled') {
+      urbanisme.presenceEbc = presenceEbc(urbanisme.prescriptions ?? [], urbanisme.couvertParGpu);
     }
   } else {
     echecs.push('gpu/municipality');

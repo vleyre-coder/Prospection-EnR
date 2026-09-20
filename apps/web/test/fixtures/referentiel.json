@@ -320,7 +320,7 @@
     "risq_sites_pollues": {
       "id": "risq_sites_pollues",
       "famille": "risques",
-      "libelle": "Sites et sols pollues",
+      "libelle": "Sites et sols pollués",
       "explication": "Un ancien site industriel (CASIAS) peut être une opportunité - terrain déjà dégradé - mais impose une étude de sols et un plan de gestion."
     },
     "risq_aero_radar": {
@@ -686,7 +686,7 @@
         "reference": "Code forestier, art. L.341-1 (définition), L.341-3 (autorisation préalable) et L.341-6 (compensation en nature ou financière)",
         "dateEntreeEnVigueur": "2012-07-01",
         "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000030728366",
-        "commentaire": "Le défrichement est le changement de destination d'un terrain boisé, même sans coupe : poser des panneaux sous couvert suffit à le constituer. L'autorisation est instruite par la DDT, et la compensation — jusqu'a plusieurs fois la surface défrichée, ou son équivalent financier — pèse lourdement sur le bilan. Un terrain boisé à plus de 5 % déclenche ici le rappel, sur la base de la couverture forestière mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient d'un département à l'autre.",
+        "commentaire": "Le défrichement est le changement de destination d'un terrain boisé, même sans coupe : poser des panneaux sous couvert suffit à le constituer. L'autorisation est instruite par la DDT, et la compensation — jusqu'a plusieurs fois la surface défrichée, ou son équivalent financier — pèse lourdement sur le bilan. Un terrain boisé à plus de 5 % déclenche ici le rappel, sur la base de la couverture forestière mesurée. Les seuils de dispense sont fixés par arrêté PRÉFECTORAL et varient d'un département à l'autre.",
         "instable": true,
         "aValiderParJuriste": true
       },

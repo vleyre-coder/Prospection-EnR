@@ -159,7 +159,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     def('risq_incendie', 'risques', 'Risque incendie (PPRif / DFCI)', "Aléas feux de forêt, obligations légales de débroussaillement, accès des engins de secours.", ),
     def('risq_technologique', 'risques', 'Risque technologique (PPRT)', "Périmètre de PPRT autour d'un site Seveso : maîtrise de l'urbanisation, incompatible avec certaines installations.", ),
     def('risq_argiles_cavites', 'risques', 'Géotechnique (argiles, cavités, mouvements)', "Aléa retrait-gonflement des argiles, cavités souterraines et mouvements de terrain : surcoûts de fondations et de sondages.", ),
-    def('risq_sites_pollues', 'risques', 'Sites et sols pollues', "Un ancien site industriel (CASIAS) peut être une opportunité - terrain déjà dégradé - mais impose une étude de sols et un plan de gestion.", ),
+    def('risq_sites_pollues', 'risques', 'Sites et sols pollués', "Un ancien site industriel (CASIAS) peut être une opportunité - terrain déjà dégradé - mais impose une étude de sols et un plan de gestion.", ),
     def('risq_aero_radar', 'risques', 'Servitudes aéronautiques et radars', "Distances minimales aux radars météorologiques, civils et militaires, et servitudes de dégagement aéronautique. Motif de refus fréquent en éolien.", 'km'),
     def('risq_karst', 'risques', 'Contexte karstique', "En contexte karstique, le risque de transfert direct de pollution vers la nappe rend une unité de méthanisation difficilement acceptable.", ),
 

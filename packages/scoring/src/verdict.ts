@@ -238,15 +238,24 @@ function evaluerDrapeau(
       return { etat: declenche ? 'enfreinte' : 'respectee', valeur: valeur ? 1 : 0, chemin };
     }
     const mot = String(valeur);
-    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: null, chemin };
+    /*
+     * UN DRAPEAU PEUT ETRE UN NOMBRE, et il faut alors le garder.
+     *
+     * La zone sismique vaut 1 a 5 : c'est une echelle fermee, donc un drapeau, mais c'est aussi
+     * une valeur que la fiche doit AFFICHER. Rendre `null` comme pour un mot ferait ecrire
+     * « Mesuré : — » a cote de « Référentiel : Zones 3 à 5 », et l'operateur ne saurait pas dans
+     * quelle zone se trouve sa parcelle — c'est-a-dire l'essentiel de ce qu'il venait chercher.
+     */
+    const nombre = typeof valeur === 'number' && Number.isFinite(valeur) ? valeur : null;
+    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: nombre, chemin };
     if (declenchantes && declenchantes.includes(mot)) {
-      return { etat: 'enfreinte', valeur: null, chemin };
+      return { etat: 'enfreinte', valeur: nombre, chemin };
     }
     /*
      * Une valeur connue qui ne declenche pas EST une reponse : « zone humide : non » etablit que
      * la parcelle n'y est pas. La confondre avec une donnee absente perdrait un fait mesure.
      */
-    return { etat: 'respectee', valeur: null, chemin };
+    return { etat: 'respectee', valeur: nombre, chemin };
   }
 
   // Le drapeau lui-meme est nul : l'absence du risque peut malgre tout etre etablie ailleurs.

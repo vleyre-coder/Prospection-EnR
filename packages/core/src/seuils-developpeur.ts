@@ -87,7 +87,16 @@ export type RaisonNonAutomatique =
   | 'aucun_seuil_numerique'
   | 'seuil_approximatif'
   | 'extraction_incomplete'
-  | 'pas_de_couche_nationale';
+  | 'pas_de_couche_nationale'
+  /**
+   * Le classeur ne cite AUCUN texte pour cette contrainte.
+   *
+   * 22 des 292 contraintes sont dans ce cas, et trois d'entre elles sont pourtant classees
+   * redhibitoires : « Gisement de vent ≥ ~5-6 m/s », « Surface / emprise nécessaire », « Accès
+   * poids lourds ». Ce sont des criteres ECONOMIQUES, pas des interdictions — et c'est
+   * precisement pour cela qu'aucun article ne les fonde.
+   */
+  | 'aucun_fondement_cite';
 
 /** Le seuil effectivement applique a une contrainte, avec sa provenance. */
 export interface SeuilApplique {
@@ -150,7 +159,33 @@ export function raisonsNonAutomatique(contrainte: ContrainteReferentiel): Raison
   if (conditionReglementaire(contrainte) === null) raisons.push('aucun_seuil_numerique');
   if (contrainte.seuilsNumeriques.some((s) => s.approximatif)) raisons.push('seuil_approximatif');
   if (!contrainte.extractionComplete) raisons.push('extraction_incomplete');
+  /*
+   * LE FONDEMENT MANQUANT EST UNE RAISON COMME LES AUTRES, et c'est ce qui lui donne son effet.
+   *
+   * `seuilApplique` annule la condition des qu'une raison existe : declarer celle-ci suffit donc a
+   * empecher la contrainte de trancher, sans qu'aucun code supplementaire soit ecrit ailleurs.
+   *
+   * MESURE AVANT DE L'AJOUTER, parce que je m'etais trompe : AUCUNE des 22 contraintes sans
+   * reference ne tranchait deja. Les trois redhibitoires du lot portent toutes un seuil
+   * approximatif ou une extraction incomplete, et etaient donc refusees a ce titre. La protection
+   * existait — par accident. Elle est desormais EXPLICITE : une contrainte sans fondement dont le
+   * seuil serait par ailleurs ferme ne peut plus, structurellement, rendre une parcelle
+   * defavorable. Et la raison est dite dans la fiche, au lieu d'etre masquee par une autre.
+   */
+  if (!fondementCite(contrainte)) raisons.push('aucun_fondement_cite');
   return raisons;
+}
+
+/**
+ * Le classeur cite-t-il un texte pour cette contrainte ?
+ *
+ * Le tiret cadratin est la facon dont le classeur ecrit « aucune reference » ; une cellule vide
+ * aussi. Les deux valent absence, et il faut les traiter ensemble sous peine de ne couvrir que la
+ * moitie des cas selon la mise en forme de la ligne.
+ */
+export function fondementCite(contrainte: ContrainteReferentiel): boolean {
+  const r = (contrainte.referenceReglementaire ?? '').trim();
+  return r !== '' && r !== '\u2014' && r !== '-';
 }
 
 /**

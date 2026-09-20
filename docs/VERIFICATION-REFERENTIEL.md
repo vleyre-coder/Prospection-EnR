@@ -1,7 +1,7 @@
 # Rapport de vérification — intégration du référentiel de contraintes
 
 **Millésime du classeur** : 2026-09-18 · **empreinte des cellules** `6c672b8213566b1b`
-**Date du relevé** : 19 septembre 2026 · **base de mesure** : 301 parcelles réelles relevées (`enr_e2e`)
+**Date du relevé** : 20 septembre 2026 · **base de mesure** : 301 parcelles réelles relevées (`enr_e2e`)
 
 ---
 
@@ -85,14 +85,14 @@ cohabitent sans que l'un touche à l'autre.
 
 | Filière | Contraintes | Classées `auto_sig` | Raccordées au relevé | `auto_sig` non raccordées | Vérification manuelle |
 | --- | --- | --- | --- | --- | --- |
-| Éolien terrestre | 83 | 54 | **18** | 36 | 29 |
-| Solaire au sol | 60 | 48 | **15** | 33 | 12 |
-| Agrivoltaïsme | 52 | 31 | **12** | 19 | 21 |
-| BESS | 43 | 27 | **11** | 16 | 16 |
-| Méthanisation | 54 | 36 | **17** | 19 | 18 |
-| **Total** | **292** | **196** | **73** | **123** | **96** |
+| Éolien terrestre | 83 | 54 | **24** | 30 | 29 |
+| Solaire au sol | 60 | 48 | **19** | 29 | 12 |
+| Agrivoltaïsme | 52 | 31 | **15** | 16 | 21 |
+| BESS | 43 | 27 | **14** | 13 | 16 |
+| Méthanisation | 54 | 36 | **19** | 17 | 18 |
+| **Total** | **292** | **196** | **91** | **105** | **96** |
 
-Les 73 correspondances sont **écrites à la main, une par une, avec sa justification**. Une version
+Les 91 correspondances sont **écrites à la main, une par une, avec sa justification**. Une version
 antérieure les déduisait par expression régulière : elle produisait 90 rattachements faux, dont
 « rayon de 15 km » vers un tonnage, « 7 m des limites séparatives » vers la distance à l'habitation,
 et « axes à grande circulation » vers n'importe quelle chaussée. Un rattachement faux est pire
@@ -103,25 +103,37 @@ le classeur lui-même les a écartées, et passer outre serait trahir sa propre 
 
 ### Effet mesuré sur 301 parcelles réelles
 
-| Filière | Verdicts | Contraintes pesées par parcelle | dont **résolues par une donnée** |
-| --- | --- | --- | --- |
-| Éolien terrestre | 230 défavorable · 71 à instruire | 76 | **12** |
-| Solaire au sol | 301 à instruire | 54 | **8** |
-| Agrivoltaïsme | 301 à instruire | 48 | **7** |
-| BESS | 301 à instruire | 41 | **7** |
-| Méthanisation | 301 à instruire | 48 | **7** |
+| Filière | Verdicts | Contraintes pesées par parcelle | dont **résolues par une donnée** | dont « à vérifier » |
+| --- | --- | --- | --- | --- |
+| Éolien terrestre | 230 défavorable · 71 à instruire | 76 | **16,8** | 2,0 |
+| Solaire au sol | 301 à instruire | 54 | **11,0** | 5,0 |
+| Agrivoltaïsme | 301 à instruire | 48 | **8,9** | 3,0 |
+| BESS | 301 à instruire | 41 | **9,0** | 2,0 |
+| Méthanisation | 301 à instruire | 48 | **8,0** | 5,0 |
 
-Deux choses se lisent dans ce tableau, et la seconde est la plus utile.
+Trois choses se lisent dans ce tableau, et la dernière est la plus utile.
 
 **Le verdict discrimine là où la donnée existe.** Avant le raccordement, les 301 parcelles
 ressortaient « à instruire » dans les cinq filières, sans une seule infraction relevée. En éolien,
 230 sont désormais écartées : ce sont exactement celles qui se trouvent à moins de 500 m d'une
 habitation, et les 71 restantes sont exactement celles qui sont au-delà.
 
-**Les quatre autres filières ne discriminent pas encore, et le tableau le dit au lieu de le
-masquer.** Leurs contraintes rédhibitoires reposent presque toutes sur le GPU et Géorisques, qui ne
-sont pas encore relevés (§5). Une parcelle « à instruire » dans ces filières signifie « rien ne
-l'écarte parmi les 7 à 8 contraintes que je sais mesurer », et non « rien ne l'écarte ».
+**L'ingestion Géorisques et le raccordement GPU ont fait monter les contraintes résolues** de 12 à
+16,8 par parcelle en éolien, de 8 à 11 en solaire, de 7 à 9 dans les trois autres. C'est le gain
+réel de ce chantier, et il se mesure là : non pas en verdicts retournés, mais en questions sur
+lesquelles l'application sait désormais répondre au lieu de se taire.
+
+**« Raccordée » n'est pas « tranchée ».** La colonne « à vérifier » compte les contraintes
+raccordées qui ne concluent pas — le zonage d'urbanisme en est l'essentiel, puisque son seuil est
+« interdit si le règlement l'exclut » et qu'aucune couche ne lit un règlement. Elles ne sont pas
+inutiles pour autant : l'opérateur lit désormais la famille de zonage applicable au lieu d'un
+« non évalué », donc il sait quel règlement aller ouvrir.
+
+**Les quatre autres filières ne discriminent toujours pas, et le tableau le dit au lieu de le
+masquer.** Leurs contraintes rédhibitoires restantes sont des zones humides, des espèces protégées
+et des servitudes « selon nature » — que le classeur renvoie lui-même en vérification manuelle
+(§5.1). Une parcelle « à instruire » dans ces filières signifie « rien ne l'écarte parmi les 8 à 11
+contraintes que je sais mesurer », et non « rien ne l'écarte ».
 
 ---
 
@@ -156,14 +168,14 @@ règlements de PLU (« interdit si le règlement l'exclut »), zones humides —
 lui-même en vérification —, classements communaux au titre de la loi montagne. Elles sont
 affichées, avec leur seuil et leur source, et jamais comptées comme respectées.
 
-### 5.2 Les 123 contraintes `auto_sig` pas encore raccordées
+### 5.2 Les 105 contraintes `auto_sig` pas encore raccordées
 
 Celles-ci sont un **travail d'ingestion restant**, pas une impossibilité. Le gisement, par couche :
 
 | Couche SIG | Contraintes en attente |
 | --- | --- |
-| GPU (Géoportail de l'urbanisme) | 20 |
-| Géorisques | 16 |
+| Géorisques | 12 |
+| GPU (Géoportail de l'urbanisme) | 8 |
 | INPN | 7 |
 | INPN / DREAL | 5 |
 | Caparéseau | 5 |
@@ -171,13 +183,27 @@ Celles-ci sont un **travail d'ingestion restant**, pas une impossibilité. Le gi
 | INPN / Fédération PNR | 4 |
 | Communes loi Littoral | 3 |
 | RPG | 3 |
-| Conservatoire du littoral, UNESCO, périmètres SCoT, zones de montagne, ANFR Cartoradio, RTE Open Data, autres | 56 |
+| Conservatoire du littoral, UNESCO, périmètres SCoT, zones de montagne, ANFR Cartoradio, RTE Open Data, autres | 54 |
+
+**Le GPU et Géorisques sont passés de 36 à 20.** Trois faits ont été ingérés — zone sismique,
+potentiel radon, établissement SEVESO le plus proche — et quatorze rattachements sont sortis de
+grandeurs déjà relevées. Ce qui reste sur ces deux couches demande des ingestions plus lourdes :
+canalisations de transport (l'API Géorisques n'expose pas de point d'entrée `canalisations_tmd`),
+remontées de nappe, règlements de PLU en texte intégral.
 
 Chacune demande un connecteur, des champs de relevé nouveaux, une migration de schéma et une
-requalification des parcelles déjà relevées. **Aucune ne s'obtient en écrivant une correspondance
-de plus** : le raccordement de 42 à 73 correspondances s'est fait sans ingérer une seule couche
-nouvelle, parce que 47 des 64 grandeurs déjà relevées ne servaient à aucun verdict. Ce gisement-là
-est épuisé.
+requalification des parcelles déjà relevées.
+
+**CETTE SECTION A DIT UNE CHOSE FAUSSE, et la correction est instructive.** Elle affirmait que le
+gisement des grandeurs déjà relevées était « épuisé » après les 73 premières correspondances.
+Mesure refaite : **57 chemins renseignés sur 200 parcelles ou plus ne servaient à aucun verdict**.
+La plupart sont des champs secondaires — le `.nom` ou la `.distanceM` d'un zonage déjà lu par sa
+part de recouvrement — mais pas tous. Quatorze correspondances de plus en sont sorties sans ingérer
+quoi que ce soit : type de document d'urbanisme (301/301 depuis l'origine), servitudes
+aéronautiques et radioélectriques (273/301), famille de zonage, présence d'EBC.
+
+**Une affirmation d'épuisement qu'on ne remesure pas est exactement ce qui fait cesser de
+chercher.** Elle est remplacée ici par une mesure datée, et le test de couverture la recompte.
 
 ### 5.3 Les refus explicites
 
@@ -186,12 +212,33 @@ raison mesurée :
 
 - **cavités souterraines** — le relevé donne une proximité, le classeur demande un aléa ; ce ne
   sont pas la même grandeur ;
-- **EBC** — les prescriptions du GPU, dont les espaces boisés classés relèvent, ne sont renseignées
-  que sur **5 des 301 parcelles** relevées. Un verdict rendu sur 1,7 % de couverture tromperait sur
-  les 98,3 % restants, et il tromperait dans le sens rassurant ;
 - **PPRI au niveau communal** — `risques.ppri.present` vaut pour la commune, `severitePlan` pour la
   parcelle. Rattacher le premier rendrait toute parcelle d'une commune sous PPRI rédhibitoire ;
-  c'est pour ce cas qu'un état à trois valeurs existe (absent / présent mais non qualifié / mesuré).
+  c'est pour ce cas qu'un état à trois valeurs existe (absent / présent mais non qualifié / mesuré) ;
+- **radon** — ingéré et affiché, mais **non rattaché**. La contrainte du classeur s'intitule
+  « Radon / TMD / rupture de barrage : à screener » : elle en bundle trois, dont on n'en mesure
+  qu'une. Conclure « respectée » affirmerait l'absence de transport de matières dangereuses et de
+  risque de rupture de barrage, que rien ici ne regarde ;
+- **« Radars & faisceaux hertziens » en solaire** — rédhibitoire, et sa couche ajoute « radars
+  Météo-France » à la servitude radioélectrique. La servitude seule est mesurée ; les deux mêmes
+  contraintes en éolien et en agrivoltaïsme, qui ne visent que la servitude et sont pénalisantes,
+  sont rattachées ;
+- **servitudes aéronautiques en solaire et agrivoltaïsme** — leurs seuils sont « étude
+  d'éblouissement < 3 km » et « étude réverbération < 3 km », avec un « buffer 3 km à créer » que
+  le classeur signale lui-même. Le drapeau de servitude ne mesure pas cette distance ; seule la
+  contrainte éolienne, qui vise la SUP T5 elle-même, est rattachée ;
+- **la liste `urbanisme.servitudes`** — elle mélange des codes SUP (« ac1 ») et des noms de
+  servitudes (« Château de Villeprévost »), parce que le connecteur retombe sur le libellé quand
+  le code manque. C'est une liste **lisible par un humain**, et aucun verdict ne doit la lire : un
+  moteur qui y chercherait « t5 » conclurait « pas de servitude aéronautique » sur une parcelle qui
+  en porte une sous un autre libellé. Les faits exploitables sont extraits dans des champs typés.
+
+**Une limite du rattachement EBC, à dire plutôt qu'à taire.** Il repose sur le code CNIG `01`, et
+**aucune des 301 parcelles de référence n'en porte** — des sondages sur une dizaine de communes
+françaises n'en ont pas fait apparaître non plus. La branche « un EBC recouvre la parcelle » n'est
+donc exercée que par un test unitaire, jamais par de la donnée réelle. Le jour où une parcelle en
+portera un, c'est cette correspondance qu'il faudra confronter au terrain avant de croire le
+verdict.
 
 ---
 
@@ -230,15 +277,15 @@ refusé.
 | --- | --- |
 | `tsc --noEmit` (4 espaces de travail + tests + Netlify) | propre |
 | `npm run build` | propre |
-| `@enr/core` | 114 tests |
-| `@enr/scoring` | 135 tests |
-| `@enr/api` (sans base) | 606 tests |
+| `@enr/core` | 120 tests |
+| `@enr/scoring` | 136 tests |
+| `@enr/api` (sans base) | 616 tests |
 | `@enr/web` | 209 tests |
 | `@enr/api` sur base **vierge** (`enr_base24`) | 149 tests |
 | `@enr/api` sur base **de référence** (`enr_e2e`, 34 875 communes, 301 parcelles) | 149 tests |
-| Campagne de mutation | **282 motifs**, tous applicables au code courant |
+| Campagne de mutation | **291 motifs**, dont **282 joués et 282 rattrapés** ; 9 écartés (navigateur requis) |
 
-**Ces nombres-ci sont ceux de l'exécution du 19 septembre 2026, et ils ne sont pas verrouillés** :
+**Ces nombres-ci sont ceux de l'exécution du 20 septembre 2026, et ils ne sont pas verrouillés** :
 un test de plus les périme, et c'est normal. Ce qui est verrouillé, ce sont les tableaux des §1 et
 §3 — la couverture du référentiel — que `packages/scoring/test/couverture-referentiel.test.ts`
 recompte et compare à ce document. C'est là que la dérive serait trompeuse, pas sur un compteur de
@@ -250,7 +297,11 @@ la première que la CI construit. Ce cas s'est produit et a été corrigé en se
 le test a besoin.
 
 La **campagne de mutation** est le seul contrôle qui mesure les tests eux-mêmes : chaque motif
-introduit un défaut réel dans le code et exige qu'un test le rattrape. Elle a débusqué, entre
+introduit un défaut réel dans le code et exige qu'un test le rattrape. **Elle doit tourner avec une
+base** : les suites de `test:base` se retournent sinon sans rien vérifier, et le lanceur concluait
+alors « test décoratif » sur des tests parfaitement bons. Il distingue désormais les deux cas et
+refuse de compter comme mesurée une mutation dont les tests n'ont pas pu s'exécuter — le défaut
+qu'il traque, retourné contre lui. Elle a débusqué, entre
 autres, un test qui n'assertait qu'un en-tête de colonne sans regarder la cellule, un garde
 d'accessibilité qui mesurait le corps des gestionnaires d'événements au lieu des libellés de
 boutons, et une règle couvrant les monuments historiques des cinq filières qu'aucun test ne
@@ -260,8 +311,15 @@ protégeait.
 
 ## 9. Ce qui reste à faire
 
-1. **Ingérer le GPU et Géorisques** (36 contraintes à elles deux) : c'est le seul chantier qui
-   ferait discriminer les quatre filières aujourd'hui non discriminantes.
+1. **Poursuivre l'ingestion**, là où elle est possible. Le GPU et Géorisques sont passés de 36 à
+   20 contraintes en attente ; ce qui reste y demande des sources que l'API n'expose pas
+   directement — canalisations de transport (aucun point d'entrée `canalisations_tmd`), remontées
+   de nappe, règlements de PLU en texte intégral. Les gisements suivants par volume sont l'INPN
+   (16 contraintes avec ses déclinaisons) et Caparéseau (5).
+
+   **Cela ne suffira pas à faire discriminer les quatre filières muettes**, et il faut le dire :
+   leurs rédhibitoires restantes sont majoritairement des contraintes que le classeur lui-même
+   renvoie en vérification manuelle. Le plafond n'est pas l'ingestion, c'est le classeur.
 2. **Relecture juridique du classeur** par un humain compétent. L'application en est un fidèle
    rapporteur ; elle n'en est pas la garantie.
 

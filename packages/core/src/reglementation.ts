@@ -950,7 +950,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
       'panneaux sous couvert suffit à le constituer. L\'autorisation est instruite par la DDT, et la ' +
       'compensation — jusqu\'a plusieurs fois la surface défrichée, ou son équivalent financier — pèse ' +
       'lourdement sur le bilan. Un terrain boisé à plus de 5 % déclenche ici le rappel, sur la base de la ' +
-      'couverture forestière mesurée. Les seuils de dispense sont fixes par arrêté PRÉFECTORAL et varient ' +
+      'couverture forestière mesurée. Les seuils de dispense sont fixés par arrêté PRÉFECTORAL et varient ' +
       'd\'un département à l\'autre.',
     instable: true,
     aValiderParJuriste: true,

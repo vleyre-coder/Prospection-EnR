@@ -90,6 +90,20 @@ function parcelleSansRien(filiere: 'eolien_terrestre' | 'methanisation'): Parcel
     s.urbanisme.zaer.present = true;
     s.risques.pprif.present = false;
     s.risques.pprt.present = false;
+    // Zone 1 : une valeur CONNUE qui ne declenche pas, donc une contrainte respectee et non une
+    // donnee manquante — c'est ce que la troisieme voie des drapeaux existe pour dire.
+    s.risques.zoneSismique = 1;
+    // `aucun` : la couche a repondu, et aucun etablissement SEVESO ne figure dans le rayon.
+    s.risques.sevesoProche = { statut: 'aucun', distanceKm: null, nom: null };
+    // Les faits du Geoportail : un document publie, aucun EBC, et une zone agricole. Les trois
+    // sont des REPONSES — un PLUi n'est pas l'absence de document, et « pas d'EBC sur un
+    // territoire couvert » n'est pas « on ne sait pas ».
+    s.urbanisme.typeDocument = 'PLUi';
+    s.urbanisme.couvertParGpu = true;
+    s.urbanisme.presenceEbc = false;
+    s.urbanisme.familleZoneDominante = 'A';
+    s.risques.servitudesAeronautiques = false;
+    s.risques.faisceauxHertziens = false;
     s.topographie.pentePct = 2;
     s.gisement.irradiationKwhM2An = 1350;
     s.acces.distanceVoirieM = 50;
@@ -208,8 +222,23 @@ describe('la table de correspondance', () => {
      *
      * Les quatre dernieres sont des ATOUTS (zones d'acceleration des ENR) : elles n'entrent pas
      * dans le verdict, mais elles etaient connues de l'application et dites nulle part.
+     *
+     * PUIS DE 73 A 91, EN DEUX TEMPS ET DE DEUX NATURES DIFFERENTES :
+     *
+     *   - +4 par INGESTION : zone sismique, etablissement SEVESO le plus proche. Trois faits que
+     *     personne n'interrogeait, et qui demandent un appel de plus a Georisques ;
+     *   - +14 par RATTACHEMENT de grandeurs deja relevees : type de document d'urbanisme (301/301
+     *     depuis l'origine), servitudes aeronautiques et radioelectriques (273/301), famille de
+     *     zonage, presence d'EBC.
+     *
+     * LA SECONDE SERIE CORRIGE UNE AFFIRMATION FAUSSE de ce commentaire. Il disait le gisement des
+     * grandeurs dormantes « epuise » apres les 42 premieres correspondances. Mesure refaite :
+     * 57 chemins renseignes sur 200 parcelles ou plus ne servaient a aucun verdict. La plupart
+     * sont des champs secondaires (`.nom`, `.distanceM` d'un zonage deja lu par sa part de
+     * recouvrement), mais pas tous — et une affirmation d'epuisement qu'on ne remesure pas est
+     * exactement ce qui fait cesser de chercher.
      */
-    assert.equal(CORRESPONDANCES.length, 73, `${CORRESPONDANCES.length} correspondances au lieu de 73`);
+    assert.equal(CORRESPONDANCES.length, 91, `${CORRESPONDANCES.length} correspondances au lieu de 91`);
     // Et chaque filiere en a au moins une : un verdict qui ne regarderait rien pour une filiere
     // entiere rendrait « a instruire » a tout, ce qui ne distingue rien.
     for (const f of ['eolien_terrestre', 'solaire_sol', 'agrivoltaisme', 'bess', 'methanisation'] as const) {
@@ -255,6 +284,84 @@ describe('une donnee absente ne vaut jamais « rien a signaler »', () => {
     const coeurMesure = croisee.contraintes.find((c) => c.contrainteId === ID_COEUR);
     assert.ok(coeurMesure);
     assert.equal(coeurMesure.etat, 'respectee', 'une part mesuree a zero est un zonage reellement absent');
+  });
+
+  it('UNE INFRACTION AU SEUIL REGLEMENTAIRE SUPPOSE UN SEUIL REGLEMENTAIRE', () => {
+    /*
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     * CE QUE `defavorable` AFFIRME, ET CE QUI PEUT LE PORTER
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * La fiche ecrit, mot pour mot : « une contrainte redhibitoire du referentiel est enfreinte AU
+     * SEUIL REGLEMENTAIRE ». C'est une affirmation sur le DROIT, remise a un proprietaire pour
+     * justifier qu'on ecarte sa parcelle.
+     *
+     * Or le classeur range en redhibitoire trois criteres qu'aucun texte ne fonde — et pour cause,
+     * ce sont des criteres economiques : « Gisement de vent ≥ ~5-6 m/s (selon machine) »,
+     * « Surface / emprise nécessaire », « Accès poids lourds ». Deux d'entre eux sont rattaches au
+     * moteur de verdict.
+     *
+     * CE QUI LES EMPECHE DE TRANCHER, ET CE QUE J'AVAIS D'ABORD CRU. J'ai ecrit une garde dans ce
+     * moteur en pensant corriger un defaut ; la mutation correspondante y a survecu, parce que le
+     * bloc etait inatteignable. `seuilApplique` annule DEJA la condition des qu'une raison existe,
+     * et ces trois lignes en portent une autre : seuil approximatif, extraction incomplete. Mesure
+     * faite ensuite : AUCUNE des 22 contraintes sans reference n'etait decisive.
+     *
+     * La protection existait donc, mais par accident. Ce test la rend explicite et verifiable, et
+     * `aucun_fondement_cite` s'ajoute aux motifs — de sorte qu'une contrainte sans texte dont le
+     * seuil serait par ailleurs ferme ne puisse plus, structurellement, fermer une parcelle.
+     */
+    const id = 'eolien_terrestre__gisement_de_vent';
+    const contrainte = contrainteParId(id);
+    assert.ok(contrainte, 'la contrainte temoin doit exister dans le referentiel');
+    assert.equal(contrainte.caractere, 'redhibitoire', 'le classeur la classe bien redhibitoire');
+    assert.equal(
+      contrainte.referenceReglementaire.trim(),
+      '\u2014',
+      'et elle ne cite aucun texte : c’est tout le probleme',
+    );
+
+    // Un vent nettement sous le seuil du classeur : la mesure est FAITE, et elle ne passe pas.
+    const faible = evaluerVerdict(
+      parcelle((s) => {
+        s.gisement.ventVitesse100mMs = 3;
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const evaluee = faible.contraintes.find((c) => c.contrainteId === id);
+    assert.ok(evaluee);
+    assert.equal(
+      evaluee.etat,
+      'a_verifier',
+      'une contrainte sans fondement ne peut pas etre declaree enfreinte',
+    );
+    assert.equal(evaluee.valeurMesuree, 3, 'la valeur mesuree est restituee : l’operateur juge');
+    assert.ok(
+      evaluee.raisons.includes('aucun_fondement_cite'),
+      `la raison doit etre dite : ${evaluee.raisons.join(', ')}`,
+    );
+    assert.ok(
+      !faible.contraintes.some((c) => c.contrainteId === id && c.etat === 'enfreinte'),
+      'et elle ne doit peser sur aucun verdict',
+    );
+
+    /*
+     * LE CONTRE-EXEMPLE, SANS LEQUEL CE TEST NE PROUVERAIT RIEN. Une regle qui ne laisserait plus
+     * rien trancher serait pire que le defaut : le recul de 500 m, lui, porte un article et un
+     * seuil ferme, et il DOIT continuer de rendre une parcelle defavorable.
+     */
+    const trop = evaluerVerdict(
+      parcelle((s) => {
+        s.bati.distanceHabitationM = 300;
+      }),
+      'eolien_terrestre',
+      'reglementaire',
+    );
+    const recul = trop.contraintes.find((c) => c.contrainteId === ID_RECUL);
+    assert.ok(recul);
+    assert.equal(recul.etat, 'enfreinte', 'un seuil ferme et fonde tranche toujours');
+    assert.equal(trop.verdict, 'defavorable');
   });
 
   it('« favorable » reste atteignable quand tout est mesure et respecte', () => {

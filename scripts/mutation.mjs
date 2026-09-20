@@ -3213,7 +3213,7 @@ const MUTATIONS = [
      */
     quoi: 'une severite « prescriptions » est comptee comme un respect',
     fichier: 'packages/scoring/src/verdict.ts',
-    de: "    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: null, chemin };",
+    de: "    if (incertaines.includes(mot)) return { etat: 'a_verifier', valeur: nombre, chemin };",
     vers: '    // mutation',
     construire: '@enr/scoring',
     tests: ['packages/scoring/test/verdict.test.ts'],
@@ -3358,8 +3358,8 @@ const MUTATIONS = [
      */
     quoi: 'une valeur connue qui ne declenche pas repasse pour une donnee absente',
     fichier: 'packages/scoring/src/verdict.ts',
-    de: "    return { etat: 'respectee', valeur: null, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
-    vers: "    return { etat: 'donnee_absente', valeur: null, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
+    de: "    return { etat: 'respectee', valeur: nombre, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
+    vers: "    return { etat: 'donnee_absente', valeur: nombre, chemin };\n  }\n\n  // Le drapeau lui-meme est nul",
     construire: '@enr/scoring',
     tests: ['packages/scoring/test/verdict.test.ts'],
     cwd: 'packages/scoring',
@@ -3488,8 +3488,8 @@ const MUTATIONS = [
      */
     quoi: 'le rapport annonce plus de contraintes raccordees qu’il n’y en a',
     fichier: 'docs/VERIFICATION-REFERENTIEL.md',
-    de: '| Éolien terrestre | 83 | 54 | **18** | 36 | 29 |',
-    vers: '| Éolien terrestre | 83 | 54 | **24** | 30 | 29 |',
+    de: '| Éolien terrestre | 83 | 54 | **24** | 30 | 29 |',
+    vers: '| Éolien terrestre | 83 | 54 | **30** | 24 | 29 |',
     construire: '@enr/scoring',
     tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
     cwd: 'packages/scoring',
@@ -3537,8 +3537,8 @@ const MUTATIONS = [
      */
     quoi: 'le README annonce une couverture inverse de la realite',
     fichier: 'README.md',
-    de: 'de fonder une décision sur un verdict — 73 contraintes sur 292 sont tranchées automatiquement, les\n219 autres sont affichées',
-    vers: 'de fonder une décision sur un verdict — 219 contraintes sur 292 sont tranchées automatiquement, les\n73 autres sont affichées',
+    de: 'de fonder une décision sur un verdict — 91 contraintes sur 292 sont raccordées au relevé, les\n201 autres sont affichées',
+    vers: 'de fonder une décision sur un verdict — 201 contraintes sur 292 sont raccordées au relevé, les\n91 autres sont affichées',
     construire: '@enr/scoring',
     tests: ['packages/scoring/test/couverture-referentiel.test.ts'],
     cwd: 'packages/scoring',
@@ -3632,6 +3632,159 @@ const MUTATIONS = [
     tests: ['packages/scoring/test/agrivoltaisme.test.ts'],
     cwd: 'packages/scoring',
     commande: ['node', '--test', '--experimental-strip-types', 'test/agrivoltaisme.test.ts'],
+  },
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // AUDIT 36 — Georisques, GPU, et le fondement d'un verdict defavorable
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  {
+    audit: 'audit 36',
+    /*
+     * `Number('')` VAUT ZERO. Une reponse vide de Georisques passerait donc pour une zone sismique
+     * nulle — hors de l'echelle legale, qui commence a 1 — et la contrainte conclurait « respectee »
+     * sur une donnee absente. C'est la direction dangereuse de l'erreur.
+     */
+    quoi: 'un classement communal vide passe pour la zone zero',
+    fichier: 'apps/api/src/connecteurs/georisques.ts',
+    de: '  return Number.isInteger(n) && n >= 1 && n <= max ? n : null;',
+    vers: '  return Number.isInteger(n) && n <= max ? n : null;',
+    tests: ['apps/api/test/georisques-aleas.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/georisques-aleas.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * UN STATUT SEVESO ILLISIBLE REPLIE SUR LE SEUIL LE PLUS BAS. Le repli est tentant — « au moins
+     * on signale quelque chose » — et il fait passer une lacune de lecture pour une mesure, dans le
+     * sens rassurant puisque le seuil bas est le moins severe.
+     */
+    quoi: 'un statut SEVESO illisible se replie sur le seuil bas',
+    fichier: 'apps/api/src/connecteurs/georisques.ts',
+    de: "  if (v.includes('bas')) return 'seuil_bas';\n  return null;",
+    vers: "  return 'seuil_bas';",
+    tests: ['apps/api/test/georisques-aleas.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/georisques-aleas.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * « AUCUN » REDEVIENT `null`, ET LA CONTRAINTE NE TRANCHE PLUS JAMAIS. Sans le troisieme etat,
+     * « la couche n'a pas repondu » et « aucun etablissement SEVESO dans le rayon » s'ecrivent
+     * pareil : la contrainte du classeur reste eternellement « non evaluee » alors que la reponse
+     * est mesuree.
+     */
+    quoi: 'l’absence mesuree d’etablissement SEVESO se confond avec un echec d’appel',
+    fichier: 'apps/api/src/connecteurs/georisques.ts',
+    de: "  return meilleur ?? { statut: 'aucun', distanceKm: null, nom: null };",
+    vers: '  return meilleur ?? { statut: null, distanceKm: null, nom: null };',
+    tests: ['apps/api/test/georisques-aleas.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/georisques-aleas.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * « 1AUx » RANGE EN ZONE AGRICOLE. Le test de prefixe ecrit dans l'ordre alphabetique — « A »
+     * avant « AU » — fait passer toutes les zones A URBANISER pour des terres agricoles, sur la
+     * donnee qui gouverne la constructibilite. Rien ne leve, rien ne se voit.
+     */
+    quoi: 'les zones a urbaniser sont rangees en zone agricole',
+    fichier: 'apps/api/src/connecteurs/gpu.ts',
+    de: "  if (nu.startsWith('AU')) return 'AU';\n  if (nu.startsWith('U')) return 'U';\n  if (nu.startsWith('A')) return 'A';",
+    vers: "  if (nu.startsWith('A')) return 'A';\n  if (nu.startsWith('U')) return 'U';",
+    tests: ['apps/api/test/gpu-zonage.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/gpu-zonage.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * SANS DOCUMENT PUBLIE, « AUCUN EBC » DEVIENT UNE REPONSE. La couche rend une liste vide aussi
+     * bien pour un territoire sans espace boise classe que pour un territoire dont le document
+     * n'est pas publie au Geoportail. Les confondre fait conclure « respectee » — sur une
+     * contrainte REDHIBITOIRE, donc dans le sens favorable — a une question jamais posee.
+     */
+    quoi: 'sans document d’urbanisme, l’absence d’EBC passe pour une reponse',
+    fichier: 'apps/api/src/connecteurs/gpu.ts',
+    de: '  return couvertParGpu === true ? false : null;',
+    vers: '  return false;',
+    tests: ['apps/api/test/gpu-zonage.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/gpu-zonage.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * LE ZONAGE DOMINANT DEVIENT LE PREMIER RENDU. L'ordre de la reponse du GPU n'est pas un ordre
+     * de surface : une langue de zone N couvrant 5 % de la parcelle deciderait du reglement a
+     * consulter, si elle arrive en tete.
+     */
+    quoi: 'le zonage dominant est le premier rendu et non le plus etendu',
+    fichier: 'apps/api/src/connecteurs/gpu.ts',
+    de: '    if (meilleure == null || part > meilleure.part) meilleure = { famille, part };',
+    vers: '    if (meilleure == null) meilleure = { famille, part };',
+    tests: ['apps/api/test/gpu-zonage.test.ts'],
+    cwd: 'apps/api',
+    commande: ['tsx', '--test', 'test/gpu-zonage.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * LA LIGNE QUI PORTE TOUTE LA PROTECTION, et elle tient en trois mots.
+     *
+     * `etabli ? reglementaire : null` : des qu'une raison existe — seuil approximatif, extraction
+     * incomplete, aucun fondement cite — la condition est annulee et la contrainte part en
+     * verification au lieu de trancher. La supprimer fait trancher « Gisement de vent
+     * ≥ ~5-6 m/s (selon machine) » : une parcelle a 3 m/s ressort « defavorable », c'est-a-dire
+     * juridiquement fermee, sur un ordre de grandeur economique — dans un document remis a un
+     * proprietaire.
+     *
+     * J'AVAIS D'ABORD ECRIT CETTE GARDE UNE SECONDE FOIS dans le moteur de verdict, en croyant
+     * corriger un defaut. Cette mutation-ci l'a survecu : le bloc etait inatteignable, puisque
+     * la condition etait deja nulle. Il a ete retire, et la mutation vise desormais la ligne qui
+     * fait vraiment le travail.
+     */
+    quoi: 'un seuil non etabli tranche quand meme le verdict',
+    fichier: 'packages/core/src/seuils-developpeur.ts',
+    de: '    condition: etabli ? reglementaire : null,',
+    vers: '    condition: reglementaire,',
+    construire: '@enr/core',
+    tests: ['packages/scoring/test/verdict.test.ts'],
+    cwd: 'packages/scoring',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/verdict.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * LE DOSSIER DE RELECTURE ANNONCE UN COMPTE FAUX. Le cout n'est pas le meme que pour le rapport
+     * de verification : c'est du temps de juriste passe sur une divergence deja resolue — ou, pire,
+     * une divergence qu'on ne lui signale plus.
+     */
+    quoi: 'le dossier de relecture sous-estime les redhibitoires sans article',
+    fichier: 'docs/RELECTURE-JURIDIQUE.md',
+    de: '| **Total** | **50** | sur 133 rédhibitoires |',
+    vers: '| **Total** | **12** | sur 133 rédhibitoires |',
+    construire: '@enr/core',
+    tests: ['packages/core/test/relecture-juridique.test.ts'],
+    cwd: 'packages/core',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/relecture-juridique.test.ts'],
+  },
+  {
+    audit: 'audit 36',
+    /*
+     * LE DOSSIER CESSE DE DIRE CE QU'IL N'EST PAS. Il ressemble a un audit juridique : il classe des
+     * references, cite des articles et conclut. Sans le refus ecrit, un lecteur presse le prend pour
+     * la validation elle-meme — et l'application ferait autorite la ou elle n'a rien verifie.
+     */
+    quoi: 'le dossier de relecture se presente comme une validation juridique',
+    fichier: 'docs/RELECTURE-JURIDIQUE.md',
+    de: "**Ce n'est pas une validation juridique.**",
+    vers: '**Validation juridique du référentiel.**',
+    construire: '@enr/core',
+    tests: ['packages/core/test/relecture-juridique.test.ts'],
+    cwd: 'packages/core',
+    commande: ['node', '--test', '--experimental-strip-types', 'test/relecture-juridique.test.ts'],
   },
 ];
 
@@ -3776,6 +3929,40 @@ if (filtre) {
 }
 
 let echecs = 0;
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UN TEST QUI NE S'EST PAS EXECUTE N'EST PAS UN TEST DECORATIF
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Les suites qui demandent une base s'IGNORENT ELLES-MEMES sans `DATABASE_URL`. Ce lanceur
+ * concluait alors « ne fait echouer AUCUN test — les tests sont donc decoratifs sur ce point », ce
+ * qui est faux, et faux dans le sens qui use la confiance : on part relire un test parfaitement
+ * bon. C'est le defaut que cet outil traque, retourne contre lui. Constate sur la mutation « le
+ * dossier ne dit plus qu'un atout n'entre pas dans le verdict » : signalee decorative sans base,
+ * attrapee avec.
+ *
+ * DEUX DETECTIONS ONT ETE ESSAYEES, ET LA PREMIERE NE MARCHAIT PAS. Compter « # pass 0 » semblait
+ * evident — et c'est faux : ces suites ne se declarent pas `skipped`, elles RETOURNENT tot. Le
+ * fichier affiche donc « # pass 13 » en n'ayant rien verifie. Un signal plausible et vide, soit
+ * exactement ce que ce fichier existe pour debusquer.
+ *
+ * LA DETECTION RETENUE NE DEVINE RIEN : elle lit la liste de `test:base`, qui EST la definition de
+ * « ce qui demande une base ». Une suite ajoutee la-bas devient automatiquement connue ici, sans
+ * qu'aucune declaration parallele ne soit a tenir en phase.
+ */
+const TESTS_AVEC_BASE = (() => {
+  const paquet = JSON.parse(readFileSync('apps/api/package.json', 'utf8'));
+  const script = paquet.scripts?.['test:base'] ?? '';
+  return new Set(
+    [...script.matchAll(/test\/[\w.-]+\.test\.ts/g)].map((m) => `apps/api/${m[0]}`),
+  );
+})();
+
+/** La mutation ne peut-elle etre mesuree que sur une base peuplee ? */
+function exigeUneBase(m) {
+  return (m.tests ?? []).some((t) => TESTS_AVEC_BASE.has(t));
+}
+
 for (const m of A_JOUER) {
   const original = readFileSync(m.fichier, 'utf8');
   if (!original.includes(m.de)) {
@@ -3812,6 +3999,14 @@ for (const m of A_JOUER) {
   }
   if (attrapee) {
     console.log(`OK   (${m.audit}) ${m.quoi}`);
+  } else if (exigeUneBase(m) && !process.env['DATABASE_URL']) {
+    console.error(`\nNON MESUREE (${m.audit}) : « ${m.quoi} ».`);
+    console.error(
+      `  ${m.tests.join(', ')} figure dans « test:base » : sans DATABASE_URL, la suite se retourne\n` +
+        "  tot sans rien verifier. Le motif n'a donc PAS ete mesure. Relancez avec une base :\n" +
+        '    DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e node scripts/mutation.mjs',
+    );
+    echecs += 1;
   } else {
     console.error(`\nECHEC (${m.audit}) : « ${m.quoi} » ne fait echouer AUCUN test.`);
     console.error(`  Les tests ${m.tests.join(', ')} sont donc decoratifs sur ce point.`);

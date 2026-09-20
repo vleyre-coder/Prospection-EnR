@@ -160,23 +160,36 @@ describe('le rapport de verification dit ce que le code fait', () => {
   it('le README annonce la meme couverture que le rapport', () => {
     /*
      * LE README EST CE QUE TOUT LE MONDE LIT, et le rapport ce que personne n'ouvre avant d'en
-     * avoir besoin. La phrase du README — « 73 contraintes sur 292 sont tranchees
-     * automatiquement » — est donc celle qui oriente l'usage, et c'est celle qui derivera en
+     * avoir besoin. Sa phrase de couverture oriente donc l'usage, et c'est elle qui derivera en
      * premier si rien ne la tient.
+     *
+     * ELLE A DEJA DERIVE UNE FOIS, DANS L'AUTRE SENS : elle disait « tranchées automatiquement »,
+     * ce qui etait vrai des 73 premieres correspondances et ne l'est plus des 91. Quatorze d'entre
+     * elles ne font que nommer la zone dont le reglement doit etre lu. Le mot compte : « raccordee »
+     * et « tranchee » ne promettent pas la meme chose a qui decide sur cette base.
      */
     const readme = readFileSync(new URL('../../../README.md', import.meta.url), 'utf8');
     const total = CONTRAINTES_REFERENTIEL.length;
     const raccordees = new Set(CORRESPONDANCES.map((c) => c.contrainteId)).size;
     assert.match(
       readme,
-      new RegExp(`${raccordees} contraintes sur ${total} sont tranchées automatiquement`),
-      `le README doit annoncer ${raccordees} contraintes tranchees sur ${total}`,
+      new RegExp(`${raccordees} contraintes sur ${total} sont raccordées au relevé`),
+      `le README doit annoncer ${raccordees} contraintes raccordees sur ${total}`,
     );
     assert.match(
       readme,
       new RegExp(`les\\s+${total - raccordees}\\s+autres sont affichées`),
       `et ${total - raccordees} affichees sans verdict`,
     );
+    /*
+     * ET LA NUANCE DOIT Y RESTER. « Raccordée » n'est pas « tranchée » : quatorze des
+     * correspondances ajoutees ne font que nommer la zone dont le reglement doit etre lu. Un
+     * README qui ecrirait « tranchées automatiquement » flatterait la couverture sur la phrase que
+     * tout le monde lit.
+     */
+    // Les sauts de ligne du Markdown sont aplatis : la phrase est repliee dans le fichier, et une
+    // assertion qui l'ignore echouerait sur une mise en forme, pas sur un fond.
+    assert.match(readme.replace(/\s+/g, ' '), /Être raccordée ne veut pas dire trancher/);
   });
 
   it('toute correspondance vise une contrainte qui existe', () => {

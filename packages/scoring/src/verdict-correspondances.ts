@@ -632,6 +632,204 @@ export const CORRESPONDANCES: readonly Correspondance[] = [
   // dans les trois autres filieres.
   ...rga(['eolien_terrestre', 'agrivoltaisme', 'methanisation'], ['fort'], 'Aléa fort'),
   ...rga(['solaire_sol', 'bess'], ['moyen', 'fort'], 'Aléa moyen/fort'),
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // GEORISQUES — trois aleas que le classeur nomme et que personne n'interrogeait
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+  /*
+   * LA SISMICITE : UN DRAPEAU, ET NON UN SEUIL — et la distinction n'est pas formelle.
+   *
+   * « Zones 3 à 5 » enonce QUAND la regle se declenche, pas ce que la parcelle doit satisfaire.
+   * C'est la meme distinction que celle qui separe la colonne « Caractère » de la colonne
+   * « Seuil » du classeur, et la confondre a deja produit un controle d'assouplissement a
+   * l'envers. Le zonage sismique est de plus une echelle FERMEE de cinq valeurs, fixee commune par
+   * commune : les valeurs declenchantes se recopient donc telles quelles, sans qu'aucun nombre ne
+   * soit invente. `seuilsNumeriques` reste vide pour ces trois contraintes, et c'est correct.
+   *
+   * L'ECHELLE COMMUNALE EST ICI LA BONNE, contrairement au PPRI. L'article D.563-8-1 du code de
+   * l'environnement classe les COMMUNES : il n'existe pas de zonage sismique infracommunal, donc
+   * aucune traduction abusive d'un fait communal en mesure parcellaire.
+   */
+  ...['eolien_terrestre', 'bess', 'methanisation'].map((f) => ({
+    contrainteId: `${f}__sismicite`,
+    mode: 'drapeau' as const,
+    chemins: ['risques.zoneSismique'],
+    unite: 'drapeau',
+    valeursDeclenchantes: ['3', '4', '5'],
+    justification:
+      'Zone de sismicite reglementaire de la commune (1 a 5), rendue par Georisques. Le classeur ' +
+      'ecrit « Zones 3 à 5 » : les trois valeurs declenchantes sont recopiees, et une zone 1 ou 2 ' +
+      'est une REPONSE — la contrainte est alors respectee, pas indeterminee.',
+  })),
+
+  /*
+   * SEVESO : LA PRESENCE MET EN VERIFICATION, ELLE NE CONDAMNE PAS.
+   *
+   * Le classeur ecrit « À vérifier par cumul » : la regle des effets dominos se calcule sur les
+   * installations du projet ET de l'etablissement voisin, ce qu'aucune couche ne sait faire. Un
+   * etablissement SEVESO a proximite ne vaut donc PAS infraction — il vaut instruction, et c'est
+   * exactement ce que `valeursIncertaines` exprime.
+   *
+   * `aucun` est en revanche une reponse pleine : la couche a repondu, et aucun etablissement
+   * SEVESO ne figure dans les deux kilometres interroges. C'est la troisieme valeur qui permet a
+   * cette contrainte de trancher au lieu de rester eternellement « non evaluee ».
+   */
+  {
+    contrainteId: 'bess__seveso_seuil_bas_haut',
+    mode: 'drapeau' as const,
+    chemins: ['risques.sevesoProche.statut'],
+    unite: 'drapeau',
+    valeursIncertaines: ['seuil_bas', 'seuil_haut'],
+    justification:
+      'Statut SEVESO de l’etablissement classe le plus proche, dans un rayon de deux kilometres. ' +
+      'Sa presence declenche l’etude de cumul que le classeur demande ; son absence, mesuree, ' +
+      'etablit que la contrainte ne s’applique pas a cette parcelle.',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+  // GPU — ce que le Geoportail de l'urbanisme repondait deja, et que rien ne lisait
+  // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+  /*
+   * LE DOCUMENT D'URBANISME APPLICABLE. Renseigne sur 301 parcelles sur 301 depuis l'origine, et
+   * lu par aucune contrainte. Le classeur en tire une penalite explicite : sous carte communale
+   * ou sous reglement national, l'instruction se fait « cas par cas » et la derogation devient la
+   * regle. Sous PLU ou PLUi, la question ne se pose pas — c'est une REPONSE, pas une lacune.
+   */
+  ...[
+    { id: 'eolien_terrestre__carte_communale_rnu', valeurs: ['CC', 'RNU'], quoi: 'carte communale ou reglement national' },
+    { id: 'agrivoltaisme__carte_communale_rnu', valeurs: ['CC', 'RNU'], quoi: 'carte communale ou reglement national' },
+    { id: 'solaire_sol__carte_communale', valeurs: ['CC'], quoi: 'carte communale' },
+    { id: 'solaire_sol__rnu_communes_sans_document', valeurs: ['RNU'], quoi: 'reglement national d’urbanisme' },
+  ].map(({ id, valeurs, quoi }) => ({
+    contrainteId: id,
+    mode: 'drapeau' as const,
+    chemins: ['urbanisme.typeDocument'],
+    unite: 'drapeau',
+    valeursDeclenchantes: valeurs,
+    justification:
+      `Type de document d’urbanisme publie au Geoportail : la contrainte vise le regime « ${quoi} ». ` +
+      'Un PLU ou un PLUi est une reponse pleine, et non une donnee manquante — la penalite du ' +
+      'classeur ne s’applique alors pas.',
+  })),
+
+  /*
+   * LES ESPACES BOISES CLASSES : « Interdiction absolue », et c'est un des rares seuils du
+   * classeur qui ne demande aucune interpretation.
+   *
+   * CE RATTACHEMENT AVAIT ETE REFUSE, et le refus etait mal fonde. Le motif retenu alors — « les
+   * prescriptions ne sont renseignees que sur 5 parcelles sur 301 » — confondait deux choses : le
+   * taux de PRESENCE d'un EBC, qui est effectivement faible, et la couverture de la COUCHE, qui
+   * est totale. `presenceEbc` distingue desormais les deux, et c'est `couvertParGpu` qui porte le
+   * troisieme etat : sans document publie, l'absence de prescription ne prouve rien.
+   */
+  ...['eolien_terrestre__espaces_boises_classes_ebc', 'solaire_sol__espaces_boises_classes_ebc'].map(
+    (contrainteId) => ({
+      contrainteId,
+      mode: 'drapeau' as const,
+      chemins: ['urbanisme.presenceEbc'],
+      unite: 'drapeau',
+      justification:
+        'Prescription surfacique de type EBC recouvrant la parcelle, au sens du standard CNIG. Le ' +
+        'champ ne vaut `false` que si un document d’urbanisme publie couvre le territoire : hors ' +
+        'document, il reste nul et la contrainte n’est pas tranchee.',
+    }),
+  ),
+
+  /*
+   * SERVITUDE AERONAUTIQUE DE DEGAGEMENT (T5). Le classeur nomme deux sources — « GPU (SUP T5) /
+   * cartes aerodromes ». Celle qui est OPPOSABLE est la servitude d'utilite publique, et c'est
+   * elle que le releve porte : `connecteurs/servitudes.ts` classe les codes SUP par categorie
+   * depuis l'origine, et `risques.servitudesAeronautiques` est renseigne sur 273 parcelles sur
+   * 301. Les cartes d'aerodromes ajouteraient des surfaces de degagement non encore annexees au
+   * document d'urbanisme : le dire dans la fiche est utile, le faire trancher ne l'est pas.
+   */
+  {
+    contrainteId: 'eolien_terrestre__servitudes_aeronautiques_de_degagement_t5',
+    mode: 'drapeau' as const,
+    chemins: ['risques.servitudesAeronautiques'],
+    unite: 'drapeau',
+    justification:
+      'Servitude aeronautique de degagement recouvrant la parcelle, lue dans les codes SUP du ' +
+      'Geoportail de l’urbanisme. C’est la source opposable de cette contrainte ; les surfaces de ' +
+      'degagement non encore annexees au document ne sont pas couvertes.',
+  },
+
+  /*
+   * FAISCEAUX HERTZIENS (PT1/PT2), en eolien et en agrivoltaisme. Meme raisonnement, et meme
+   * limite : la servitude radioelectrique est opposable, la zone de coordination de l'ANFR ne
+   * l'est pas. Les deux contraintes sont PENALISANTES, ce qui est coherent avec ce que la source
+   * permet d'affirmer.
+   *
+   * LA TROISIEME, EN SOLAIRE, EST DELIBEREMENT ECARTEE : elle s'intitule « Radars & faisceaux
+   * hertziens » et sa couche ajoute « radars Météo-France ». Conclure « respectee » sur la seule
+   * absence de servitude radioelectrique affirmerait aussi l'absence de contrainte radar, que
+   * rien ici ne mesure — et elle est REDHIBITOIRE, donc l'erreur porterait sur un blocage.
+   */
+  ...[
+    'eolien_terrestre__faisceaux_hertziens_servitudes_radioelectriques_pt1_',
+    'agrivoltaisme__faisceaux_hertziens_telecom_pt1_pt2',
+  ].map((contrainteId) => ({
+    contrainteId,
+    mode: 'drapeau' as const,
+    chemins: ['risques.faisceauxHertziens'],
+    unite: 'drapeau',
+    justification:
+      'Servitude radioelectrique (PT1/PT2) recouvrant la parcelle, lue dans les codes SUP du ' +
+      'Geoportail de l’urbanisme. Les zones de coordination de l’ANFR, non opposables, ne sont ' +
+      'pas couvertes : la contrainte est penalisante, pas redhibitoire.',
+  })),
+
+  /*
+   * LE ZONAGE D'URBANISME : IL MET EN VERIFICATION, IL NE TRANCHE PAS — et c'est le classeur
+   * lui-meme qui l'impose. Son seuil est « Interdit si le règlement l'exclut » : la reponse est
+   * dans le REGLEMENT de la zone, un texte que rien ne lit automatiquement.
+   *
+   * POURQUOI RATTACHER MALGRE TOUT. Sans ce rattachement, la contrainte ressort « non evaluee » —
+   * l'operateur ne sait meme pas en quelle zone se trouve sa parcelle. Avec, elle ressort « a
+   * verifier » AVEC la famille de zonage applicable, ce qui est precisement ce qu'il faut savoir
+   * pour aller ouvrir le bon reglement. Le verdict ne bouge pas ; ce qu'on lui donne a faire, si.
+   *
+   * CONSEQUENCE ASSUMEE SUR LES COMPTES : ces rattachements augmentent le nombre de contraintes
+   * « raccordees » sans augmenter celui des contraintes TRANCHEES. Le rapport de verification
+   * distingue desormais les deux, faute de quoi il flatterait la couverture.
+   */
+  ...[
+    'eolien_terrestre__zonage_plu_plui',
+    'methanisation__zonage_plu_plui',
+    'solaire_sol__zonage_plu_plui_a_n_u_au',
+    'agrivoltaisme__zonage_plu_plui_a_n',
+  ].map((contrainteId) => ({
+    contrainteId,
+    mode: 'drapeau' as const,
+    chemins: ['urbanisme.familleZoneDominante'],
+    unite: 'drapeau',
+    valeursIncertaines: ['U', 'AU', 'A', 'N'],
+    justification:
+      'Famille du zonage dominant (U, AU, A ou N), mesuree sur la part de recouvrement. Le seuil ' +
+      'du classeur est « interdit si le reglement l’exclut » : aucune valeur ne tranche seule, et ' +
+      'les quatre familles mettent donc la contrainte en verification, en nommant la zone dont le ' +
+      'reglement doit etre consulte.',
+  })),
+
+  /*
+   * LE ZONAGE EN BESS, traite a part parce que son seuil l'est : « U/AU éco favorable ; A/N
+   * défavorable ». Le classeur oriente, mais « defavorable » n'est pas « interdit » — et sa couche
+   * nomme « zonages PLU/PLUi + règlements ». U et AU sont donc une reponse favorable pleine ; A
+   * et N mettent en verification.
+   */
+  {
+    contrainteId: 'bess__zonage_plu_plui_cc_rnu',
+    mode: 'drapeau' as const,
+    chemins: ['urbanisme.familleZoneDominante'],
+    unite: 'drapeau',
+    valeursIncertaines: ['A', 'N'],
+    justification:
+      'Famille du zonage dominant. Le classeur ecrit « U/AU éco favorable ; A/N défavorable » : U ' +
+      'et AU sont une reponse favorable, A et N mettent en verification — « defavorable » n’est ' +
+      'pas « interdit », et le reglement de zone tranche.',
+  },
 ];
 
 const PAR_ID = new Map(CORRESPONDANCES.map((c) => [c.contrainteId, c]));

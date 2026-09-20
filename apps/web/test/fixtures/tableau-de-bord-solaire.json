@@ -13,9 +13,9 @@
   ],
   "repartitionScores": {
     "vert": 0,
-    "orange": 299,
-    "rouge": 1,
-    "gris": 1,
+    "orange": 0,
+    "rouge": 0,
+    "gris": 301,
     "total": 301
   }
 }

@@ -86,8 +86,47 @@ export interface Urbanisme {
   couvertParGpu: boolean | null;
   zonages: ZoneUrbaInfo[];
   prescriptions: PrescriptionInfo[];
-  /** Servitudes d'utilite publique recouvrant la parcelle (codes SUP). */
+  /**
+   * Servitudes d'utilite publique recouvrant la parcelle, POUR L'AFFICHAGE.
+   *
+   * ATTENTION, CETTE LISTE MELANGE DES CODES ET DES NOMS, et c'est assume : le GPU rend un
+   * `suptype` (« ac1 ») quand il en a un, et le connecteur retombe sinon sur le libelle de la
+   * servitude (« Château de Villeprévost »). Mesure sur la base de reference : 38 parcelles
+   * portent « ac1 », 34 « Château de Villeprévost ». C'est une liste lisible par un humain.
+   *
+   * AUCUN VERDICT NE DOIT LA LIRE. Un moteur qui y chercherait « t5 » conclurait « pas de
+   * servitude aeronautique » sur une parcelle qui en porte une sous un autre libelle. Les faits
+   * exploitables sont extraits par `connecteurs/servitudes.ts` dans des champs dedies et typés :
+   * `risques.servitudesAeronautiques`, `risques.faisceauxHertziens`, `eau.captageAep`.
+   */
   servitudes: string[];
+  /**
+   * Un espace boise classe recouvre-t-il la parcelle ?
+   *
+   * TROIS ETATS, et le troisieme est ce qui rend ce champ utilisable. Les prescriptions du GPU ne
+   * sont renseignees que sur 5 des 301 parcelles de la base de reference — non parce que la couche
+   * echoue, mais parce que peu de documents en publient. Compter l'absence de prescription comme
+   * une absence d'EBC serait juste ; la compter alors que le territoire n'est meme pas couvert par
+   * un document d'urbanisme serait faux.
+   *
+   * `true` : une prescription EBC recouvre la parcelle. `false` : le territoire est couvert par un
+   * document publie au GPU, et aucune prescription EBC n'y figure. `null` : pas de document.
+   */
+  presenceEbc: boolean | null;
+  /**
+   * Famille du zonage dominant : `U`, `AU`, `A` ou `N`.
+   *
+   * POURQUOI UNE FAMILLE ET NON LE LIBELLE. Les libelles reels sont « A », « Ap », « N », « Nj »,
+   * « 1AUx », « UBa »… — une centaine de variantes par document. Le classeur, lui, raisonne sur
+   * quatre familles (« U/AU éco favorable ; A/N défavorable »). Normaliser ici evite que chaque
+   * lecteur refasse le prefixe a sa facon, et qu'un « Ah » soit range en zone A par l'un et en
+   * zone inconnue par l'autre.
+   *
+   * DOMINANT = LA PLUS GRANDE PART DE RECOUVREMENT. Une parcelle a cheval sur deux zonages existe
+   * (82 des 382 zonages releves sont sur des parcelles multi-zonees) ; prendre le premier de la
+   * liste donnerait un resultat dependant de l'ordre de la reponse du GPU.
+   */
+  familleZoneDominante: 'U' | 'AU' | 'A' | 'N' | null;
   /** Zone d'acceleration des ENR : la parcelle y figure-t-elle, et pour quelles filieres ? */
   zaer: {
     present: boolean | null;
@@ -192,6 +231,33 @@ export const LIBELLES_GESTIONNAIRE: Record<'RTE' | 'Enedis' | 'autre_grd', strin
   Enedis: 'Enedis',
   // « GRD » est le terme du secteur, et le developper une fois suffit a le rendre lisible.
   autre_grd: 'autre gestionnaire de distribution',
+};
+
+/**
+ * Les cinq zones de sismicite, telles que l'article D.563-8-1 du code de l'environnement les nomme.
+ *
+ * RECOPIEES, PAS REFORMULEES : c'est la meme regle que pour les seuils du classeur. « Modérée »
+ * est le terme du decret pour la zone 3, et c'est celui qu'un operateur doit pouvoir citer.
+ */
+export const LIBELLES_SISMICITE: Record<number, string> = {
+  1: 'très faible',
+  2: 'faible',
+  3: 'modérée',
+  4: 'moyenne',
+  5: 'forte',
+};
+
+/**
+ * Les trois categories de potentiel radon de l'arrete du 27 juin 2018.
+ *
+ * La categorie 2 n'est PAS « moyenne » : c'est un potentiel faible assorti de facteurs
+ * geologiques particuliers. L'ecrire « moyen » par symetrie avec la sismicite serait inventer une
+ * echelle que le texte ne pose pas.
+ */
+export const LIBELLES_RADON: Record<number, string> = {
+  1: 'faible',
+  2: 'faible, avec facteurs géologiques particuliers',
+  3: 'significatif',
 };
 
 /** Libelle d'un gestionnaire, ou la valeur brute si elle sort de l'enumeration. */
@@ -478,6 +544,46 @@ export interface Risques {
   icpeProches: number | null;
   /** Obligation legale de debroussaillement / zone DFCI. */
   obligationDebroussaillement: boolean | null;
+  /**
+   * Zone de sismicite reglementaire, de 1 (tres faible) a 5 (forte).
+   *
+   * COMMUNALE, ET C'EST SA NATURE JURIDIQUE, pas une approximation. L'article D.563-8-1 du code
+   * de l'environnement classe les COMMUNES : il n'existe pas de zonage sismique infracommunal, et
+   * lire ici une valeur communale ne commet donc aucun des glissements d'echelle que ce depot
+   * traque par ailleurs. Le referentiel penalise les zones 3 a 5 en eolien, BESS et methanisation.
+   */
+  zoneSismique: number | null;
+  /**
+   * Potentiel radon de la commune, de 1 (faible) a 3 (significatif).
+   *
+   * Communal lui aussi, et pour la meme raison : l'arrete du 27 juin 2018 etablit la liste des
+   * communes par categorie. Le referentiel le fait « screener » en BESS.
+   */
+  potentielRadon: number | null;
+  /**
+   * L'etablissement SEVESO le plus proche, avec son seuil et sa distance.
+   *
+   * POURQUOI LE PLUS PROCHE ET NON UN COMPTE. Le referentiel ecrit, pour le stockage,
+   * « SEVESO seuil bas/haut : a verifier par cumul » — la regle des effets dominos se joue sur la
+   * PROXIMITE d'un etablissement donne, pas sur leur nombre. Trois etablissements a huit
+   * kilometres ne disent rien ; un seul a trois cents metres decide du dossier.
+   *
+   * `null` quand aucun etablissement SEVESO n'a ete trouve dans le rayon interroge — ce qui est
+   * une reponse, et non une absence de donnee : `sitesPollues` et `icpeProches`, renseignes par le
+   * meme appel, temoignent que la couche a bien ete interrogee.
+   */
+  sevesoProche: {
+    /**
+     * `seuil_haut`, `seuil_bas`, ou `aucun` — et `aucun` EST UNE REPONSE.
+     *
+     * Le troisieme etat n'est pas une coquetterie : sans lui, « la couche n'a pas repondu » et
+     * « aucun etablissement SEVESO dans le rayon » s'ecriraient tous deux `null`, et le verdict ne
+     * pourrait jamais conclure. `null` est donc reserve a l'echec d'interrogation.
+     */
+    statut: 'seuil_haut' | 'seuil_bas' | 'aucun' | null;
+    distanceKm: number | null;
+    nom: string | null;
+  };
 }
 
 export type EtatSaturation = 'disponible' | 'tendu' | 'sature';

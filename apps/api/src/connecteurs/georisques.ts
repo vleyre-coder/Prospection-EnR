@@ -14,7 +14,7 @@ import type { Eau, Risques, SeveritePlanPpr, Topographie } from '@enr/core';
 import { config } from '../config.js';
 import { avecParams, jsonExterne } from '../http.js';
 import { journal } from '../journal.js';
-import type { Position } from '../geo.js';
+import { distanceM, type Position } from '../geo.js';
 
 const CONNECTEUR = 'georisques';
 
@@ -204,6 +204,96 @@ interface PprBrut {
 type CompteSeul = Record<string, unknown>;
 
 /**
+ * Une commune du zonage sismique de l'article D.563-8-1 du code de l'environnement.
+ *
+ * `zone_sismicite` (« 1 - TRES FAIBLE ») n'est PAS declare, bien qu'il soit rendu : le libelle
+ * affiche vient de `LIBELLES_SISMICITE`, ou il est ecrit correctement et une seule fois. Declarer
+ * un champ qu'on ne lit pas laisse croire que l'application s'en sert — le reproche exact fait aux
+ * quatre champs inexistants d'une version precedente de ce fichier.
+ */
+interface ZonageSismiqueBrut {
+  code_zone?: string | null;
+}
+
+/** Une commune du classement radon de l'arrete du 27 juin 2018. */
+interface RadonBrut {
+  classe_potentiel?: string | null;
+}
+
+/**
+ * Une installation classee, telle que Georisques la rend.
+ *
+ * Seuls les champs LUS sont declares. Le point d'entree en rend une trentaine ; en declarer plus
+ * que ce qu'on lit laisse croire que l'application s'en sert, et c'est exactement le reproche fait
+ * aux quatre champs inexistants declares par une version precedente de ce fichier.
+ */
+interface IcpeBrut {
+  raisonSociale?: string | null;
+  statutSeveso?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+/**
+ * L'etablissement SEVESO le plus proche parmi les installations classees rendues.
+ *
+ * POURQUOI LE PLUS PROCHE, ET AVEC SA DISTANCE. Le referentiel ecrit, pour le stockage,
+ * « SEVESO seuil bas/haut : a verifier par cumul » : la regle des effets dominos se joue sur la
+ * proximite d'un etablissement donne, jamais sur leur nombre. Trois etablissements a huit
+ * kilometres ne disent rien ; un seul a trois cents metres decide du dossier.
+ *
+ * LA DISTANCE PEUT MANQUER SANS QUE LE STATUT MANQUE. Georisques ne geolocalise pas toutes ses
+ * fiches : un etablissement SEVESO sans coordonnees est retenu — sa PRESENCE dans le rayon est
+ * l'information principale — avec une distance nulle. Le taire parce qu'on ne sait pas le placer
+ * serait transformer une incertitude de position en absence d'etablissement.
+ */
+export function sevesoLePlusProche(
+  centroide: Position,
+  installations: readonly IcpeBrut[],
+): Risques['sevesoProche'] {
+  let meilleur: Risques['sevesoProche'] | null = null;
+  for (const i of installations) {
+    const statut = statutSeveso(i.statutSeveso);
+    if (statut == null) continue;
+    const d =
+      typeof i.longitude === 'number' && typeof i.latitude === 'number'
+        ? Math.round((distanceM(centroide, [i.longitude, i.latitude]) / 1000) * 100) / 100
+        : null;
+    const candidat = { statut, distanceKm: d, nom: i.raisonSociale?.trim() || null };
+    if (meilleur == null) meilleur = candidat;
+    else if (d != null && (meilleur.distanceKm == null || d < meilleur.distanceKm)) meilleur = candidat;
+  }
+  // La liste a repondu : l'absence d'etablissement SEVESO est un fait, pas une lacune.
+  return meilleur ?? { statut: 'aucun', distanceKm: null, nom: null };
+}
+
+/**
+ * Normalise le statut SEVESO tel que Georisques l'ecrit.
+ *
+ * Les valeurs observees sont « Non Seveso », « Seveso seuil bas » et « Seveso seuil haut ». Une
+ * valeur inconnue rend `null` PLUTOT QUE `seuil_bas` : un repli vers le seuil le moins severe
+ * ferait passer pour mesure ce qui est une lacune de lecture, et dans le sens rassurant.
+ */
+export function statutSeveso(brut: string | null | undefined): 'seuil_haut' | 'seuil_bas' | null {
+  const v = (brut ?? '').toLowerCase();
+  if (!v.includes('seveso') || v.includes('non seveso')) return null;
+  if (v.includes('haut')) return 'seuil_haut';
+  if (v.includes('bas')) return 'seuil_bas';
+  return null;
+}
+
+/**
+ * Convertit un code de classement communal en entier, ou `null`.
+ *
+ * `Number('')` vaut ZERO, et un zero passerait ici pour une zone sismique — hors de l'echelle
+ * legale, qui va de 1 a 5. Le controle est donc explicite plutot que confie a la coercition.
+ */
+export function classeCommunale(brut: string | null | undefined, max: number): number | null {
+  const n = Number((brut ?? '').trim());
+  return Number.isInteger(n) && n >= 1 && n <= max ? n : null;
+}
+
+/**
  * Rayons d'interrogation des comptages de proximite, en metres.
  *
  * NOMMES ET EXPORTES parce qu'ils doivent etre AFFICHES. Le rayon des cavites etait ecrit en dur a
@@ -214,6 +304,15 @@ type CompteSeul = Record<string, unknown>;
  */
 export const RAYON_CAVITES_M = 1000;
 export const RAYON_MOUVEMENTS_M = 1000;
+/**
+ * Rayon d'interrogation des installations classees, en metres.
+ *
+ * Il servait jusqu'ici a un simple denombrement et n'etait pas nomme. Il l'est parce qu'il borne
+ * desormais une affirmation : « aucun etablissement SEVESO » ne vaut QUE dans ce rayon, et la
+ * fiche doit pouvoir le dire. Deux kilometres couvrent les distances d'effets dominos usuelles
+ * sans faire remonter tout un bassin industriel.
+ */
+export const RAYON_ICPE_M = 2000;
 
 export type FamilleRisque =
   | 'inondation'
@@ -435,7 +534,8 @@ export async function risquesEtEau(
 }> {
   const echecs: string[] = [];
 
-  const [argiles, cavites, mvt, pprn, pprt, tri, triZonage, casias, icpe] = await Promise.all([
+  const [argiles, cavites, mvt, pprn, pprt, tri, triZonage, casias, icpe, sismique, radon] =
+    await Promise.all([
     aleaArgiles(centroide),
     formeA<CompteSeul>('cavites', { latlon: latlon(centroide), rayon: RAYON_CAVITES_M }),
     /**
@@ -461,13 +561,34 @@ export async function risquesEtEau(
     formeA<CompteSeul>('gaspar/tri', { code_insee: codeInsee }),
     formeA<CompteSeul>('tri_zonage', { latlon: latlon(centroide) }),
     formeA<CompteSeul>('ssp/casias', { latlon: latlon(centroide), rayon: 500 }),
-    formeA<CompteSeul>('installations_classees', {
+    /*
+     * LE MEME APPEL SERT DEUX FOIS, et c'est deliberement le meme.
+     *
+     * Il denombrait les installations classees ; il rend aussi leur statut SEVESO et leurs
+     * coordonnees. Ouvrir un second appel pour lire d'autres colonnes de la meme reponse
+     * doublerait la charge d'un service public pour rien.
+     */
+    formeA<IcpeBrut>('installations_classees', {
       latlon: latlon(centroide),
-      rayon: 2000,
+      rayon: RAYON_ICPE_M,
     }),
+    /*
+     * LES DEUX CLASSEMENTS COMMUNAUX, et leur echelle est la bonne.
+     *
+     * Le reproche fait ailleurs dans ce fichier — « un fait communal traduit en mesure locale » —
+     * ne s'applique PAS ici, et il faut le dire pour qu'on ne les « corrige » pas plus tard par
+     * analogie. Le zonage sismique (art. D.563-8-1 C. env.) et le potentiel radon (arrete du
+     * 27 juin 2018) classent JURIDIQUEMENT des communes : il n'existe pas d'echelon inferieur, et
+     * la valeur communale est la valeur applicable a la parcelle.
+     */
+    formeA<ZonageSismiqueBrut>('zonage_sismique', { latlon: latlon(centroide) }),
+    formeA<RadonBrut>('radon', { code_insee: codeInsee }),
   ]);
 
   if (cavites == null) echecs.push('georisques/cavites');
+  if (sismique == null) echecs.push('georisques/zonage_sismique');
+  if (radon == null) echecs.push('georisques/radon');
+  if (icpe == null) echecs.push('georisques/installations_classees');
   if (pprn == null) echecs.push('georisques/gaspar/pprn');
   if (casias == null) echecs.push('georisques/ssp/casias');
 
@@ -572,6 +693,20 @@ export async function risquesEtEau(
     faisceauxHertziens: null,
     reseauxEnterres: [],
     obligationDebroussaillement: parFamille.has('incendie') ? true : null,
+    zoneSismique: classeCommunale(sismique?.objets[0]?.code_zone, 5),
+    potentielRadon: classeCommunale(radon?.objets[0]?.classe_potentiel, 3),
+    /*
+     * L'ECHEC DE L'APPEL ET L'ABSENCE D'ETABLISSEMENT NE SE CONFONDENT PAS.
+     *
+     * `icpe == null` signifie que la couche n'a pas repondu : on ne sait rien, et un objet vide
+     * dirait « aucun SEVESO a proximite ». La liste vide, elle, est une REPONSE — et c'est
+     * `sevesoLePlusProche` qui la rend, avec ses trois champs nuls, aux cotes de `icpeProches`
+     * qui temoigne que l'interrogation a eu lieu.
+     */
+    sevesoProche:
+      icpe == null
+        ? { statut: null, distanceKm: null, nom: null }
+        : sevesoLePlusProche(centroide, icpe.objets),
   };
 
   /**

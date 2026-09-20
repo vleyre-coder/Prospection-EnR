@@ -13,10 +13,16 @@ raccordement.
 
 | Filière | Critère déterminant |
 |---|---|
-| Solaire au sol / agrivoltaïsme | régime d'implantation (dégradé / inculte / agricole) et irradiation |
+| Solaire au sol | régime d'implantation (dégradé / inculte / agricole) et irradiation |
+| Agrivoltaïsme | accord de l'exploitant et du propriétaire, et aptitude de la culture en place |
 | Éolien terrestre | éloignement de l'habitat (500 m minimum) et gisement de vent |
 | Stockage par batteries (BESS) | distance et capacité résiduelle du poste source |
 | Méthanisation | densité d'intrants et débouché (injection ou épandage) |
+
+L'agrivoltaïsme est une **filière à part entière**, et non un réglage du solaire au sol : les deux
+trient **en sens opposé** sur la nature du sol. Le solaire au sol cherche un terrain que
+l'agriculture a quitté ; l'agrivoltaïsme cherche un terrain qu'elle occupe encore et dont elle
+continuera de vivre — c'est la condition même du régime (L.314-36 du code de l'énergie).
 
 Le changement de filière recolore instantanément la carte et adapte critères, couches et
 filtres.
@@ -126,7 +132,8 @@ source : [docs/SOURCES_DONNEES.md](docs/SOURCES_DONNEES.md).
 
 S'y ajoutent le **Global Wind Atlas** pour le gisement de vent (raster national à 250 m) et
 les **servitudes d'utilité publique du GPU** (captages `AS1`, aéronautique `T4`/`T5`,
-radioélectrique `PT1`-`PT3`, réseaux `I3`/`I4`).
+radioélectrique `PT1`-`PT3`, réseaux `I3`/`I4`), ainsi que le **zonage sismique**, le **potentiel
+radon** et l'**établissement SEVESO le plus proche** (Géorisques).
 
 Trois couches n'ont **aucune source nationale réutilisable** : ZAER et documents-cadres
 départementaux PV au sol (délibérations et arrêtés, à ingérer territoire par territoire),
@@ -156,9 +163,16 @@ La procédure de rafraîchissement : [docs/RAFRAICHISSEMENT.md](docs/RAFRAICHISS
 
 **Ce que l'application évalue réellement du référentiel de contraintes, et ce qu'elle laisse à
 l'opérateur** : [docs/VERIFICATION-REFERENTIEL.md](docs/VERIFICATION-REFERENTIEL.md). À lire avant
-de fonder une décision sur un verdict — 73 contraintes sur 292 sont tranchées automatiquement, les
-219 autres sont affichées avec leur seuil et leur source à consulter. Les chiffres de ce rapport
-sont recomptés par un test, ils ne peuvent pas se périmer en silence.
+de fonder une décision sur un verdict — 91 contraintes sur 292 sont raccordées au relevé, les
+201 autres sont affichées avec leur seuil et leur source à consulter. Être raccordée ne veut pas
+dire trancher : plusieurs ne font que nommer la zone dont le règlement doit être lu. Les chiffres
+de ce rapport sont recomptés par un test, ils ne peuvent pas se périmer en silence.
+
+**Ce que le référentiel cite comme fondement, et où il se contredit lui-même** :
+[docs/RELECTURE-JURIDIQUE.md](docs/RELECTURE-JURIDIQUE.md). Ce n'est **pas** une validation
+juridique — elle reste à faire par un juriste. C'est le travail préparatoire : 128 contraintes sur
+292 citent un article précis, 50 des 133 rédhibitoires n'en citent aucun, et 25 reçoivent une
+sévérité différente selon la filière alors que le texte cité est le même.
 
 ## Avertissements — à lire avant tout usage
 

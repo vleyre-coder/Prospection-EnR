@@ -353,7 +353,14 @@
       },
       "radars": [],
       "icpeProches": 1,
+      "sevesoProche": {
+        "nom": null,
+        "statut": "aucun",
+        "distanceKm": null
+      },
       "sitesPollues": 0,
+      "zoneSismique": 1,
+      "potentielRadon": 1,
       "reseauxEnterres": [],
       "faisceauxHertziens": false,
       "servitudesAeronautiques": false,
@@ -368,7 +375,7 @@
         "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "ign_alti": {
         "nom": "IGN RGE ALTI - service de calcul altimétrique",
@@ -378,7 +385,7 @@
         "avertissement": "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "georisques": {
         "nom": "Georisques (BRGM / MTE)",
@@ -388,7 +395,7 @@
         "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "ign_bdtopo": {
         "nom": "IGN BD TOPO (batiments, voirie, hydrographie)",
@@ -398,7 +405,7 @@
         "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "reseau_gaz": {
         "nom": "GRDF / GRTgaz / Terega - réseau gaz et injection biomethane",
@@ -408,7 +415,7 @@
         "avertissement": "La faisabilité d'une injection dépend du zonage de raccordement et de la capacité du réseau a l'instant du projet, y compris en rebours. À confirmer auprès du gestionnaire.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "zaer_local": {
         "nom": "Zones d'accélération des ENR (WFS Geoplateforme, couche nationale zaer:zaer)",
@@ -418,7 +425,7 @@
         "avertissement": "Une ZAER ne cree aucun droit à construire : elle allege l'instruction et signale un portage politique local. ATTENTION, la filière de la zone doit être lue : 68 % des ZAER photovoltaïques recensées portent sur des TOITURES et ne concernent pas le foncier. Les zones de stockage (batteries) ne sont pas couvertes par le dispositif de la loi APER.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.015Z"
+        "dateInterrogation": "2026-09-20T06:24:29.082Z"
       },
       "ign_bdforet": {
         "nom": "IGN BD Foret V2",
@@ -427,7 +434,7 @@
         "connecteur": "ign_bdforet",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "aoc_viticole": {
         "nom": "INAO - aires parcellaires AOC viticoles (WFS Geoplateforme)",
@@ -437,7 +444,7 @@
         "avertissement": "Le module AOC de l'API Carto exige une clé FranceAgriMer privée : cette couche passe par le WFS de la Geoplateforme, qui n'expose que la dénomination et le comite régional.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "apicarto_gpu": {
         "nom": "IGN API Carto - module GPU (Geoportail de l'Urbanisme)",
@@ -447,7 +454,7 @@
         "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.015Z"
+        "dateInterrogation": "2026-09-20T06:24:29.082Z"
       },
       "apicarto_rpg": {
         "nom": "IGN API Carto - module RPG (registre parcellaire graphique)",
@@ -457,17 +464,7 @@
         "avertissement": "Le RPG recense les ilots déclarés à la PAC. Une parcelle absente du RPG n'est pas nécessairement non exploitée : elle peut relever d'un exploitant non déclarant.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
-      },
-      "postes_geopf": {
-        "nom": "IGN BD TOPO - postes de transformation raccordes au reseau HTB",
-        "url": "https://data.geopf.fr/wfs/ows",
-        "millesime": null,
-        "connecteur": "postes_geopf",
-        "avertissement": "Position seulement : la BD TOPO ne publie AUCUNE capacite d'accueil. Un poste retenu ici est un poste de transformation en contact avec une ligne de 150 kV ou moins ; sa capacite reste inconnue et doit etre demandee au gestionnaire de reseau (Capareseau, puis etude de raccordement).",
-        "dateMiseAJour": null,
-        "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "patrinat_appb": {
         "nom": "INPN / PatriNat - arrêtés de protection de biotope (WFS Geoplateforme)",
@@ -477,7 +474,7 @@
         "avertissement": "Un arrêté de protection de biotope est une protection ABSOLUE (art. R.411-15 du code de l'environnement) : contrairement à un zonage N, il n'est pas derogeable par une modification du document d'urbanisme. La couche est absente du module Nature d'API Carto, d'ou cette source distincte.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "zones_humides": {
         "nom": "Zones humides (BCAE / inventaires DREAL)",
@@ -487,7 +484,7 @@
         "avertissement": "Pre-repérage uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingérés.",
         "dateMiseAJour": null,
         "valeurJuridique": "pre_reperage",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "apicarto_nature": {
         "nom": "INPN / MNHN - zonages de protection (via API Carto module Nature)",
@@ -497,7 +494,7 @@
         "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.358Z"
+        "dateInterrogation": "2026-09-20T06:24:29.549Z"
       },
       "foncier_cadastre": {
         "nom": "Analyse fonciere dérivée du parcellaire cadastral",
@@ -507,7 +504,7 @@
         "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:10.507Z"
+        "dateInterrogation": "2026-09-20T06:24:30.148Z"
       },
       "apicarto_cadastre": {
         "nom": "IGN API Carto - module Cadastre (PCI Express)",
@@ -517,7 +514,7 @@
         "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi.",
         "dateMiseAJour": null,
         "valeurJuridique": "indicative",
-        "dateInterrogation": "2026-09-07T00:26:03.385Z"
+        "dateInterrogation": "2026-09-20T06:24:20.372Z"
       },
       "document_cadre_local": {
         "nom": "Documents-cadres departementaux photovoltaïque au sol (art. L.111-29 CU)",
@@ -527,7 +524,7 @@
         "avertissement": "Arrêtés prefectoraux departementaux, sans API nationale. Un département non ingere produit une donnée GRISE et non une absence de contrainte.",
         "dateMiseAJour": null,
         "valeurJuridique": "opposable",
-        "dateInterrogation": "2026-09-07T00:26:10.015Z"
+        "dateInterrogation": "2026-09-20T06:24:29.082Z"
       }
     },
     "gisement": {
@@ -591,6 +588,7 @@
         }
       ],
       "servitudes": [],
+      "presenceEbc": false,
       "typeDocument": "PLUi",
       "couvertParGpu": true,
       "prescriptions": [],
@@ -598,7 +596,8 @@
         "dateArrete": null,
         "parcelleEligible": null,
         "departementCouvert": null
-      }
+      },
+      "familleZoneDominante": "N"
     },
     "patrimoine": {
       "spr": {
@@ -639,7 +638,7 @@
       "mouvementsTerrain": 0,
       "penteEstimeeParPaires": false
     },
-    "dateSnapshot": "2026-09-07T00:26:10.507Z",
+    "dateSnapshot": "2026-09-20T06:24:30.148Z",
     "raccordement": {
       "reseauGaz": {
         "gestionnaire": null,
@@ -648,76 +647,8 @@
         "distanceCanalisationKm": null,
         "distanceSiteInjectionKm": null
       },
-      "posteLePlusProche": {
-        "id": "geopf:POSTRANS0000000333389743",
-        "nom": "Poste de transformation 90 kV",
-        "tension": "90 kV",
-        "enProjet": false,
-        "distanceKm": 7.37,
-        "gestionnaire": "autre_grd",
-        "renforcement": {
-          "prevu": false,
-          "horizon": null,
-          "capaciteAttendueMw": null
-        },
-        "fileAttenteMw": null,
-        "etatSaturation": null,
-        "quotePartEurParKw": null,
-        "capaciteResiduelleMw": null
-      },
-      "postesAlternatifs": [
-        {
-          "id": "geopf:POSTRANS0000000337515333",
-          "nom": "Poste de transformation 90 kV",
-          "tension": "90 kV",
-          "enProjet": false,
-          "distanceKm": 10.04,
-          "gestionnaire": "RTE",
-          "renforcement": {
-            "prevu": false,
-            "horizon": null,
-            "capaciteAttendueMw": null
-          },
-          "fileAttenteMw": null,
-          "etatSaturation": null,
-          "quotePartEurParKw": null,
-          "capaciteResiduelleMw": null
-        },
-        {
-          "id": "geopf:POSTRANS0000000333388885",
-          "nom": "Poste de transformation 90 kV",
-          "tension": "90 kV",
-          "enProjet": false,
-          "distanceKm": 8.99,
-          "gestionnaire": "autre_grd",
-          "renforcement": {
-            "prevu": false,
-            "horizon": null,
-            "capaciteAttendueMw": null
-          },
-          "fileAttenteMw": null,
-          "etatSaturation": null,
-          "quotePartEurParKw": null,
-          "capaciteResiduelleMw": null
-        },
-        {
-          "id": "geopf:POSTRANS0000000337515345",
-          "nom": "Poste de transformation 90 kV",
-          "tension": "90 kV",
-          "enProjet": false,
-          "distanceKm": 11.63,
-          "gestionnaire": "RTE",
-          "renforcement": {
-            "prevu": false,
-            "horizon": null,
-            "capaciteAttendueMw": null
-          },
-          "fileAttenteMw": null,
-          "etatSaturation": null,
-          "quotePartEurParKw": null,
-          "capaciteResiduelleMw": null
-        }
-      ]
+      "posteLePlusProche": null,
+      "postesAlternatifs": []
     },
     "occupationSol": {
       "aop": {
@@ -731,7 +662,7 @@
         "libelleCulture": null,
         "partRecouvrement": 0.86,
         "codeGroupeCulture": "4",
-        "libelleGroupeCulture": "Autres cereales",
+        "libelleGroupeCulture": "Autres céréales",
         "anneesDeclareesConsecutives": 5
       },
       "foret": {
@@ -746,7 +677,7 @@
   },
   "score": {
     "idu": "283900000A0094",
-    "statut": "orange",
+    "statut": "gris",
     "filiere": "methanisation",
     "criteres": [
       {
@@ -762,7 +693,7 @@
           "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "gisement",
         "libelle": "Densité d'intrants méthanisables",
@@ -785,7 +716,7 @@
           "avertissement": "La faisabilité d'une injection dépend du zonage de raccordement et de la capacité du réseau a l'instant du projet, y compris en rebours. À confirmer auprès du gestionnaire.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "raccordement",
         "libelle": "Distance au réseau gaz / point d'injection",
@@ -808,7 +739,7 @@
           "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "distances_reglementaires",
         "libelle": "Éloignement de l'habitat",
@@ -833,7 +764,7 @@
           "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "acces",
         "libelle": "Accès poids lourds",
@@ -856,7 +787,7 @@
           "avertissement": "Irradiation et productible issus de PVGIS (base SARAH2). Le gisement de vent et la densité d'intrants methanisables sont des ESTIMATIONS dérivées de données indirectes : ils ne remplacent ni une campagne de mesure de vent, ni une étude de gisement d'intrants.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "gisement",
         "libelle": "Débouché du digestat (surfaces d'épandage)",
@@ -879,7 +810,7 @@
           "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "distances_reglementaires",
         "libelle": "Éloignement des cours d'eau et points d'eau",
@@ -902,7 +833,7 @@
           "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "distances_reglementaires",
         "libelle": "Périmètre de protection de captage",
@@ -925,7 +856,7 @@
           "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.015Z"
+          "dateInterrogation": "2026-09-20T06:24:29.082Z"
         },
         "famille": "urbanisme",
         "libelle": "Compatibilité du zonage d'urbanisme",
@@ -948,7 +879,7 @@
           "avertissement": "Le contour cadastral est indicatif et n'a pas de valeur juridique : seul un document d'arpentage établi par un géomètre-expert fait foi.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:03.385Z"
+          "dateInterrogation": "2026-09-20T06:24:20.372Z"
         },
         "famille": "surface",
         "libelle": "Surface utile",
@@ -971,7 +902,7 @@
           "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "risques",
         "libelle": "Contexte karstique",
@@ -994,7 +925,7 @@
           "avertissement": "Pente et orientation sont estimées par régression sur une grille de points cotes du MNT. Un leve topographique reste nécessaire au stade du dimensionnement.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "topographie",
         "libelle": "Planéité",
@@ -1017,7 +948,7 @@
           "avertissement": "Les zonages réglementaires de PPR sont recenses au niveau communal : le zonage applicable à la parcelle doit être lu sur le règlement du PPR lui-même.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "risques",
         "libelle": "Risque inondation (PPRI)",
@@ -1029,17 +960,17 @@
       },
       {
         "id": "racc_distance_poste",
-        "feu": "orange",
-        "note": 63.1,
+        "feu": "gris",
+        "note": null,
         "poids": 0.0275,
         "source": null,
         "famille": "raccordement",
         "libelle": "Distance au poste source",
-        "commentaire": "Le linéaire est estimé en majorant la distance à vol d'oiseau de 35 % : une liaison suit les emprises publiques et contourne le bâti. Linéaire compatible avec un raccordement économiquement raisonnable, sous réserve de l'étude du gestionnaire.",
+        "commentaire": "Aucune donnée exploitable pour ce critère : l'absence de donnée ne vaut pas absence de contrainte.",
         "reglesLiees": [],
-        "valeurBrute": 7.37,
-        "contribution": 1.74,
-        "valeurAffichee": "9,9 km de tracé estimé (7,4 km à vol d'oiseau) - Poste de transformation 90 kV (autre gestionnaire de distribution)"
+        "valeurBrute": null,
+        "contribution": 0,
+        "valeurAffichee": "donnée indisponible"
       },
       {
         "id": "env_zone_humide",
@@ -1054,7 +985,7 @@
           "avertissement": "Pre-repérage uniquement. Le caractère humide se determine par sondages pédologiques et relevés floristiques (arrêté du 24 juin 2008 modifie). Les inventaires departementaux ne sont pas tous ingérés.",
           "dateMiseAJour": null,
           "valeurJuridique": "pre_reperage",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "environnement",
         "libelle": "Zone humide",
@@ -1077,7 +1008,7 @@
           "avertissement": "Le nombre de propriétaires est ESTIME à partir de la structure parcellaire : les données nominatives ne sont pas accessibles par API et relevent d'une demande auprès de la DGFiP ou de la mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.507Z"
+          "dateInterrogation": "2026-09-20T06:24:30.148Z"
         },
         "famille": "foncier",
         "libelle": "Nombre de propriétaires",
@@ -1100,7 +1031,7 @@
           "avertissement": "Les zonages d'inventaire (ZNIEFF) n'ont pas de portée réglementaire directe, mais pesent dans l'instruction et le contentieux.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "environnement",
         "libelle": "Proximité Natura 2000",
@@ -1123,7 +1054,7 @@
           "avertissement": "Les distances a l'habitat sont calculées sur le bati de la BD TOPO. Les constructions récentes et les permis en cours n'y figurent pas : vérification de terrain indispensable.",
           "dateMiseAJour": null,
           "valeurJuridique": "indicative",
-          "dateInterrogation": "2026-09-07T00:26:10.358Z"
+          "dateInterrogation": "2026-09-20T06:24:29.549Z"
         },
         "famille": "acces",
         "libelle": "Desserte routière",
@@ -1146,7 +1077,7 @@
           "avertissement": "Le GPU ne contient que les documents effectivement téléversés par les collectivités. Une commune absente du GPU n'est pas une commune sans document d'urbanisme : vérifier en mairie.",
           "dateMiseAJour": null,
           "valeurJuridique": "opposable",
-          "dateInterrogation": "2026-09-07T00:26:10.015Z"
+          "dateInterrogation": "2026-09-20T06:24:29.082Z"
         },
         "famille": "urbanisme",
         "libelle": "Zonage naturel (N)",
@@ -1154,7 +1085,7 @@
         "derogeable": true
       }
     ],
-    "dateCalcul": "2026-09-19T20:26:51.876Z",
+    "dateCalcul": "2026-09-20T07:06:30.935Z",
     "pointsForts": [
       {
         "impact": 8.26,
@@ -1175,13 +1106,14 @@
         "critereId": "risq_inondation"
       }
     ],
-    "scoreGlobal": 72.5,
-    "versionMoteur": "1.4.0+c55a88c7",
+    "scoreGlobal": 73.1,
+    "versionMoteur": "1.4.0+e9988333",
     "avertissements": [
       "Les scores et indicateurs présentés sont une aide à la priorisation de la prospection. Ils ne constituent en aucun cas une garantie de faisabilité d'un projet. Chaque donnée doit être re-vérifiée au moment du dépôt du dossier et à l'échelon départemental, auprès des services instructeurs compétents.",
       "Les seuils applicables aux projets ENR changent fréquemment : les seuils solaires ont été modifiés deux fois en deux ans. Chaque seuil affiché par l'application porte la date d'entrée en vigueur de la règle appliquée et la date de dernière vérification du référentiel. Vérifiez la version en vigueur à la date de votre dépôt.",
+      "Couverture de données de 76 % : 8 critère(s) n'ont pu être évalués. L'absence de donnée ne vaut pas absence de contrainte.",
       "Enjeux déterminants non évalués, faute de source : 5 critère(s) n'ont aucune source ingérée sur ce territoire : Densité d'intrants méthanisables, Distance au réseau gaz / point d'injection, Débouché du digestat (surfaces d'épandage), Contexte karstique, Nombre de propriétaires. Ils sont exclus du calcul plutôt que comptes comme manquants - sans quoi la filière entière basculerait en gris, ce qui n'aiderait à rien. Le score reste donc comparable d'une parcelle à l'autre, mais aucune parcelle ne peut être déclarée propice tant que ces enjeux n'ont pas été regardes.",
-      "Couverture de données insuffisante pour conclure : Seuls 81 % du poids des critères ont pu être évalués (7 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %."
+      "Couverture de données insuffisante pour conclure : Seuls 76 % du poids des critères ont pu être évalués (8 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %."
     ],
     "pointsVigilance": [
       {
@@ -1326,12 +1258,12 @@
       },
       {
         "id": "couverture_insuffisante",
-        "motif": "Seuls 81 % du poids des critères ont pu être évalués (7 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %.",
+        "motif": "Seuls 76 % du poids des critères ont pu être évalués (8 critère(s) sans donnée). Le score est calculé sur les seuls critères renseignés : il est donc optimiste, car les données manquantes sont le plus souvent celles qui portent une contrainte. La parcelle ne peut pas être classée propice tant que la couverture n'atteint pas 90 %.",
         "libelle": "Couverture de données insuffisante pour conclure",
         "statutMaximal": "orange"
       }
     ],
-    "couvertureDonnees": 0.81,
+    "couvertureDonnees": 0.762,
     "regimeImplantation": null,
     "ponderationsAppliquees": {
       "dist_eau": 0.055,
@@ -1355,7 +1287,8 @@
   },
   "lead": null,
   "connecteursEnEchec": [
-    "patrimoine_culture"
+    "patrimoine_culture",
+    "postes_sources"
   ],
   "avertissements": [
     {
@@ -1885,7 +1818,7 @@
         "nom": "Zonage PLU/PLUi",
         "categorie": "E. Foncier & urbanisme",
         "caractere": "redhibitoire",
-        "etat": "donnee_absente",
+        "etat": "a_verifier",
         "seuilReglementaire": "Compatibilité selon nature agricole/industrielle",
         "referenceReglementaire": "Art. L111-4, L151-11, L161-4 C. urb. ; loi APER",
         "coucheSig": "GPU (zonages PLU/PLUi/CC/RNU + règlement)",
@@ -1894,7 +1827,7 @@
         "conditionReglementaire": null,
         "motifDeveloppeur": null,
         "valeurMesuree": null,
-        "cheminMesure": null,
+        "cheminMesure": "urbanisme.familleZoneDominante",
         "raisons": [
           "aucun_seuil_numerique"
         ]
@@ -2292,7 +2225,7 @@
         "nom": "Sismicité",
         "categorie": "H. Risques",
         "caractere": "penalisant",
-        "etat": "donnee_absente",
+        "etat": "respectee",
         "seuilReglementaire": "Zones 3 à 5",
         "referenceReglementaire": "Décret 2010-1255",
         "coucheSig": "Géorisques (zonage sismique)",
@@ -2300,8 +2233,8 @@
         "origineSeuil": "reglementaire",
         "conditionReglementaire": null,
         "motifDeveloppeur": null,
-        "valeurMesuree": null,
-        "cheminMesure": null,
+        "valeurMesuree": 1,
+        "cheminMesure": "risques.zoneSismique",
         "raisons": [
           "aucun_seuil_numerique",
           "extraction_incomplete"
@@ -2324,7 +2257,8 @@
         "cheminMesure": "topographie.pentePct",
         "raisons": [
           "aucun_seuil_numerique",
-          "extraction_incomplete"
+          "extraction_incomplete",
+          "aucun_fondement_cite"
         ]
       },
       {
@@ -2343,7 +2277,8 @@
         "valeurMesuree": null,
         "cheminMesure": null,
         "raisons": [
-          "aucun_seuil_numerique"
+          "aucun_seuil_numerique",
+          "aucun_fondement_cite"
         ]
       },
       {
@@ -2362,7 +2297,8 @@
         "valeurMesuree": null,
         "cheminMesure": null,
         "raisons": [
-          "aucun_seuil_numerique"
+          "aucun_seuil_numerique",
+          "aucun_fondement_cite"
         ]
       },
       {
@@ -2506,7 +2442,8 @@
         "valeurMesuree": null,
         "cheminMesure": null,
         "raisons": [
-          "aucun_seuil_numerique"
+          "aucun_seuil_numerique",
+          "aucun_fondement_cite"
         ]
       },
       {
@@ -2526,7 +2463,8 @@
         "cheminMesure": "foncier.surfaceDunSeulTenantHa",
         "raisons": [
           "seuil_approximatif",
-          "extraction_incomplete"
+          "extraction_incomplete",
+          "aucun_fondement_cite"
         ]
       },
       {
@@ -2551,10 +2489,10 @@
     ],
     "couverture": {
       "total": 48,
-      "respectees": 7,
+      "respectees": 8,
       "enfreintes": 0,
-      "aVerifier": 4,
-      "donneesAbsentes": 37
+      "aVerifier": 5,
+      "donneesAbsentes": 35
     }
   }
 }

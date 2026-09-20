@@ -153,6 +153,16 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
   // -- Risques -------------------------------------------------------------
   { chemin: 'risques.sitesPollues', min: 0, max: 100_000, unite: 'sites', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
   { chemin: 'risques.icpeProches', min: 0, max: 100_000, unite: 'installations', motif: "Dénombrement d'objets dans un rayon de proximité. Un compte de cet ordre ne désigne pas un territoire dense mais une requête spatiale qui a perdu son filtre d'emprise et compte tout le département." },
+  /*
+   * Les deux classements COMMUNAUX, bornes a leur echelle legale.
+   *
+   * Une valeur hors de [1, 5] ou de [1, 3] ne serait pas une commune atypique : ce serait un
+   * champ mal lu — le code de zone confondu avec un identifiant, ou la classe de potentiel avec
+   * un nombre d'etablissements. Les bornes les refusent a l'entree.
+   */
+  { chemin: 'risques.zoneSismique', min: 1, max: 5, unite: 'zone', motif: "Le zonage sismique de l’article D.563-8-1 du code de l’environnement compte cinq zones, de 1 (très faible) à 5 (forte). Hors de cet intervalle, la valeur n’est pas un zonage." },
+  { chemin: 'risques.potentielRadon', min: 1, max: 3, unite: 'classe', motif: "L’arrêté du 27 juin 2018 range les communes en trois catégories de potentiel radon. Une quatrième valeur n’existe pas." },
+  { chemin: 'risques.sevesoProche.distanceKm', min: 0, max: 100, unite: 'km', motif: "Distance à l’établissement SEVESO le plus proche, cherchée dans un rayon de quelques kilomètres. Au-delà de cent kilomètres, la mesure ne porte plus sur le voisinage de la parcelle." },
 
   // -- Raccordement --------------------------------------------------------
   {
