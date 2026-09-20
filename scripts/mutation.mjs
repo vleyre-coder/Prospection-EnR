@@ -3973,6 +3973,21 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-bandeau.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * UN SEUL MOIS DE DONNEES CESSE DE SE VOIR. Avec un seul releve, le pas horizontal vaut 0 et
+     * le chemin se reduit a un « M » sans « L » : SVG ne trace pas un segment de longueur nulle.
+     * Sans les points, le graphique rend alors un cadre vide avec ses graduations — exactement ce
+     * que rend un portefeuille SANS activite. Deux etats opposes rendus a l'identique.
+     */
+    quoi: 'un releve unique redevient invisible sur le graphique d’activite',
+    fichier: 'apps/web/src/components/TableauDeBord.tsx',
+    de: "        {(['nouveaux', 'securises'] as const).map((cle) =>",
+    vers: "        {([] as const).map((cle: 'nouveaux' | 'securises') =>",
+    cwd: 'apps/web',
+    tests: ['test/rendu-liste-tableau.test.ts'],
+  },
 ];
 
 /**

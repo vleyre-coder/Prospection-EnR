@@ -190,3 +190,31 @@ test('une liste vide se distingue d’une liste en chargement', () => {
     `une liste vide doit le dire explicitement ; texte rendu : « ${t.slice(0, 200)} »`,
   );
 });
+
+test('UN SEUL MOIS DE DONNEES DESSINE QUAND MEME QUELQUE CHOSE', () => {
+  /**
+   * LE DEFAUT MESURE, sur la capture du tableau de bord. Avec un seul releve, le pas horizontal
+   * vaut 0 et le chemin se reduit a un « M » sans aucun « L » : SVG ne trace pas un segment de
+   * longueur nulle. Le graphique montrait donc un cadre vide avec ses deux graduations —
+   * exactement ce que montre un portefeuille SANS activite —, alors qu'il y avait bien un lead.
+   *
+   * Deux etats opposes rendus a l'identique : c'est la faute que ce depot traque partout ailleurs,
+   * transposee au graphique. Les points de releve la ferment par construction.
+   */
+  const html = rendreResolu(
+    h(TableauDeBord, { filiere: 'solaire_sol', referentiel }),
+    {
+      'tableau-de-bord': {
+        ...tableau,
+        evolution: [{ mois: '2026-09', nouveaux: 1, securises: 0 }],
+      },
+    },
+  );
+  const cercles = html.match(/<circle/g) ?? [];
+  assert.ok(
+    cercles.length >= 2,
+    `un releve unique doit porter ses points (un par serie) — ${cercles.length} cercle(s) rendus`,
+  );
+  // Et le titre du graphique doit etre la : sans lui, on ne saurait pas ce que le cadre montre.
+  assert.match(texte(html), /Activité sur 12 mois/);
+});

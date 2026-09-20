@@ -220,7 +220,18 @@ function Courbes({
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: '100%', minWidth: 420, height: 'auto' }} role="img" aria-label="Activité sur 12 mois">
+      {/*
+        LA HAUTEUR EST BORNEE. Le `viewBox` fait 640 x 170 ; avec `width: 100%` et `height: auto`,
+        un ecran large de 1 540 px rendait un graphique de 409 px de haut pour douze points — un
+        cadre presque vide occupant la moitie du tableau de bord. La proportion est conservee, mais
+        la largeur rendue est plafonnee : le graphique garde sa forme et cesse de s'etirer.
+      */}
+      <svg
+        viewBox={`0 0 ${largeur} ${hauteur}`}
+        style={{ width: '100%', minWidth: 420, maxWidth: largeur, height: 'auto' }}
+        role="img"
+        aria-label="Activité sur 12 mois"
+      >
         {graduations(maxi).map((v) => (
           <g key={v}>
             <line
@@ -238,6 +249,32 @@ function Courbes({
         ))}
         <path d={chemin('nouveaux')} fill="none" stroke="var(--accent)" strokeWidth="2" />
         <path d={chemin('securises')} fill="none" stroke="var(--vert)" strokeWidth="2" />
+        {/*
+          ═══════════════════════════════════════════════════════════════════════════════════════
+          CHAQUE RELEVE PORTE SON POINT, et ce n'est pas un ornement
+          ═══════════════════════════════════════════════════════════════════════════════════════
+
+          UN SEUL MOIS DE DONNEES NE DESSINAIT RIEN. Avec un seul releve, `pasX` vaut 0 et le
+          chemin se reduit a un « M » sans aucun « L » : SVG ne trace pas un segment de longueur
+          nulle. Le tableau de bord montrait donc un cadre vide avec ses deux graduations — exactement
+          ce que montre un portefeuille sans activite —, alors qu'il y avait bien un lead a afficher.
+          Deux etats opposes rendus a l'identique : c'est la faute que ce depot traque partout
+          ailleurs, transposee au graphique.
+
+          Les points la ferment par construction : un releve isole se voit, et sur une serie
+          complete ils disent OU sont les mesures, ce qu'une ligne seule laisse deviner.
+        */}
+        {(['nouveaux', 'securises'] as const).map((cle) =>
+          donnees.map((d, i) => (
+            <circle
+              key={`${cle}-${d.mois}`}
+              cx={x(i)}
+              cy={y(d[cle])}
+              r="2.4"
+              fill={cle === 'nouveaux' ? 'var(--accent)' : 'var(--vert)'}
+            />
+          )),
+        )}
         {donnees.map((d, i) => (
           <text
             key={d.mois}
