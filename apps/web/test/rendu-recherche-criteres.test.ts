@@ -262,7 +262,9 @@ test('LE SELECTEUR DE TERRITOIRE DISTINGUE « JAMAIS BALAYE » D’UN COMPTE A Z
 test('LA TYPOLOGIE PROPOSE LE VOCABULAIRE METIER, PAS LES VALEURS D’ENUMERATION', () => {
   const t = afficher({ total: 1, resultats: [LIGNE] });
 
-  assert.match(t, /Agrivoltaïsme/);
+  // La pastille du regime `agrivoltaisme` est nommee par la nature de sol qu'elle filtre, et NON
+  // « Agrivoltaisme » : ce mot designe la filiere, presente au meme ecran dans la barre du haut.
+  assert.match(t, /Terrain agricole exploité/i);
   assert.match(t, /Terrain dégradé/i);
   assert.match(t, /Terrain inculte/i);
   assert.match(t, /défrichement/i);

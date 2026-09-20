@@ -897,7 +897,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     id: 'commun_emplacement_reserve',
     libelle: 'Emplacement réserve : foncier affecte à un autre usage',
     reference:
-      "Code de l'urbanisme, art. L.151-41 (emplacements réserves) ; art. L.152-2 (droit de délaissement " +
+      "Code de l'urbanisme, art. L.151-41 (emplacements réservés) ; art. L.152-2 (droit de délaissement " +
       'du propriétaire)',
     dateEntreeEnVigueur: '2016-01-01',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000043978366`,
@@ -980,7 +980,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
     dateEntreeEnVigueur: '2010-04-11',
     url: `${LEGIFRANCE}/codes/article_lc/LEGIARTI000033034469`,
     commentaire:
-      "L'évaluation est due même lorsque le projet est situe HORS du site, des lors qu'il est susceptible " +
+      "L'évaluation est due même lorsque le projet est situé HORS du site, dès lors qu'il est susceptible " +
       "de l'affecter : la proximité suffit à la déclencher, et une liste locale arrêtée par le préfet peut " +
       "l'imposer au-delà de la liste nationale. Une conclusion d'incidence significative sans mesure " +
       'suffisante bloque le projet.',

@@ -80,7 +80,13 @@ test('LE FORMULAIRE DE CRITERES EST ATTEIGNABLE ET PORTE LES QUATRE CRITERES DEM
   // Les quatre entrees nommees dans la demande : surface, territoire, typologie, zone.
   await expect(page.getByLabel('Surface minimale par parcelle (ha)')).toBeVisible();
   await expect(page.getByLabel('Région')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Agrivoltaïsme' })).toBeVisible();
+  /*
+   * LA TYPOLOGIE SE VERIFIE SUR LA PASTILLE DE REGIME, pas sur le mot « Agrivoltaisme ». Ce mot
+   * designe desormais une FILIERE, presente elle aussi a l'ecran dans la barre du haut : le viser
+   * ferait echouer le test sur deux elements, et surtout il ne prouverait plus que le bloc
+   * « Typologie d'implantation » est bien la. La pastille est nommee par la nature de sol filtree.
+   */
+  await expect(page.locator('.pastille', { hasText: 'Terrain agricole exploité' })).toBeVisible();
   await expect(caseZaer(page)).toBeVisible();
 
   /*

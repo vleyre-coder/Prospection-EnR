@@ -215,7 +215,7 @@ export function FicheParcelle({ idu, filiere, referentiel }: Props): JSX.Element
           {fiche.connecteursEnEchec.length > 0 && (
             <>
               {fiche.connecteursEnEchec.length} connecteur(s) en échec (
-              {fiche.connecteursEnEchec.join(', ')}) : les critères correspondants sont grises.{' '}
+              {fiche.connecteursEnEchec.join(', ')}) : les critères correspondants sont grisés.{' '}
             </>
           )}
           Moteur de scoring version {score.versionMoteur}. Référentiel réglementaire vérifié le{' '}
@@ -623,7 +623,7 @@ function LigneCritere({
             <div className="source-bloc">
               <span className="nom">Source non renseignée</span>
               <div style={{ color: 'var(--texte-faible)' }}>
-                Ce critère n&apos;a pas pu être rattache à une source : la donnée est indisponible.
+                Ce critère n&apos;a pas pu être rattaché à une source : la donnée est indisponible.
               </div>
             </div>
           )}

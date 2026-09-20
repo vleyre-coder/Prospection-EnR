@@ -256,7 +256,7 @@ export function construireSeuilsProcedure(
         'acces_engins',
         s.acces.accesPoidsLourds == null ? null : true,
         s.acces.accesPoidsLourds === false
-          ? 'Aucun accès poids lourds identifie : la livraison des conteneurs et la voie engins du SDIS ' +
+          ? 'Aucun accès poids lourds identifié : la livraison des conteneurs et la voie engins du SDIS ' +
             'sont à traiter avant tout engagement.'
           : null,
       ),
@@ -315,7 +315,7 @@ export function construireSeuilsProcedure(
         'acces_engins',
         s.acces.accesPoidsLourds == null ? null : true,
         s.acces.accesPoidsLourds === false
-          ? "Aucun accès poids lourds identifie : sur cette filière le trafic est QUOTIDIEN, et l'accès conditionne autant l'autorisation que l'acceptabilité locale."
+          ? "Aucun accès poids lourds identifié : sur cette filière le trafic est QUOTIDIEN, et l'accès conditionne autant l'autorisation que l'acceptabilité locale."
           : null,
       ),
     );

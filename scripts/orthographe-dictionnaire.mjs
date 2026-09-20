@@ -34,6 +34,26 @@
  * ACCENTUEE du meme squelette est, elle, acceptee. La limite est que le squelette doit exister au
  * dictionnaire : « paraitre » (graphie de 1990) est accepte, donc « paraître » n'est pas propose, et
  * le script ne dit rien. C'est un plancher, pas un plafond — il ne remplace pas une relecture.
+ *
+ * ═══ CE QU'IL A DONNE LE 20 SEPTEMBRE 2026 (audit 13), APRES REPARATION
+ *
+ *     1 883 mots distincts dans le texte affiche
+ *       238 refuses par hunspell
+ *         5 dont le refus s'explique par un accent manquant   (36 occurrences)
+ *
+ * Les cinq sont les memes qu'au 8 septembre, et tous legitimes. MAIS CE RESULTAT N'ETAIT PAS LU
+ * DEPUIS DES SEMAINES : `modulesTexte()` prenait les apostrophes des commentaires francais de la
+ * liste pour des chemins de module et le script mourait sur un ENOENT — voir le commentaire de
+ * cette fonction. Un outil de recherche en panne ne rend pas d'erreur utile : il rend zero faute.
+ *
+ * ═══ SA DEUXIEME LIMITE, MESUREE LE 20 SEPTEMBRE 2026
+ *
+ * Il ne voit que les mots que hunspell REFUSE. Un mot nu qui est un mot francais valide lui parait
+ * juste, quel que soit le sens de la phrase : « le projet est situe », « le foncier est destine »,
+ * « aucun risque identifie » sont des verbes conjugues au dictionnaire et des participes fautifs
+ * dans le texte. Les 13 fautes de l'audit 13 etaient toutes de cette famille, et aucune n'etait
+ * visible ici. Elles se cherchent par la TOURNURE — un mot en -e apres un auxiliaire — ce qu'une
+ * relecture humaine fait mieux qu'une regle.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -68,20 +88,45 @@ function exigerHunspell() {
  *
  * Deux listes de modules a maintenir en parallele finissent toujours par diverger, et ce script
  * balayerait alors un sous-ensemble de ce que les gardes protegent, sans que rien ne le signale.
+ *
+ * LES COMMENTAIRES SONT RETIRES D'ABORD, et cette ligne est payee par une panne reelle. La liste
+ * porte des commentaires en francais — « Cote-d'Or », « l'y inclure », « sans une phrase de prose » —
+ * et une apostrophe francaise est une apostrophe simple : le releve des litteraux y voyait des
+ * chemins de module. Le script tentait alors d'ouvrir « est une table de NOMS PROPRES generee… » et
+ * mourait sur un ENOENT, APRES avoir affiche une sortie qui ressemblait a un succes. Un outil de
+ * recherche en panne ne signale rien : il rend zero faute, ce qui se lit comme « rien a corriger ».
+ * Les 11 fautes trouvees a la main pendant l'audit 13 etaient toutes dans son perimetre.
+ *
+ * DEUX VERROUS plutot qu'un : les commentaires sont retires, et ce qui reste doit avoir la forme
+ * d'un chemin de module ET exister sur le disque. La panne redevient bruyante si la liste change
+ * encore de forme.
  */
 function modulesTexte() {
   const src = readFileSync(
     resolve(RACINE, 'apps/web/test/orthographe-affichee.test.ts'),
     'utf8',
   );
-  const bloc = /export const MODULES_TEXTE: readonly string\[\] = \[([\s\S]*?)\];/.exec(src);
+  const bloc = /export const MODULES_TEXTE: readonly string\[\] = \[([\s\S]*?)\n\];/.exec(src);
   if (!bloc) {
     console.error(
       'MODULES_TEXTE introuvable dans orthographe-affichee.test.ts : le perimetre a change de forme.',
     );
     process.exit(1);
   }
-  return [...bloc[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const sansCommentaires = bloc[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const modules = [...sansCommentaires.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const inattendus = modules.filter(
+    (m) => !/^(apps|packages)\/[\w./-]+\.tsx?$/.test(m) || !existsSync(resolve(RACINE, m)),
+  );
+  if (modules.length === 0 || inattendus.length > 0) {
+    console.error(
+      `Le perimetre lu n'est pas une liste de modules : ${modules.length} entree(s), dont ` +
+        `${inattendus.length} sans fichier correspondant.\n` +
+        inattendus.map((m) => `  - ${JSON.stringify(m.slice(0, 70))}`).join('\n'),
+    );
+    process.exit(1);
+  }
+  return modules;
 }
 
 exigerHunspell();

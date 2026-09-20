@@ -194,7 +194,7 @@ function Legende({ referentiel }: { referentiel: Referentiel }): JSX.Element {
         </div>
 
         <div className="legende-bloc">
-          <div className="legende-titre">Ou en est votre démarchage</div>
+          <div className="legende-titre">Où en est votre démarchage</div>
           <p className="legende-note">
             Couleur et style du <strong>contour</strong> de la parcelle. Cela n&apos;a rien à voir
             avec le score : une parcelle peut être excellente et jamais contactée, ou médiocre et

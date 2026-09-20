@@ -576,7 +576,7 @@ export function ficheParcellePdf(
       'Occupation du sol',
       snapshot.occupationSol.typeSol
         ? (LIBELLES_TYPE_SOL[snapshot.occupationSol.typeSol] ?? snapshot.occupationSol.typeSol)
-        : 'non determinee',
+        : 'non déterminée',
     ],
     ['Culture déclarée (RPG)', libelleRpg(snapshot.occupationSol.rpg)],
     ['Pente moyenne', nb(snapshot.topographie.pentePct, '%', 1)],

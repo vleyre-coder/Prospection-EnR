@@ -173,8 +173,8 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
   if (er) {
     return ko(
       'ko_emplacement_reserve',
-      'Emplacement réserve',
-      `La parcelle est grevée d'un emplacement réserve (${er.libelle ?? 'objet non précisé'}) au bénéfice d'une collectivité : le foncier est destine à un autre usage.`,
+      'Emplacement réservé',
+      `La parcelle est grevée d'un emplacement réservé (${er.libelle ?? 'objet non précisé'}) au bénéfice d'une collectivité : le foncier est destiné à un autre usage.`,
       'urbanisme',
       'commun_emplacement_reserve',
       true,
@@ -455,7 +455,7 @@ const koMethaCaptage: RegleKo = (s) => {
     return ko(
       'ko_metha_captage',
       'Périmètre de protection de captage',
-      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-perimetre — immédiat, rapproche ou éloigné — n'est pas publié par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproche l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre dépense.",
+      "La parcelle est dans un périmètre de protection d'un captage d'eau destinée à la consommation humaine. Le sous-périmètre — immédiat, rapproché ou éloigné — n'est pas publié par le Géoportail de l'urbanisme : il se lit sur l'arrêté de déclaration d'utilité publique du captage. En périmètre immédiat toute activité est interdite ; en périmètre rapproché l'arrêté fixe les interdictions, qui visent presque toujours le stockage d'effluents. A vérifier avant toute autre dépense.",
       // Meme famille que les deux autres reculs de la methanisation : c'est bien une distance
       // reglementaire, meme lorsque le sous-perimetre reste a etablir.
       'distances_reglementaires',
@@ -510,7 +510,7 @@ const koMethaAccesEngins: RegleKo = (s) => {
   return ko(
     'ko_metha_acces_engins',
     'Aucun accès poids lourds',
-    `Aucun accès poids lourds n'a été identifie depuis le réseau routier${
+    `Aucun accès poids lourds n'a été identifié depuis le réseau routier${
       s.acces.distanceVoirieM != null ? ` (voirie la plus proche à ${formatDistance(s.acces.distanceVoirieM)})` : ''
     }. Une unité de méthanisation génère plusieurs allers-retours de poids lourds par jour pendant toute son exploitation : l'accès conditionne l'autorisation, la voie engins exigée par le SDIS, et l'acceptabilité par les riverains. Un accès peut être créé, mais son coût et son tracé doivent être établis avant tout engagement.`,
     'acces',
@@ -545,7 +545,7 @@ const koBessAccesEngins: RegleKo = (s) => {
   return ko(
     'ko_bess_acces_engins',
     'Aucun accès poids lourds',
-    `Aucun accès poids lourds n'a été identifie depuis le réseau routier${
+    `Aucun accès poids lourds n'a été identifié depuis le réseau routier${
       s.acces.distanceVoirieM != null ? ` (voirie la plus proche à ${formatDistance(s.acces.distanceVoirieM)})` : ''
     }. Deux exigences s'y opposent : la livraison des conteneurs, qui arrivent par semi-remorque, et la voie engins que le SDIS exige pour l'intervention. Un accès peut être créé — élargissement, convention de passage, renforcement de chaussée — mais le coût et le délai doivent être chiffres avant toute promesse au propriétaire.`,
     'acces',

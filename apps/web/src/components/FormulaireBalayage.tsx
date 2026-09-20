@@ -343,6 +343,12 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
                   </button>
                 ))}
               </div>
+              <p className="balayage-note">
+                Ces pastilles ne changent <strong>pas</strong> de filière : elles restreignent la
+                nature du sol cherchée pour le solaire au sol. Pour évaluer un projet
+                agrivoltaïque — critères, pondérations et couches propres —, choisissez la filière
+                « Agrivoltaïsme » ci-dessus.
+              </p>
             </>
           ) : (
             <p className="balayage-note">
@@ -512,11 +518,20 @@ export function FormulaireBalayage({ filiere }: { filiere: Filiere }): JSX.Eleme
  * (presume) » — ecrits pour la fiche et pour les documents remis a un tiers. Ils ne tiennent pas
  * sur une pastille : la partie avant la premiere preposition suffit, et l'infobulle porte la
  * nature de sol exacte.
+ *
+ * POURQUOI LE REGIME `agrivoltaisme` N'EST PAS LIBELLE « Agrivoltaisme » ICI. Depuis que
+ * l'agrivoltaisme est une FILIERE a part entiere, le mot designe deux choses : la filiere, dans la
+ * barre du haut, et — historiquement — ce regime d'implantation du solaire au sol. Deux commandes
+ * differentes portant le meme mot a l'ecran, c'est un piege pour l'operateur : il croit rappeler la
+ * filiere alors qu'il ne fait que restreindre la nature de sol du solaire au sol. La pastille est
+ * donc nommee par CE QU'ELLE FILTRE — la nature de sol — et la note qui la suit renvoie a la
+ * filiere. L'identifiant `agrivoltaisme` du regime, lui, ne bouge pas : il est stocke, exporte et
+ * lu par le moteur.
  */
 function libelleCourtRegime(regime: string): string {
   const COURTS: Record<string, string> = {
     pv_sol_terrain_degrade: 'Terrain dégradé / artificialisé',
-    agrivoltaisme: 'Agrivoltaïsme',
+    agrivoltaisme: 'Terrain agricole exploité',
     pv_sol_document_cadre: 'Terrain inculte',
     pv_sol_defrichement: 'Avec défrichement',
   };

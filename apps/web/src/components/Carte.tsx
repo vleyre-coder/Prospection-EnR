@@ -1368,7 +1368,7 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
         {fondViaRelais && !fondInjoignable && (
           <div className="indice-zoom" role="status" aria-live="polite">
             Fond cartographique servi via le relais de l&apos;application : l&apos;accès direct à
-            data.geopf.fr est bloque depuis ce poste.
+            data.geopf.fr est bloqué depuis ce poste.
           </div>
         )}
 

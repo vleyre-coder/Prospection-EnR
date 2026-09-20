@@ -70,7 +70,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     max: 360,
     unite: '°',
     motif:
-      'Azimut en degrés. 360 est accepte comme synonyme de 0 plutôt que refuse sur une question ' +
+      'Azimut en degrés. 360 est accepté comme synonyme de 0 plutôt que refusé sur une question ' +
       'de convention : le calcul normalise dans [0, 360[ mais un arrondi peut produire 360, et ' +
       "effacer une orientation juste pour un demi-degré serait un défaut, pas une protection.",
   },

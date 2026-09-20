@@ -230,6 +230,20 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'laisse', raison: "verbe laisser : « moins assurée que la couverture globale ne le laisse paraitre »" },
   { module: 'packages/core/src/bornes.ts', mot: 'laisse', raison: "verbe laisser : « -20 laisse la marge d’une donnée altimétrique bruitée »" },
   { module: 'packages/core/src/reglementation.ts', mot: 'laisse', raison: "verbe laisser : « l’application ne les connaît pas et laisse “à vérifier” »" },
+  /*
+   * « bloque » (verbe bloquer) contre « bloqué » (participe). Le participe est entre par l'audit 13,
+   * qui a corrige « l'acces direct a data.geopf.fr est bloque depuis ce poste » dans le bandeau de
+   * relais de la carte — du texte reellement affiche, et la seule faute de la phrase. Le verbe de
+   * `reglementation.ts`, lui, est juste et l'etait deja.
+   */
+  { module: 'packages/core/src/reglementation.ts', mot: 'bloque', raison: "verbe bloquer : « une conclusion d’incidence significative sans mesure suffisante bloque le projet »" },
+  /*
+   * « destine » (verbe destiner) contre « destiné » (participe). Le participe est entre par
+   * l'audit 13 — « le foncier est destiné à un autre usage », motif du couperet d'emplacement
+   * reserve. Le verbe de l'emplacement reserve, lui, est juste : « elle le DESTINE a un
+   * equipement ». La majuscule est une emphase du texte, pas une clef.
+   */
+  { module: 'packages/core/src/reglementation.ts', mot: 'destine', raison: "verbe destiner : « la réserve n’interdit pas d’occuper le terrain, elle le DESTINE à un équipement »" },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -391,6 +405,14 @@ const HOMOGRAPHES: ReadonlyArray<{ nu: string; accentue: string; raison: string 
     raison:
       'la conjonction « mais » et la cereale « maïs » sont deux mots sans rapport. « maïs » est ' +
       'entre avec les groupes de culture du RPG (packages/core/src/cultures.ts).',
+  },
+  {
+    nu: 'des',
+    accentue: 'dès',
+    raison:
+      "l'article contracte « des » et la preposition « dès » sont deux mots sans rapport, et le " +
+      "premier est le mot le plus frequent de toute prose francaise : le garde en a accuse 203 " +
+      "d'un coup quand « dès lors que » est entre dans packages/core/src/reglementation.ts.",
   },
 ];
 

@@ -146,7 +146,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     def('env_proximite_natura2000', 'environnement', 'Proximité Natura 2000', "La proximité (sans recouvrement) déclenche une évaluation des incidences Natura 2000 et allonge l'instruction.", 'm'),
     def('env_znieff', 'environnement', 'ZNIEFF de type I / II', "Inventaire scientifique sans portée réglementaire directe, mais qui pèse lourdement dans l'instruction et le contentieux.", 'm'),
     def('env_zone_humide', 'environnement', 'Zone humide', "Pre-repérage cartographique. Une zone humide avereee impose évitement, ou compensation à 100-200 % ; à confirmer impérativement par sondages pédologiques.", ),
-    def('env_tvb', 'environnement', 'Trame verte et bleue', "Réservoir de biodiversité ou corridor écologique identifie au SRADDET : opposabilité indirecte via le PLU.", ),
+    def('env_tvb', 'environnement', 'Trame verte et bleue', "Réservoir de biodiversité ou corridor écologique identifié au SRADDET : opposabilité indirecte via le PLU.", ),
     def('env_especes_protegees', 'environnement', 'Pre-enjeu espèces protégées', "Probabilité de présence d'espèces protégées, estimée à partir des données d'occurrence. Conditionne le risque de dérogation espèces protégées.", ),
 
     // -- Patrimoine --------------------------------------------------------
@@ -166,7 +166,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
     // -- Distances reglementaires ------------------------------------------
     def('dist_habitation', 'distances_reglementaires', "Éloignement de l'habitat", "Distance à l'habitation la plus proche, mesurée sur le bâti IGN. Au-delà du plancher réglementaire, chaque mètre gagne réduit le risque d'opposition.", 'm'),
     def('dist_eau', 'distances_reglementaires', "Éloignement des cours d'eau et points d'eau", "35 m minimum pour une unité de méthanisation et pour les épandages.", 'm'),
-    def('dist_captage', 'distances_reglementaires', 'Périmètre de protection de captage', "Interdiction en périmètre immédiat et rapproche ; prescriptions renforcées en périmètre éloigné.", 'm'),
+    def('dist_captage', 'distances_reglementaires', 'Périmètre de protection de captage', "Interdiction en périmètre immédiat et rapproché ; prescriptions renforcées en périmètre éloigné.", 'm'),
 
     // -- Foncier -----------------------------------------------------------
     def('fonc_nb_proprietaires', 'foncier', 'Nombre de propriétaires', "Chaque propriétaire supplémentaire, et a fortiori chaque indivision, allonge et fragilise la sécurisation foncière.", ),

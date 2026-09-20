@@ -349,7 +349,7 @@ function sansSource(sourceKey: string, quoi: string, ou: string): EvalBrute {
     note: null,
     valeurBrute: null,
     valeurAffichee: 'non évalué - aucune source ingérée',
-    commentaire: `${quoi} n'est alimente par aucune couche ingérée sur ce territoire. Ce n'est pas une absence constatée sur le terrain : l'enjeu n'a pas été regarde. ${ou}`,
+    commentaire: `${quoi} n'est alimenté par aucune couche ingérée sur ce territoire. Ce n'est pas une absence constatée sur le terrain : l'enjeu n'a pas été regardé. ${ou}`,
     sourceKey,
     sansSource: true,
   };
@@ -847,7 +847,7 @@ const sol_foret: Evaluateur = (s) => {
     commentaire:
       part > 0
         ? "Un défrichement déclenche une autorisation, une compensation (souvent 1 à 5 fois la surface) et une forte sensibilité locale."
-        : "Aucun enjeu de défrichement identifie.",
+        : "Aucun enjeu de défrichement identifié.",
     sourceKey: SRC.bdforet,
   };
 };
@@ -1498,7 +1498,7 @@ const risq_inondation: Evaluateur = (s) => {
   return {
     note,
     valeurBrute: s.risques.ppri.zonage,
-    valeurAffichee: morceaux.join(' - ') || 'Aucun risque inondation identifie',
+    valeurAffichee: morceaux.join(' - ') || 'Aucun risque inondation identifié',
     commentaire:
       "Un zonage rouge de PPRI interdit en principe les constructions nouvelles ; un zonage bleu impose des prescriptions (transparence hydraulique, cote de plancher). L'API ne donne pas la zone applicable à la parcelle, seulement les zones que le plan contient : le règlement graphique reste à consulter.",
     sourceKey: SRC.georisques,
@@ -1517,7 +1517,7 @@ const risq_incendie: Evaluateur = (s) => {
       ? libellePlanPpr('PPRif', s.risques.pprif)
       : s.risques.obligationDebroussaillement
         ? 'Obligation légale de débroussaillement'
-        : 'Aucun risque incendie identifie',
+        : 'Aucun risque incendie identifié',
     commentaire:
       "Le risque feux de forêt impose des obligations de débroussaillement, des accès engins et un avis du SDIS, particulièrement structurant pour un BESS.",
     sourceKey: SRC.georisques,
@@ -1570,7 +1570,7 @@ const risq_argiles_cavites: Evaluateur = (s) => {
   return {
     note,
     valeurBrute: s.topographie.aleaArgiles,
-    valeurAffichee: morceaux.join(' - ') || 'Aucun aléa géotechnique identifie',
+    valeurAffichee: morceaux.join(' - ') || 'Aucun aléa géotechnique identifié',
     commentaire:
       "Aléa fort de retrait-gonflement ou cavités : surcout de fondations, campagne géotechnique renforcée (G2 AVP a minima).",
     sourceKey: SRC.georisques,
@@ -1783,7 +1783,7 @@ const dist_captage: Evaluateur = (s) => {
       valeurBrute: c.type,
       valeurAffichee: `Périmètre de protection ${c.type ?? 'non précisé'}`,
       commentaire:
-        "Interdiction en périmètre immédiat et rapproche ; prescriptions renforcées en périmètre éloigné. Se reporter à l'arrêté préfectoral de DUP du captage.",
+        "Interdiction en périmètre immédiat et rapproché ; prescriptions renforcées en périmètre éloigné. Se reporter à l'arrêté préfectoral de DUP du captage.",
       sourceKey: SRC.georisques,
       reglesLiees: ['metha_distance_eau'],
     };
@@ -1798,7 +1798,7 @@ const dist_captage: Evaluateur = (s) => {
     ]),
     valeurBrute: c.distanceM,
     valeurAffichee: `Hors périmètre${c.distanceM != null ? ` - ${formatDistance(c.distanceM)} du plus proche` : ''}`,
-    commentaire: "Hors périmètre de protection de captage identifie.",
+    commentaire: "Hors périmètre de protection de captage identifié.",
     sourceKey: SRC.georisques,
   };
 };
