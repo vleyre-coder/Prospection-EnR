@@ -651,7 +651,7 @@ function OutilsCarte({
 
       {etat.idusSelectionnes.length > 0 && (
         <div className="selection-info">
-          <strong>{etat.idusSelectionnes.length}</strong> parcelle(s) selectionnee(s)
+          <strong>{etat.idusSelectionnes.length}</strong> parcelle(s) sélectionnée(s)
           <button
             type="button"
             className="bouton bouton-principal"

@@ -106,7 +106,7 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
     unite: 'm',
     motif:
       'Aucun point de France n’est à plus de quelques dizaines de kilomètres d’un cours d’eau ' +
-      'recense. 100 km est une borne large qui ne rejette que l’absurde.',
+      'recensé. 100 km est une borne large qui ne rejette que l’absurde.',
   },
   {
     chemin: 'eau.captageAep.distanceM',

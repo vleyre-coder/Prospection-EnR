@@ -1572,7 +1572,7 @@ const risq_argiles_cavites: Evaluateur = (s) => {
     valeurBrute: s.topographie.aleaArgiles,
     valeurAffichee: morceaux.join(' - ') || 'Aucun aléa géotechnique identifié',
     commentaire:
-      "Aléa fort de retrait-gonflement ou cavités : surcout de fondations, campagne géotechnique renforcée (G2 AVP a minima).",
+      "Aléa fort de retrait-gonflement ou cavités : surcoût de fondations, campagne géotechnique renforcée (G2 AVP a minima).",
     sourceKey: SRC.georisques,
   };
 };
@@ -1600,7 +1600,7 @@ const risq_sites_pollues: Evaluateur = (s, ctx) => {
   return {
     note,
     valeurBrute: n,
-    valeurAffichee: n === 0 ? 'Aucun site recense < 500 m' : `${n} site(s) recense(s) < 500 m`,
+    valeurAffichee: n === 0 ? 'Aucun site recensé < 500 m' : `${n} site(s) recensé(s) < 500 m`,
     commentaire: opportuniste
       ? "Un ancien site industriel peut constituer un terrain dégradé éligible, mais impose une étude de sols et un plan de gestion."
       : "La proximité de sols pollués complique l'instruction et peut interdire certains usages.",

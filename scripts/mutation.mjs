@@ -4027,6 +4027,23 @@ const MUTATIONS = [
   {
     audit: 'audit 13 (revue complete)',
     /*
+     * LE SENS INVERSE, un SINGULIER nu face a son pluriel accentue. La regle des pluriels ne
+     * voyait que d'un cote, et le cas s'est presente aussitot : « parcelle(s) selectionnee(s) »
+     * dans la barre de selection de la carte, alors que la liste ecrit « parcelles
+     * sélectionnées ». Une symetrie oubliee est un angle mort de plus, pas un demi-progres — elle
+     * a livre quatre autres fautes : « surcout », « recense » (deux fois) et « le calcul
+     * concerne ».
+     */
+    quoi: 'un participe singulier reperd son accent dans du texte affiche',
+    fichier: 'apps/web/src/App.tsx',
+    de: '          <strong>{etat.idusSelectionnes.length}</strong> parcelle(s) sélectionnée(s)',
+    vers: '          <strong>{etat.idusSelectionnes.length}</strong> parcelle(s) selectionnee(s)',
+    cwd: 'apps/web',
+    tests: ['test/orthographe-affichee.test.ts'],
+  },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
      * LA COLONNE « TRACE ESTIME » REDEVIENT MUETTE QUAND ELLE EST VIDE. Sur un territoire sans
      * postes ingeres, elle rend « — » sur chaque ligne et sert de clef de tri : cliquer son
      * en-tete ne change rien, sans un mot. Deux causes produisent le meme tiret — couche non

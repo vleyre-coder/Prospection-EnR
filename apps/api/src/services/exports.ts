@@ -677,7 +677,7 @@ export function ficheParcellePdf(
           'Site d\'injection existant le plus proche',
           racc.reseauGaz.distanceSiteInjectionKm != null
             ? `${nb(racc.reseauGaz.distanceSiteInjectionKm, 'km', 1)} (indicateur de filière, non une distance de raccordement)`
-            : 'aucun recense',
+            : 'aucun recensé',
         ],
         ['Gestionnaire', racc.reseauGaz.gestionnaire ?? 'non renseigné'],
         ['Rebours nécessaire', ouiNon(racc.reseauGaz.reboursNecessaire)],

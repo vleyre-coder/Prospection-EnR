@@ -924,7 +924,21 @@ button:focus-visible,
  */
 .pile-messages {
   position: absolute;
-  bottom: 34px;
+  /*
+   * ASSEZ HAUT POUR NE JAMAIS RECOUVRIR LA BARRE DE SELECTION.
+   *
+   * Constate sur capture : « 2 parcelle(s) sélectionnée(s) · Agréger en site · Exporter · Vider »
+   * est ancree en bas a GAUCHE, la pile de messages est centree, et les deux se chevauchaient —
+   * le texte de l'encart du relais passait sous les boutons. C'est le meme defaut que celui que
+   * la pile avait corrige entre deux encarts, revenu par un element voisin.
+   *
+   * LE DECALAGE EST INCONDITIONNEL, et c'est un choix. Les deux elements vivent dans des
+   * sous-arbres differents — la barre dans `App`, la pile dans `Carte` — et aucun selecteur ne les
+   * relie sans parier sur un ancetre commun que le prochain remaniement deplacerait en silence.
+   * Quarante-huit pixels de plus, toujours, coutent moins qu'une regle qui cesse de s'appliquer
+   * sans prevenir.
+   */
+  bottom: 82px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -959,7 +973,7 @@ button:focus-visible,
  */
 @media (max-width: 900px) {
   .pile-messages {
-    bottom: 22px;
+    bottom: 70px;
     gap: 4px;
   }
 

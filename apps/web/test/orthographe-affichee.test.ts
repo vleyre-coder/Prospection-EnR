@@ -270,6 +270,19 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/bornes.ts', mot: 'comptes', raison: 'le NOM compte cadastral : unite et motif de la borne `foncier.nbProprietairesEstime`' },
   { module: 'apps/api/src/services/exports.ts', mot: 'limites', raison: "le NOM limite : titre de section « Limites de viabilité économique »" },
   { module: 'apps/api/src/services/exports.ts', mot: 'chiffres', raison: "le NOM chiffre : « Le site en chiffres », « Les deux chiffres ci-dessus »" },
+  /*
+   * « compte » au SINGULIER, excepte avec la regle symetrique — un singulier nu face a son pluriel
+   * accentue. Le mot est ici tantot le nom dans la locution « prendre en compte », tantot le verbe
+   * compter (« la France en compte plus de »), jamais le participe « compté ». Les deux graphies
+   * accentuees qui le declenchent, « comptés » et « comptes », vivent ailleurs et sont justes.
+   */
+  { module: 'packages/core/src/bornes.ts', mot: 'compte', raison: "le NOM et le VERBE : « nombre de comptes », « la France en compte plus de »" },
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'compte', raison: "le NOM dans « prise en compte par les PLU »" },
+  { module: 'packages/core/src/reglementation.ts', mot: 'compte', raison: "le NOM dans « prise en compte lorsque la parcelle y figure »" },
+  { module: 'apps/web/src/components/FormulaireBalayage.tsx', mot: 'compte', raison: "le NOM : « Le compte est celui des parcelles qualifiées »" },
+  { module: 'apps/api/src/connecteurs/base.ts', mot: 'recense', raison: "verbe recenser : « Le RPG recense les îlots déclarés à la PAC »" },
+  { module: 'apps/api/src/connecteurs/base.ts', mot: 'batiment', raison: "nom de couche WFS dans une URL : `TYPENAMES=BDTOPO_V3:batiment`" },
+  { module: 'apps/web/src/components/BandeauAvertissements.tsx', mot: 'concerne', raison: "verbe concerner : « avant de vous fier à un verdict qui les concerne »" },
 ];
 
 const GENRES: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -423,7 +436,17 @@ export function incoherences(releve: Releve): Occurrence[] {
   return releve.nus.filter((o) => {
     const nu = sansAccent(o.mot);
     if (releve.accentues.has(nu)) return true;
-    return nu.length > 5 && nu.toLowerCase().endsWith('es') && releve.accentues.has(nu.slice(0, -1));
+    if (nu.length <= 5) return false;
+    const bas = nu.toLowerCase();
+    // Un pluriel nu face a son singulier accentue : « regardes » contre « regardé ».
+    if (bas.endsWith('es') && releve.accentues.has(bas.slice(0, -1))) return true;
+    /*
+     * ET LE SENS INVERSE, un singulier nu face a son pluriel accentue. Le cas s'est presente
+     * aussitot apres : « parcelle(s) selectionnee(s) » dans la barre de selection de la carte,
+     * alors que la liste ecrit « parcelles sélectionnées ». La regle ajoutee ne voyait que d'un
+     * cote — une symetrie oubliee est un angle mort de plus, pas un demi-progres.
+     */
+    return releve.accentues.has(`${bas}s`);
   });
 }
 
@@ -485,7 +508,10 @@ test('aucun mot du texte affiche ne s’ecrit a la fois avec et sans accent', ()
        * conflit de pluriel — une accusation sans piece jointe, que personne ne peut instruire.
        */
       const nu = sansAccent(o.mot);
-      const trouvees = releve.accentues.get(nu) ?? releve.accentues.get(nu.slice(0, -1));
+      const trouvees =
+        releve.accentues.get(nu) ??
+        releve.accentues.get(nu.slice(0, -1)) ??
+        releve.accentues.get(`${nu}s`);
       const graphies = [...(trouvees ?? [])].join(' / ');
       return `  ${o.module}:${o.ligne}  « ${o.mot} » alors que « ${graphies} » est ecrit ailleurs\n      ${o.contexte}`;
     })
@@ -534,6 +560,10 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     'packages/scoring/src/knockouts.ts|fixe': 2,
     // Quatre chemins de champ dans les bornes, tous le meme prefixe `bati.`.
     'packages/core/src/bornes.ts|bati': 4,
+    // Quatorze occurrences du NOM et du VERBE dans les motifs des bornes, relues : « nombre de
+    // comptes cadastraux », « la France en compte plus de », « dénombrement ... compte tenu de ».
+    // Aucune n'est le participe « compté ».
+    'packages/core/src/bornes.ts|compte': 14,
     // Les deux occurrences sont le NOM chiffre, relues une par une : le titre de section « Le site
     // en chiffres » et l'encadre « Les deux chiffres ci-dessus ne disent pas la meme chose ».
     'apps/api/src/services/exports.ts|chiffres': 2,

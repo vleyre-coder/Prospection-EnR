@@ -352,7 +352,7 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
         anomalies: anomalies.map((a) => `${a.chemin} = ${a.valeur} ${a.unite} (borne ${a.min}..${a.max})`),
       },
       'Grandeurs hors bornes de vraisemblance : ramenées à « donnée indisponible ». ' +
-        'Vérifiez le connecteur ou le calcul concerne.',
+        'Vérifiez le connecteur ou le calcul concerné.',
     );
   }
 
