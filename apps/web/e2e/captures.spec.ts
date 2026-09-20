@@ -26,8 +26,9 @@ const SORTIE = 'captures';
  *
  * CE QUI A ETE MESURE, audit 13. Ce fichier attendait 2 500 ms fixes, au motif — juste — qu'une
  * carte ne devient jamais « networkidle ». Mais en vue NATIONALE, MapLibre demande une trentaine de
- * tuiles, chacune relayee en 140 a 370 ms par `/api/carte/fond/`, sur deux connexions : la carte met
- * environ trois secondes a se peindre. La capture partait avant.
+ * tuiles, et le relais `/api/carte/fond/` les rend en 150 ms a une seconde chacune selon la charge
+ * de l'IGN, sur deux connexions : la carte met de trois a quinze secondes a se peindre. La capture
+ * partait avant.
  *
  * Le resultat n'etait pas une image imparfaite, c'etait une image FAUSSE : la capture de la vue
  * nationale montrait une France blanche, sans aucun fond, ou l'on pouvait croire a un relais casse.
@@ -48,11 +49,24 @@ const SORTIE = 'captures';
  * fausse encore que celle qu'elle corrigeait. C'est la meme faute que celle traquee dans toute
  * l'application : une absence prise pour un resultat.
  *
+ * LA FENETRE DE CALME EST PLUS LARGE QUE L'INTERVALLE ENTRE DEUX TUILES, faute de quoi elle se
+ * declenche au milieu du chargement : quand l'IGN rend une tuile en une seconde et que MapLibre
+ * n'ouvre que deux connexions, l'ecart entre deux reponses frole la seconde en regime NORMAL. A
+ * 1 500 ms, la vue nationale sortait tantot complete (1,7 Mo), tantot amputee (1,2 Mo), d'une
+ * execution a l'autre ; a 2 500 ms, trois executions rendent 1,66, 1,51 et 1,67 Mo.
+ *
+ * CE QUI RESTE VRAI MALGRE CE REGLAGE, et qu'il faut savoir en lisant une capture : sur un reseau
+ * lent, MapLibre peut renoncer a une tuile sans qu'aucune reponse ne l'annonce. Aucune mesure cote
+ * reseau ne distingue alors « abandonnee » de « jamais demandee ». La vue nationale, qui en demande
+ * une trentaine d'un coup, reste donc la plus exposee — et c'est pourquoi ce fichier reste un outil
+ * de revue, qu'un humain regarde, et non un garde qui affirmerait quelque chose.
+ *
  * Le plafond, lui, empeche une attente sans fin quand le relais ne repond jamais : on capture alors
  * ce qu'il y a, ce qui reste le comportement utile pour un outil de revue.
  */
-const CALME_MS = 1500;
-const PLAFOND_MS = 45_000;
+const CALME_MS = 2500;
+const GRACE_MS = 6000;
+const PLAFOND_MS = 60_000;
 
 async function laisserPeindre(page: import('@playwright/test').Page): Promise<void> {
   let derniereTuile = 0;
@@ -71,14 +85,34 @@ async function laisserPeindre(page: import('@playwright/test').Page): Promise<vo
   };
   page.on('response', surReponse);
   try {
+    /*
+     * PREMIER TEMPS : LA CARTE A-T-ELLE SEULEMENT QUELQUE CHOSE A CHARGER ?
+     *
+     * Toutes les vues capturees ne demandent pas de tuiles. Ouvrir un panneau sur une carte deja
+     * peinte n'en demande aucune : les precedentes sont en cache. Sans ce premier temps, la boucle
+     * de quiescence attendait alors le plafond ENTIER — soixante secondes par capture — puis
+     * ecrivait un avertissement alarmant sur une situation parfaitement normale. Mesure : une des
+     * captures de la derniere execution a consomme le plafond avec zero tuile servie.
+     *
+     * Une attente de grace courte suffit a trancher : si rien n'est parti au bout de quelques
+     * secondes, il n'y avait rien a attendre.
+     */
+    const graceFin = Date.now() + GRACE_MS;
+    while (nbTuiles === 0 && Date.now() < graceFin) {
+      await page.waitForTimeout(250);
+    }
+    if (nbTuiles === 0) return;
+
+    // SECOND TEMPS : attendre que le flot se tarisse.
     const limite = Date.now() + PLAFOND_MS;
     while (Date.now() < limite) {
       await page.waitForTimeout(250);
-      if (nbTuiles > 0 && Date.now() - derniereTuile >= CALME_MS) return;
+      if (Date.now() - derniereTuile >= CALME_MS) return;
     }
-    // Le plafond a ete atteint : on le DIT, sinon une capture vide passerait pour un choix.
+    // Le plafond a ete atteint : on le DIT, sinon une capture amputee passerait pour un choix.
     process.stderr.write(
-      `# capture : plafond de ${PLAFOND_MS} ms atteint avec ${nbTuiles} tuile(s) de fond servie(s)\n`,
+      `# capture : plafond de ${PLAFOND_MS} ms atteint apres ${nbTuiles} tuile(s) servie(s) — ` +
+        'la vue capturee peut etre incomplete\n',
     );
   } finally {
     page.off('response', surReponse);
@@ -204,6 +238,13 @@ test('@revue capture en thème sombre et en écran étroit', async ({ page }) =>
   await laisserPeindre(page);
   await page.screenshot({ path: `${SORTIE}/07-sombre.png` });
 
+  /*
+   * REDIMENSIONNER, C'EST REDEMANDER DES TUILES. La capture etroite partait immediatement apres
+   * le changement de taille : MapLibre venait de decouvrir une nouvelle emprise et n'avait pas
+   * encore recu les tuiles correspondantes. L'image montrait une moitie de France coloree et
+   * l'autre nue — un defaut de rendu apparent la ou il n'y avait qu'une capture trop rapide.
+   */
   await page.setViewportSize({ width: 900, height: 800 });
+  await laisserPeindre(page);
   await page.screenshot({ path: `${SORTIE}/08-etroit.png` });
 });

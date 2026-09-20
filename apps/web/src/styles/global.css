@@ -932,9 +932,42 @@ button:focus-visible,
   align-items: center;
   gap: 6px;
   z-index: 12;
-  max-width: calc(100% - 24px);
+  /*
+   * LA MESURE DE LIGNE EST BORNEE, et cela sert deux choses a la fois.
+   *
+   * A pleine largeur, ces messages s'etalaient sur toute la carte — plus de 600 px de texte a
+   * 12,5 px, soit des lignes de cent caracteres, que l'oeil perd en fin de ligne. En dessous de
+   * `52ch` ils redeviennent lisibles, et ils cessent d'occuper la largeur du parcellaire qu'on est
+   * precisement en train de regarder.
+   *
+   * Sur une fenetre etroite, le second terme reprend la main : la pile ne deborde jamais de la
+   * carte, quelle que soit la place laissee par le panneau lateral.
+   */
+  max-width: min(52ch, calc(100% - 24px));
   /* La pile ne doit pas intercepter les clics destines a la carte ; ses enfants, si. */
   pointer-events: none;
+}
+
+/*
+ * EN FENETRE ETROITE, LA PILE S'ALLEGE PLUTOT QUE DE SE TRONQUER.
+ *
+ * Mesure sur capture a 900 px : le panneau lateral prend 290 px, la carte 610, et les deux
+ * messages se replient sur cinq a six lignes chacun — environ 35 % de la carte visible, dont tout
+ * le sud-est. Tronquer serait la mauvaise reponse : ce depot a deja juge qu'un titre coupe aux
+ * trois points fait disparaitre une information sans le dire. On reduit donc l'encombrement sans
+ * rien retirer — interligne, corps et rembourrage resserres.
+ */
+@media (max-width: 900px) {
+  .pile-messages {
+    bottom: 22px;
+    gap: 4px;
+  }
+
+  .pile-messages .indice-zoom {
+    padding: 5px 11px;
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
 }
 
 .pile-messages > * {
