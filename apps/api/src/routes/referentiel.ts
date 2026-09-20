@@ -34,6 +34,7 @@ import {
   compterContraintes,
   compterPostes,
   etatSources,
+  couverturesIncoherentes,
   sourcesPerimees,
 } from '../depots/sources.js';
 
@@ -60,7 +61,7 @@ export const COUCHES = [
 
 export async function routesReferentiel(app: FastifyInstance): Promise<void> {
   app.get('/api/sante', async () => {
-    const [bdd, sources, perimees, aRafraichir] = await Promise.all([
+    const [bdd, sources, perimees, aRafraichir, couverturesVides] = await Promise.all([
       bddDisponible(),
       etatSources().catch(() => []),
       sourcesPerimees().catch(() => []),
@@ -72,6 +73,16 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
        * continuaient d'afficher l'etat d'avant, sans qu'aucun indicateur ne l'indique.
        */
       nbARafraichir().catch(() => null),
+      /**
+       * Couvertures annoncees dont la cible est VIDE — audit 13.
+       *
+       * Mesure sur la base de bout en bout : `couverture_ingestion` annoncait 2 830 postes sources
+       * sur 101 departements, et `poste_source` etait vide. La table qui sert a distinguer « rien
+       * trouve » de « rien regarde » mentait donc sur ce que la base contient. Le patrimoine la
+       * consulte reellement : la meme incoherence y produirait un feu vert sur zero donnee, soit
+       * mot pour mot le defaut C1 de l'audit 8, reouvert par une autre porte.
+       */
+      couverturesIncoherentes().catch(() => []),
     ]);
     const amorcage = etatAmorcage();
 
@@ -121,6 +132,12 @@ export async function routesReferentiel(app: FastifyInstance): Promise<void> {
        * leur prochaine consultation ou un appel a `POST /api/qualification/rafraichir`.
        */
       parcellesARafraichir: aRafraichir,
+      /**
+       * Vide en fonctionnement normal. Non vide : une couche affirme avoir ete ingeree sur des
+       * departements alors que sa table ne contient plus rien — il faut la reingerer, ou purger
+       * les lignes de couverture correspondantes, AVANT de se fier a un critere qui la consulte.
+       */
+      couverturesIncoherentes: couverturesVides,
     };
   });
 

@@ -3882,6 +3882,27 @@ const MUTATIONS = [
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/garde-balayage-orthographe.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * UNE COUVERTURE ANNONCEE SUR UNE CIBLE VIDE CESSE D'ETRE VUE. `couverture_ingestion` est la
+     * table sur laquelle le moteur s'appuie pour separer « aucune contrainte trouvee ici » de « on
+     * n'a rien regarde ici ». Mesure sur la base de bout en bout : elle annoncait 2 830 postes
+     * sources sur 101 departements quand `poste_source` etait vide. Une ligne de couverture qui
+     * survit a la disparition de ses donnees fait dire « regarde, rien trouve » — un feu vert — la
+     * ou il n'y a rien : le defaut C1 de l'audit 8, reouvert par une autre porte.
+     *
+     * La mutation rend le garde aveugle en inversant sa condition : il ne signale plus que les
+     * couvertures dont la cible EXISTE, c'est-a-dire les saines.
+     */
+    quoi: 'une couverture annoncee sur une table vide cesse d’etre signalee',
+    fichier: 'apps/api/src/depots/sources.ts',
+    de: '    if (presence?.existe === false) {',
+    vers: '    if (presence?.existe === true) {',
+    cwd: 'apps/api',
+    tests: ['test/couverture-sans-donnee.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/couverture-sans-donnee.test.ts'],
+  },
 ];
 
 /**

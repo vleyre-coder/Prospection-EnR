@@ -132,6 +132,97 @@ export async function sourcesPerimees(): Promise<string[]> {
   return lignes.map((l) => l.connecteur);
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UNE COUVERTURE ANNONCEE DOIT AVOIR DES DONNEES DERRIERE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, audit 13, sur la base de bout en bout : `couverture_ingestion` annoncait
+ * **2 830 postes sources sur 101 departements**, dont le 28 ou vivent les 301 parcelles. La table
+ * `poste_source`, elle, etait **vide**. La table qui dit « cette couche a ete regardee ici » ment
+ * donc sur ce que la base contient, et rien ne le detectait.
+ *
+ * POURQUOI C'EST LE DEFAUT LE PLUS GRAVE POSSIBLE ICI, et non une incoherence de comptage.
+ * `couverture_ingestion` est precisement ce sur quoi le moteur s'appuie pour distinguer les deux
+ * phrases que ce projet separe depuis douze audits : « aucune contrainte trouvee » et « on n'a rien
+ * regarde ». `couchesPresentesDansDepartement()` la lit pour le patrimoine, `zones.ts` et
+ * `potentiel-communal.ts` la lisent aussi. Une ligne de couverture survivant a la disparition de ses
+ * donnees fait donc dire a l'application « regarde, rien trouve » — un feu vert — la ou il n'y a
+ * rien du tout. C'est mot pour mot le defaut C1 de l'audit 8, reouvert par une autre porte.
+ *
+ * CE QUI A SAUVE LE CAS MESURE, et pourquoi cela ne suffit pas : le critere `racc_distance_poste`
+ * ne consulte pas la couverture, il repond `indispo` des qu'aucun poste n'est trouve. La protection
+ * tient donc a ce qu'un critere n'ait pas ete ecrit autrement — c'est-a-dire a rien. Le patrimoine,
+ * lui, consulte bien la couverture : la meme incoherence sur `contrainte` produirait le feu vert.
+ *
+ * CE QUE CETTE FONCTION NE FAIT PAS. Elle ne compare pas les COMPTES, ni departement par
+ * departement : un ecart de comptage a mille raisons legitimes — une reingestion partielle, un
+ * objet ecarte parce que hors filiere, une geometrie refusee. Elle ne signale que le cas sans
+ * ambiguite possible : **la couverture annonce des objets, et la cible est entierement vide**.
+ * Un garde qui accuse a tort finit desactive ; celui-ci ne peut pas accuser a tort.
+ */
+export interface CouvertureIncoherente {
+  connecteur: string;
+  type: string;
+  /** Objets annonces par la couverture, tous departements confondus. */
+  objetsAnnonces: number;
+  /** Nombre de departements pour lesquels la couverture affirme avoir regarde. */
+  departements: number;
+}
+
+/**
+ * Ou vivent les donnees d'un `type` de couverture.
+ *
+ * `couverture_ingestion.type` n'est pas uniformement un nom de table : pour les couches qui ont la
+ * leur il l'est, pour les autres c'est la valeur de `contrainte.type`. La table est donc explicite,
+ * et toute couche absente d'ici est supposee vivre dans `contrainte` — le cas general.
+ */
+const CIBLE_PAR_TYPE: Record<string, string> = {
+  zaer: 'zaer',
+  poste_source: 'poste_source',
+  point_injection_gaz: 'point_injection_gaz',
+};
+
+export async function couverturesIncoherentes(): Promise<CouvertureIncoherente[]> {
+  const annoncees = await requete<{
+    connecteur: string;
+    type: string;
+    objets: string;
+    departements: string;
+  }>(
+    `SELECT connecteur, type, SUM(nb_objets)::text AS objets, COUNT(*)::text AS departements
+       FROM couverture_ingestion
+      GROUP BY connecteur, type
+     HAVING SUM(nb_objets) > 0`,
+  );
+
+  const incoherentes: CouvertureIncoherente[] = [];
+  for (const a of annoncees) {
+    const table = CIBLE_PAR_TYPE[a.type];
+    /*
+     * `EXISTS` et non `COUNT` : la question est « y a-t-il quoi que ce soit ? ». Sur une table de
+     * plusieurs millions de lignes, un comptage complet pour repondre « oui » serait un balayage
+     * inutile a chaque affichage du bandeau.
+     */
+    const [presence] = table
+      ? // Le nom de table vient de `CIBLE_PAR_TYPE`, une constante du module : jamais de la requete.
+        await requete<{ existe: boolean }>(`SELECT EXISTS (SELECT 1 FROM ${table}) AS existe`)
+      : await requete<{ existe: boolean }>(
+          `SELECT EXISTS (SELECT 1 FROM contrainte WHERE type = $1) AS existe`,
+          [a.type],
+        );
+    if (presence?.existe === false) {
+      incoherentes.push({
+        connecteur: a.connecteur,
+        type: a.type,
+        objetsAnnonces: Number(a.objets),
+        departements: Number(a.departements),
+      });
+    }
+  }
+  return incoherentes;
+}
+
 export interface DetailsJournal {
   utilisateurId?: string | null;
   email?: string | null;
