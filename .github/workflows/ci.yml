@@ -309,10 +309,20 @@ jobs:
         run: npx playwright test
         working-directory: apps/web
 
-      # La verification par mutation des deux defauts ci-dessus : sans elle, rien ne prouve que ces
-      # tests, les plus couteux du depot, ne sont pas decoratifs.
+      # La verification par mutation des tests ci-dessus : sans elle, rien ne prouve que ces tests,
+      # les plus couteux du depot, ne sont pas decoratifs.
+      #
+      # `--e2e-seulement` A REMPLACE `--filtre "bout en bout"`, ET L'ECART ETAIT GRAND. Le filtre
+      # porte sur `audit + quoi + fichier` : il ne retenait que les DEUX motifs dont le champ
+      # `audit` vaut litteralement « bout en bout », plus un motif sans rapport dont le libelle
+      # contient ces mots — et qui n'a meme pas besoin d'un navigateur. Sept des neuf motifs de
+      # bout en bout n'etaient donc JAMAIS joues, sous un intitule d'etape qui affirmait le
+      # contraire. C'est le « perimetre reduit en silence » que ce depot refuse partout ailleurs.
+      #
+      # Un garde le verifie desormais : `apps/web/test/ci-mutation-e2e.test.ts` lit ce fichier et
+      # refuse toute commande qui laisserait un motif de bout en bout de cote.
       - name: Verifier par mutation que les tests de bout en bout protegent vraiment
-        run: node scripts/mutation.mjs --filtre "bout en bout"
+        run: node scripts/mutation.mjs --e2e-seulement
 
       - name: Conserver le rapport en cas d'echec
         if: failure()

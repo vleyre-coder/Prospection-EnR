@@ -4071,6 +4071,26 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-liste-tableau.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LA CI REVIENT AU FILTRE TEXTUEL, ET NE JOUE PLUS QUE DEUX MOTIFS SUR NEUF. C'est l'etat
+     * mesure a l'audit 13 : l'etape s'intitulait « Verifier par mutation que les tests de bout en
+     * bout protegent vraiment » et lancait `--filtre "bout en bout"`, qui cherche une chaine dans
+     * `audit + quoi + fichier`. Il attrapait ce qui PARLE de bout en bout, pas ce qui EN EST —
+     * deux motifs, plus un sans rapport qui n'a meme pas besoin d'un navigateur.
+     *
+     * Ces motifs sont les seuls a prouver que la suite de bout en bout n'est pas decorative. Un
+     * perimetre reduit en silence y donne l'illusion la plus chere : celle d'avoir verifie ce que
+     * personne ne verifie.
+     */
+    quoi: 'la CI revient a un filtre textuel et ne joue plus que deux motifs de bout en bout sur neuf',
+    fichier: '.github/workflows/ci.yml',
+    de: '        run: node scripts/mutation.mjs --e2e-seulement',
+    vers: '        run: node scripts/mutation.mjs --filtre "bout en bout"',
+    cwd: 'apps/web',
+    tests: ['test/ci-mutation-e2e.test.ts'],
+  },
 ];
 
 /**
