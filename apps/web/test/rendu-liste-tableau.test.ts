@@ -218,3 +218,62 @@ test('UN SEUL MOIS DE DONNEES DESSINE QUAND MEME QUELQUE CHOSE', () => {
   // Et le titre du graphique doit etre la : sans lui, on ne saurait pas ce que le cadre montre.
   assert.match(texte(html), /Activité sur 12 mois/);
 });
+
+test('UNE PARCELLE ECARTEE POUR SA TAILLE NE PORTE PAS « SCORE FAIBLE »', () => {
+  /**
+   * LE DEFAUT MESURE, sur la base de bout en bout. Le statut rouge a TROIS causes : un couperet
+   * reglementaire, un score sous le seuil, et une limite de VIABILITE — une parcelle trop petite
+   * pour porter un projet, quel que soit son score. La liste ne connaissait que les deux
+   * premieres et repliait la troisieme sur le libelle du score.
+   *
+   * A l'ecran : la parcelle 0C 0843 porte un score de 72,7 et la mention « Score faible », pendant
+   * qu'une voisine a 70,3 porte « Sous conditions ». Les deux libelles sont incompatibles avec les
+   * deux chiffres, et l'operateur cherche un defaut de notation la ou la parcelle offre 0,03 ha
+   * implantables. La fiche le disait ; la liste, ou l'on decide quoi ouvrir, ne le remontait pas.
+   */
+  const base = listeSolaire.resultats[0]!;
+  const t = texte(
+    rendreResolu(
+      h(VueListe, { filiere: 'solaire_sol', referentiel, onOuvrir: () => undefined }),
+      {
+        liste: {
+          total: 1,
+          resultats: [
+            { ...base, statutScore: 'rouge', scoreGlobal: 72.7, nbKnockOutsBloquants: 0,
+              limiteViabilite: 'Surface très insuffisante' },
+          ],
+        },
+      },
+      { limiterALEmprise: false },
+    ),
+  );
+  assert.match(t, /Surface très insuffisante/, `le motif reel doit etre affiche — ${t.slice(0, 300)}`);
+  assert.doesNotMatch(
+    t,
+    new RegExp(referentiel.palette.libellesScore.rouge, 'i'),
+    'le libelle du score ne doit pas etre affiche quand ce n’est pas le score qui a decide',
+  );
+});
+
+test('SANS LIMITE DE VIABILITE, LE ROUGE GARDE LE LIBELLE DU SCORE', () => {
+  /*
+   * Le contre-exemple : une parcelle rouge PARCE QUE mal notee doit continuer a le dire. Sans lui,
+   * on aurait remplace un libelle faux par un autre.
+   */
+  const base = listeSolaire.resultats[0]!;
+  const t = texte(
+    rendreResolu(
+      h(VueListe, { filiere: 'solaire_sol', referentiel, onOuvrir: () => undefined }),
+      {
+        liste: {
+          total: 1,
+          resultats: [
+            { ...base, statutScore: 'rouge', scoreGlobal: 31, nbKnockOutsBloquants: 0, limiteViabilite: null },
+          ],
+        },
+      },
+      { limiterALEmprise: false },
+    ),
+  );
+  assert.match(t, new RegExp(referentiel.palette.libellesScore.rouge, 'i'));
+});

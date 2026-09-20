@@ -37,6 +37,7 @@ function ligne(sur: Partial<LigneResultatFiltre> = {}): LigneResultatFiltre {
     statutScore: 'vert',
     scoreGlobal: 78.4,
     nbKnockOutsBloquants: 0,
+    limiteViabilite: null,
     statutProspection: null,
     distancePosteKm: 4.2,
     /*

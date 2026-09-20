@@ -48,6 +48,7 @@ export function etiquetteStatut(
   statutScore: Feu | null,
   nbKnockOutsBloquants: number,
   palette: PaletteAffichage,
+  limiteViabilite?: string | null,
 ): EtiquetteStatut | null {
   if (statutScore == null) return null;
   if (nbKnockOutsBloquants > 0) {
@@ -56,6 +57,35 @@ export function etiquetteStatut(
       couleur: palette.couleurRedhibitoire,
       titre: palette.descriptionRedhibitoire,
       redhibitoire: true,
+    };
+  }
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE ROUGE A TROIS CAUSES, ET LA PASTILLE N'EN NOMMAIT QUE DEUX
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Un couperet reglementaire, un score sous le seuil — et une limite de VIABILITE, qui plafonne
+   * le statut quel que soit le score. Les deux premieres etaient nommees ; la troisieme se
+   * repliait sur le libelle du score.
+   *
+   * CE QUE CELA DONNAIT A L'ECRAN, mesure sur la base de bout en bout : la parcelle 0C 0843 porte
+   * un score de 72,7 et la mention « Score faible », pendant qu'une voisine a 70,3 porte « Sous
+   * conditions ». Les deux libelles sont incompatibles avec les deux chiffres, et l'operateur
+   * cherche un defaut de notation la ou la parcelle est simplement trop petite — 0,03 ha
+   * implantables. La fiche le disait ; la liste, ou l'on decide quoi ouvrir, ne le remontait pas.
+   * C'est le defaut B1 de l'audit 7 sous une autre forme.
+   *
+   * Le libelle de la limite REMPLACE celui du score, et ne s'y ajoute pas : une pastille ne porte
+   * qu'un motif, et le motif juste est celui qui a decide.
+   */
+  if (statutScore === 'rouge' && limiteViabilite) {
+    return {
+      libelle: limiteViabilite,
+      couleur: palette.couleursScore.rouge,
+      titre:
+        `Écartée pour une raison de viabilité, et non pour sa note : ${limiteViabilite.toLowerCase()}. ` +
+        'Le détail figure dans la fiche.',
+      redhibitoire: false,
     };
   }
   return {

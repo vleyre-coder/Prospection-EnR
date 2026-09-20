@@ -372,6 +372,7 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
                 l.statutScore,
                 l.nbKnockOutsBloquants,
                 referentiel.palette,
+                l.limiteViabilite,
               );
               return (
                 <tr

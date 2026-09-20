@@ -3988,6 +3988,21 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-liste-tableau.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LA LISTE REDIT « SCORE FAIBLE » POUR UNE PARCELLE TROP PETITE. Le rouge a trois causes ; la
+     * pastille n'en nommait que deux. Mesure : la parcelle 0C 0843 affichait « Score faible » a
+     * cote d'un score de 72,7, pendant qu'une voisine a 70,3 affichait « Sous conditions ». Le
+     * defaut B1 de l'audit 7 sous une autre forme — la fiche le dit, la liste ne le remonte pas.
+     */
+    quoi: 'la liste redit « score faible » pour une parcelle ecartee sur sa taille',
+    fichier: 'apps/web/src/utils/affichage.ts',
+    de: "  if (statutScore === 'rouge' && limiteViabilite) {",
+    vers: "  if (false && statutScore === 'rouge' && limiteViabilite) {",
+    cwd: 'apps/web',
+    tests: ['test/rendu-liste-tableau.test.ts'],
+  },
 ];
 
 /**

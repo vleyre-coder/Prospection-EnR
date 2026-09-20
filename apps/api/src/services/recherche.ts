@@ -694,6 +694,15 @@ export interface LigneResultatFiltre {
    * reglementairement exclue : les deux sont rouges.
    */
   nbKnockOutsBloquants: number;
+  /**
+   * Libelle de la limite de VIABILITE qui rend la parcelle rouge, s'il y en a une.
+   *
+   * Troisieme cause de rouge, a cote du couperet et du score sous le seuil : une parcelle peut
+   * etre ecartee parce qu'elle est trop petite pour porter un projet, quel que soit son score.
+   * Sans ce champ, la liste repliait ce cas sur « Score faible » et affichait ce libelle a cote
+   * d'un score de 73, plus eleve que celui d'une voisine « Sous conditions ».
+   */
+  limiteViabilite: string | null;
   statutProspection: StatutProspection | null;
   /** Vol d'oiseau, tel que mesure. */
   distancePosteKm: number | null;
@@ -919,6 +928,7 @@ export async function filtrerParcelles(
     statut: Feu | null;
     score_global: number | null;
     nb_knock_outs_bloquants: number;
+    limite_viabilite: string | null;
     statut_prospection: StatutProspection | null;
     distance_poste_km: number | null;
     pente_pct: number | null;
@@ -929,6 +939,26 @@ export async function filtrerParcelles(
     `SELECT p.idu, p.nom_commune, p.section, p.numero,
             COALESCE(p.surface_calculee_m2, p.contenance_m2) AS surface_m2,
             s.statut, s.score_global, COALESCE(s.nb_knock_outs_bloquants, 0)::int AS nb_knock_outs_bloquants,
+            /*
+             * LA LIMITE DE VIABILITE QUI REND LA PARCELLE ROUGE, s'il y en a une.
+             *
+             * SANS ELLE, LA LISTE MENTAIT. Le statut rouge a trois causes distinctes : un couperet
+             * reglementaire, un score sous le seuil, et une limite de VIABILITE — une parcelle de
+             * 0,03 ha implantable, par exemple. La liste ne connaissait que les deux premieres et
+             * repliait la troisieme sur « Score faible » : mesure sur la base de bout en bout, la
+             * parcelle 0C 0843 affiche « Score faible » a cote d'un score de 73, plus eleve que
+             * celui d'une voisine marquee « Sous conditions ». L'operateur ne peut pas reconcilier
+             * les deux, et il cherche un defaut de notation la ou la parcelle est simplement trop
+             * petite.
+             *
+             * C'est le defaut B1 de l'audit 7 sous une autre forme : la fiche le dit, la liste ne
+             * le remonte pas. On ne prend que la PREMIERE limite rouge — elles sont rangees par
+             * gravite, et une pastille ne porte qu'un motif.
+             */
+            (SELECT lim ->> 'libelle'
+               FROM jsonb_array_elements(COALESCE(s.detail -> 'limitesViabilite', '[]'::jsonb)) AS lim
+              WHERE lim ->> 'statutMaximal' = 'rouge'
+              LIMIT 1) AS limite_viabilite,
             l.statut AS statut_prospection,
             (sn.snapshot -> 'raccordement' -> 'posteLePlusProche' ->> 'distanceKm')::numeric AS distance_poste_km,
             (sn.snapshot -> 'topographie' ->> 'pentePct')::numeric AS pente_pct,
@@ -952,6 +982,7 @@ export async function filtrerParcelles(
       statutScore: l.statut,
       scoreGlobal: l.score_global,
       nbKnockOutsBloquants: l.nb_knock_outs_bloquants,
+      limiteViabilite: l.limite_viabilite,
       statutProspection: l.statut_prospection,
       distancePosteKm: l.distance_poste_km,
       lineaireRaccordementKm:

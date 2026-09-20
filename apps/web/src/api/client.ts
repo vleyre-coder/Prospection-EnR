@@ -543,6 +543,15 @@ export interface LigneListe {
   scoreGlobal: number | null;
   /** Knock-outs NON derogeables : distingue « mal notee » de « reglementairement ecartee ». */
   nbKnockOutsBloquants: number;
+  /**
+   * Libelle de la limite de VIABILITE qui rend la parcelle rouge, s'il y en a une.
+   *
+   * Troisieme cause de rouge, a cote du couperet et du score sous le seuil : une parcelle peut
+   * etre ecartee parce qu'elle est trop petite pour porter un projet, quel que soit son score.
+   * Sans ce champ, la liste repliait ce cas sur « Score faible » et affichait ce libelle a cote
+   * d'un score de 73, plus eleve que celui d'une voisine « Sous conditions ».
+   */
+  limiteViabilite: string | null;
   statutProspection: StatutProspection | null;
   /** Vol d'oiseau, tel que mesure. */
   distancePosteKm: number | null;

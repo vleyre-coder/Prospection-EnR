@@ -56,6 +56,7 @@ const LIGNE: LigneListe = {
   statutScore: 'vert',
   scoreGlobal: 71.2,
   nbKnockOutsBloquants: 0,
+  limiteViabilite: null,
   statutProspection: null,
   distancePosteKm: 2.4,
   lineaireRaccordementKm: 3.24,
