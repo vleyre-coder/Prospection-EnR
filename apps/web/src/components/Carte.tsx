@@ -26,6 +26,7 @@ import {
 import { ponderationCourante, useEtat, type FondCarte } from '../store/etat.js';
 import { cercleGeodesique, formatSurface, surfaceAnneauHa, longueurLigneM, formatLongueur } from '../utils/geometrie.js';
 import { decisionClicCadastre } from '../utils/clic-cadastre.js';
+import { useThemeSombre } from '../utils/theme.js';
 
 /**
  * Cadrage d'ouverture : la France metropolitaine entiere, Corse comprise.
@@ -202,6 +203,8 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
   // Aligne sur le service de tuiles, qui refuse les tuiles en dessous de ce zoom.
   const ZOOM_MIN_PARCELLES = referentiel.carte?.zoomMinParcelles ?? ZOOM_MIN_PARCELLES_DEFAUT;
   const ZOOM_MAX_COMMUNES = referentiel.carte?.zoomMaxCommunes ?? ZOOM_MIN_PARCELLES;
+
+  const themeSombre = useThemeSombre(etat.theme);
 
   const couleurs = referentiel.palette.couleursScoreRemplissage;
   const couleurRedhibitoire = referentiel.palette.couleurRedhibitoireRemplissage;
@@ -412,7 +415,16 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
           couleurs.rouge,
           'rgba(0,0,0,0)',
         ] as ExpressionSpecification,
-        'fill-opacity': 0.5,
+        /**
+         * L'OPACITE SUIT LE ZOOM, pour que le fond garde sa structure en vue nationale.
+         *
+         * A l'echelle du pays, cette couche couvre TOUTE la France : a 0,5 partout, elle effacait
+         * le trait de cote, les autoroutes et les noms de villes, c'est-a-dire les seuls reperes
+         * qui permettent de savoir OU l'on regarde. Un peu plus translucide de loin, elle laisse
+         * lire le fond ; elle reprend sa force des que l'on descend sur un departement, la ou la
+         * couleur sert vraiment a comparer des communes entre elles.
+         */
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.4, 9, 0.5],
       },
     });
     m.addLayer({
@@ -421,7 +433,27 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
       source: 'communes',
       'source-layer': 'communes',
       maxzoom: ZOOM_MAX_COMMUNES,
-      paint: { 'line-color': '#64748b', 'line-width': 0.4, 'line-opacity': 0.5 },
+      /**
+       * ═══════════════════════════════════════════════════════════════════════════════════════
+       * LE CONTOUR N'APPARAIT QUE QUAND UNE COMMUNE EST ASSEZ GRANDE POUR ETRE LUE
+       * ═══════════════════════════════════════════════════════════════════════════════════════
+       *
+       * CE QUI A ETE VU, audit 13, sur la capture de la vue nationale — l'ECRAN D'ACCUEIL. Le
+       * contour etait trace a toutes les echelles. A l'echelle du pays, une commune mesure deux a
+       * trois pixels : les 34 875 traits ne dessinent aucune frontiere lisible, ils produisent un
+       * moucheté qui couvre la France entiere et efface le fond. L'image PNG de la capture pesait
+       * 1,6 Mo — du bruit, au sens propre.
+       *
+       * AUCUNE INFORMATION N'EST PERDUE en les masquant de loin : personne ne distingue le
+       * contour d'une commune de trois pixels. Ce qui porte le message a cette echelle est le
+       * REMPLISSAGE, qui reste. Le trait reprend a mesure qu'on descend, la ou il devient ce
+       * qu'il doit etre — la limite entre deux communes que l'on compare.
+       */
+      paint: {
+        'line-color': '#64748b',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.2, 11, 0.6],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 9, 0.5],
+      },
     });
 
     /**
@@ -954,6 +986,47 @@ export function Carte({ referentiel, onCarte }: Props): JSX.Element {
     const source = m.getSource('fond') as maplibregl.RasterTileSource | undefined;
     source?.setTiles([fondViaRelais ? TUILES_RELAIS[fond] : TUILES_IGN[fond]]);
   }, [fond, fondViaRelais, pret]);
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE FOND DE CARTE SUIT LE THEME SOMBRE
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUI A ETE VU, audit 13, sur la capture du theme sombre. Tout l'habillage passe au sombre —
+   * barre, panneaux, fiches — et la carte restait un aplat beige eclatant occupant les deux tiers
+   * de l'ecran. Ce n'est pas qu'une affaire de gout : l'ecart de luminosite fatigue sur une
+   * journee de prospection, et surtout il ECRASE le signal. Les pastilles de score et les
+   * couleurs de commune sont pensees pour ressortir sur un fond neutre ; sur un fond clair et
+   * sature, elles cessent d'etre ce que l'oeil voit en premier.
+   *
+   * POURQUOI EN JAVASCRIPT ET NON EN CSS. Le reste de l'application bascule par `data-theme` et
+   * des variables CSS. MapLibre, lui, peint ses tuiles dans un canevas : un filtre CSS pose sur le
+   * conteneur teindrait aussi les controles, les etiquettes et les couches vectorielles. Les
+   * proprietes `raster-*` ne portent que sur la couche du FOND, ce qui est exactement le
+   * perimetre voulu.
+   *
+   * POURQUOI PAS UN FOND SOMBRE DE L'IGN : la Geoplateforme n'en publie pas pour cette couche.
+   * Assombrir et desaturer le plan clair est le traitement disponible, et il suffit.
+   *
+   * L'ORTHOPHOTO EST TRAITEE PLUS DOUCEMENT que le plan. Une photographie aerienne trop assombrie
+   * devient illisible — on ne distingue plus un batiment d'un bosquet —, alors qu'un plan reste
+   * lisible parce qu'il est fait de traits et d'aplats. Le reglage en tient compte.
+   */
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !pret || !m.getLayer('fond-carte')) return;
+    const photo = fond === 'ortho';
+    const reglages: Record<string, number> = themeSombre
+      ? {
+          'raster-brightness-max': photo ? 0.82 : 0.6,
+          'raster-saturation': photo ? -0.2 : -0.35,
+          'raster-contrast': photo ? 0 : -0.08,
+        }
+      : { 'raster-brightness-max': 1, 'raster-saturation': 0, 'raster-contrast': 0 };
+    for (const [propriete, valeur] of Object.entries(reglages)) {
+      m.setPaintProperty('fond-carte', propriete, valeur);
+    }
+  }, [themeSombre, fond, pret]);
 
   // ------------------------------------------------------------------ filiere
   useEffect(() => {

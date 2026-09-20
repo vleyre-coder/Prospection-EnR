@@ -20,12 +20,69 @@ import { ouvrirListe, seConnecter } from './aides.js';
 const SORTIE = 'captures';
 
 /**
- * Une carte ne devient JAMAIS « networkidle » : elle recharge des tuiles a chaque mouvement, et le
- * relais du fond attend parfois un service externe. Ce fichier ne verifie rien — il produit des images
- * pour une revue humaine — donc une pause fixe y est legitime, la ou elle serait proscrite dans un test.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * ATTENDRE QUE LA CARTE AIT FINI DE SE PEINDRE, et non un delai au juge
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, audit 13. Ce fichier attendait 2 500 ms fixes, au motif — juste — qu'une
+ * carte ne devient jamais « networkidle ». Mais en vue NATIONALE, MapLibre demande une trentaine de
+ * tuiles, chacune relayee en 140 a 370 ms par `/api/carte/fond/`, sur deux connexions : la carte met
+ * environ trois secondes a se peindre. La capture partait avant.
+ *
+ * Le resultat n'etait pas une image imparfaite, c'etait une image FAUSSE : la capture de la vue
+ * nationale montrait une France blanche, sans aucun fond, ou l'on pouvait croire a un relais casse.
+ * Un outil dont le seul role est de donner a REGARDER l'interface, et qui la photographie a moitie
+ * peinte, ne remplit pas son office — et il a fini par faire echouer sa propre suite, une fois sur
+ * deux, pour un depassement de delai qui n'apprenait rien.
+ *
+ * LA REGLE RETENUE : la quiescence du RELAIS, pas celle du reseau. On attend qu'aucune tuile de fond
+ * ne soit revenue depuis `CALME_MS`, ce qui est exactement « la carte a fini de charger ce qu'elle
+ * avait a charger » — et reste vrai quand un service externe est lent, puisque c'est le retour des
+ * reponses qui est observe, pas leur depart.
+ *
+ * IL FAUT AVOIR VU UNE PREMIERE TUILE AVANT DE PARLER DE CALME, et cette ligne est payee par un
+ * second echec, de ma main, une heure apres le premier. Une mesure de quiescence seule confond deux
+ * etats opposes : « plus rien n'arrive parce que tout est charge » et « rien n'est encore arrive ».
+ * Depuis ce poste, l'IGN met environ une seconde par tuile ; la premiere revenait APRES la fenetre
+ * de calme, la boucle sortait aussitot, et la capture montrait une carte entierement vide — plus
+ * fausse encore que celle qu'elle corrigeait. C'est la meme faute que celle traquee dans toute
+ * l'application : une absence prise pour un resultat.
+ *
+ * Le plafond, lui, empeche une attente sans fin quand le relais ne repond jamais : on capture alors
+ * ce qu'il y a, ce qui reste le comportement utile pour un outil de revue.
  */
+const CALME_MS = 1500;
+const PLAFOND_MS = 45_000;
+
 async function laisserPeindre(page: import('@playwright/test').Page): Promise<void> {
-  await page.waitForTimeout(2500);
+  let derniereTuile = 0;
+  let nbTuiles = 0;
+  /*
+   * TOUTES LES TUILES, pas seulement le fond. Premiere version de ce garde : elle n'observait que
+   * `/api/carte/fond/`, le relais raster. Les couches VECTORIELLES — communes, cadastre, parcelles
+   * qualifiees — passent par `/api/carte/tuiles/`, et la capture du theme sombre montrait un
+   * rectangle de fond nu au milieu de la France, la ou la tuile communale n'etait pas encore
+   * arrivee. Un calme mesure sur une seule des deux familles n'est pas un calme.
+   */
+  const surReponse = (r: import('@playwright/test').Response): void => {
+    if (!r.url().includes('/api/carte/')) return;
+    derniereTuile = Date.now();
+    nbTuiles += 1;
+  };
+  page.on('response', surReponse);
+  try {
+    const limite = Date.now() + PLAFOND_MS;
+    while (Date.now() < limite) {
+      await page.waitForTimeout(250);
+      if (nbTuiles > 0 && Date.now() - derniereTuile >= CALME_MS) return;
+    }
+    // Le plafond a ete atteint : on le DIT, sinon une capture vide passerait pour un choix.
+    process.stderr.write(
+      `# capture : plafond de ${PLAFOND_MS} ms atteint avec ${nbTuiles} tuile(s) de fond servie(s)\n`,
+    );
+  } finally {
+    page.off('response', surReponse);
+  }
 }
 
 test.setTimeout(180_000);

@@ -3903,6 +3903,23 @@ const MUTATIONS = [
     tests: ['test/couverture-sans-donnee.test.ts'],
     commande: ['tsx', '--test', '--test-concurrency=1', 'test/couverture-sans-donnee.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LA CARTE CESSE DE SUIVRE LE THEME DU RESTE DE L'ECRAN. Le reglage a trois valeurs, et la
+     * regle est ecrite deux fois : une en CSS, une en TypeScript, parce que MapLibre peint ses
+     * tuiles dans un canevas et que l'assombrissement du fond se regle en JavaScript. La mutation
+     * retire l'exclusion du forcage en clair — `:root:not([data-theme='clair'])` — et la carte
+     * s'assombrit alors sous un habillage clair, sur les seuls postes dont le systeme est sombre.
+     * Rien ne plante, aucun type ne bronche, et le defaut ne se voit que chez la moitie des gens.
+     */
+    quoi: 'la carte s’assombrit sous un habillage clair quand le systeme est sombre',
+    fichier: 'apps/web/src/utils/theme.ts',
+    de: "  if (theme === 'clair') return false;",
+    vers: '  // mutation : le forcage en clair ne protege plus rien',
+    cwd: 'apps/web',
+    tests: ['test/theme-carte.test.ts'],
+  },
 ];
 
 /**
