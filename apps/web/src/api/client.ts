@@ -761,6 +761,18 @@ export interface TableauDeBord {
   surfaceEnNegociationHa: number;
   evolution: Array<{ mois: string; nouveaux: number; securises: number }>;
   repartitionScores: Record<string, number>;
+  /**
+   * Ce qui manque aux parcelles GRISES, trie par le poids que chaque critere represente.
+   *
+   * Optionnel : une instance plus ancienne que l'audit 13 ne rend pas ce champ, et l'interface
+   * doit alors se taire plutot que d'afficher une liste vide, qui se lirait « rien ne manque ».
+   */
+  criteresManquants?: Array<{
+    id: string;
+    libelle: string;
+    partPoidsPct: number;
+    nbParcelles: number;
+  }>;
 }
 
 export interface SiteResume {

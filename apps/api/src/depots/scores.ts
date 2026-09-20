@@ -131,6 +131,68 @@ export async function repartitionStatuts(
   return base;
 }
 
+/** Un critere absent sur les parcelles grises, avec ce qu'il pese. */
+export interface CritereManquant {
+  id: string;
+  libelle: string;
+  /** Part du poids total du profil, en pourcentage. */
+  partPoidsPct: number;
+  /** Nombre de parcelles grises ou ce critere n'est pas renseigne. */
+  nbParcelles: number;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * POURQUOI UNE FILIERE RESTE GRISE — ce que 301 pastilles grises ne disent pas
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, audit 13, sur la base de bout en bout. Le seuil de grisement est de 80 %
+ * de couverture pour les cinq filieres. Apres l'ingestion des postes, quatre filieres le
+ * franchissent — et le BESS plafonne a **78,2 % sur les 301 parcelles**, jamais une de plus. La
+ * filiere entiere ne peut donc rien conclure, a moins de deux points du seuil, et UN SEUL critere
+ * en porte l'essentiel : la capacite residuelle du poste source, 16,4 % du poids.
+ *
+ * RIEN DANS L'APPLICATION NE LE DISAIT. L'operateur voyait 301 pastilles « Donnees manquantes » et
+ * n'avait aucun moyen de savoir laquelle manquait, ni qu'il s'en fallait de si peu. Il a fallu
+ * quatre requetes SQL pour l'etablir — c'est-a-dire que personne ne l'etablira jamais depuis
+ * l'interface.
+ *
+ * CE QUE CETTE FONCTION REND : les criteres non renseignes sur les parcelles GRISES, tries par le
+ * poids qu'ils representent. Elle ne regarde que les grises, a dessein — sur une parcelle deja
+ * conclue, un critere manquant n'empeche rien et l'afficher serait du bruit.
+ */
+export async function criteresManquantsDesGrises(filiere: Filiere): Promise<CritereManquant[]> {
+  const lignes = await requete<{ id: string; libelle: string; poids: string; n: number }>(
+    `WITH grises AS (
+       SELECT detail
+         FROM score_parcelle_filiere
+        WHERE filiere = $1 AND profil_ponderation = $2 AND statut = 'gris'
+     ),
+     criteres AS (
+       SELECT c ->> 'id' AS id,
+              c ->> 'libelle' AS libelle,
+              (c ->> 'poids')::numeric AS poids,
+              c ->> 'note' AS note
+         FROM grises, jsonb_array_elements(grises.detail -> 'criteres') AS c
+     )
+     SELECT id,
+            max(libelle) AS libelle,
+            avg(poids)::text AS poids,
+            count(*)::int AS n
+       FROM criteres
+      WHERE note IS NULL
+      GROUP BY id
+      ORDER BY avg(poids) DESC NULLS LAST, count(*) DESC`,
+    [filiere, PROFIL_DEFAUT],
+  );
+  return lignes.map((l) => ({
+    id: l.id,
+    libelle: l.libelle,
+    partPoidsPct: Math.round(Number(l.poids) * 1000) / 10,
+    nbParcelles: l.n,
+  }));
+}
+
 /**
  * Rafraichit les agregats communaux servant la vue nationale.
  *

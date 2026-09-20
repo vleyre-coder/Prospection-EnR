@@ -93,6 +93,11 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
                 couleur: referentiel.palette.couleursScore[f],
               }))}
             />
+            <CeQuiManque
+              criteres={d.criteresManquants ?? []}
+              nbGrises={d.repartitionScores['gris'] ?? 0}
+              libelleGris={referentiel.palette.libellesScore.gris}
+            />
           </div>
 
           <div className="bloc-graphique">
@@ -119,6 +124,58 @@ export function TableauDeBord({ filiere, referentiel }: Props): JSX.Element {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * CE QUI MANQUE AUX PARCELLES GRISES — et qui les tient sous le seuil
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE CE BLOC REMPLACE : rien. Le tableau de bord annoncait « Données manquantes 301 (100 %) »
+ * et s'arretait la. L'operateur ne savait ni QUOI manquait, ni combien il s'en fallait.
+ *
+ * MESURE SUR LA BASE DE BOUT EN BOUT, audit 13. Le seuil de grisement vaut 80 % de couverture.
+ * Apres l'ingestion des postes, quatre filieres le franchissent — et le BESS plafonne a 78,2 %
+ * sur les 301 parcelles, jamais une de plus. La filiere entiere ne concluait rien a moins de deux
+ * points du seuil, et un seul critere en portait l'essentiel : la capacite residuelle du poste
+ * source, 16,4 % du poids. Il a fallu quatre requetes SQL pour l'etablir, c'est-a-dire que
+ * personne ne l'etablirait jamais depuis l'interface.
+ *
+ * TROIS SEULEMENT, ET LE POIDS. Une liste de quinze criteres ne se lit pas ; ce qui decide, c'est
+ * le poids. Les trois premiers suffisent a dire ou porter l'effort, et le total restant est
+ * rappele plutot que masque.
+ *
+ * LE BLOC SE TAIT QUAND IL N'Y A PAS DE GRISE : un bandeau qui parle toujours ne signale plus rien.
+ */
+function CeQuiManque({
+  criteres,
+  nbGrises,
+  libelleGris,
+}: {
+  criteres: Array<{ id: string; libelle: string; partPoidsPct: number; nbParcelles: number }>;
+  nbGrises: number;
+  libelleGris: string;
+}): JSX.Element | null {
+  if (nbGrises === 0 || criteres.length === 0) return null;
+  const tete = criteres.slice(0, 3);
+  const reste = criteres.length - tete.length;
+  const poidsTete = Math.round(tete.reduce((a, c) => a + c.partPoidsPct, 0) * 10) / 10;
+  return (
+    <p style={{ fontSize: 12, color: 'var(--texte-doux)', margin: '10px 0 0' }}>
+      <strong>Ce qui manque aux {nbGrises} parcelle(s) « {libelleGris} » :</strong>{' '}
+      {tete.map((c, i) => (
+        <span key={c.id}>
+          {i > 0 && ', '}
+          {c.libelle} <span style={{ color: 'var(--texte-faible)' }}>({c.partPoidsPct} % du poids)</span>
+        </span>
+      ))}
+      {reste > 0 && <span> et {reste} autre(s)</span>}.{' '}
+      <span style={{ color: 'var(--texte-faible)' }}>
+        À eux trois, {poidsTete} % du poids du profil. Ingérer la couche correspondante est ce qui
+        fera basculer ces parcelles — pas un changement de pondération.
+      </span>
+    </p>
   );
 }
 

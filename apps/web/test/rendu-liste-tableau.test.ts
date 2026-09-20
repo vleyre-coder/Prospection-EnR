@@ -310,3 +310,62 @@ test('UNE CELLULE « TRACE ESTIME » VIDE DIT POURQUOI ELLE L’EST', () => {
     'l’infobulle doit refuser la lecture « aucun poste a proximite »',
   );
 });
+
+test('LE TABLEAU DE BORD DIT CE QUI MANQUE AUX PARCELLES GRISES', () => {
+  /**
+   * LE DEFAUT MESURE, audit 13. Le seuil de grisement vaut 80 % de couverture. Apres l'ingestion
+   * des postes sources, quatre filieres le franchissent — et le BESS plafonne a 78,2 % sur les
+   * 301 parcelles, jamais une de plus. La filiere entiere ne concluait donc rien a moins de deux
+   * points du seuil, et UN SEUL critere en portait l'essentiel : la capacite residuelle du poste
+   * source, 16,4 % du poids.
+   *
+   * Le tableau de bord annoncait « Données manquantes 301 (100 %) » et s'arretait la. Il a fallu
+   * quatre requetes SQL pour etablir la cause — c'est-a-dire que personne ne l'etablirait jamais
+   * depuis l'interface.
+   */
+  const html = rendreResolu(
+    h(TableauDeBord, { filiere: 'bess', referentiel }),
+    {
+      'tableau-de-bord': {
+        ...tableau,
+        repartitionScores: { vert: 0, orange: 0, rouge: 0, gris: 301, total: 301 },
+        criteresManquants: [
+          { id: 'racc_capacite_residuelle', libelle: 'Capacité résiduelle du poste source', partPoidsPct: 16.4, nbParcelles: 301 },
+          { id: 'racc_quote_part', libelle: 'Quote-part S3REnR', partPoidsPct: 3.3, nbParcelles: 301 },
+          { id: 'fonc_nb_proprietaires', libelle: 'Nombre de propriétaires', partPoidsPct: 2.5, nbParcelles: 301 },
+          { id: 'pat_monuments', libelle: 'Monuments historiques', partPoidsPct: 1.6, nbParcelles: 301 },
+        ],
+      },
+    },
+  );
+  const t = texte(html);
+  assert.match(t, /Ce qui manque/i, `le bloc doit exister — ${t.slice(0, 300)}`);
+  // LE CRITERE DOMINANT EST NOMME : c'est lui qui decide ou porter l'effort.
+  assert.match(t, /Capacité résiduelle du poste source/);
+  // ET SON POIDS : « il manque un critere » n'aide pas a decider, « 16,4 % du poids » si.
+  assert.match(t, /16[,.]4\s*%/, 'la part de poids doit etre chiffree');
+  // Les criteres au-dela des trois premiers sont COMPTES, pas masques.
+  assert.match(t, /1 autre/i, 'le reste doit etre annonce plutot que tu');
+  // Et la conclusion : ce qui fera basculer, c'est la donnee, pas la ponderation.
+  assert.match(t, /pas un changement de pondération/i);
+});
+
+test('SANS PARCELLE GRISE, LE TABLEAU DE BORD NE PARLE PAS DE CE QUI MANQUE', () => {
+  /*
+   * Le contre-exemple : un bloc qui parle toujours ne signale plus rien. Sur un portefeuille
+   * entierement conclu, un critere non renseigne n'empeche rien — l'afficher serait du bruit.
+   */
+  const html = rendreResolu(
+    h(TableauDeBord, { filiere: 'solaire_sol', referentiel }),
+    {
+      'tableau-de-bord': {
+        ...tableau,
+        repartitionScores: { vert: 10, orange: 5, rouge: 2, gris: 0, total: 17 },
+        criteresManquants: [
+          { id: 'pat_monuments', libelle: 'Monuments historiques', partPoidsPct: 1.6, nbParcelles: 0 },
+        ],
+      },
+    },
+  );
+  assert.doesNotMatch(texte(html), /Ce qui manque/i);
+});

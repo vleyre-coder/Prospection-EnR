@@ -224,11 +224,19 @@ export async function routesProspection(app: FastifyInstance): Promise<void> {
     if (!estFiliere(q.filiere)) {
       return erreur(rep, 400, 'filiere_invalide', 'Paramètre `filière` requis et valide');
     }
-    const [prospection, scores] = await Promise.all([
+    const [prospection, scores, manquants] = await Promise.all([
       depot.tableauDeBord(q.filiere),
       depotScores.repartitionStatuts(q.filiere),
+      /*
+       * CE QUI MANQUE AUX PARCELLES GRISES. Sans cela, le tableau de bord annonce « Donnees
+       * manquantes 301 (100 %) » et s'arrete la : l'operateur ne sait ni QUOI manque, ni qu'il
+       * s'en faut parfois de deux points. Mesure sur la base de bout en bout : le BESS plafonne a
+       * 78,2 % de couverture contre un seuil de 80 %, et un seul critere — la capacite residuelle
+       * du poste source — en porte 16,4 %.
+       */
+      depotScores.criteresManquantsDesGrises(q.filiere).catch(() => []),
     ]);
-    return { ...prospection, repartitionScores: scores };
+    return { ...prospection, repartitionScores: scores, criteresManquants: manquants };
   });
 }
 

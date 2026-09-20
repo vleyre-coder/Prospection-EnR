@@ -4039,6 +4039,21 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/rendu-liste-tableau.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE TABLEAU DE BORD REDIT « Donnees manquantes 301 » SANS DIRE LESQUELLES. Mesure : le seuil
+     * de grisement vaut 80 % de couverture ; le BESS plafonne a 78,2 % sur les 301 parcelles, et
+     * un seul critere — la capacite residuelle du poste source — porte 16,4 % du poids. Il a
+     * fallu quatre requetes SQL pour l'etablir : personne ne l'etablirait depuis l'interface.
+     */
+    quoi: 'le tableau de bord cesse de dire ce qui manque aux parcelles grises',
+    fichier: 'apps/web/src/components/TableauDeBord.tsx',
+    de: '  if (nbGrises === 0 || criteres.length === 0) return null;',
+    vers: '  return null;',
+    cwd: 'apps/web',
+    tests: ['test/rendu-liste-tableau.test.ts'],
+  },
 ];
 
 /**
