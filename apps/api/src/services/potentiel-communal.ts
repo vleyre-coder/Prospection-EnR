@@ -60,26 +60,80 @@ export interface ResultatPotentiel extends Record<string, unknown> {
  * la limite qui compte, puisque c'est la qu'on cherchera du foncier. `<->` sur la geometrie sert
  * l'index, et `ST_Distance` en geographie donne les metres.
  */
-async function grandeursCommunales(): Promise<LigneCommune[]> {
+/**
+ * Exportee pour son garde : `potentiel-communal-distance.test.ts` verifie les trois proprietes que
+ * la reecriture de l'audit 13 aurait pu perdre — le plus proche, le departage deterministe, et le
+ * `null` d'un departement non couvert. Aucune mesure de duree ne les aurait vues.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UNE COMMUNE DONT LE DEPARTEMENT N'EST PAS INGERE N'EST PAS MESUREE — audit 13
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * SANS CE FILTRE, la requete rendait pour elle la distance au poste le plus proche PARMI LES
+ * DEPARTEMENTS COUVERTS, ou qu'il soit. Mesure sur le territoire d'essai : 173 km. La commune
+ * etait alors peinte en rouge sur la carte nationale — « loin du reseau » — alors que son poste
+ * reel est peut-etre a deux kilometres et simplement pas encore ingere.
+ *
+ * C'est le defaut A3 de l'audit 9, corrige pour les PARCELLES et reste ouvert pour les communes :
+ * un faux rouge par trou dans la donnee, qui se lit comme une mesure. Et il ne se voit qu'en
+ * couverture PARTIELLE — c'est-a-dire pendant tout un deploiement progressif, jamais sur une base
+ * complete comme celle qui sert aux essais.
+ *
+ * `NULL` est la reponse juste : l'appelant en fait une commune GRISE, qui dit « on n'a pas regarde
+ * ici ». Le cas residuel — un departement couvert dont le VOISIN ne l'est pas — rend une distance
+ * pessimiste et non optimiste : on manque un poste plus proche, on n'en invente aucun. C'est
+ * `disqueEntierementCouvert` qui le ferme pour les parcelles, au prix d'un controle par point que
+ * 34 875 communes ne supporteraient pas.
+ */
+export async function grandeursCommunales(): Promise<LigneCommune[]> {
   return requete<LigneCommune>(
+    /*
+     * ═══════════════════════════════════════════════════════════════════════════════════════════
+     * LE PLUS PROCHE POSTE, PAR L'INDEX — et non par un balayage complet a chaque commune
+     * ═══════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * CE QUI A ETE MESURE, audit 13. Cette requete demandait **436 secondes**, et le journal la
+     * signalait lui-meme comme lente a chaque execution. La cause tient en une ligne : les postes
+     * etaient rassembles dans une CTE, et une CTE est MATERIALISEE — le resultat temporaire ne
+     * porte aucun index. L'operateur `<->` ne pouvait donc pas s'appuyer sur `idx_poste_geom`, et
+     * le plan rendait, POUR CHACUNE des 34 875 communes, un balayage complet des 5 928 postes
+     * suivi d'un tri. Cout estime par le planificateur : 140 184 345.
+     *
+     * LA REECRITURE interroge `poste_source` directement, ce qui rend l'index KNN utilisable :
+     * `Index Scan using idx_poste_geom ... Order By: (geom <-> c.geom)`. Cout estime : 1 362 765,
+     * soit cent fois moins.
+     *
+     * POURQUOI DEUX ETAGES, et non un seul. L'index KNN ne sait trier que par la DISTANCE. Or le
+     * departage par identifiant reste indispensable : deux postes exactement equidistants existent
+     * — des postes jumeles sur un meme site —, la distance retenue serait la meme, mais un tri sans
+     * ordre total est une troncature au hasard, que le garde `pagination-stable` refuse a juste
+     * titre. L'etage interne prend donc les huit plus proches PAR L'INDEX, et l'etage externe les
+     * re-trie par (distance, identifiant). Huit est large : il faudrait neuf postes exactement
+     * equidistants d'une meme commune pour que l'ordre total redevienne partiel.
+     *
+     * VERIFIE AVANT D'ETRE APPLIQUE : les deux formulations rendent la meme distance sur les 400
+     * premieres communes, a la troisieme decimale, sans un seul ecart.
+     */
     `WITH deps_couverts AS (
        SELECT DISTINCT code_departement
          FROM couverture_ingestion
         WHERE type = $1
-     ),
-     postes AS (
-       -- L'identifiant voyage avec la geometrie : il sert d'ordre de secours ci-dessous.
-       SELECT p.id, p.geom
-         FROM poste_source p
-         JOIN deps_couverts d ON d.code_departement = p.code_departement
      )
      SELECT c.code_insee,
-            (SELECT round((ST_Distance(c.geom::geography, q.geom::geography) / 1000.0)::numeric, 3)
-               -- Departage par identifiant : deux postes exactement equidistants existent (postes
-               -- jumeles sur un meme site). La distance retenue serait la meme, mais un tri sans
-               -- ordre total est une troncature au hasard, et le garde pagination-stable la refuse
-               -- a juste titre — c'est ce genre d'oubli qui rend un resultat non reproductible.
-               FROM postes q ORDER BY c.geom <-> q.geom, q.id LIMIT 1) AS distance_poste_km,
+            -- Voir le commentaire de cette fonction : une commune hors couverture n'est pas mesuree,
+            -- mais elle RESTE dans le releve. L'ecarter laisserait sa ligne precedente en place,
+            -- donc une couleur perimee sur la carte nationale — l'inverse du but recherche.
+            CASE WHEN c.code_departement NOT IN (SELECT code_departement FROM deps_couverts)
+                 THEN NULL
+                 ELSE (SELECT round((ST_Distance(c.geom::geography, q2.geom::geography) / 1000.0)::numeric, 3)
+                         FROM (SELECT q.id, q.geom
+                                 FROM poste_source q
+                                WHERE q.code_departement IN (SELECT code_departement FROM deps_couverts)
+                                ORDER BY c.geom <-> q.geom
+                                LIMIT 8) q2
+                        ORDER BY c.geom <-> q2.geom, q2.id
+                        LIMIT 1)
+            END AS distance_poste_km,
             CASE WHEN c.population IS NULL OR c.surface_ha IS NULL OR c.surface_ha <= 0 THEN NULL
                  ELSE round((c.population / c.surface_ha * 100)::numeric, 2) END AS densite_hab_km2
        FROM commune c

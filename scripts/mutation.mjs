@@ -4107,6 +4107,24 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/revue-couvre-les-vues.test.ts'],
   },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * UNE COMMUNE HORS COUVERTURE REDEVIENT MESUREE PAR UN POSTE LOINTAIN. Mesure sur le
+     * territoire d'essai : 173 km, la distance d'un poste breton pour une commune fictive placee
+     * en pleine mer. Elle serait peinte en ROUGE sur la carte nationale — « loin du reseau » —
+     * alors que personne n'a regarde chez elle et que son poste reel est peut-etre a deux
+     * kilometres. C'est le defaut A3 de l'audit 9, corrige pour les parcelles et reste ouvert pour
+     * les communes ; il ne se voit qu'en couverture PARTIELLE, donc pendant tout un deploiement.
+     */
+    quoi: 'une commune hors couverture redevient mesuree par un poste lointain',
+    fichier: 'apps/api/src/services/potentiel-communal.ts',
+    de: '            CASE WHEN c.code_departement NOT IN (SELECT code_departement FROM deps_couverts)',
+    vers: '            CASE WHEN false',
+    cwd: 'apps/api',
+    tests: ['test/potentiel-communal-distance.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/potentiel-communal-distance.test.ts'],
+  },
 ];
 
 /**

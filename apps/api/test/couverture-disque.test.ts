@@ -67,6 +67,32 @@ async function posteA(metres: number, suffixe: string): Promise<void> {
   );
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * NE COMPTER QUE SES PROPRES POSTES — ce fichier affirmait une isolation qu'il n'avait pas
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, audit 13. L'en-tete promet que ces tests « ne lisent ni n'ecrivent aucune
+ * donnee reelle ». C'est vrai de ce qu'ils ECRIVENT — territoire fictif, departements 98 et 99 —
+ * mais faux de ce qu'ils LISENT : les assertions portaient sur des comptes ABSOLUS, « exactement
+ * un poste rendu ». Cela ne tient que sur une base ou `poste_source` est vide.
+ *
+ * Des que les postes reels ont ete ingeres — 5 928 postes, 101 departements couverts —, trois de
+ * ces tests ont vire au rouge en rendant 4 la ou ils attendaient 1. Ils ne mesuraient plus la
+ * propriete qu'ils nomment, mais l'etat d'une base : exactement le defaut que `communes-fictives`
+ * documente a propos de la cle etrangere, et qui rendait « 23 echecs sur une base neuve, zero sur
+ * une base deja utilisee ».
+ *
+ * Les assertions portent desormais sur les postes que CE fichier a poses. La propriete testee est
+ * inchangee — un poste couvert est rendu, un poste hors couverture ne l'est pas — et elle cesse de
+ * dependre de ce que la base contient par ailleurs.
+ */
+const NOM_TEST = 'Poste de test ';
+
+function miens<T extends { nom: string }>(postes: readonly T[]): T[] {
+  return postes.filter((p) => p.nom.startsWith(NOM_TEST));
+}
+
 async function supprimerPostes(): Promise<void> {
   await requete(`DELETE FROM poste_source WHERE id LIKE $1`, [`${PREFIXE_TEST}%`]);
 }
@@ -165,10 +191,13 @@ test('un poste proche dans un departement couvert est rendu', async () => {
   await declarer(DEP_LOCAL);
   await posteA(1500, 'proche');
   const postes = (await postesLesPlusProches(PT, 4)).postes;
-  assert.equal(postes.length, 1, 'le poste declare et couvert doit etre rendu');
+  const aMoi = miens(postes);
+  assert.equal(aMoi.length, 1, 'le poste declare et couvert doit etre rendu');
+  // Et il doit venir EN TETE : le classement par distance est la raison d'etre de la fonction.
+  assert.ok(postes[0]!.nom.startsWith(NOM_TEST), 'le poste a 1,5 km doit etre le plus proche');
   assert.ok(
-    postes[0]!.distanceKm > 1.4 && postes[0]!.distanceKm < 1.6,
-    `distance attendue ~1,5 km, obtenue ${postes[0]!.distanceKm}`,
+    aMoi[0]!.distanceKm > 1.4 && aMoi[0]!.distanceKm < 1.6,
+    `distance attendue ~1,5 km, obtenue ${aMoi[0]!.distanceKm}`,
   );
 });
 
@@ -182,7 +211,7 @@ test('LE CAS DU FAUX ROUGE : un poste lointain hors des departements ingeres n e
   // raccordement virait la parcelle au rouge sur une donnee absente.
   await posteA(30000, 'lointain');
   assert.deepEqual(
-    (await postesLesPlusProches(PT, 4)).postes,
+    miens((await postesLesPlusProches(PT, 4)).postes),
     [],
     'une distance mesuree sur un disque partiellement ingere ne doit pas etre rendue',
   );
@@ -190,7 +219,7 @@ test('LE CAS DU FAUX ROUGE : un poste lointain hors des departements ingeres n e
   // Et la meme distance redevient exploitable des que tout le disque est declare : le mecanisme
   // n'est pas un refus des grandes distances, mais un controle de la donnee.
   await declarer(DEP_VOISIN);
-  const apres = (await postesLesPlusProches(PT, 4)).postes;
+  const apres = miens((await postesLesPlusProches(PT, 4)).postes);
   assert.equal(apres.length, 1, 'disque entierement couvert : la distance est une mesure');
   assert.ok(
     apres[0]!.distanceKm > 29 && apres[0]!.distanceKm < 31,
@@ -205,7 +234,7 @@ test('un poste dans un departement non couvert reste invisible meme proche', asy
   // Aucun departement declare : meme un poste a 1,5 km ne suffit pas, car on ne sait pas si la
   // couche a ete ingeree ici. C'est la difference entre « pas de poste » et « pas regarde ».
   await posteA(1500, 'proche');
-  assert.deepEqual((await postesLesPlusProches(PT, 4)).postes, []);
+  assert.deepEqual(miens((await postesLesPlusProches(PT, 4)).postes), []);
 });
 
 /**
@@ -236,6 +265,6 @@ test('une couverture a comptage nul vaut « regarde », pas « inconnu »', asyn
 
   // Et la distance mesuree redevient exploitable, alors qu'elle traverse ce departement.
   await posteA(1500, 'proche');
-  const postes = (await postesLesPlusProches(PT, 4)).postes;
+  const postes = miens((await postesLesPlusProches(PT, 4)).postes);
   assert.equal(postes.length, 1, 'la distance doit etre rendue');
 });

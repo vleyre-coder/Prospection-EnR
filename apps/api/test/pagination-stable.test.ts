@@ -214,6 +214,40 @@ test('tout tri suivi d une troncature finit par une colonne unique', async () =>
   /** Colonnes uniques du schema, seules admises comme dernier terme de tri. */
   const UNIQUES = ['id', 'idu', 'identifiant_source', 'code_insee', 'nom'];
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LES SEULS TRIS TRONQUES SANS ORDRE TOTAL QUI SOIENT SURS, avec la demonstration
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * La regle de ce garde repose sur une hypothese : une troncature peut ECARTER une ligne, et le
+   * resultat depend alors de laquelle. Elle est juste partout — sauf quand la valeur projetee est
+   * une fonction de la SEULE clef de tri, auquel cas toutes les lignes ex aequo portent la meme
+   * valeur et en ecarter une ne change rien.
+   *
+   * C'est le cas du plus proche poste, dans `potentiel-communal.ts`. L'etage interne garde les huit
+   * plus proches PAR L'INDEX KNN — `ORDER BY c.geom <-> q.geom LIMIT 8` —, et ce qui est rendu est
+   * la DISTANCE MINIMALE parmi eux. Deux postes exactement equidistants portent la meme distance :
+   * l'ordre dans lequel la troncature les rencontre est sans effet sur le nombre rendu. L'etage
+   * externe re-trie ensuite par (distance, identifiant), ce que la regle exige.
+   *
+   * POURQUOI NE PAS SIMPLEMENT AJOUTER `q.id` A L'ETAGE INTERNE : un `ORDER BY` a deux clefs ne
+   * peut pas etre servi par l'index KNN de PostGIS. La requete repasserait a un balayage complet
+   * des 5 928 postes pour chacune des 34 875 communes — mesure avant correction : 436 secondes,
+   * contre 13 apres. L'exception achete donc un facteur trente-trois, et elle est demontree.
+   *
+   * L'EXCEPTION PORTE SUR UN TRI PRECIS, pas sur un fichier : un autre tri tronque du meme module
+   * reste soumis a la regle.
+   */
+  const DEMONTRES: ReadonlyArray<{ tri: string; raison: string }> = [
+    {
+      tri: 'ORDER BY c.geom <-> q.geom',
+      raison:
+        'etage interne du plus proche poste : la valeur rendue est la distance MINIMALE, donc une ' +
+        'fonction de la seule clef de tri — deux ex aequo portent la meme, et en ecarter un ne ' +
+        "change pas le resultat. L'etage externe re-trie par (distance, identifiant).",
+    },
+  ];
+
   function fichiers(dir: string): string[] {
     return readdirSync(dir).flatMap((e) => {
       const p = join(dir, e);
@@ -253,7 +287,7 @@ test('tout tri suivi d une troncature finit par une colonne unique', async () =>
       if (termes.includes('${')) continue;
       const dernier = termes.split(',').pop()?.trim().split(/\s+/)[0] ?? '';
       const colonne = dernier.replace(/^[a-z]+\./i, '').toLowerCase();
-      if (!UNIQUES.includes(colonne)) {
+      if (!UNIQUES.includes(colonne) && !DEMONTRES.some((d) => d.tri === `ORDER BY ${termes}`)) {
         manquants.push(`${f} : ORDER BY ${termes}`);
       }
     }
@@ -263,6 +297,26 @@ test('tout tri suivi d une troncature finit par une colonne unique', async () =>
     manquants,
     [],
     'ces tris sont tronques sans ordre total : les ex aequo ecartes par la troncature changent ' +
-      `d'un plan a l'autre.\n  ${manquants.join('\n  ')}`,
+      `d'un plan a l'autre.\n  ${manquants.join('\n  ')}\n` +
+      "Si le tri est sur, ajoutez-le a DEMONTRES avec sa demonstration — pas avant de l'avoir faite.",
   );
+
+  /*
+   * CHAQUE EXCEPTION DOIT COUVRIR UN TRI QUI EXISTE ENCORE. Une liste d'exceptions qui ne se vide
+   * jamais finit par autoriser n'importe quoi — c'est la discipline des gardes d'orthographe, et
+   * elle vaut ici davantage : une exception morte laisserait passer un tri homonyme ecrit plus
+   * tard, dans un contexte ou la demonstration ne tient plus.
+   */
+  const tousLesTris = [...fichiers(racine), ...fichiers(migrations)].flatMap((f) => {
+    const source = readFileSync(f, 'utf8');
+    const litteraux = f.endsWith('.sql') ? [source] : (source.match(/`[^`]*`/g) ?? []);
+    return litteraux.flatMap((l) => [...l.matchAll(/\bORDER BY\b([^\n]*)/gi)].map((m) => `ORDER BY ${m[1]!.trim().replace(/\s+/g, ' ')}`));
+  });
+  for (const d of DEMONTRES) {
+    assert.ok(
+      tousLesTris.some((t) => t.startsWith(d.tri)),
+      `l'exception « ${d.tri} » ne couvre plus aucun tri : retirez-la.`,
+    );
+    assert.ok(d.raison.length > 80, `demonstration trop courte pour « ${d.tri} »`);
+  }
 });

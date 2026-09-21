@@ -120,9 +120,17 @@ test('LE SCENARIO DE MISE A NIVEAU : un poste ingere sans couverture redevient e
     [`${PREFIXE}historique`, PT[0] + versEst(1500), PT[1]],
   );
 
-  // 2. Le comportement introduit par l'audit 9 sans reprise : la distance n'est pas rendue.
+  /*
+   * 2. Le comportement introduit par l'audit 9 sans reprise : la distance n'est pas rendue.
+   *
+   * L'ASSERTION PORTE SUR LE POSTE DE CE TEST, et non sur un ensemble vide. Elle exigeait
+   * auparavant que `postesLesPlusProches` ne rende RIEN — ce qui n'est vrai que sur une base ou
+   * `poste_source` est vide. Des que les postes reels ont ete ingeres — 5 928 postes, 101
+   * departements couverts —, ce test a vire au rouge sans qu'aucune propriete n'ait change. Il
+   * mesurait l'etat de la base, pas le comportement qu'il nomme.
+   */
   assert.deepEqual(
-    (await postesLesPlusProches(PT, 4)).postes,
+    (await postesLesPlusProches(PT, 4)).postes.filter((p) => p.nom === 'Poste historique'),
     [],
     "sans couverture, la distance n'est pas une mesure — c'est le comportement de l'audit 9",
   );
@@ -143,7 +151,8 @@ test('LE SCENARIO DE MISE A NIVEAU : un poste ingere sans couverture redevient e
   );
 
   // 5. Et la distance redevient une mesure, sans qu'aucune ingestion n'ait ete relancee.
-  const postes = (await postesLesPlusProches(PT, 4)).postes;
+  // Meme raison qu'au point 2 : on compte le poste de CE test, pas ceux de la base.
+  const postes = (await postesLesPlusProches(PT, 4)).postes.filter((p) => p.nom === 'Poste historique');
   assert.equal(postes.length, 1, 'apres reprise, le poste doit etre rendu');
   assert.ok(
     postes[0]!.distanceKm > 1.4 && postes[0]!.distanceKm < 1.6,
