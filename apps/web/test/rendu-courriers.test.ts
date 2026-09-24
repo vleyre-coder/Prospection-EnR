@@ -44,7 +44,14 @@ test('AUCUNE DONNEE PERSONNELLE N’EST CONSERVEE SUR LE POSTE', () => {
    * seulement relue : un champ ajoute par commodite — « on garde aussi l'adresse, c'est plus
    * pratique » — doit faire echouer un test, pas passer une relecture.
    */
-  const interdits = ['destinataire', 'adresse'];
+  /*
+   * LA LISTE S'EST VIDEE DE SES QUATRE CHAMPS D'EXPEDITEUR, et l'interdit s'est elargi d'autant.
+   * Raison sociale, signataire, qualite et coordonnees de rappel etaient conserves sur le poste ;
+   * ils ne le sont plus, parce que le courrier ne les porte plus — la messagerie professionnelle
+   * s'en charge. Les reinscrire serait une regression de confidentialite gratuite : ce sont des
+   * donnees d'identification, meme si elles designent l'operateur et non un tiers.
+   */
+  const interdits = ['destinataire', 'adresse', 'expediteur', 'signataire', 'qualite', 'coordonnees'];
   for (const champ of interdits) {
     assert.ok(
       !(CHAMPS_MEMORISES as readonly string[]).includes(champ),
@@ -55,11 +62,12 @@ test('AUCUNE DONNEE PERSONNELLE N’EST CONSERVEE SUR LE POSTE', () => {
   // Et le filtre tient a la LECTURE aussi : un enregistrement laisse par une version anterieure
   // reviendrait sinon indefiniment, puisque personne ne relit un `localStorage`.
   const pollue = filtrerMemorisables({
+    projet: 'photovoltaïque au sol',
     expediteur: 'Dimeo Énergie',
     destinataire: 'Madame Dupont',
     adresse: '3 rue des Tilleuls, 28399 Tillay-le-Péneux',
   });
-  assert.deepEqual(pollue, { expediteur: 'Dimeo Énergie' });
+  assert.deepEqual(pollue, { projet: 'photovoltaïque au sol' });
 });
 
 test('UN COURRIER TROP LONG N’EST PAS OFFERT AU LIEN DE MESSAGERIE', () => {
@@ -87,9 +95,26 @@ test('LE FORMULAIRE DE DEMANDE D’IDENTITE NE RECLAME PAS L’IDENTITE', () => 
 
   assert.match(lu, /Demande d’identité/, 'les deux courriers doivent etre proposes');
   assert.match(lu, /Premier contact/);
-  assert.match(lu, /Raison sociale de l’expéditeur/, 'le bloc de signature est toujours demande');
+  // La nature du PROJET reste demandee : sans elle, la premiere phrase du corps reste un trou.
+  assert.match(lu, /Nature du projet/, 'la nature du projet est necessaire au corps du courrier');
   assert.doesNotMatch(lu, /Destinataire/, 'pas de destinataire sur la demande d’identité');
   assert.doesNotMatch(lu, /Adresse du destinataire/);
+
+  /*
+   * ET PLUS AUCUN CHAMP D'EXPEDITEUR. Ils partaient dans la messagerie professionnelle de
+   * l'operateur, qui pose deja l'expediteur en en-tete et la signature dans le corps : les
+   * redemander faisait saisir deux fois la meme chose, et le courrier colle dans un courriel
+   * affichait la signature EN DOUBLE. Le garde couvre les quatre, un par un — en retirer un seul
+   * de l'interface sans retirer les autres laisserait un formulaire a moitie vide.
+   */
+  for (const champ of [
+    /Raison sociale de l’expéditeur/,
+    /Signataire/,
+    /Qualité du signataire/,
+    /Coordonnées de rappel/,
+  ]) {
+    assert.doesNotMatch(lu, champ, `« ${champ.source} » ne doit plus etre demande a l’ecran`);
+  }
 
   // Et l'ecran dit pourquoi le fondement reste vide, sans quoi l'operateur le croit oublie.
   assert.match(lu, /fondement de la demande est laissé à compléter/i);

@@ -24,7 +24,7 @@
 import { useState } from 'react';
 import { api, ErreurApi, type ContexteCourrier, type CourrierPrepare, type TypeCourrier } from '../api/client.js';
 
-/** Clef du bloc de signature sur le poste. Ne contient que des données de l'expéditeur. */
+/** Clef du bloc mémorisé sur le poste. Ne contient aucune donnée personnelle. */
 const CLEF_SIGNATURE = 'enr.courrier.signature';
 
 /**
@@ -35,9 +35,16 @@ const CLEF_SIGNATURE = 'enr.courrier.signature';
  * des données personnelles, et les conserver ici les ferait sortir du dispositif de journalisation
  * tenu par l'API.
  */
-export const CHAMPS_MEMORISES = ['expediteur', 'signataire', 'qualite', 'coordonnees', 'projet'] as const;
+/*
+ * LA LISTE S'EST VIDÉE DE SES QUATRE CHAMPS D'EXPÉDITEUR, et c'est un gain de confidentialité
+ * autant que d'ergonomie. Raison sociale, signataire, qualité et coordonnées de rappel étaient
+ * conservés sur le poste ; ils ne le sont plus, parce que le courrier ne les porte plus — la
+ * messagerie professionnelle s'en charge. Ne reste que la nature du projet, qui ne désigne
+ * personne.
+ */
+export const CHAMPS_MEMORISES = ['projet'] as const;
 
-/** Les champs mémorisables : ceux de l'expéditeur, et eux seuls. */
+/** Les champs mémorisables. Ni destinataire ni adresse : ce sont des données personnelles. */
 export type Signature = Pick<ContexteCourrier, (typeof CHAMPS_MEMORISES)[number]>;
 
 function signatureMemorisee(): Signature {
@@ -248,14 +255,6 @@ export function BlocCourriers({ idu }: { idu: string }): JSX.Element {
         </p>
 
         <div className="champ">
-          <label htmlFor="courrier-expediteur">Raison sociale de l’expéditeur</label>
-          <input
-            id="courrier-expediteur"
-            value={signature.expediteur ?? ''}
-            onChange={(e) => majSignature('expediteur', e.target.value)}
-          />
-        </div>
-        <div className="champ">
           <label htmlFor="courrier-projet">Nature du projet</label>
           <input
             id="courrier-projet"
@@ -264,33 +263,12 @@ export function BlocCourriers({ idu }: { idu: string }): JSX.Element {
             onChange={(e) => majSignature('projet', e.target.value)}
           />
         </div>
-        <div className="champ">
-          <label htmlFor="courrier-signataire">Signataire</label>
-          <input
-            id="courrier-signataire"
-            value={signature.signataire ?? ''}
-            onChange={(e) => majSignature('signataire', e.target.value)}
-          />
-        </div>
-        <div className="champ">
-          <label htmlFor="courrier-qualite">Qualité du signataire</label>
-          <input
-            id="courrier-qualite"
-            value={signature.qualite ?? ''}
-            placeholder="chargé de développement foncier"
-            onChange={(e) => majSignature('qualite', e.target.value)}
-          />
-        </div>
-        <div className="champ">
-          <label htmlFor="courrier-coordonnees">Coordonnées de rappel</label>
-          <input
-            id="courrier-coordonnees"
-            value={signature.coordonnees ?? ''}
-            placeholder="téléphone — courriel"
-            onChange={(e) => majSignature('coordonnees', e.target.value)}
-          />
-        </div>
-
+        {/*
+          NI SIGNATAIRE NI COORDONNÉES : la messagerie professionnelle porte déjà l'expéditeur en
+          en-tête et la signature dans le corps. Les redemander ici faisait saisir deux fois la
+          même chose, et produisait un courrier qui, collé dans un courriel, affichait la signature
+          en double.
+        */}
         {type === 'proprietaire' && (
           <ChampsDestinataire
             destinataire={destinataire}

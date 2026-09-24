@@ -38,14 +38,10 @@ export type TypeCourrier = (typeof TYPES_COURRIER)[number];
  * qu'il manque une ligne d'adresse ne l'est pas.
  */
 export interface ContexteCourrier {
-  /** Raison sociale de l'expediteur, telle qu'elle doit apparaitre. */
-  expediteur?: string | null;
+
   /** Nom de la personne qui signe. */
-  signataire?: string | null;
-  /** Qualite du signataire (« chargé de développement foncier »). */
-  qualite?: string | null;
+
   /** Coordonnees de rappel : telephone, courriel. */
-  coordonnees?: string | null;
   /** Nom du projet ou du developpeur, quand l'operateur travaille pour un tiers. */
   projet?: string | null;
   /**
@@ -100,28 +96,25 @@ function designation(p: ParcelleEnBase): string {
   );
 }
 
-/** Bloc de signature, avec ses trous nommes. */
-function signature(ctx: ContexteCourrier, aCompleter: string[]): string {
-  const signataire = ctx.signataire?.trim();
-  const qualite = ctx.qualite?.trim();
-  const coordonnees = ctx.coordonnees?.trim();
-  if (!signataire) aCompleter.push('le nom du signataire');
-  if (!qualite) aCompleter.push('la qualité du signataire');
-  if (!coordonnees) aCompleter.push('les coordonnées de rappel');
-  return [
-    signataire ?? trou('nom du signataire'),
-    qualite ?? trou('qualité du signataire'),
-    coordonnees ?? trou('téléphone et courriel'),
-  ].join('\n');
-}
-
-/** En-tete expediteur. */
-function entete(ctx: ContexteCourrier, aCompleter: string[]): string {
-  const expediteur = ctx.expediteur?.trim();
-  if (!expediteur) aCompleter.push('la raison sociale de l’expéditeur');
-  return expediteur ?? trou('raison sociale de l’expéditeur');
-}
-
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * NI EN-TETE NI BLOC DE SIGNATURE — le client de messagerie s'en charge
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE RETIRE, et pourquoi. Ces courriers portaient une raison sociale en tete et un bloc
+ * signataire / qualite / coordonnees en pied, saisis dans l'interface et memorises sur le poste.
+ * Quatre champs a remplir avant d'obtenir la moindre ligne, et quatre trous a combler quand ils
+ * restaient vides.
+ *
+ * Or ces courriers partent par la messagerie professionnelle de l'operateur, qui pose deja
+ * l'expediteur dans l'en-tete du message et la signature dans le corps. Les redemander revenait a
+ * faire saisir deux fois la meme chose, et a produire un document qui, colle dans un courriel,
+ * affichait la signature EN DOUBLE.
+ *
+ * CE QUI RESTE : la nature du projet, qui n'est pas une donnee de l'expediteur mais du PROJET, et
+ * sans laquelle le corps du courrier ne peut rien dire — « l'étude d'un projet … » resterait un
+ * trou au milieu de la premiere phrase.
+ */
 /**
  * Courrier 1 — DEMANDE D'IDENTITE DU PROPRIETAIRE.
  *
@@ -136,15 +129,12 @@ function entete(ctx: ContexteCourrier, aCompleter: string[]): string {
  */
 export function courrierSdif(p: ParcelleEnBase, ctx: ContexteCourrier = {}): Courrier {
   const aCompleter: string[] = [];
-  const expediteur = entete(ctx, aCompleter);
   const projet = ctx.projet?.trim();
   if (!projet) aCompleter.push('la nature du projet envisagé');
   aCompleter.push('l’adresse du service destinataire');
   aCompleter.push('le fondement de la demande, à vérifier auprès du service saisi');
 
   const corps = [
-    expediteur,
-    '',
     trou('adresse du service de la publicité foncière ou de la mairie'),
     '',
     `Objet : demande de communication de l’identité du propriétaire d’une parcelle cadastrale`,
@@ -164,8 +154,6 @@ export function courrierSdif(p: ParcelleEnBase, ctx: ContexteCourrier = {}): Cou
     'Nous nous tenons à votre disposition pour tout justificatif complémentaire.',
     '',
     'Je vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.',
-    '',
-    signature(ctx, aCompleter),
   ].join('\n');
 
   return {
@@ -187,7 +175,6 @@ export function courrierSdif(p: ParcelleEnBase, ctx: ContexteCourrier = {}): Cou
  */
 export function courrierProprietaire(p: ParcelleEnBase, ctx: ContexteCourrier = {}): Courrier {
   const aCompleter: string[] = [];
-  const expediteur = entete(ctx, aCompleter);
   const destinataire = ctx.destinataire?.trim();
   const adresse = ctx.adresse?.trim();
   const projet = ctx.projet?.trim();
@@ -196,8 +183,6 @@ export function courrierProprietaire(p: ParcelleEnBase, ctx: ContexteCourrier = 
   if (!projet) aCompleter.push('la nature du projet envisagé');
 
   const corps = [
-    expediteur,
-    '',
     destinataire ?? trou('nom du destinataire'),
     adresse ?? trou('adresse du destinataire'),
     '',
@@ -218,8 +203,6 @@ export function courrierProprietaire(p: ParcelleEnBase, ctx: ContexteCourrier = 
       'pouvez nous joindre aux coordonnées ci-dessous. Nous nous déplaçons volontiers.',
     '',
     'Je vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.',
-    '',
-    signature(ctx, aCompleter),
   ].join('\n');
 
   return {

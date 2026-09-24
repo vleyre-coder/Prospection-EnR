@@ -115,19 +115,42 @@ test('LES TROUS SONT VISIBLES, ET NOMMES', () => {
   }
 
   // Et un courrier complet n'en laisse plus sur les champs fournis.
-  const rempli = courrierSdif(PARCELLE, {
-    expediteur: 'Dimeo Énergie',
-    signataire: 'Jean Dupont',
-    qualite: 'chargé de développement foncier',
-    coordonnees: '02 37 00 00 00 — contact@example.fr',
-    projet: 'photovoltaïque au sol',
-  });
-  assert.match(rempli.corps, /Dimeo Énergie/);
-  assert.match(rempli.corps, /chargé de développement foncier/);
+  const rempli = courrierSdif(PARCELLE, { projet: 'photovoltaïque au sol' });
+  assert.match(rempli.corps, /photovoltaïque au sol/);
   assert.ok(
-    !rempli.aCompleter.some((x) => /signataire|expéditeur|projet/i.test(x)),
+    !rempli.aCompleter.some((x) => /projet/i.test(x)),
     `il reste des trous couverts par la saisie : ${rempli.aCompleter.join(', ')}`,
   );
+});
+
+test('LE COURRIER NE PORTE NI EN-TETE EXPEDITEUR NI BLOC DE SIGNATURE', () => {
+  /**
+   * CE QUI A ETE RETIRE, ET POURQUOI. Ces courriers portaient une raison sociale en tete et un
+   * bloc signataire / qualite / coordonnees en pied — quatre champs a saisir avant d'obtenir la
+   * moindre ligne, et quatre trous a combler quand ils restaient vides.
+   *
+   * Or ils partent par la messagerie professionnelle de l'operateur, qui pose deja l'expediteur
+   * dans l'en-tete du message et la signature dans le corps. Les redemander faisait saisir deux
+   * fois la meme chose, et produisait un document qui, colle dans un courriel, affichait la
+   * signature EN DOUBLE.
+   *
+   * Le garde verifie les deux sens : plus aucun trou ne les reclame, et le corps ne se termine
+   * plus par un bloc de coordonnees.
+   */
+  for (const courrier of [courrierSdif(PARCELLE), courrierProprietaire(PARCELLE)]) {
+    assert.ok(
+      !courrier.aCompleter.some((x) => /signataire|expéditeur|coordonnées|qualité/i.test(x)),
+      `un trou reclame encore une donnee de l'expediteur : ${courrier.aCompleter.join(', ')}`,
+    );
+    assert.doesNotMatch(
+      courrier.corps,
+      /\[(NOM DU SIGNATAIRE|QUALITÉ DU SIGNATAIRE|TÉLÉPHONE ET COURRIEL|RAISON SOCIALE[^\]]*)\]/,
+      'le corps porte encore un trou d’expediteur',
+    );
+    // La formule de politesse doit rester la DERNIERE ligne : sans le bloc de signature, c'est
+    // elle qui ferme le courrier, et un saut de ligne orphelin se verrait a l'impression.
+    assert.match(courrier.corps.trimEnd(), /salutations distinguées\.$/);
+  }
 });
 
 test('LE .EML S’OUVRE ET SE DECODE SANS MOJIBAKE', () => {

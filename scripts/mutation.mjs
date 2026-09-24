@@ -3477,8 +3477,8 @@ const MUTATIONS = [
      */
     quoi: 'le nom du destinataire entre dans ce que le poste memorise',
     fichier: 'apps/web/src/components/BlocCourriers.tsx',
-    de: "export const CHAMPS_MEMORISES = ['expediteur', 'signataire', 'qualite', 'coordonnees', 'projet'] as const;",
-    vers: "export const CHAMPS_MEMORISES = ['expediteur', 'signataire', 'qualite', 'coordonnees', 'projet', 'destinataire', 'adresse'] as const;",
+    de: "export const CHAMPS_MEMORISES = ['projet'] as const;",
+    vers: "export const CHAMPS_MEMORISES = ['projet', 'destinataire', 'adresse'] as const;",
     tests: ['apps/web/test/rendu-courriers.test.ts'],
     cwd: 'apps/web',
     commande: ['tsx', '--test', 'test/rendu-courriers.test.ts'],
@@ -4124,6 +4124,22 @@ const MUTATIONS = [
     cwd: 'apps/api',
     tests: ['test/potentiel-communal-distance.test.ts'],
     commande: ['tsx', '--test', '--test-concurrency=1', 'test/potentiel-communal-distance.test.ts'],
+  },
+  {
+    audit: 'audit 13 (revue complete)',
+    /*
+     * LE BLOC DE SIGNATURE REVIENT DANS LE COURRIER. Ces courriers partent par la messagerie
+     * professionnelle de l'operateur, qui pose deja l'expediteur en en-tete et la signature dans
+     * le corps. Un bloc signataire / qualite / coordonnees en pied produit, une fois le courrier
+     * colle dans un courriel, une signature EN DOUBLE — et reclame quatre champs de plus avant
+     * d'obtenir la moindre ligne.
+     */
+    quoi: 'le courrier redemande un bloc de signature que la messagerie porte deja',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: "    'Je vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.',\n  ].join('\\n');\n\n  return {\n    objet: `Demande d’identité",
+    vers: "    'Je vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.',\n    '',\n    trou('nom du signataire'),\n  ].join('\\n');\n\n  return {\n    objet: `Demande d’identité",
+    cwd: 'apps/api',
+    tests: ['test/courriers.test.ts'],
   },
 ];
 

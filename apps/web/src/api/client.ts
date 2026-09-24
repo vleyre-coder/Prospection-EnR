@@ -193,10 +193,6 @@ export type TypeCourrier = 'sdif' | 'proprietaire';
 
 /** Ce que l'operateur saisit, et que le modele ne peut pas deviner. Tout est facultatif. */
 export interface ContexteCourrier {
-  expediteur?: string;
-  signataire?: string;
-  qualite?: string;
-  coordonnees?: string;
   projet?: string;
   destinataire?: string;
   adresse?: string;

@@ -318,11 +318,13 @@ export async function routesParcelles(app: FastifyInstance): Promise<void> {
       }
 
       const c = lecteur(req.body ?? {});
+      /*
+       * NI EXPEDITEUR NI SIGNATAIRE : la messagerie professionnelle les porte deja. Voir le
+       * commentaire de `courriers.ts`. `refuserInconnus()` ci-dessous fait que ces champs, s'ils
+       * etaient encore envoyes par un client ancien, rendent un 400 explicite plutot que d'etre
+       * ignores en silence — un courrier qui perd sa signature sans le dire serait pire.
+       */
       const contexte: ContexteCourrier = {
-        expediteur: c.texteOuVide('expediteur', { max: 200 }),
-        signataire: c.texteOuVide('signataire', { max: 120 }),
-        qualite: c.texteOuVide('qualite', { max: 120 }),
-        coordonnees: c.texteOuVide('coordonnees', { max: 300 }),
         projet: c.texteOuVide('projet', { max: 200 }),
         destinataire: c.texteOuVide('destinataire', { max: 200 }),
         adresse: c.texteOuVide('adresse', { max: 500 }),
