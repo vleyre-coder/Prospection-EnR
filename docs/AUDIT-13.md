@@ -7,6 +7,15 @@
 Ce document rend compte de ce qui a été **mesuré**, de ce qui a été **corrigé**, et de ce qui
 **reste**. Les chiffres viennent tous d'une exécution, jamais d'une estimation.
 
+> **Ce document a été remesuré le 25/09/2026**, et deux de ses affirmations sont tombées. Les
+> sections concernées portent la date de leur mesure ; §5 et §7.1 ont été réécrites. Le plus utile
+> de ce qu'on y lit n'a pas été trouvé en relisant du code, mais **en refusant de recopier un
+> chiffre déjà publié** : c'est en voulant refaire la mesure de §5 que deux défauts silencieux —
+> un rescoring qui ne reprenait jamais une filière manquante, une capacité d'accueil ingérée mais
+> illisible — sont apparus. Une section d'audit qu'on ne remesure jamais devient, en quelques
+> semaines, une source d'erreurs aussi sûre qu'un commentaire périmé, avec l'autorité d'un
+> document en plus.
+
 ---
 
 ## 0. Les trois faits les plus importants de cet audit
@@ -297,15 +306,23 @@ qu'accidentelle.
 
 Classés par rapport valeur / risque, et **aucun n'est engagé** — ce sont des propositions.
 
-### 7.1 Ingérer les couches qui manquent — de loin le premier levier
+### 7.1 Ingérer les couches qui manquent — toujours le premier levier, mais pas le seul
 
-Rien dans le code n'améliorera les verdicts autant que trois ingestions :
+> **Remesuré le 25/09/2026.** Le point 1 est **fait**, et il a révélé que l'ingestion n'était que
+> la moitié du travail : voir §5.1. La donnée de capacité était ingérée depuis plusieurs jours et
+> restait illisible pour le moteur, faute d'être cherchée au bon endroit. **Avant de conclure
+> qu'une couche manque, il vaut la peine de vérifier qu'elle n'est pas déjà là.**
 
-1. **Postes sources** (`racc_distance_poste`, `racc_capacite_residuelle`) — le connecteur
-   `postes_geopf` existe et a déjà tourné ; la table est vide aujourd'hui. Deux critères sur cinq
-   filières, et la colonne « Tracé estimé » de la liste, entièrement vide sur 301 lignes.
+Restent deux ingestions, et c'est bien le premier levier sur les critères qu'elles portent :
+
+1. ~~**Postes sources**~~ — fait. `racc_distance_poste` est résolu sur 301/301 et les cinq
+   filières ; `racc_capacite_residuelle` et `racc_quote_part` l'ont été par la correction de
+   lecture décrite en §5.1, sans aucune ingestion supplémentaire.
 2. **Patrimoine** (`pat_sites`, `pat_monuments`, `pat_archeologie`) — l'ingestion WFS nationale
-   existe et fonctionne ; elle n'a pas été passée sur le département 28.
+   existe et fonctionne ; elle n'a pas été passée sur le département 28. **Mesuré le 25/09 : la
+   table `contrainte` est entièrement vide**, et le connecteur `patrimoine_culture` figure donc
+   « en échec » sur les 301 parcelles. Ce n'est pas une panne : c'est une couche jamais ingérée,
+   et le rapport le dit désormais en ces termes (§7.7).
 3. **INPN / trame verte et bleue** (`env_especes_protegees`, `env_tvb`) — 16 correspondances en
    attente d'après le relevé de l'audit précédent.
 
@@ -366,6 +383,27 @@ filières pour une même contrainte, 17 groupes de divergences de seuils, 28 rè
 `aValiderParJuriste`, et 128 articles à confronter à Légifrance — **injoignable depuis ce poste**
 (403 Cloudflare), donc à faire depuis un poste qui y accède.
 
+### 7.7 Les documents remis à un tiers — ce qui a été fait le 24 et le 25/09
+
+Cet axe n'était pas prévu : il vient d'une demande du propriétaire du projet, « générer un pdf ou
+mail résumant toutes les informations parcellaires avec texte et images ». Ce qui a été livré, et
+ce que la relecture des documents réellement produits a fait remonter :
+
+| Fait | Défaut qu'il corrige |
+| --- | --- |
+| Trois vues cartographiques dans la fiche et le dossier (plan, photo aérienne, vue large) | un dossier sans image oblige à rouvrir l'application pour comprendre ce qu'il décrit |
+| Un brouillon de courriel `.eml` avec la fiche en pièce jointe | une fiche de six pages arrivant sans un mot ne s'ouvre pas |
+| Les boutons d'export se désactivent pendant la préparation | chaque clic relançait une génération complète côté serveur |
+| « Couches non ingérées sur ce territoire », distinct de « sources non interrogeables » | le rapport promettait qu'une relance compléterait une couche jamais ingérée — faux, et imprimé |
+| Le nom de la source au lieu de sa clef technique | « patrimoine_culture » s'imprimait tel quel dans un document remis |
+| « Emplacement réservé : foncier affecté » | deux participes sans accent dans un libellé du référentiel |
+| « MW résiduels » | texte affiché sans accent, invisible au garde d'orthographe faute de graphie à comparer |
+
+**Ce que la relecture des documents a appris, et qui vaut au-delà de ces documents** : cinq des
+sept lignes ci-dessus n'ont été trouvées qu'en *ouvrant un PDF réellement généré* et en le lisant.
+Aucun test ne les voyait, et aucune ne se serait vue à la relecture du code. La filière BESS, en
+particulier, n'avait jamais produit un seul rapport avant le 25/09 — elle était entièrement grise.
+
 ---
 
 ## 8. Ce que cet audit a ajouté au filet
@@ -377,7 +415,14 @@ filières pour une même contrainte, 17 groupes de divergences de seuils, 28 rè
 | `graduations()` + son garde sur `[0, 200]` | que l'axe du tableau de bord redouble un libellé |
 | `rangsParTitre()` + 2 tests | que deux zones d'une commune se relisent comme un doublon |
 | `couverturesIncoherentes()` + 3 tests | qu'une couverture annoncée sans données passe pour une absence constatée |
-| 5 nouveaux motifs de mutation (297 au total) | que ces cinq gardes deviennent décoratifs |
+| 5 nouveaux motifs de mutation | que ces cinq gardes deviennent décoratifs |
+| `carte-statique.ts` + 13 tests + 4 motifs | qu'une carte se trace au mauvais endroit, ou qu'un cadre vide passe pour un terrain rase |
+| `idusSansScoreCourant(version, filières)` + 3 tests + 1 motif | qu'une filière ajoutée reste vide sur tout le parc, sans erreur ni compteur |
+| `posteRenseigne()` + 5 tests + 2 motifs | que la capacité d'accueil redevienne illisible, ou qu'elle soit substituée en silence |
+| `noteParcelle()` + 5 tests + 3 motifs | qu'une situation de propriété parte dans un courriel, ou qu'une pièce jointe se tronque |
+| `sourcesIndisponibles()` + 2 tests + 1 motif | que le rapport promette qu'une relance complétera une couche jamais ingérée |
+| `fluxDeContenu()` dans l'aide de lecture des PDF + 1 motif | qu'un test échoue sur un document correct, dès qu'il porte des images |
+| **323 motifs de mutation au total** | — |
 
 Le balayage orthographique a par ailleurs été rendu **importable** : il s'exécutait à l'import, donc
 ne pouvait être testé que par un test exigeant hunspell — c'est-à-dire par aucun, et c'est ainsi que
