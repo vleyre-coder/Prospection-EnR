@@ -1066,6 +1066,20 @@ export const api = {
     telechargerBinaire(`/api/exports/${format}`, corps, nomFichier, 'Export impossible'),
 
   /**
+   * Le dossier de site en brouillon de courriel : note de synthese en corps, PDF joint.
+   *
+   * `format: 'eml'` passe par la MEME route que le PDF, a dessein : un second chemin aurait
+   * duplique la selection, sa validation et son refus 409 pour ne changer que l'emballage.
+   */
+  telechargerDossierCourriel: (idus: string[], filiere: Filiere) =>
+    telechargerBinaire(
+      '/api/exports/dossier',
+      { idus, filiere, format: 'eml' },
+      `dossier-site-${filiere}.eml`,
+      'Préparation du courriel impossible',
+    ),
+
+  /**
    * Prepare un courrier, et le rend en texte pour relecture AVANT tout envoi.
    *
    * L'operateur relit toujours : le courrier porte des trous nommes, et la designation cadastrale

@@ -354,6 +354,13 @@ Recherche unifiee. Detecte automatiquement le type de saisie :
   dans le corps. Le corps ne porte **aucune situation de propriété** : un courriel se transfère,
   s'archive, et sort du dispositif de journalisation dès qu'il est parti. Journalisé sous
   `export_courriel`, distinct de `export_pdf`.
+- `POST /api/exports/dossier` → `{ "idus": [...], "filiere": "...", "format"?: "pdf" | "eml" }`.
+  `pdf` (défaut) → dossier de site illustré. `eml` → **brouillon de courriel** portant la synthèse
+  du site en corps — surface utile, puissance, emprises, et ce qui reste exploitable une fois les
+  parcelles bloquées retirées — et le dossier PDF en pièce jointe. Les chiffres du corps et ceux
+  du document viennent de la **même fonction** (`chiffresDuSite`) : les recalculer créerait deux
+  vérités pour les deux nombres les plus recopiés d'un dossier. Journalisé sous
+  `export_dossier_courriel`.
 - `POST /api/exports/geojson` → `{ "idus": [...], "filiere": "..." }` → GeoJSON.
 - `POST /api/exports/shapefile` → meme corps → archive ZIP.
 - `POST /api/exports/csv` → meme corps que `/api/recherche/parcelles` → CSV point-virgule,

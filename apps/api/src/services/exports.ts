@@ -1305,80 +1305,39 @@ const LIBELLES_SEVERITE_PLAN: Record<string, string> = {
   precaution: 'précaution',
 };
 
-export function dossierSitePdf(
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LES CHIFFRES D'UN SITE — surface utile, puissance, et ce qui en est reellement exploitable
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * SORTI DE `dossierSitePdf` LE JOUR OU UN SECOND LIVRABLE EN A EU BESOIN : le brouillon de
+ * courriel annonce la surface et la puissance du site dans son corps, avant meme que la piece
+ * jointe soit ouverte. Les recalculer de son cote aurait cree DEUX VERITES pour les deux chiffres
+ * les plus repris d'un dossier — ceux qu'un developpeur recopie dans son modele economique. Le
+ * jour ou l'une des deux bouge, rien ne signale que l'autre n'a pas suivi.
+ *
+ * Tout ce qui suit est la logique d'origine, deplacee sans changement. Ses raisons sont ecrites
+ * dans les commentaires qu'elle emporte avec elle.
+ */
+export function chiffresDuSite(
   parcelles: ParcelleDuDossier[],
   contexte: ContexteDossier,
-  /** Vues du site, deja telechargees. Voir `ficheParcellePdf` pour la raison du parametre. */
-  figures: Array<FigureCarte | null> = [],
-): NodeJS.ReadableStream {
-  const meta = FILIERES_META[contexte.filiere];
-  const doc = new PDFDocument({
-    size: 'A4',
-    margins: { top: HAUT, bottom: BAS, left: MARGE, right: MARGE },
-    bufferPages: true,
-    info: {
-      Title: `Dossier de site - ${parcelles.length} parcelle(s) - ${meta.libelleCourt}`,
-      Author: 'Prospection EnR',
-      Subject: `Dossier de site, filière ${meta.libelle}`,
-    },
-  });
-  const total = largeurUtile(doc);
-
+): {
+  surface: ReturnType<typeof surfaceUtileSiteHa>;
+  puissance: ReturnType<typeof puissanceEstimee>;
+  regimeUnanime: string | null | undefined;
+  regimes: Set<string | null>;
+  emprise: string;
+  exploitables: ParcelleDuDossier[];
+  partiel: boolean;
+  surfaceExploitable: ReturnType<typeof surfaceUtileSiteHa> | null;
+  puissanceExploitable: ReturnType<typeof puissanceEstimee> | null;
+} {
   const surfaceHa = (p: ParcelleEnBase): number | null => {
     const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
     return m2 == null ? null : m2 / 10000;
   };
 
-  const communes = [
-    ...new Set(parcelles.map((p) => p.parcelle.nomCommune ?? p.parcelle.codeInsee)),
-  ].sort();
-  const multiCommune = communes.length > 1;
-  /**
-   * Reference courte d'une parcelle dans les tableaux thematiques.
-   *
-   * La commune n'est ajoutee que lorsqu'il y en a plusieurs : sur un site d'une seule commune,
-   * la repeter douze fois occupe une colonne pour rien ; sur un site a cheval, « AB 12 » sans
-   * commune designe potentiellement deux parcelles differentes.
-   */
-  const ref = (p: ParcelleEnBase): string =>
-    multiCommune
-      ? `${p.nomCommune ?? p.codeInsee} ${p.section} ${p.numero}`
-      : `${p.section} ${p.numero}`;
-
-  // ===================================================================== tete
-  doc.fontSize(7.8).font('Helvetica-Bold').fillColor(ENCRE_FAIBLE);
-  doc.text('PROSPECTION ENR - DOSSIER DE SITE', MARGE, HAUT, { characterSpacing: 0.8 });
-  doc.fontSize(19).font('Helvetica-Bold').fillColor('#0f172a');
-  doc.text(
-    net(communes.length <= 3 ? communes.join(', ') : `${communes.slice(0, 3).join(', ')} et ${communes.length - 3} autre${communes.length - 3 > 1 ? 's' : ''} commune${communes.length - 3 > 1 ? 's' : ''}`),
-    MARGE,
-    doc.y + 4,
-    { width: total },
-  );
-  doc.fontSize(10).font('Helvetica').fillColor(ENCRE_FAIBLE);
-  doc.text(
-    net(
-      `${parcelles.length} parcelle${parcelles.length > 1 ? 's' : ''}  -  filière ${meta.libelle}  -  dossier du ${dateFr(new Date())}`,
-    ),
-    MARGE,
-    doc.y + 2,
-    { width: total },
-  );
-  doc.y += 12;
-  doc.fillColor(ENCRE);
-
-  // ============================================================== emprise du site
-  /*
-   * LA FORME DU SITE EST UNE DONNEE DU DOSSIER, pas une illustration. « Trois emprises separees »
-   * ecrit en toutes lettres plus bas ne dit ni leur eloignement, ni leur orientation, ni ce qui
-   * les separe — et c'est de cela que depend le trace du raccordement interne.
-   */
-  if (figures.length > 0) {
-    titreSection(doc, 'Emprise du site', 40);
-    blocCartes(doc, figures);
-  }
-
-  // ============================================================ chiffres du site
   const surface = surfaceUtileSiteHa(
     parcelles.map((p) => surfaceHa(p.parcelle)),
     parcelles.map((p) => p.snapshot.foncier.morcellementIndice),
@@ -1467,6 +1426,105 @@ export function dossierSitePdf(
           regimes.size === 1 ? (regimeUnanime ?? null) : null,
         )
       : null;
+
+  return {
+    surface,
+    puissance,
+    regimeUnanime,
+    regimes,
+    emprise,
+    exploitables,
+    partiel,
+    surfaceExploitable,
+    puissanceExploitable,
+  };
+}
+
+export function dossierSitePdf(
+  parcelles: ParcelleDuDossier[],
+  contexte: ContexteDossier,
+  /** Vues du site, deja telechargees. Voir `ficheParcellePdf` pour la raison du parametre. */
+  figures: Array<FigureCarte | null> = [],
+): NodeJS.ReadableStream {
+  const meta = FILIERES_META[contexte.filiere];
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: HAUT, bottom: BAS, left: MARGE, right: MARGE },
+    bufferPages: true,
+    info: {
+      Title: `Dossier de site - ${parcelles.length} parcelle(s) - ${meta.libelleCourt}`,
+      Author: 'Prospection EnR',
+      Subject: `Dossier de site, filière ${meta.libelle}`,
+    },
+  });
+  const total = largeurUtile(doc);
+
+  const surfaceHa = (p: ParcelleEnBase): number | null => {
+    const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
+    return m2 == null ? null : m2 / 10000;
+  };
+
+  const communes = [
+    ...new Set(parcelles.map((p) => p.parcelle.nomCommune ?? p.parcelle.codeInsee)),
+  ].sort();
+  const multiCommune = communes.length > 1;
+  /**
+   * Reference courte d'une parcelle dans les tableaux thematiques.
+   *
+   * La commune n'est ajoutee que lorsqu'il y en a plusieurs : sur un site d'une seule commune,
+   * la repeter douze fois occupe une colonne pour rien ; sur un site a cheval, « AB 12 » sans
+   * commune designe potentiellement deux parcelles differentes.
+   */
+  const ref = (p: ParcelleEnBase): string =>
+    multiCommune
+      ? `${p.nomCommune ?? p.codeInsee} ${p.section} ${p.numero}`
+      : `${p.section} ${p.numero}`;
+
+  // ===================================================================== tete
+  doc.fontSize(7.8).font('Helvetica-Bold').fillColor(ENCRE_FAIBLE);
+  doc.text('PROSPECTION ENR - DOSSIER DE SITE', MARGE, HAUT, { characterSpacing: 0.8 });
+  doc.fontSize(19).font('Helvetica-Bold').fillColor('#0f172a');
+  doc.text(
+    net(communes.length <= 3 ? communes.join(', ') : `${communes.slice(0, 3).join(', ')} et ${communes.length - 3} autre${communes.length - 3 > 1 ? 's' : ''} commune${communes.length - 3 > 1 ? 's' : ''}`),
+    MARGE,
+    doc.y + 4,
+    { width: total },
+  );
+  doc.fontSize(10).font('Helvetica').fillColor(ENCRE_FAIBLE);
+  doc.text(
+    net(
+      `${parcelles.length} parcelle${parcelles.length > 1 ? 's' : ''}  -  filière ${meta.libelle}  -  dossier du ${dateFr(new Date())}`,
+    ),
+    MARGE,
+    doc.y + 2,
+    { width: total },
+  );
+  doc.y += 12;
+  doc.fillColor(ENCRE);
+
+  // ============================================================== emprise du site
+  /*
+   * LA FORME DU SITE EST UNE DONNEE DU DOSSIER, pas une illustration. « Trois emprises separees »
+   * ecrit en toutes lettres plus bas ne dit ni leur eloignement, ni leur orientation, ni ce qui
+   * les separe — et c'est de cela que depend le trace du raccordement interne.
+   */
+  if (figures.length > 0) {
+    titreSection(doc, 'Emprise du site', 40);
+    blocCartes(doc, figures);
+  }
+
+  // ============================================================ chiffres du site
+  const {
+    surface,
+    puissance,
+    regimeUnanime,
+    regimes,
+    emprise,
+    exploitables,
+    partiel,
+    surfaceExploitable,
+    puissanceExploitable,
+  } = chiffresDuSite(parcelles, contexte);
 
   titreSection(doc, 'Le site en chiffres');
   grilleCles(doc, [

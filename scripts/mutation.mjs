@@ -4239,6 +4239,21 @@ const MUTATIONS = [
     tests: ['test/exports.test.ts'],
   },
   {
+    audit: 'audit 13 (courriel)',
+    /*
+     * LA NOTE DU SITE TAIT CE QUI EST REELLEMENT EXPLOITABLE. Annoncer une surface qui compte du
+     * foncier juridiquement hors d'atteinte est le defaut que le dossier a corrige avant elle ;
+     * il se reproduirait a l'identique dans le corps du courriel, et le lecteur presse — celui qui
+     * n'ouvre pas la piece jointe — repartirait avec le plus flatteur des deux chiffres.
+     */
+    quoi: 'la note du site annonce la surface totale sans dire ce qui est exploitable',
+    fichier: 'apps/api/src/services/note-parcelle.ts',
+    de: '  if (chiffres.partiel && chiffres.surfaceExploitable != null) {',
+    vers: '  if (false) {',
+    cwd: 'apps/api',
+    tests: ['test/courriel-fiche.test.ts'],
+  },
+  {
     audit: 'audit 13 (sources)',
     /*
      * LE RAPPORT PROMET QU'UNE RELANCE COMPLETERA UNE COUCHE JAMAIS INGEREE. Treize connecteurs

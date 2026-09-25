@@ -26,7 +26,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { snapshotVide, type ParcelleSnapshot, type ResultatScore } from '@enr/core';
 import { versEmlAvecPieces, type Courrier } from '../src/services/courriers.js';
-import { noteParcelle } from '../src/services/note-parcelle.js';
+import { noteParcelle, noteSite } from '../src/services/note-parcelle.js';
+import { chiffresDuSite, type ParcelleDuDossier } from '../src/services/exports.js';
 import type { ParcelleEnBase } from '../src/depots/parcelles.js';
 
 const parcelle = {
@@ -100,6 +101,17 @@ function score(partiel: Partial<ResultatScore> = {}): ResultatScore {
     dateCalcul: '2026-09-25T09:00:00.000Z',
     avertissements: [],
     ...partiel,
+  };
+}
+
+/** Une entree de dossier, batie sur les memes fixtures que la note de parcelle. */
+function unDuDossier(idu = parcelle.idu): ParcelleDuDossier {
+  return {
+    parcelle: { ...parcelle, idu },
+    snapshot: snapshot(),
+    score: { ...score(), idu, filiere: 'solaire_sol' },
+    connecteursEnEchec: [],
+    statutProspection: null,
   };
 }
 
@@ -276,4 +288,62 @@ test('SANS PIECE JOINTE, LE MESSAGE RESTE UN MESSAGE SIMPLE', () => {
   const eml = versEmlAvecPieces(note, []);
   assert.doesNotMatch(eml, /multipart/);
   assert.match(eml, /Content-Type: text\/plain; charset=UTF-8/);
+});
+
+// ---------------------------------------------------------------------------
+// Le site
+// ---------------------------------------------------------------------------
+
+test('LA NOTE DU SITE NE RECALCULE PAS SES CHIFFRES', () => {
+  /**
+   * L'INVARIANT QUI JUSTIFIE L'EXTRACTION DE `chiffresDuSite`. La surface utile et la puissance
+   * sont les deux chiffres les plus repris d'un dossier — ceux qu'un developpeur recopie dans son
+   * modele economique. Les recalculer dans la note creerait DEUX VERITES, et le jour ou l'une des
+   * deux bouge, RIEN ne signalerait que l'autre n'a pas suivi : les deux chiffres resteraient
+   * plausibles, simplement differents, dans deux parties du meme envoi.
+   *
+   * Le garde compare donc la note a la fonction dont le PDF se sert, et non a une valeur recopiee.
+   */
+  const lot = [unDuDossier(), unDuDossier('28390000ZS0004')];
+  const contexte = { filiere: 'solaire_sol' as const, nbGroupesContigus: null };
+  const attendus = chiffresDuSite(lot, contexte);
+  const note = noteSite(lot, contexte);
+
+  const ha = attendus.surface.netteHa.toFixed(2).replace('.', ',');
+  assert.match(note.corps, new RegExp(`Surface utile estimée : ${ha} ha`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  if (attendus.puissance.mwc != null) {
+    const mwc = attendus.puissance.mwc.toFixed(2).replace('.', ',');
+    assert.ok(note.corps.includes(`${mwc} MWc`), `la puissance doit etre ${mwc} MWc`);
+  }
+  assert.match(note.corps, /Site de 2 parcelles/);
+});
+
+test('LA NOTE DU SITE ANNONCE CE QUI EST EXPLOITABLE, PAS SEULEMENT CE QUI EST COCHE', () => {
+  /*
+   * LE DEFAUT QUE LE DOSSIER A CORRIGE AVANT NOUS, et qui se reproduirait a l'identique dans le
+   * corps du courriel : annoncer une surface qui compte du foncier juridiquement hors d'atteinte.
+   * Le lecteur presse ne lit que le corps ; il repartirait avec le plus flatteur des deux chiffres.
+   */
+  const bloquee = unDuDossier('28390000ZS0005');
+  bloquee.score = {
+    ...bloquee.score,
+    knockOuts: [
+      {
+        id: 'ko',
+        libelle: 'Zone inconstructible',
+        motif: 'Test',
+        famille: 'urbanisme',
+        regleLiee: null,
+        source: null,
+        derogeable: false,
+      },
+    ],
+  };
+  const note = noteSite([unDuDossier(), bloquee], {
+    filiere: 'solaire_sol',
+    nbGroupesContigus: null,
+  });
+
+  assert.match(note.corps, /1 parcelle\(s\) portent un critère rédhibitoire bloquant/);
+  assert.match(note.corps, /la surface utile tombe à/);
 });

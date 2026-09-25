@@ -32,6 +32,11 @@ import { LIBELLES_SCORE, LIBELLES_REGIME, type ParcelleSnapshot, type ResultatSc
 import { FILIERES_META } from '@enr/core';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
 import type { Courrier } from './courriers.js';
+import {
+  chiffresDuSite,
+  type ContexteDossier,
+  type ParcelleDuDossier,
+} from './exports.js';
 
 /** Un nombre tel que le français l'écrit : virgule décimale, jamais de point. */
 function nb(v: number | null | undefined, decimales = 2): string {
@@ -159,6 +164,88 @@ export function noteParcelle(
      * propriétaire porte des mentions que seul l'opérateur peut écrire ; cette note-ci ne dit que
      * ce que l'application a mesuré. Un trou y serait un aveu que la fiche est incomplète.
      */
+    aCompleter: [],
+  };
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LA NOTE D'UN SITE — ce qu'on lit avant d'ouvrir un dossier de plusieurs parcelles
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * ELLE NE RECALCULE RIEN. La surface utile et la puissance sont les deux chiffres les plus repris
+ * d'un dossier — ceux qu'un développeur recopie dans son modèle économique. Les recalculer ici
+ * créerait DEUX VÉRITÉS, et le jour où l'une des deux bouge, rien ne signalerait que l'autre n'a
+ * pas suivi. Elle appelle donc `chiffresDuSite`, la fonction même dont le PDF se sert.
+ *
+ * ELLE DIT CE QUI EST EXPLOITABLE, PAS SEULEMENT CE QUI EST SÉLECTIONNÉ. Un site dont trois
+ * parcelles sur douze portent un rédhibitoire bloquant n'a pas la surface qu'annonce la sélection.
+ * Le dossier rend les deux chiffres côte à côte pour cette raison ; la note fait de même, sans quoi
+ * le lecteur pressé repartirait avec le plus flatteur des deux.
+ */
+export function noteSite(
+  parcelles: ParcelleDuDossier[],
+  contexte: ContexteDossier,
+): Courrier {
+  const meta = FILIERES_META[contexte.filiere];
+  const chiffres = chiffresDuSite(parcelles, contexte);
+  const communes = [
+    ...new Set(parcelles.map((p) => p.parcelle.nomCommune ?? p.parcelle.codeInsee)),
+  ].sort();
+
+  const lignes: string[] = [];
+  lignes.push(
+    `Site de ${parcelles.length} parcelle${parcelles.length > 1 ? 's' : ''} - ` +
+      (communes.length <= 3 ? communes.join(', ') : `${communes.slice(0, 3).join(', ')} et ${communes.length - 3} autres`),
+    `Filière étudiée : ${meta.libelle}`,
+    `Emprise : ${chiffres.emprise}`,
+    '',
+    `Surface utile estimée : ${nb(chiffres.surface.netteHa)} ha`,
+  );
+  if (chiffres.puissance.mwc != null) {
+    lignes.push(`Puissance estimée : ${nb(chiffres.puissance.mwc)} MWc`);
+  }
+
+  /*
+   * LE CHIFFRE EXPLOITABLE, À CÔTÉ DU CHIFFRE TOTAL. C'est le défaut que le dossier a corrigé
+   * avant nous : annoncer une surface qui compte du foncier juridiquement hors d'atteinte, pendant
+   * qu'une autre section dit que ces parcelles sont écartées. Deux affirmations contradictoires
+   * dans le même message, et c'est la première, la plus visible, qui est fausse.
+   */
+  if (chiffres.partiel && chiffres.surfaceExploitable != null) {
+    lignes.push(
+      '',
+      `ATTENTION : ${parcelles.length - chiffres.exploitables.length} parcelle(s) portent un ` +
+        'critère rédhibitoire bloquant. Hors celles-ci, la surface utile tombe à ' +
+        `${nb(chiffres.surfaceExploitable.netteHa)} ha` +
+        (chiffres.puissanceExploitable?.mwc != null
+          ? ` et la puissance à ${nb(chiffres.puissanceExploitable.mwc)} MWc.`
+          : '.'),
+    );
+  }
+
+  if (chiffres.regimes.size > 1) {
+    lignes.push(
+      '',
+      "Le régime d'implantation est hétérogène selon les parcelles : c'est la densité la plus " +
+        'basse qui est retenue, soit le chiffrage prudent.',
+    );
+  }
+
+  lignes.push(
+    '',
+    'Le dossier complet est joint : cartes de situation et d’environnement, verdict réglementaire ' +
+      'parcelle par parcelle, réserves, procédures applicables et sources.',
+    '',
+    "Document d'aide à la décision, pas une garantie de faisabilité. Les contours cadastraux sont " +
+      'indicatifs et sans valeur juridique.',
+  );
+
+  return {
+    objet:
+      `${communes[0] ?? 'Site'}${communes.length > 1 ? ' et alentours' : ''} - site de ` +
+      `${parcelles.length} parcelle${parcelles.length > 1 ? 's' : ''} - ${meta.libelleCourt}`,
+    corps: lignes.join('\n'),
     aCompleter: [],
   };
 }

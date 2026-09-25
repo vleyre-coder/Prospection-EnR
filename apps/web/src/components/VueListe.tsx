@@ -268,6 +268,28 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
             {selection.length > 0 ? ` (${selection.length})` : ''}
           </BoutonExport>
           {/*
+            LE MEME DOSSIER, EN BROUILLON DE COURRIEL. C'est le livrable que l'operateur envoie a
+            un developpeur : une piece jointe de six pages sans un mot ne s'ouvre pas. Rien ne part
+            d'ici — le `.eml` s'ouvre dans la messagerie de l'operateur, qui y pose son expediteur
+            et sa signature.
+          */}
+          <BoutonExport
+            desactive={selection.length === 0 || selection.length > MAX_DOSSIER}
+            titre={
+              selection.length === 0
+                ? 'Cochez les parcelles retenues pour préparer le courriel.'
+                : 'Brouillon de courriel : synthèse du site en corps, dossier complet en pièce jointe. Rien n’est envoyé.'
+            }
+            pendant="Composition du courriel…"
+            action={() => {
+              setErreurExport(null);
+              return api.telechargerDossierCourriel(selection, filiere);
+            }}
+            surErreur={setErreurExport}
+          >
+            Dossier par courriel
+          </BoutonExport>
+          {/*
             « Retour a la carte » RETIRE, et ce n'est pas une perte de fonction : le groupe « Vue »
             de la barre superieure porte deja Carte / Liste / Tableau de bord, il est visible en
             permanence et a trois metres de la. Deux commandes pour un meme geste, dans le meme

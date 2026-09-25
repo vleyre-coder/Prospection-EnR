@@ -46,7 +46,7 @@ import {
 } from '../services/carte-statique.js';
 import type { GeoJsonGeometry } from '../geo.js';
 import { versEmlAvecPieces } from '../services/courriers.js';
-import { noteParcelle } from '../services/note-parcelle.js';
+import { noteParcelle, noteSite } from '../services/note-parcelle.js';
 
 /**
  * Rassemble un flux en memoire.
@@ -602,6 +602,12 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   app.post('/api/exports/dossier', debitExport, async (req, rep) => {
     const c = lecteur(req.body);
     const filiere: Filiere = c.parmi('filiere', FILIERES) ?? 'solaire_sol';
+    /*
+     * LE MEME PARAMETRE QUE LA ROUTE DES COURRIERS, et deliberement : un second chemin
+     * `/api/exports/dossier.eml` aurait duplique quarante lignes de selection, de validation et de
+     * refus 409, pour ne changer que l'emballage final.
+     */
+    const format = c.parmi('format', ['pdf', 'eml'] as const) ?? 'pdf';
     c.valideAilleurs('idus');
     c.refuserInconnus();
 
@@ -660,7 +666,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       retenues.map((l) => l.parcelle.idu),
     );
 
-    await journaliser('export_dossier', {
+    await journaliser(format === 'eml' ? 'export_dossier_courriel' : 'export_dossier', {
       utilisateurId: req.utilisateur?.id,
       email: req.utilisateur?.email,
       details: { nb: retenues.length, filiere, nbGroupesContigus },
@@ -673,22 +679,34 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       "du site",
     );
 
+    const duDossier = retenues.map((l) => ({
+      parcelle: l.parcelle,
+      snapshot: l.snapshot.snapshot,
+      score: l.score,
+      connecteursEnEchec: l.snapshot.connecteursEnEchec,
+      statutProspection: l.statutProspection,
+    }));
+    const contexteDossier = { filiere, nbGroupesContigus };
+    const pdf = dossierSitePdf(duDossier, contexteDossier, figures);
+
+    if (format === 'eml') {
+      const eml = versEmlAvecPieces(noteSite(duDossier, contexteDossier), [
+        {
+          nom: `dossier-site-${filiere}.pdf`,
+          type: 'application/pdf',
+          contenu: await fluxEnBuffer(pdf),
+        },
+      ]);
+      return rep
+        .header('Content-Type', 'message/rfc822; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="dossier-site-${filiere}.eml"`)
+        .send(eml);
+    }
+
     return rep
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="dossier-site-${filiere}.pdf"`)
-      .send(
-        dossierSitePdf(
-          retenues.map((l) => ({
-            parcelle: l.parcelle,
-            snapshot: l.snapshot.snapshot,
-            score: l.score,
-            connecteursEnEchec: l.snapshot.connecteursEnEchec,
-            statutProspection: l.statutProspection,
-          })),
-          { filiere, nbGroupesContigus },
-          figures,
-        ),
-      );
+      .send(pdf);
   });
 
   // --- Ponderations sauvegardees ------------------------------------------
