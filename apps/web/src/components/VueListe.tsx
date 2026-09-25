@@ -18,6 +18,7 @@ import { useEtat } from '../store/etat.js';
 import { formatNombre } from '../utils/geometrie.js';
 import { etiquetteStatut } from '../utils/affichage.js';
 import { FormulaireBalayage } from './FormulaireBalayage.js';
+import { BoutonExport } from './BoutonExport.js';
 
 type Tri = 'score_desc' | 'score_asc' | 'surface_desc' | 'distance_poste_asc';
 
@@ -246,31 +247,26 @@ export function VueListe({ filiere, referentiel, onOuvrir, mode = 'liste' }: Pro
             qu'apparaissant avec elle : une commande qui n'existe pas tant qu'on n'a pas devine
             comment la faire apparaitre ne se decouvre jamais. L'infobulle dit quoi faire.
           */}
-          <button
-            type="button"
+          <BoutonExport
             className="bouton bouton-principal"
-            disabled={selection.length === 0 || selection.length > MAX_DOSSIER}
-            title={
+            desactive={selection.length === 0 || selection.length > MAX_DOSSIER}
+            titre={
               selection.length === 0
                 ? 'Cochez les parcelles retenues (colonne de gauche) pour constituer un dossier de site.'
                 : selection.length > MAX_DOSSIER
                   ? `${selection.length} parcelles sélectionnées : le dossier est limité à ${MAX_DOSSIER}.`
-                  : `Dossier complet des ${selection.length} parcelles retenues, à remettre à un développeur.`
+                  : `Dossier complet des ${selection.length} parcelles retenues, avec cartes de situation et d’environnement, à remettre à un développeur.`
             }
-            onClick={() => {
+            pendant="Composition du dossier…"
+            action={() => {
               setErreurExport(null);
-              void api
-                .exporter(
-                  'dossier',
-                  { idus: selection, filiere },
-                  `dossier-site-${filiere}.pdf`,
-                )
-                .catch((e: ErreurApi) => setErreurExport(e.message));
+              return api.exporter('dossier', { idus: selection, filiere }, `dossier-site-${filiere}.pdf`);
             }}
+            surErreur={setErreurExport}
           >
             Dossier développeur
             {selection.length > 0 ? ` (${selection.length})` : ''}
-          </button>
+          </BoutonExport>
           {/*
             « Retour a la carte » RETIRE, et ce n'est pas une perte de fonction : le groupe « Vue »
             de la barre superieure porte deja Carte / Liste / Tableau de bord, il est visible en

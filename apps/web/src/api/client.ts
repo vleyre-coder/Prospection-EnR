@@ -998,9 +998,22 @@ export const api = {
     partage?: boolean;
   }) => appeler<{ id: string }>('/api/ponderations', { methode: 'POST', corps }),
 
-  /** URL de telechargement direct (le navigateur gere le flux). */
-  urlPdf: (idu: string, filiere: Filiere) =>
-    `/api/exports/parcelle/${encodeURIComponent(idu)}.pdf?filiere=${filiere}`,
+  /**
+   * La fiche PDF d'une parcelle, telechargee comme les autres exports.
+   *
+   * ELLE ETAIT UN SIMPLE LIEN, et cela convenait tant qu'elle etait instantanee. Depuis qu'elle
+   * porte des cartes, le serveur telecharge une vingtaine de tuiles a l'IGN avant de rendre le
+   * document : un `<a target="_blank">` ouvrait donc un onglet BLANC pendant plusieurs secondes,
+   * sans rien dire, et l'operateur le refermait en croyant l'export casse. Passer par le meme
+   * chemin que les autres exports permet au bouton de dire qu'il travaille.
+   */
+  telechargerFiche: (idu: string, filiere: Filiere) =>
+    telechargerBinaire(
+      `/api/exports/parcelle/${encodeURIComponent(idu)}.pdf?filiere=${filiere}`,
+      undefined,
+      `fiche-${idu}-${filiere}.pdf`,
+      'Préparation de la fiche impossible',
+    ),
 
   // --- Profils de recherche, et seuils developpeur -------------------------
   contraintesParametrables: (filiere?: FiliereReferentiel) =>
@@ -1067,17 +1080,18 @@ export const api = {
  */
 async function telechargerBinaire(
   chemin: string,
+  /** `undefined` demande un GET : la route ne prend alors aucun corps, et en envoyer un la ferait refuser. */
   corps: unknown,
   nomFichier: string,
   messageEchec: string,
 ): Promise<void> {
   const reponse = await fetch(`${RACINE_API}${chemin}`, {
-    method: 'POST',
+    method: corps === undefined ? 'GET' : 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      ...(corps === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(jetonEnregistre() ? { Authorization: `Bearer ${jetonEnregistre()}` } : {}),
     },
-    body: JSON.stringify(corps),
+    ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
   });
   if (!reponse.ok) {
     const corpsErreur = (await reponse.json().catch(() => null)) as

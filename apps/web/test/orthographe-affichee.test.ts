@@ -101,6 +101,7 @@ export const MODULES_TEXTE: readonly string[] = [
   'apps/web/src/components/BandeauAvertissements.tsx',
   'apps/web/src/components/BlocCourriers.tsx',
   'apps/web/src/components/BlocVerdict.tsx',
+  'apps/web/src/components/BoutonExport.tsx',
   'apps/web/src/components/BarreSuperieure.tsx',
   'apps/web/src/components/Carte.tsx',
   'apps/web/src/components/Connexion.tsx',

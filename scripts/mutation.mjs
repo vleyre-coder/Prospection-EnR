@@ -1864,8 +1864,8 @@ const MUTATIONS = [
     audit: 'audit 15',
     quoi: 'le bouton du dossier reste actif sans selection : l’envoi part vide et revient en 400',
     fichier: 'apps/web/src/components/VueListe.tsx',
-    de: '            disabled={selection.length === 0 || selection.length > MAX_DOSSIER}',
-    vers: '            disabled={selection.length > MAX_DOSSIER}',
+    de: '            desactive={selection.length === 0 || selection.length > MAX_DOSSIER}',
+    vers: '            desactive={selection.length > MAX_DOSSIER}',
     cwd: 'apps/web',
     e2e: true,
     commande: ['playwright', 'test', 'e2e/dossier-site.spec.ts'],
@@ -4237,6 +4237,23 @@ const MUTATIONS = [
     vers: 'm.index + m[0].length + Number(m[2]) - 1',
     cwd: 'apps/api',
     tests: ['test/exports.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * LA FICHE PDF REPART EN POST, AVEC UN CORPS. Elle est passee d'un simple lien au chemin de
+     * telechargement commun le jour ou elle a porte des cartes — un lien ouvrait un onglet blanc
+     * pendant que le serveur telechargeait ses tuiles. Or ce chemin etait ecrit pour des routes
+     * POST : il posait toujours la methode, l'en-tete et le corps. La route de la fiche, elle, est
+     * un GET, et une requete GET porteuse d'un corps est refusee avant meme d'atteindre
+     * l'application. Aucun test de rendu ne le verrait : `renderToStaticMarkup` ne clique pas.
+     */
+    quoi: 'la fiche PDF repart en POST avec un corps, sur une route qui n’accepte que GET',
+    fichier: 'apps/web/src/api/client.ts',
+    de: "    method: corps === undefined ? 'GET' : 'POST',",
+    vers: "    method: 'POST',",
+    cwd: 'apps/web',
+    tests: ['test/telechargement-export.test.ts'],
   },
 ];
 

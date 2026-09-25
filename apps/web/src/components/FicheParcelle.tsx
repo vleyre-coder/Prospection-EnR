@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { libelleGestionnaire, libelleTypeSol, LIBELLES_RADON, LIBELLES_SISMICITE } from '@enr/core';
 import { BlocVerdict } from './BlocVerdict.js';
 import { BlocCourriers } from './BlocCourriers.js';
+import { BoutonExport } from './BoutonExport.js';
 import type {
   Avertissement,
   EvaluationCritere,
@@ -1360,31 +1361,34 @@ function BlocExports({ idu, filiere }: { idu: string; filiere: Filiere }): JSX.E
     <details className="section fiche-actions" open>
       <summary>Exports</summary>
       <div className="section-corps" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <a className="bouton" href={api.urlPdf(idu, filiere)} target="_blank" rel="noreferrer">
+        {/*
+          LA FICHE PDF N'EST PLUS UN LIEN. Elle porte desormais trois vues cartographiques, que le
+          serveur compose en telechargeant des tuiles a l'IGN : plusieurs secondes. Un
+          `<a target="_blank">` ouvrait donc un onglet BLANC pendant ce temps, sans rien dire, et
+          l'operateur le refermait en croyant l'export casse — ou recliquait, relancant a chaque
+          fois une generation complete.
+        */}
+        <BoutonExport
+          action={() => api.telechargerFiche(idu, filiere)}
+          surErreur={setErreur}
+          titre="Rapport complet : verdict, cartes de situation et d’environnement, critères, sources."
+        >
           Fiche PDF
-        </a>
-        <button
-          type="button"
-          className="bouton"
-          onClick={() =>
-            void api
-              .exporter('geojson', { idus: [idu], filiere }, `${idu}-${filiere}.geojson`)
-              .catch((e: ErreurApi) => setErreur(e.message))
-          }
+        </BoutonExport>
+        <BoutonExport
+          action={() => api.exporter('geojson', { idus: [idu], filiere }, `${idu}-${filiere}.geojson`)}
+          surErreur={setErreur}
         >
           GeoJSON
-        </button>
-        <button
-          type="button"
-          className="bouton"
-          onClick={() =>
-            void api
-              .exporter('shapefile', { idus: [idu], filiere }, `${idu}-${filiere}-shapefile.zip`)
-              .catch((e: ErreurApi) => setErreur(e.message))
+        </BoutonExport>
+        <BoutonExport
+          action={() =>
+            api.exporter('shapefile', { idus: [idu], filiere }, `${idu}-${filiere}-shapefile.zip`)
           }
+          surErreur={setErreur}
         >
           Shapefile
-        </button>
+        </BoutonExport>
         {erreur && <p style={{ fontSize: 11.5, color: 'var(--rouge)', width: '100%' }}>{erreur}</p>}
       </div>
     </details>
