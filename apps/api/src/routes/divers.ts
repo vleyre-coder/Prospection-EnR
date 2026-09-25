@@ -32,7 +32,19 @@ const MOTIF_UUID_PROFIL =
 
 /** Roles applicatifs. Liste fermee : une valeur invalide est refusee, et non ramenee a `lecture`. */
 const ROLES = ['admin', 'prospection', 'lecture'] as const;
-import { csvResultats, dossierSitePdf, ficheParcellePdf, geojsonParcelles } from '../services/exports.js';
+import {
+  csvResultats,
+  dossierSitePdf,
+  ficheParcellePdf,
+  formatCarte,
+  geojsonParcelles,
+} from '../services/exports.js';
+import {
+  construireFigure,
+  reunirGeometries,
+  type FigureCarte,
+} from '../services/carte-statique.js';
+import type { GeoJsonGeometry } from '../geo.js';
 import { cahierDesChargesDocx } from '../services/cahier-des-charges.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -181,6 +193,60 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
   });
 
   // --- Exports -------------------------------------------------------------
+
+  /**
+   * Les deux vues cartographiques d'un document : le plan, puis la photographie aerienne.
+   *
+   * POURQUOI LA ROUTE LES PREPARE, et non le generateur de PDF. Telecharger des tuiles demande le
+   * reseau ; les deux generateurs, eux, sont synchrones et rendent un flux immediatement. Les
+   * rendre asynchrones aurait contamine leurs appelants et leurs tests, pour une illustration.
+   *
+   * L'ECHEC N'EST PAS UNE ERREUR DE L'EXPORT. Si la Geoplateforme ne repond pas, le document doit
+   * partir quand meme — sans ses cartes, et en le disant. Un dossier de qualification refuse parce
+   * qu'une image manque serait un service pire que l'absence d'image.
+   */
+  async function vuesCartographiques(
+    geometrie: GeoJsonGeometry,
+    quoi: string,
+  ): Promise<Array<FigureCarte | null>> {
+    const paire = formatCarte(2);
+    const pleine = formatCarte(1);
+    const une = async (
+      options: Parameters<typeof construireFigure>[1],
+    ): Promise<FigureCarte | null> => {
+      try {
+        return await construireFigure(geometrie, options);
+      } catch (err) {
+        app.log.warn({ err, fond: options.fond }, 'vue cartographique indisponible pour un export PDF');
+        return null;
+      }
+    };
+    /*
+     * TROIS VUES, PARCE QU'ELLES REPONDENT A TROIS QUESTIONS. Le plan dit ou l'on est et par ou
+     * l'on arrive ; la photographie dit ce qu'il y a au sol ; la vue large dit dans quoi le projet
+     * s'inscrit — le hameau voisin, la lisiere, la ligne electrique, la zone d'activite. C'est
+     * cette derniere qui manque le plus a un developpeur, et c'est celle qu'aucune vue cadree sur
+     * la parcelle ne peut donner.
+     */
+    return Promise.all([
+      une({ fond: 'plan', ...paire }),
+      une({ fond: 'ortho', ...paire }),
+      /*
+       * LA LEGENDE N'ANNONCE PAS DE DISTANCE, et c'est voulu. `rayonMiniM` garantit un MINIMUM ;
+       * le cadre etant deux fois et demie plus large que haut, la vue couvre en realite bien plus.
+       * Une legende « 5 km autour de la parcelle » sur une vue de 26 km serait fausse dans un
+       * document remis a un tiers. La barre d'echelle, elle, mesure ce qui est reellement affiche.
+       */
+      une({
+        fond: 'ortho',
+        ...pleine,
+        hauteur: 196,
+        rayonMiniM: 1200,
+        legende: `Environnement ${quoi} — photographie aérienne, vue large`,
+      }),
+    ]);
+  }
+
   app.get<{ Params: { idu: string } }>('/api/exports/parcelle/:idu.pdf', async (req, rep) => {
     const q = req.query as { filiere?: string };
     if (!estFiliere(q.filiere)) {
@@ -203,10 +269,20 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       details: { filiere: q.filiere },
     });
 
+    const figures = await vuesCartographiques(parcelle.geometrie, "de la parcelle");
+
     return rep
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="fiche-${idu}-${q.filiere}.pdf"`)
-      .send(ficheParcellePdf(parcelle, snapshot.snapshot, score, snapshot.connecteursEnEchec));
+      .send(
+        ficheParcellePdf(
+          parcelle,
+          snapshot.snapshot,
+          score,
+          snapshot.connecteursEnEchec,
+          figures,
+        ),
+      );
   });
 
   const debitExport = {
@@ -514,6 +590,13 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
       details: { nb: retenues.length, filiere, nbGroupesContigus },
     });
 
+    // La carte du dossier porte TOUTES les parcelles retenues : c'est la forme du site, pas celle
+    // d'une parcelle, qui decide du trace du raccordement interne et de l'acces au chantier.
+    const figures = await vuesCartographiques(
+      reunirGeometries(retenues.map((l) => l.parcelle.geometrie)),
+      "du site",
+    );
+
     return rep
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="dossier-site-${filiere}.pdf"`)
@@ -527,6 +610,7 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
             statutProspection: l.statutProspection,
           })),
           { filiere, nbGroupesContigus },
+          figures,
         ),
       );
   });

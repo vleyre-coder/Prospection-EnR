@@ -4141,6 +4141,103 @@ const MUTATIONS = [
     cwd: 'apps/api',
     tests: ['test/courriers.test.ts'],
   },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * LE CADRE VIDE REVIENT A LA PLACE DE LA PHRASE. Quand la Geoplateforme ne repond pas, la
+     * figure vaut `null`. Poser alors un cadre sans rien dedans donne, dans un document remis a un
+     * proprietaire, une vignette blanche que son lecteur prend pour un terrain rase ou pour un
+     * defaut d'impression — jamais pour une carte absente. C'est une affirmation muette et fausse,
+     * dans le seul livrable que le prospecteur ne relit pas avant de l'envoyer.
+     */
+    quoi: 'le document laisse un cadre vide au lieu de dire que la carte manque',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: '  const presentes = figures.filter((f): f is FigureCarte => f !== null);\n  if (presentes.length === 0) {',
+    vers: '  const presentes = figures.filter((f): f is FigureCarte => f !== null);\n  if (false) {',
+    cwd: 'apps/api',
+    tests: ['test/exports.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * LE CONTOUR EST TRACE AU MAUVAIS ENDROIT. Le sur-echantillonnage demande deux fois plus de
+     * pixels que de points ; les tuiles sont donc reduites de moitie a la pose, et les contours
+     * doivent l'etre aussi. Oublier la division ne casse rien — la carte reste une carte, nette,
+     * avec un contour rouge d'allure normale — mais ce contour designe une parcelle situee deux
+     * fois plus loin du coin, c'est-a-dire celle du voisin. C'est la faute la plus couteuse que
+     * ce module puisse commettre, et la seule qui ne se voie pas a la relecture du document.
+     */
+    quoi: 'le contour de la parcelle ignore le sur-echantillonnage et se trace ailleurs',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: '      points.push([(x - originX) / facteur, (y - originY) / facteur]);',
+    vers: '      points.push([x - originX, y - originY]);',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * UN XML D'EXCEPTION EST POSE COMME UNE IMAGE. Hors emprise, la Geoplateforme repond parfois
+     * 200 avec un rapport d'erreur XML. PDFKit n'accepte que le PNG et le JPEG, et il LEVE sur
+     * tout le reste : la generation entiere du dossier echoue, en erreur 500, pour une tuile de
+     * bord. Le controle porte sur la signature des octets et non sur l'en-tete annonce, parce que
+     * c'est precisement le cas ou le serveur annonce autre chose que ce qu'il envoie.
+     */
+    quoi: 'des octets qui ne sont pas une image sont poses dans le document',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: '  if (donnees.length < 8) return false;',
+    vers: '  if (donnees.length < 8) return true;',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * UNE GEOMETRIE VIDE PRODUIT UNE CARTE DE L'ATLANTIQUE. `bboxDe` rend `[0, 0, 0, 0]` quand
+     * elle ne trouve aucune position — une enveloppe parfaitement valide, au large du golfe de
+     * Guinee. Sans le refus, le dossier porte une carte de l'ocean avec l'aplomb d'une vraie, et
+     * rien, ni dans le document ni dans les journaux, ne dit que la geometrie etait vide.
+     */
+    quoi: 'une geometrie vide produit une carte au large du golfe de Guinee',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: '  if (positions(geometrie).length === 0) return null;',
+    vers: '  if (positions(geometrie).length === -1) return null;',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * UNE PETITE PARCELLE REDEVIENT INTROUVABLE SUR LA VUE D'ENSEMBLE. Le cercle de reperage se
+     * decide contour par contour ; le decider sur leur emprise COMMUNE le supprime des qu'un site
+     * porte deux emprises eloignees — l'emprise commune couvre alors toute la vignette. La petite
+     * parcelle, celle qu'on risque justement d'oublier, redevient un point de deux points de cote
+     * a cote de la grande, dans le document meme qui sert a ne pas l'oublier.
+     */
+    quoi: 'une petite parcelle redevient introuvable a cote d’une grande sur la vue d’ensemble',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: '    const cadre = emprise([anneau]);',
+    vers: '    const cadre = emprise(figure.anneaux);',
+    cwd: 'apps/api',
+    tests: ['test/exports.test.ts'],
+  },
+  {
+    audit: 'audit 13 (cartes des dossiers)',
+    /*
+     * L'AIDE DE LECTURE DES PDF REPERD UN FLUX DE CONTENU. Chercher la fin d'un flux « a vue »,
+     * entre `stream` et `endstream`, a tenu tant que les documents ne portaient que du texte. Des
+     * qu'ils ont porte des cartes — une trentaine de flux d'images, 400 ko d'octets arbitraires —
+     * l'expression a pris son depart au milieu d'une image et avale le flux suivant. Le texte
+     * d'une page entiere disparait alors SANS ERREUR, et c'est un test qui echoue sur un document
+     * parfaitement correct : la pire facon de perdre confiance dans une suite de tests.
+     */
+    quoi: 'l’aide de lecture des PDF reperd un flux de contenu entier sur un document illustre',
+    fichier: 'apps/api/test/aides/texte-pdf.ts',
+    de: 'm.index + m[0].length + Number(m[2])',
+    vers: 'm.index + m[0].length + Number(m[2]) - 1',
+    cwd: 'apps/api',
+    tests: ['test/exports.test.ts'],
+  },
 ];
 
 /**

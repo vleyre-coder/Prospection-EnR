@@ -125,21 +125,29 @@ function chaines(contenu: string): string[] {
  *
  * La regle correcte suit donc la structure du PDF : **concatener a l'interieur d'un operateur,
  * separer entre operateurs.** Les mots restent entiers, les cellules restent distinctes.
+ *
+ * ═══ LE DECOUPAGE DES FLUX SE LIT DANS `/Length`, ET NON ENTRE `stream` ET `endstream`
+ *
+ * LA PREMIERE VERSION CHERCHAIT LA FIN DU FLUX A VUE, par `/stream\r?\n(.*?)\r?\nendstream/`. Cela
+ * a tenu tant que les documents ne portaient que du texte : leurs flux comprimes sont courts, et
+ * les octets « endstream » n'y apparaissent jamais par hasard.
+ *
+ * LE JOUR OU LES DOSSIERS ONT PORTE DES CARTES, ils ont gagne une trentaine de flux d'images de
+ * plusieurs dizaines de kilo-octets chacun. Sur 400 ko d'octets arbitraires, une sequence qui
+ * ressemble a une borne finit par sortir : l'expression a pris son depart au milieu d'une image,
+ * puis a consomme — et donc AVALE — le flux de contenu suivant. Symptome : le texte d'une page
+ * entiere manquant, sans erreur, sans avertissement. Mesure sur le dossier de site : un flux de
+ * contenu sur quinze perdu, et avec lui la section « Procedures applicables au projet », que
+ * `pdftotext` lisait pourtant sans peine. Un test a echoue sur un document parfaitement correct.
+ *
+ * LA SPECIFICATION DONNE LA LONGUEUR : le dictionnaire qui precede porte `/Length N`, et pdfkit
+ * l'ecrit toujours comme un entier direct. On prend donc exactement N octets, et plus aucune
+ * sequence du contenu ne peut faire office de borne. Les flux d'image sont ecartes des l'entete,
+ * ce qui epargne en prime une trentaine de decompressions inutiles.
  */
 export function texteDuPdf(pdf: Buffer): string {
-  const brut = pdf.toString('latin1');
   const operateurs: string[] = [];
-  const flux = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-  let m: RegExpExecArray | null;
-  while ((m = flux.exec(brut)) !== null) {
-    const donnees = Buffer.from(m[1]!, 'latin1');
-    let contenu: string;
-    try {
-      contenu = inflateSync(donnees).toString('latin1');
-    } catch {
-      // Flux non compresse (ou police embarquee) : on tente tel quel, sinon on passe.
-      contenu = donnees.toString('latin1');
-    }
+  for (const contenu of fluxDeContenu(pdf)) {
     if (!/\bTJ\b|\bTj\b/.test(contenu)) continue;
 
     // Un operateur d'affichage : soit `[ ... ] TJ`, soit une chaine seule suivie de `Tj`.
@@ -150,4 +158,40 @@ export function texteDuPdf(pdf: Buffer): string {
     }
   }
   return operateurs.join(' ').replace(/[ \t]+/g, ' ');
+}
+
+/**
+ * Les flux de contenu decompresses, dans l'ordre du fichier.
+ *
+ * Sorti de `texteDuPdf` le jour ou un test a eu besoin de compter des operateurs de DESSIN, et non
+ * de lire du texte : un cercle de reperage ne porte aucun caractere, donc aucune extraction de
+ * texte ne peut dire s'il a ete trace.
+ */
+export function fluxDeContenu(pdf: Buffer): string[] {
+  const brut = pdf.toString('latin1');
+  const flux: string[] = [];
+
+  /*
+   * L'entete d'un flux : un dictionnaire, puis le mot-cle. `[^<>]*` interdit de traverser une
+   * borne de dictionnaire, donc le `/Length` lu appartient bien au flux qui suit.
+   */
+  const entete = /<<([^<>]*)\/Length (\d+)([^<>]*)>>\s*stream\r?\n/g;
+  let m: RegExpExecArray | null;
+  while ((m = entete.exec(brut)) !== null) {
+    /*
+     * Une image ne porte aucun operateur : la decompresser est inutile, et lire ses octets bruts
+     * comme du contenu fabriquerait des « chaines » au hasard, qu'une assertion pourrait attraper.
+     * `/Subtype` precede `/Length` chez pdfkit, d'ou l'examen des deux cotes du dictionnaire.
+     */
+    if (/\/Subtype\s*\/Image/.test(m[1]! + m[3]!)) continue;
+
+    const donnees = pdf.subarray(m.index + m[0].length, m.index + m[0].length + Number(m[2]));
+    try {
+      flux.push(inflateSync(donnees).toString('latin1'));
+    } catch {
+      // Flux non compresse (ou police embarquee) : on tente tel quel, sinon on passe.
+      flux.push(donnees.toString('latin1'));
+    }
+  }
+  return flux;
 }

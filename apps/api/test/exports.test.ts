@@ -22,6 +22,8 @@ import {
 } from '../src/services/exports.js';
 import type { LigneResultatFiltre } from '../src/services/recherche.js';
 import type { ParcelleEnBase } from '../src/depots/parcelles.js';
+import type { FigureCarte } from '../src/services/carte-statique.js';
+import { fluxDeContenu, texteDuPdf } from './aides/texte-pdf.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures minimales
@@ -320,12 +322,179 @@ test("le GeoJSON porte l'avertissement sur la valeur juridique des contours", ()
 // ---------------------------------------------------------------------------
 
 /** Concatene le flux PDF pour pouvoir en inspecter le contenu. */
-async function pdf(snapshot: ParcelleSnapshot, score = scoreVide()): Promise<Buffer> {
-  const flux = ficheParcellePdf(parcelle, snapshot, score);
+async function pdf(
+  snapshot: ParcelleSnapshot,
+  score = scoreVide(),
+  figures: Array<FigureCarte | null> = [],
+): Promise<Buffer> {
+  const flux = ficheParcellePdf(parcelle, snapshot, score, [], figures);
   const morceaux: Buffer[] = [];
   for await (const m of flux) morceaux.push(Buffer.from(m as Buffer));
   return Buffer.concat(morceaux);
 }
+
+// ---------------------------------------------------------------------------
+// Les cartes du rapport
+// ---------------------------------------------------------------------------
+
+/** Un PNG de 1×1 pixel, le plus petit que PDFKit accepte. */
+const PNG_MINIMAL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/** Une figure valide, construite a la main : ce test ne doit pas dependre du reseau. */
+function figureFictive(fond: 'plan' | 'ortho'): FigureCarte {
+  return {
+    fond,
+    largeur: 250,
+    hauteur: 172,
+    tuiles: [{ donnees: PNG_MINIMAL, x: 0, y: 0, taille: 256 }],
+    anneaux: [
+      [
+        [20, 20],
+        [120, 20],
+        [120, 100],
+        [20, 100],
+      ],
+    ],
+    echelle: { longueurPts: 60, libelle: '250 m' },
+    attribution: '© IGN — Géoplateforme',
+    zoom: 16,
+    legende: fond === 'plan' ? 'Plan IGN — situation et accès' : 'Photographie aérienne',
+  etendueM: [796, 548],
+  };
+}
+
+test('LE RAPPORT ECRIT QUE LA CARTE N’A PAS PU ETRE CHARGEE, AU LIEU DE LAISSER UN CADRE VIDE', async () => {
+  /**
+   * LE DEFAUT EVITE, et il ne se signale nulle part ailleurs. Quand la Geoplateforme ne repond
+   * pas, `construireFigure` rend `null`. Poser alors un cadre vide donnerait, dans un document
+   * remis a un proprietaire, une vignette blanche que son lecteur prend pour un terrain rase ou
+   * pour un defaut d'impression — jamais pour une carte absente. Un dossier qui ne sait pas doit
+   * le dire.
+   *
+   * ET L'EXPORT PART QUAND MEME : refuser le document parce qu'une image manque serait un service
+   * pire que l'absence d'image.
+   */
+  const buf = await pdf(snapshot(), scoreVide(), [null, null]);
+  const lu = texteDuPdf(buf);
+  assert.match(lu, /SITUATION/, 'la section doit exister, meme sans carte');
+  assert.match(lu, /pas pu .{1,2}tre charg/i, `le document doit dire que la carte manque :\n${lu.slice(0, 400)}`);
+  assert.equal(buf.subarray(0, 5).toString('latin1'), '%PDF-', 'le document part malgre tout');
+});
+
+test('AUCUNE CARTE DEMANDEE : AUCUNE SECTION, ET AUCUNE EXCUSE', async () => {
+  /*
+   * Distinction qui compte : « je n'ai pas pu charger la carte » est un CONSTAT D'ECHEC. L'ecrire
+   * dans un document ou aucune carte n'etait attendue — un appel qui ne passe pas de figures,
+   * comme le font les tests et les anciens clients — inventerait une panne.
+   */
+  const lu = texteDuPdf(await pdf(snapshot(), scoreVide(), []));
+  assert.doesNotMatch(lu, /pas pu .{1,2}tre charg/i);
+  assert.doesNotMatch(lu, /SITUATION/);
+});
+
+test('LES CARTES DISPONIBLES SONT POSEES, SANS CONSTAT D’ECHEC', async () => {
+  const lu = texteDuPdf(await pdf(snapshot(), scoreVide(), [figureFictive('plan'), null]));
+  assert.match(lu, /SITUATION/);
+  assert.match(lu, /Plan IGN/, 'la legende de la vignette posee doit etre ecrite');
+  assert.match(lu, /IGN/, "l'attribution de la Geoplateforme est obligatoire et doit figurer");
+  assert.match(lu, /250 m/, 'la barre d’echelle doit porter sa valeur');
+  /*
+   * UNE SEULE FIGURE SUR DEUX SUFFIT. Une vue partielle vaut mieux qu'aucune, et le manque se voit
+   * de lui-meme ; ecrire l'echec a cote d'une carte bien presente serait contradictoire.
+   */
+  assert.doesNotMatch(lu, /pas pu .{1,2}tre charg/i);
+});
+
+test('LE TEXTE RESTE LISIBLE DANS UN DOCUMENT CHARGE D’IMAGES', async () => {
+  /**
+   * CE QUI A ETE MESURE, et pourquoi ce garde protege les TESTS plutot que le produit.
+   *
+   * `texteDuPdf` cherchait la fin de chaque flux « a vue », entre `stream` et `endstream`. Cela a
+   * tenu tant que les documents ne portaient que du texte. Le jour ou les dossiers ont porte des
+   * cartes — une trentaine de flux d'images, 400 ko d'octets arbitraires —, l'expression a pris
+   * son depart au milieu d'une image et avale le flux de contenu suivant : le texte d'une PAGE
+   * ENTIERE disparaissait, sans erreur ni avertissement. Un test a echoue sur un document
+   * parfaitement correct, que `pdftotext` lisait sans peine.
+   *
+   * C'est la pire facon de perdre un test : non pas rouge a tort une fois, mais rouge a tort de
+   * facon dependante des donnees, ce qui fait douter du produit au lieu de l'outil.
+   *
+   * Le garde exige donc que le texte reste lisible dans un document CHARGE d'images — la seule
+   * condition sous laquelle la faute se manifestait.
+   */
+  const chargee: FigureCarte = {
+    ...figureFictive('ortho'),
+    tuiles: Array.from({ length: 24 }, (_, i) => ({
+      donnees: PNG_MINIMAL,
+      x: (i % 6) * 40,
+      y: Math.floor(i / 6) * 40,
+      taille: 40,
+    })),
+  };
+
+  const lu = texteDuPdf(await pdf(snapshot(), scoreVide(), [chargee, chargee, chargee]));
+  // Un libelle de la PREMIERE page, et un de la DERNIERE : un flux perdu se voit d'un cote ou de
+  // l'autre selon l'endroit ou le decoupage derape.
+  assert.match(lu, /RAPPORT DE QUALIFICATION/, 'le texte de la premiere page doit rester lisible');
+  assert.match(lu, /AVERTISSEMENTS/, 'le texte de la derniere page doit rester lisible');
+  assert.match(lu, /aide . la d.cision/i);
+});
+
+test('UNE PARCELLE TROP PETITE POUR SE VOIR EST ENTOUREE, CHACUNE POUR SON COMPTE', async () => {
+  /**
+   * LE DEFAUT MESURE, en relisant un dossier de site a deux emprises separees. Sur la vue
+   * d'environnement, une parcelle de six hectares mesure deux points de cote : elle devient un
+   * point rouge qu'on ne trouve qu'en sachant deja ou regarder. Le cercle de reperage la designe.
+   *
+   * ET LA MESURE SE FAIT CONTOUR PAR CONTOUR. La premiere version regardait l'emprise COMMUNE des
+   * contours : sur un site a deux emprises eloignees, cette emprise couvre toute la vignette,
+   * aucun cercle n'etait trace, et la petite parcelle — celle qu'on risque justement d'oublier —
+   * restait invisible a cote de la grande. Ce test porte donc les deux a la fois.
+   *
+   * ═══ POURQUOI IL COMPTE DES COURBES ET NON DU TEXTE
+   *
+   * Un cercle ne porte aucun caractere : aucune extraction de texte ne peut dire s'il a ete trace.
+   * PDFKit rend un cercle en QUATRE courbes de Bezier, et le module en trace deux — un halo blanc,
+   * puis le trait rouge. La comparaison est DIFFERENTIELLE, entre deux documents identiques a
+   * la taille du contour pres : c'est le seul moyen de ne pas dependre du nombre de courbes que le
+   * reste de la page dessine par ailleurs.
+   */
+  const courbes = async (anneaux: Array<Array<[number, number]>>): Promise<number> => {
+    const figure = { ...figureFictive('ortho'), anneaux };
+    const buf = await pdf(snapshot(), scoreVide(), [figure]);
+    return fluxDeContenu(buf).join('').match(/\bc\b/g)?.length ?? 0;
+  };
+
+  const grand: Array<[number, number]> = [
+    [20, 20],
+    [120, 20],
+    [120, 100],
+    [20, 100],
+  ];
+  const minuscule: Array<[number, number]> = [
+    [200, 60],
+    [203, 60],
+    [203, 63],
+    [200, 63],
+  ];
+
+  const seulGrand = await courbes([grand]);
+  const seulPetit = await courbes([minuscule]);
+  const lesDeux = await courbes([grand, minuscule]);
+
+  assert.ok(
+    seulPetit >= seulGrand + 8,
+    `un contour minuscule doit ajouter deux cercles, soit huit courbes — ${seulGrand} puis ${seulPetit}`,
+  );
+  assert.equal(
+    lesDeux,
+    seulPetit,
+    'a cote d’un grand contour, le petit doit rester entoure : la mesure est contour par contour',
+  );
+});
 
 test('le rapport se genere sur un snapshot entierement vide', async () => {
   const buf = await pdf(snapshot());

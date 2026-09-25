@@ -9,6 +9,7 @@ import { bboxDepuisChaine, cercle } from '../geo.js';
 import { CALQUES_PAR_ID, urlRasterAmont } from '../calques.js';
 import { zonagesSurEmprise } from '../connecteurs/zonages.js';
 import * as tuiles from '../services/tuiles.js';
+import { FONDS, estFond } from '../services/carte-statique.js';
 import * as depotParcelles from '../depots/parcelles.js';
 import * as depotScores from '../depots/scores.js';
 import * as depotProspection from '../depots/prospection.js';
@@ -39,12 +40,11 @@ const ZOOM_MIN_CADASTRE = config.carte.zoomMinParcelles;
  * Fonds de carte autorises par le relais.
  *
  * Liste FERMEE : le relais ne doit pas devenir un proxy ouvert vers n'importe quelle
- * ressource distante.
+ * ressource distante. Elle est DEFINIE AILLEURS, dans `services/carte-statique.ts`, et importee
+ * ici : le composeur de cartes des PDF portait la meme liste, et deux listes d'autorisation
+ * identiques ne restent identiques que tant que personne n'en modifie une seule.
  */
-const FONDS_AUTORISES: Record<string, { couche: string; format: string; type: string }> = {
-  plan: { couche: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', format: 'image/png', type: 'image/png' },
-  ortho: { couche: 'ORTHOIMAGERY.ORTHOPHOTOS', format: 'image/jpeg', type: 'image/jpeg' },
-};
+const FONDS_AUTORISES = FONDS;
 
 export async function routesCarte(app: FastifyInstance): Promise<void> {
   /**
@@ -62,10 +62,10 @@ export async function routesCarte(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { fond: string; z: string; x: string; y: string } }>(
     '/api/carte/fond/:fond/:z/:x/:y',
     async (req, rep) => {
-      const conf = FONDS_AUTORISES[req.params.fond];
-      if (!conf) {
+      if (!estFond(req.params.fond)) {
         return erreur(rep, 404, 'fond_inconnu', `Fond inconnu : ${req.params.fond}`);
       }
+      const conf = FONDS_AUTORISES[req.params.fond];
       const z = Number(req.params.z);
       const x = Number(req.params.x);
       const y = Number(req.params.y);

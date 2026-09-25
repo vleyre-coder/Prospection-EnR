@@ -895,7 +895,7 @@ export const REGLES_COMMUNES: Record<string, RegleReglementaire> = {
   },
   emplacement_reserve: {
     id: 'commun_emplacement_reserve',
-    libelle: 'Emplacement réserve : foncier affecte à un autre usage',
+    libelle: 'Emplacement réservé : foncier affecté à un autre usage',
     reference:
       "Code de l'urbanisme, art. L.151-41 (emplacements réservés) ; art. L.152-2 (droit de délaissement " +
       'du propriétaire)',

@@ -42,6 +42,7 @@ import {
 } from '@enr/scoring';
 import { reparerDoubleEncodage } from '../texte.js';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
+import type { FigureCarte, Fond } from './carte-statique.js';
 import type { LigneResultatFiltre } from './recherche.js';
 
 // ---------------------------------------------------------------------------
@@ -353,6 +354,239 @@ function encadre(doc: Doc, feu: Feu, titre: string, corps: string[]): void {
   doc.fillColor(ENCRE);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LES CARTES DU DOSSIER
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Un dossier de qualification sans image oblige son lecteur a rouvrir l'application pour
+ * comprendre ce qu'il decrit — l'aveu qu'il ne se suffit pas. Deux vues repondent a deux questions
+ * differentes, et il faut les deux : le PLAN dit ou l'on est (routes, hameaux, toponymes), la
+ * PHOTO dit ce qu'il y a (culture en place, haies, bati, ligne electrique). Un developpeur qui
+ * qualifie un terrain regarde les deux, dans cet ordre.
+ *
+ * Les figures sont PREPAREES AILLEURS (`services/carte-statique.ts`), parce que les telecharger
+ * demande le reseau et que ces deux generateurs sont synchrones. Ici, on ne fait que poser.
+ */
+
+/** Hauteur d'une vignette de carte, en points. Deux vignettes tiennent cote a cote sur l'A4. */
+const HAUTEUR_CARTE = 172;
+
+/** En deca de cette taille en points, un contour ne se trouve plus a l'oeil : on l'entoure. */
+const SEUIL_REPERE = 11;
+
+/** L'emprise des contours dans la vignette, en points. `null` quand il n'y en a aucun. */
+export function emprise(
+  anneaux: Array<Array<[number, number]>>,
+): { cx: number; cy: number; largeur: number; hauteur: number } | null {
+  let xMin = Infinity;
+  let yMin = Infinity;
+  let xMax = -Infinity;
+  let yMax = -Infinity;
+  for (const anneau of anneaux) {
+    for (const [px, py] of anneau) {
+      if (px < xMin) xMin = px;
+      if (py < yMin) yMin = py;
+      if (px > xMax) xMax = px;
+      if (py > yMax) yMax = py;
+    }
+  }
+  if (!Number.isFinite(xMin)) return null;
+  return {
+    cx: (xMin + xMax) / 2,
+    cy: (yMin + yMax) / 2,
+    largeur: xMax - xMin,
+    hauteur: yMax - yMin,
+  };
+}
+
+/**
+ * Pose une figure : les tuiles, decoupees au cadre, puis le contour en vectoriel par-dessus.
+ *
+ * LE DECOUPAGE EST INDISPENSABLE. Les tuiles sont un pavage : celles du bord debordent
+ * necessairement du cadre, et sans `clip` elles iraient recouvrir le texte voisin ou la vignette
+ * d'a cote. `save`/`restore` bornent l'effet au seul bloc de la carte.
+ *
+ * LE CONTOUR EST TRACE, PAS INCRUSTE : un trace vectoriel reste net a l'impression et a
+ * l'agrandissement, ce qu'un assemblage raster ne serait pas.
+ */
+function dessinerFigure(doc: Doc, figure: FigureCarte, x: number, y: number): void {
+  const { largeur, hauteur } = figure;
+
+  doc.save();
+  doc.rect(x, y, largeur, hauteur).clip();
+  // Un fond neutre sous les tuiles : la ou une tuile manque, le blanc du papier passerait pour
+  // un terrain nu. Un gris pale se lit comme une absence.
+  doc.rect(x, y, largeur, hauteur).fill('#e2e8f0');
+  for (const t of figure.tuiles) {
+    try {
+      doc.image(t.donnees, x + t.x, y + t.y, { width: t.taille, height: t.taille });
+    } catch {
+      // Une tuile que PDFKit refuse ne doit pas emporter le dossier entier : on la saute.
+    }
+  }
+
+  // Le contour de la parcelle : un halo blanc dessous, le trait rouge dessus. Sans le halo, un
+  // trait rouge sur une orthophoto sombre — un bois, une toiture d'ardoise — devient invisible.
+  for (const passe of [
+    { couleur: '#ffffff', epaisseur: 3.4 },
+    { couleur: '#dc2626', epaisseur: 1.5 },
+  ]) {
+    for (const anneau of figure.anneaux) {
+      const [depart, ...suite] = anneau;
+      if (!depart) continue;
+      doc.moveTo(x + depart[0], y + depart[1]);
+      for (const p of suite) doc.lineTo(x + p[0], y + p[1]);
+      doc.closePath().lineWidth(passe.epaisseur).strokeColor(passe.couleur).stroke();
+    }
+  }
+
+  /*
+   * ═══ UN CERCLE DE REPERAGE AUTOUR DE CHAQUE CONTOUR TROP PETIT POUR SE VOIR
+   *
+   * Sur la vue d'environnement, une parcelle de six hectares mesure quelques points : elle devient
+   * un point rouge qu'on ne trouve qu'en sachant ou regarder. Une vue de contexte dont on ne sait
+   * pas ou est le sujet ne sert a rien. Le cercle n'apparait donc QUE dans ce cas — sur la vue
+   * rapprochee, ou le contour se lit, il ne ferait que masquer les abords.
+   *
+   * LA MESURE SE FAIT CONTOUR PAR CONTOUR, et non sur leur emprise commune. C'est la premiere
+   * version qui l'a appris, en relisant un dossier de site a deux emprises separees : l'emprise
+   * commune couvrait toute la vignette, aucun cercle n'etait trace, et la petite parcelle — celle
+   * qu'on cherche justement — restait un point de deux points de cote a l'autre bout de l'image.
+   * Or c'est exactement le document ou l'on risque d'en oublier une.
+   */
+  for (const anneau of figure.anneaux) {
+    const cadre = emprise([anneau]);
+    if (!cadre || Math.max(cadre.largeur, cadre.hauteur) >= SEUIL_REPERE) continue;
+    for (const passe of [
+      { couleur: '#ffffff', epaisseur: 2.6 },
+      { couleur: '#dc2626', epaisseur: 1.1 },
+    ]) {
+      doc
+        .circle(x + cadre.cx, y + cadre.cy, SEUIL_REPERE * 0.9)
+        .lineWidth(passe.epaisseur)
+        .strokeColor(passe.couleur)
+        .stroke();
+    }
+  }
+  doc.restore();
+
+  // ═══ l'echelle et l'attribution, DANS le cadre et sur un bandeau lisible
+  const hBandeau = 13;
+  const yBandeau = y + hauteur - hBandeau;
+  doc.save();
+  doc.rect(x, yBandeau, largeur, hBandeau).fillOpacity(0.82).fill('#ffffff');
+  doc.restore();
+
+  const xBarre = x + 6;
+  const yBarre = yBandeau + hBandeau / 2;
+  // La barre est bornee a la vignette : une echelle qui deborde du cadre ment sur sa longueur.
+  const longueur = Math.min(figure.echelle.longueurPts, largeur / 2);
+  doc
+    .moveTo(xBarre, yBarre)
+    .lineTo(xBarre + longueur, yBarre)
+    .lineWidth(1.4)
+    .strokeColor('#111827')
+    .stroke();
+  for (const bout of [xBarre, xBarre + longueur]) {
+    doc.moveTo(bout, yBarre - 2.5).lineTo(bout, yBarre + 2.5).lineWidth(1).strokeColor('#111827').stroke();
+  }
+  doc
+    .fontSize(6.4)
+    .font('Helvetica')
+    .fillColor('#111827')
+    .text(net(figure.echelle.libelle), xBarre + longueur + 4, yBandeau + 3.4, { lineBreak: false });
+  doc.fontSize(6).fillColor('#475569').text(net(figure.attribution), x, yBandeau + 3.8, {
+    width: largeur - 6,
+    align: 'right',
+    lineBreak: false,
+  });
+
+  doc.rect(x, y, largeur, hauteur).lineWidth(0.6).strokeColor('#94a3b8').stroke();
+  doc.fillColor(ENCRE);
+}
+
+/**
+ * Le bloc de cartes : les vignettes disponibles cote a cote, et A DEFAUT une phrase.
+ *
+ * ON ECRIT L'ABSENCE. Une figure manquante laisse un cadre vide, qu'un lecteur prend pour une
+ * parcelle rase ou pour une erreur d'impression — il ne peut pas deviner que le serveur n'a pas
+ * joint la Geoplateforme. Un dossier remis a un tiers doit dire ce qu'il ne sait pas.
+ */
+function blocCartes(doc: Doc, figures: Array<FigureCarte | null>): void {
+  const presentes = figures.filter((f): f is FigureCarte => f !== null);
+  if (presentes.length === 0) {
+    doc
+      .fontSize(8.4)
+      .font('Helvetica-Oblique')
+      .fillColor(ENCRE_FAIBLE)
+      .text(
+        net(
+          'Les vues cartographiques n’ont pas pu être chargées au moment de l’édition (service de ' +
+            'tuiles IGN injoignable). Le reste du dossier n’est pas affecté.',
+        ),
+        MARGE,
+        doc.y,
+        { width: largeurUtile(doc) },
+      );
+    doc.font('Helvetica').fillColor(ENCRE);
+    doc.y += 6;
+    return;
+  }
+
+  /*
+   * LES VIGNETTES PASSENT A LA LIGNE. Elles n'ont pas toutes la meme largeur : deux vues cadrees
+   * sur la parcelle tiennent en colonnes, la vue d'environnement occupe la pleine largeur. Les
+   * poser a la suite sans retour a la ligne les ferait deborder dans la marge — un defaut qui ne
+   * se voit qu'en ouvrant le document, jamais en relisant le code.
+   */
+  const droite = MARGE + largeurUtile(doc);
+  let x = MARGE;
+  let y = 0;
+  let hauteurRangee = 0;
+  let premiere = true;
+
+  for (const figure of presentes) {
+    if (premiere || x + figure.largeur > droite + 0.5) {
+      if (!premiere) doc.y = y + hauteurRangee + 16;
+      assurerPlace(doc, figure.hauteur + 20);
+      y = doc.y;
+      x = MARGE;
+      hauteurRangee = 0;
+      premiere = false;
+    }
+    dessinerFigure(doc, figure, x, y);
+    doc
+      .fontSize(7.4)
+      .font('Helvetica')
+      .fillColor(ENCRE_FAIBLE)
+      .text(net(figure.legende), x, y + figure.hauteur + 3, {
+        width: figure.largeur,
+        lineBreak: false,
+      });
+    hauteurRangee = Math.max(hauteurRangee, figure.hauteur);
+    x += figure.largeur + ECART_CARTES;
+  }
+  doc.fillColor(ENCRE);
+  doc.y = y + hauteurRangee + 18;
+}
+
+/** Ecart entre les deux vignettes, en points. */
+const ECART_CARTES = 12;
+
+/**
+ * Les dimensions a demander pour un jeu de `nombre` vignettes sur une pleine largeur d'A4.
+ *
+ * Exportee parce que c'est la ROUTE qui construit les figures, avant d'appeler le generateur :
+ * elle ne doit pas avoir a redecouvrir la mise en page du document.
+ */
+export function formatCarte(nombre: number): { largeur: number; hauteur: number } {
+  const utile = 595.28 - 2 * MARGE;
+  return {
+    largeur: (utile - ECART_CARTES * (nombre - 1)) / nombre,
+    hauteur: HAUTEUR_CARTE,
+  };
+}
+
 const dateFr = (v: string | Date | null | undefined): string =>
   v == null ? '-' : new Date(v).toLocaleDateString('fr-FR');
 
@@ -386,6 +620,12 @@ export function ficheParcellePdf(
    * mentionner, sans quoi des criteres gris passeraient pour des absences de contrainte.
    */
   connecteursEnEchec: string[] = [],
+  /**
+   * Vues cartographiques deja telechargees. Passees en parametre — et non construites ici —
+   * parce que les telecharger demande le reseau, et que ce generateur est synchrone : le rendre
+   * asynchrone contaminerait ses appelants et ses tests. Vide, le document le dit.
+   */
+  figures: Array<FigureCarte | null> = [],
 ): NodeJS.ReadableStream {
   const meta = FILIERES_META[score.filiere];
   const doc = new PDFDocument({
@@ -468,6 +708,17 @@ export function ficheParcellePdf(
   }
   doc.fillColor(ENCRE);
   doc.y = yv + hVerdict + 8;
+
+  // ============================================================== situation
+  /*
+   * LA CARTE VIENT AVANT LE RESTE, et pas en annexe. La premiere question d'un lecteur devant une
+   * parcelle est « ou est-ce, et a quoi ca ressemble » ; la lui faire chercher page quatre revient
+   * a lui faire lire dix tableaux sans savoir de quoi ils parlent.
+   */
+  if (figures.length > 0) {
+    titreSection(doc, 'Situation', 40);
+    blocCartes(doc, figures);
+  }
 
   // ==================================================== criteres redhibitoires
   if (score.knockOuts.length > 0) {
@@ -998,6 +1249,8 @@ const LIBELLES_SEVERITE_PLAN: Record<string, string> = {
 export function dossierSitePdf(
   parcelles: ParcelleDuDossier[],
   contexte: ContexteDossier,
+  /** Vues du site, deja telechargees. Voir `ficheParcellePdf` pour la raison du parametre. */
+  figures: Array<FigureCarte | null> = [],
 ): NodeJS.ReadableStream {
   const meta = FILIERES_META[contexte.filiere];
   const doc = new PDFDocument({
@@ -1054,6 +1307,17 @@ export function dossierSitePdf(
   );
   doc.y += 12;
   doc.fillColor(ENCRE);
+
+  // ============================================================== emprise du site
+  /*
+   * LA FORME DU SITE EST UNE DONNEE DU DOSSIER, pas une illustration. « Trois emprises separees »
+   * ecrit en toutes lettres plus bas ne dit ni leur eloignement, ni leur orientation, ni ce qui
+   * les separe — et c'est de cela que depend le trace du raccordement interne.
+   */
+  if (figures.length > 0) {
+    titreSection(doc, 'Emprise du site', 40);
+    blocCartes(doc, figures);
+  }
 
   // ============================================================ chiffres du site
   const surface = surfaceUtileSiteHa(
