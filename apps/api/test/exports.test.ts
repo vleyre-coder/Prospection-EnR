@@ -326,8 +326,9 @@ async function pdf(
   snapshot: ParcelleSnapshot,
   score = scoreVide(),
   figures: Array<FigureCarte | null> = [],
+  connecteursEnEchec: string[] = [],
 ): Promise<Buffer> {
-  const flux = ficheParcellePdf(parcelle, snapshot, score, [], figures);
+  const flux = ficheParcellePdf(parcelle, snapshot, score, connecteursEnEchec, figures);
   const morceaux: Buffer[] = [];
   for await (const m of flux) morceaux.push(Buffer.from(m as Buffer));
   return Buffer.concat(morceaux);
@@ -365,6 +366,48 @@ function figureFictive(fond: 'plan' | 'ortho'): FigureCarte {
   etendueM: [796, 548],
   };
 }
+
+test('UNE COUCHE JAMAIS INGEREE NE FAIT PAS PROMETTRE QU’UNE RELANCE LA COMPLETERA', async () => {
+  /**
+   * LA FAUTE MESUREE, et elle tenait en une phrase imprimee sur un document remis a un tiers :
+   *
+   *     « Sources non interrogeables au moment du calcul : patrimoine_culture. […] RELANCER LA
+   *       QUALIFICATION DE LA PARCELLE PERMETTRA DE LES COMPLETER. »
+   *
+   * Les connecteurs du depot ne travaillent pas tous de la meme facon : treize interrogent une API
+   * en direct, huit reposent sur une couche INGEREE au prealable. Pour les premiers, relancer est
+   * la bonne consigne. Pour les seconds, relancer ne changera RIEN, jamais — et le prospecteur
+   * relance dans le vide sans comprendre pourquoi rien ne bouge. Mesure sur la base d'essai :
+   * `patrimoine_culture` est en echec sur les 301 parcelles, et la table des contraintes est vide.
+   *
+   * LA CLE TECHNIQUE TENAIT AUSSI LIEU DE NOM. « patrimoine_culture » s'imprimait tel quel la ou
+   * le registre porte « Ministere de la Culture - monuments historiques et sites proteges ».
+   */
+  const lu = texteDuPdf(await pdf(snapshot(), scoreVide(), [], ['patrimoine_culture']));
+
+  assert.match(lu, /Couches non ingérées sur ce territoire/);
+  assert.match(lu, /Ministère de la Culture/, 'le nom de la source, pas sa clef technique');
+  assert.doesNotMatch(lu, /patrimoine_culture/, 'aucune clef technique dans un document remis');
+  assert.match(lu, /relancer la qualification n[’']y changera rien/i);
+  assert.match(
+    lu,
+    /n[’']est pas une absence de contrainte/i,
+    'le document doit dire que l’absence d’information n’est pas une absence de contrainte',
+  );
+});
+
+test('UNE SOURCE INTERROGEE EN DIRECT GARDE, ELLE, LA CONSIGNE DE RELANCE', async () => {
+  /*
+   * LE CONTRE-EXEMPLE, sans lequel la correction se contenterait de supprimer une phrase utile.
+   * Quand une API n'a pas repondu, relancer la qualification EST la bonne chose a faire, et le
+   * document doit continuer de le dire.
+   */
+  const lu = texteDuPdf(await pdf(snapshot(), scoreVide(), [], ['apicarto_rpg']));
+
+  assert.match(lu, /Sources non interrogeables au moment du calcul/);
+  assert.match(lu, /relancer la qualification de la parcelle permettra de les compléter/i);
+  assert.doesNotMatch(lu, /Couches non ingérées/);
+});
 
 test('LE RAPPORT ECRIT QUE LA CARTE N’A PAS PU ETRE CHARGEE, AU LIEU DE LAISSER UN CADRE VIDE', async () => {
   /**

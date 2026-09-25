@@ -42,6 +42,7 @@ import {
 } from '@enr/scoring';
 import { reparerDoubleEncodage } from '../texte.js';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
+import { CONNECTEURS } from '../connecteurs/base.js';
 import type { FigureCarte, Fond } from './carte-statique.js';
 import type { LigneResultatFiltre } from './recherche.js';
 
@@ -587,6 +588,67 @@ export function formatCarte(nombre: number): { largeur: number; hauteur: number 
   };
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LES SOURCES INDISPONIBLES — deux situations, deux consignes, et l'une des deux etait fausse
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE LE RAPPORT ECRIVAIT, sous un seul et meme encadre :
+ *
+ *     « Sources non interrogeables au moment du calcul : patrimoine_culture. Les criteres qui en
+ *       dependent sont restes non evalues. RELANCER LA QUALIFICATION DE LA PARCELLE PERMETTRA DE
+ *       LES COMPLETER. »
+ *
+ * DEUX FAUTES DANS TROIS LIGNES, et mesurees sur les 301 parcelles de la base.
+ *
+ *   1. LA CONSIGNE EST FAUSSE POUR LA MOITIE DES CAS. Les connecteurs du depot ne travaillent pas
+ *      tous de la meme facon : treize interrogent une API en direct, huit reposent sur une couche
+ *      INGEREE au prealable. Quand une API ne repond pas, relancer la qualification marche —
+ *      c'est meme la bonne consigne. Quand la couche n'a jamais ete ingeree sur ce territoire,
+ *      relancer ne changera RIEN, jamais, et le prospecteur relance dans le vide sans comprendre
+ *      pourquoi rien ne bouge. C'est le cas de `patrimoine_culture` sur les 301 parcelles : la
+ *      table des contraintes est vide, et aucune relance n'y changera quoi que ce soit.
+ *
+ *   2. LA CLE TECHNIQUE TIENT LIEU DE NOM. « patrimoine_culture » s'imprime tel quel dans un
+ *      document remis a un tiers, la ou le registre porte « Ministere de la Culture - monuments
+ *      historiques et sites proteges ». C'est exactement le defaut deja corrige sur le
+ *      gestionnaire de reseau, ou la valeur brute « autre_grd » s'affichait comme un nom
+ *      d'entreprise.
+ *
+ * LA DISTINCTION NE SE DEVINE PAS : elle se lit dans `modeAcces`, que le registre des connecteurs
+ * porte deja. Rien a interroger, rien a migrer — l'information etait la.
+ */
+export function sourcesIndisponibles(
+  connecteurs: string[],
+): Array<{ titre: string; sources: string[]; consigne: string }> {
+  const nommer = (c: string): string => CONNECTEURS[c]?.nom ?? c;
+  const aIngerer = connecteurs.filter((c) => CONNECTEURS[c]?.modeAcces !== 'api');
+  const interrogeables = connecteurs.filter((c) => CONNECTEURS[c]?.modeAcces === 'api');
+
+  const groupes: Array<{ titre: string; sources: string[]; consigne: string }> = [];
+  if (interrogeables.length > 0) {
+    groupes.push({
+      titre: 'Sources non interrogeables au moment du calcul',
+      sources: interrogeables.map(nommer),
+      consigne:
+        'Les critères qui en dépendent sont restés non évalués. Ces sources répondent en direct : ' +
+        'relancer la qualification de la parcelle permettra de les compléter.',
+    });
+  }
+  if (aIngerer.length > 0) {
+    groupes.push({
+      titre: 'Couches non ingérées sur ce territoire',
+      sources: aIngerer.map(nommer),
+      consigne:
+        'Les critères qui en dépendent sont restés non évalués, et le resteront tant que ces ' +
+        'couches n’auront pas été ingérées : relancer la qualification n’y changera rien. ' +
+        'L’absence d’information n’est pas une absence de contrainte — ces enjeux sont à ' +
+        'instruire auprès des services compétents.',
+    });
+  }
+  return groupes;
+}
+
 const dateFr = (v: string | Date | null | undefined): string =>
   v == null ? '-' : new Date(v).toLocaleDateString('fr-FR');
 
@@ -1059,11 +1121,8 @@ export function ficheParcellePdf(
       pastille: s.valeurJuridique === 'opposable' ? 'vert' : s.valeurJuridique === 'indicative' ? 'orange' : 'gris',
     })),
   );
-  if (connecteursEnEchec.length > 0) {
-    encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
-      `${connecteursEnEchec.join(', ')}. Les critères qui en dépendent sont restés non évalués. ` +
-        'Relancer la qualification de la parcelle permettra de les compléter.',
-    ]);
+  for (const groupe of sourcesIndisponibles(connecteursEnEchec)) {
+    encadre(doc, 'gris', groupe.titre, [`${groupe.sources.join(' ; ')}. ${groupe.consigne}`]);
   }
 
   /*
@@ -2334,11 +2393,15 @@ export function dossierSitePdf(
           : 'gris') as Feu,
     })),
   );
+  // Le dossier fait la MEME distinction que la fiche — API injoignable contre couche jamais
+  // ingeree —, et il ajoute ce qui lui est propre : le manque peut ne toucher qu'une partie des
+  // parcelles, ce qui rend les cases vides encore plus faciles a lire comme des absences.
   const echecs = [...new Set(parcelles.flatMap((p) => p.connecteursEnEchec))];
-  if (echecs.length > 0) {
-    encadre(doc, 'gris', 'Sources non interrogeables au moment du calcul', [
-      `${echecs.join(', ')}. Les critères qui en dépendent sont restés non évalués sur au moins ` +
-        'une parcelle du dossier : les cases correspondantes ne signifient pas « aucune contrainte ».',
+  for (const groupe of sourcesIndisponibles(echecs)) {
+    encadre(doc, 'gris', groupe.titre, [
+      `${groupe.sources.join(' ; ')}. ${groupe.consigne} Le manque peut ne porter que sur une ` +
+        'partie des parcelles du dossier : les cases correspondantes ne signifient pas ' +
+        '« aucune contrainte ».',
     ]);
   }
 

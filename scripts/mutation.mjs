@@ -4239,6 +4239,23 @@ const MUTATIONS = [
     tests: ['test/exports.test.ts'],
   },
   {
+    audit: 'audit 13 (sources)',
+    /*
+     * LE RAPPORT PROMET QU'UNE RELANCE COMPLETERA UNE COUCHE JAMAIS INGEREE. Treize connecteurs
+     * interrogent une API en direct, huit reposent sur une couche ingeree au prealable. Pour les
+     * premiers, « relancer la qualification » est la bonne consigne ; pour les seconds, relancer
+     * ne changera RIEN, jamais, et le prospecteur relance dans le vide sans comprendre pourquoi
+     * rien ne bouge. Mesure : `patrimoine_culture` en echec sur les 301 parcelles, table des
+     * contraintes vide. La consigne fausse s'imprime dans un document remis a un tiers.
+     */
+    quoi: 'le rapport promet qu’une relance completera une couche jamais ingeree',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: "  const aIngerer = connecteurs.filter((c) => CONNECTEURS[c]?.modeAcces !== 'api');",
+    vers: '  const aIngerer: string[] = [];',
+    cwd: 'apps/api',
+    tests: ['test/exports.test.ts'],
+  },
+  {
     audit: 'audit 13 (courriel)',
     /*
      * LA SITUATION DE PROPRIETE PART DANS LE COURRIEL. Un courriel se transfere, s'archive et sort
