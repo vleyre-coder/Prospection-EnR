@@ -341,7 +341,19 @@ Recherche unifiee. Detecte automatiquement le type de saisie :
 
 ## 9. Exports
 
-- `GET /api/exports/parcelle/:idu.pdf?filiere=` → fiche parcelle imprimable (PDF).
+- `GET /api/exports/parcelle/:idu.pdf?filiere=` → fiche parcelle imprimable (PDF), avec **trois
+  vues cartographiques** composées côté serveur à partir des tuiles IGN : plan (situation et
+  accès), photographie aérienne (occupation du sol) et vue large (environnement du projet). Si la
+  Géoplateforme ne répond pas, le document **écrit qu'il n'a pas pu charger la carte** et part
+  quand même : refuser un dossier parce qu'une image manque serait un service pire que l'absence
+  d'image. Compter quelques secondes de préparation — le client doit afficher une attente.
+- `GET /api/exports/parcelle/:idu.eml?filiere=` → **brouillon de courriel** (`message/rfc822`) :
+  note technique en corps, la fiche PDF ci-dessus en pièce jointe. **Rien n'est envoyé** :
+  l'application ne possède aucune boîte d'envoi. Le fichier s'ouvre d'un double-clic dans la
+  messagerie professionnelle de l'opérateur, qui pose son expéditeur en en-tête et sa signature
+  dans le corps. Le corps ne porte **aucune situation de propriété** : un courriel se transfère,
+  s'archive, et sort du dispositif de journalisation dès qu'il est parti. Journalisé sous
+  `export_courriel`, distinct de `export_pdf`.
 - `POST /api/exports/geojson` → `{ "idus": [...], "filiere": "..." }` → GeoJSON.
 - `POST /api/exports/shapefile` → meme corps → archive ZIP.
 - `POST /api/exports/csv` → meme corps que `/api/recherche/parcelles` → CSV point-virgule,
