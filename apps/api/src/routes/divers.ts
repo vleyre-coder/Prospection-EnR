@@ -45,6 +45,22 @@ import {
   type FigureCarte,
 } from '../services/carte-statique.js';
 import type { GeoJsonGeometry } from '../geo.js';
+import { versEmlAvecPieces } from '../services/courriers.js';
+import { noteParcelle } from '../services/note-parcelle.js';
+
+/**
+ * Rassemble un flux en memoire.
+ *
+ * Les generateurs de PDF rendent un FLUX, et c'est ce qu'il faut pour une reponse HTTP : les
+ * premiers octets partent pendant que les derniers s'ecrivent. Une piece jointe, elle, doit etre
+ * encodee en base64 d'un seul tenant — on ne peut pas encoder ce qu'on n'a pas encore. D'ou cette
+ * unique exception, et elle reste bornee : un dossier illustre pese quelques centaines de ko.
+ */
+async function fluxEnBuffer(flux: NodeJS.ReadableStream): Promise<Buffer> {
+  const morceaux: Buffer[] = [];
+  for await (const m of flux) morceaux.push(Buffer.from(m as Buffer));
+  return Buffer.concat(morceaux);
+}
 import { cahierDesChargesDocx } from '../services/cahier-des-charges.js';
 import { anneauxDepuisGeoJson, archiveShapefile } from '../services/shapefile.js';
 import * as depotParcelles from '../depots/parcelles.js';
@@ -283,6 +299,66 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
           figures,
         ),
       );
+  });
+
+  /**
+   * La meme fiche, en brouillon de COURRIEL prêt a relire — note technique en corps, PDF joint.
+   *
+   * ═══ POURQUOI CETTE ROUTE EXISTE A COTE DE LA PRECEDENTE
+   *
+   * Une fiche de six pages arrivant sans un mot dans un fil de discussion ne s'ouvre pas : le
+   * destinataire decide en trois secondes, et ces trois secondes se jouent sur le corps du
+   * message. La note dit ou est la parcelle, ce que vaut le verdict et ce qui bloque ; la piece
+   * jointe porte le detail et les cartes.
+   *
+   * ═══ RIEN NE PART D'ICI
+   *
+   * L'application ne possede aucune boite d'envoi, et c'est un choix. Le fichier `.eml` s'ouvre
+   * d'un double-clic dans la messagerie PROFESSIONNELLE de l'operateur, qui pose son expediteur en
+   * en-tete et sa signature dans le corps — la raison meme pour laquelle les courriers ne
+   * redemandent plus ces champs. Il relit, complete, et envoie lui-meme.
+   *
+   * ═══ LE JOURNAL DIT « COURRIEL », ET NON « PDF »
+   *
+   * Preparer un brouillon destine a sortir de l'application n'est pas le meme geste que
+   * telecharger un document pour soi. Les confondre au journal rendrait la trace inutilisable le
+   * jour ou l'on cherche ce qui a quitte le poste.
+   */
+  app.get<{ Params: { idu: string } }>('/api/exports/parcelle/:idu.eml', async (req, rep) => {
+    const q = req.query as { filiere?: string };
+    if (!estFiliere(q.filiere)) {
+      return erreur(rep, 400, 'filiere_invalide', 'Paramètre `filière` requis et valide');
+    }
+    const idu = req.params.idu.toUpperCase();
+    const [parcelle, snapshot, score] = await Promise.all([
+      depotParcelles.parcelleParIdu(idu),
+      depotParcelles.snapshotParIdu(idu),
+      depotScores.scoreParcelle(idu, q.filiere),
+    ]);
+    if (!parcelle || !snapshot || !score) {
+      return erreur(rep, 404, 'parcelle_non_qualifiee', 'Qualifiez la parcelle avant de l\'exporter');
+    }
+
+    await journaliser('export_courriel', {
+      utilisateurId: req.utilisateur?.id,
+      email: req.utilisateur?.email,
+      cible: idu,
+      details: { filiere: q.filiere },
+    });
+
+    const figures = await vuesCartographiques(parcelle.geometrie, 'de la parcelle');
+    const pdf = await fluxEnBuffer(
+      ficheParcellePdf(parcelle, snapshot.snapshot, score, snapshot.connecteursEnEchec, figures),
+    );
+
+    const eml = versEmlAvecPieces(noteParcelle(parcelle, snapshot.snapshot, score), [
+      { nom: `fiche-${idu}-${q.filiere}.pdf`, type: 'application/pdf', contenu: pdf },
+    ]);
+
+    return rep
+      .header('Content-Type', 'message/rfc822; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="fiche-${idu}-${q.filiere}.eml"`)
+      .send(eml);
   });
 
   const debitExport = {

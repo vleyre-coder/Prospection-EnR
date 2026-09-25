@@ -1375,6 +1375,19 @@ function BlocExports({ idu, filiere }: { idu: string; filiere: Filiere }): JSX.E
         >
           Fiche PDF
         </BoutonExport>
+        {/*
+          LE MEME DOCUMENT, EN BROUILLON DE COURRIEL. Une fiche de six pages arrivant sans un mot
+          dans un fil de discussion ne s'ouvre pas : le destinataire decide en trois secondes, et
+          ces trois secondes se jouent sur le corps du message. Rien ne part d'ici — le `.eml`
+          s'ouvre dans la messagerie de l'operateur, qui y pose son expediteur et sa signature.
+        */}
+        <BoutonExport
+          action={() => api.telechargerFicheCourriel(idu, filiere)}
+          surErreur={setErreur}
+          titre="Brouillon de courriel : note technique en corps, fiche PDF jointe. Rien n’est envoyé : le fichier s’ouvre dans votre messagerie."
+        >
+          Fiche par courriel
+        </BoutonExport>
         <BoutonExport
           action={() => api.exporter('geojson', { idus: [idu], filiere }, `${idu}-${filiere}.geojson`)}
           surErreur={setErreur}

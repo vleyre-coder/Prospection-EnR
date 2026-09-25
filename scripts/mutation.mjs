@@ -4239,6 +4239,56 @@ const MUTATIONS = [
     tests: ['test/exports.test.ts'],
   },
   {
+    audit: 'audit 13 (courriel)',
+    /*
+     * LA SITUATION DE PROPRIETE PART DANS LE COURRIEL. Un courriel se transfere, s'archive et sort
+     * du dispositif de journalisation des qu'il est parti : ce qu'on y met echappe definitivement
+     * au controle de l'application. Nombre de comptes, indivision probable, propriete publique
+     * figurent legitimement sur la FICHE, qui reste dans l'application et dont chaque ouverture
+     * est journalisee ; les recopier dans le corps « pour eviter d'ouvrir la piece jointe » est le
+     * raccourci qu'un relecteur approuverait sans y penser.
+     */
+    quoi: 'la situation de propriete est recopiee dans le corps du courriel',
+    fichier: 'apps/api/src/services/note-parcelle.ts',
+    de: "      `Poste source le plus proche : ${poste.nom}, ${nb(poste.distanceKm, 1)} km à vol d'oiseau.`,",
+    vers:
+      "      `Poste source le plus proche : ${poste.nom}, ${nb(poste.distanceKm, 1)} km à vol d'oiseau.`,\n" +
+      '      `Indivision probable : ${snapshot.foncier.indivisionProbable === true ? \'oui\' : \'non\'}`,',
+    cwd: 'apps/api',
+    tests: ['test/courriel-fiche.test.ts'],
+  },
+  {
+    audit: 'audit 13 (courriel)',
+    /*
+     * LE COURRIEL DEVIENT PLUS AFFIRMATIF QUE LE SCORE. Le lecteur presse ne lit que le corps du
+     * message. S'il y trouve un verdict sans la mention d'une couverture insuffisante, il repart
+     * en croyant qu'aucune contrainte n'a ete trouvee — alors que la verite est que personne n'a
+     * regarde. C'est la difference entre « aucune contrainte » et « aucune contrainte regardee »,
+     * dans le seul support qui sort de l'application.
+     */
+    quoi: 'le courriel tait qu’une couverture insuffisante interdit de conclure',
+    fichier: 'apps/api/src/services/note-parcelle.ts',
+    de: "  if (score.statut === 'gris') {",
+    vers: '  if (false) {',
+    cwd: 'apps/api',
+    tests: ['test/courriel-fiche.test.ts'],
+  },
+  {
+    audit: 'audit 13 (courriel)',
+    /*
+     * LA FRONTIERE MULTIPARTIE NE SE FERME PLUS. Un `.eml` dont la derniere frontiere n'est pas
+     * fermante s'ouvre quand meme chez beaucoup de clients — et tronque la piece jointe chez les
+     * autres, SANS RIEN DIRE. Le defaut ne se voit ni a la generation ni a l'envoi : il se
+     * decouvre a la reception, chez quelqu'un d'autre, sur un document qui engage l'entreprise.
+     */
+    quoi: 'la frontiere multipartie ne se ferme plus : la piece jointe se tronque en silence',
+    fichier: 'apps/api/src/services/courriers.ts',
+    de: "  lignes.push(`--${frontiere}--`, '');",
+    vers: "  lignes.push('');",
+    cwd: 'apps/api',
+    tests: ['test/courriel-fiche.test.ts'],
+  },
+  {
     audit: 'audit 13 (raccordement)',
     /*
      * LA CAPACITE D'ACCUEIL REDEVIENT ILLISIBLE. Les postes viennent de deux sources : la BD TOPO

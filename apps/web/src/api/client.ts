@@ -1015,6 +1015,22 @@ export const api = {
       'Préparation de la fiche impossible',
     ),
 
+  /**
+   * La meme fiche, en brouillon de courriel : note technique en corps, PDF joint.
+   *
+   * RIEN NE PART D'ICI. Le fichier `.eml` s'ouvre d'un double-clic dans la messagerie
+   * professionnelle de l'operateur, qui pose son expediteur en en-tete et sa signature dans le
+   * corps — la raison meme pour laquelle les courriers ne redemandent plus ces champs. Il relit,
+   * complete, et envoie lui-meme.
+   */
+  telechargerFicheCourriel: (idu: string, filiere: Filiere) =>
+    telechargerBinaire(
+      `/api/exports/parcelle/${encodeURIComponent(idu)}.eml?filiere=${filiere}`,
+      undefined,
+      `fiche-${idu}-${filiere}.eml`,
+      'Préparation du courriel impossible',
+    ),
+
   // --- Profils de recherche, et seuils developpeur -------------------------
   contraintesParametrables: (filiere?: FiliereReferentiel) =>
     appeler<ContrainteParametrable[]>(

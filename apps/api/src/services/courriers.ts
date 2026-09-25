@@ -24,6 +24,7 @@
  * de ce type doit absolument ne pas se tromper.
  */
 
+import { randomBytes } from 'node:crypto';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
 
 /** Les deux courriers que la prospection sait preparer. */
@@ -244,6 +245,83 @@ export function versEml(courrier: Courrier, destinataire?: string | null): strin
     quotedPrintable(courrier.corps),
   ];
   // CRLF : la norme du format, et plusieurs clients refusent d'ouvrir un fichier en LF seul.
+  return lignes.join('\r\n');
+}
+
+/** Une piece jointe : son nom de fichier, son type et ses octets. */
+export interface PieceJointe {
+  nom: string;
+  type: string;
+  contenu: Buffer;
+}
+
+/**
+ * Un message `.eml` porteur d'une piece jointe — le brouillon d'un courriel, pret a relire.
+ *
+ * ═══ POURQUOI UN FICHIER PLUTOT QU'UN ENVOI
+ *
+ * RIEN NE PART D'ICI. L'application ne possede aucune boite d'envoi, et c'est un choix : un
+ * courriel de prospection part de la messagerie PROFESSIONNELLE de l'operateur, sous son adresse,
+ * avec son expediteur en en-tete et sa signature dans le corps — c'est d'ailleurs la raison pour
+ * laquelle les courriers ne redemandent plus ces quatre champs. Un `.eml` s'ouvre d'un double-clic
+ * dans Outlook ou Thunderbird : l'operateur relit, complete, et envoie lui-meme.
+ *
+ * ═══ POURQUOI PAS UN `mailto:`
+ *
+ * Un `mailto:` ne porte AUCUNE piece jointe — la specification ne le permet pas — et tronque en
+ * silence un corps trop long. Or ce qu'on veut joindre est precisement le document illustre : les
+ * cartes ne passent pas dans une URL.
+ *
+ * ═══ LES DEUX ENCODAGES NE SONT PAS LE MEME
+ *
+ * Le corps est du texte accentue : `quoted-printable`, comme pour un message simple. La piece,
+ * elle, est binaire : `base64`, replie a 76 caracteres. Les melanger produit un fichier qu'un
+ * client ouvre sans rien dire et affiche de travers.
+ */
+export function versEmlAvecPieces(
+  courrier: Courrier,
+  pieces: PieceJointe[],
+  destinataire?: string | null,
+): string {
+  if (pieces.length === 0) return versEml(courrier, destinataire);
+
+  /*
+   * LA FRONTIERE NE DOIT APPARAITRE DANS AUCUNE PARTIE, sans quoi le message se coupe au mauvais
+   * endroit. Une chaine fixe suffirait presque toujours ; un tirage aleatoire rend le « presque »
+   * inutile, et le corps comme le base64 sont de toute facon incapables de la reproduire.
+   */
+  const frontiere = `----enr-${randomBytes(12).toString('hex')}`;
+
+  const lignes = [
+    'MIME-Version: 1.0',
+    enTeteEncodee('Subject', courrier.objet),
+    ...(destinataire?.trim() ? [enTeteEncodee('To', destinataire.trim())] : []),
+    `Content-Type: multipart/mixed; boundary="${frontiere}"`,
+    '',
+    // Un client qui ne comprend pas le multipart affiche ceci. Il n'y en a plus guere, mais la
+    // ligne coute un octet et evite un message vide chez celui qui resterait.
+    'Ce message est au format MIME multipartie.',
+    '',
+    `--${frontiere}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: quoted-printable',
+    '',
+    quotedPrintable(courrier.corps),
+  ];
+
+  for (const piece of pieces) {
+    lignes.push(
+      `--${frontiere}`,
+      `Content-Type: ${piece.type}`,
+      'Content-Transfer-Encoding: base64',
+      // `filename*` en RFC 2231 porte les accents ; `filename` reste pour les clients anciens.
+      `Content-Disposition: attachment; filename="${piece.nom.replace(/[^\w.\- ]/g, '_')}"`,
+      '',
+      piece.contenu.toString('base64').replace(/(.{76})/g, '$1\r\n'),
+    );
+  }
+  lignes.push(`--${frontiere}--`, '');
+
   return lignes.join('\r\n');
 }
 
