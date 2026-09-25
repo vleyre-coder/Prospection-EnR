@@ -269,7 +269,12 @@ const racc_capacite_residuelle: Evaluateur = (s, ctx) => {
 
   const note = parEtat != null && parCapacite != null ? pire(parEtat, parCapacite) : (parEtat ?? parCapacite);
   const morceaux: string[] = [];
-  if (poste.capaciteResiduelleMw != null) morceaux.push(`${formatNombre(poste.capaciteResiduelleMw, 'MW')} residuels`);
+  // « résiduels », avec son accent : c'est du texte AFFICHE, et il s'imprime sur la synthese du
+  // rapport remis a un proprietaire. Le garde orthographique ne pouvait pas le voir — le mot ne
+  // s'ecrit nulle part ailleurs au masculin pluriel, il n'avait donc aucune graphie a comparer.
+  if (poste.capaciteResiduelleMw != null) {
+    morceaux.push(`${formatNombre(poste.capaciteResiduelleMw, 'MW')} résiduels`);
+  }
   if (poste.etatSaturation) morceaux.push(poste.etatSaturation);
   if (poste.fileAttenteMw != null) morceaux.push(`file d'attente ${formatNombre(poste.fileAttenteMw, 'MW')}`);
   if (renfort) morceaux.push(`renforcement ${poste.renforcement.horizon ?? 'programme'}`);
