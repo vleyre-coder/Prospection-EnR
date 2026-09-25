@@ -4239,6 +4239,60 @@ const MUTATIONS = [
     tests: ['test/exports.test.ts'],
   },
   {
+    audit: 'audit 13 (raccordement)',
+    /*
+     * LA CAPACITE D'ACCUEIL REDEVIENT ILLISIBLE. Les postes viennent de deux sources : la BD TOPO
+     * donne la POSITION de tous, Capareseau la CAPACITE de certains. Le plus proche est presque
+     * toujours un poste de la BD TOPO, sans capacite. Ne lire que lui laissait le critere gris sur
+     * 301 parcelles sur 301 — alors que toutes portaient un poste alternatif renseigne dans le
+     * meme instantane. La filiere BESS en restait ENTIEREMENT grise, a 1,8 point du seuil.
+     */
+    quoi: 'la capacite d’accueil redevient illisible parce que seul le poste le plus proche est lu',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '  const candidats = s.raccordement.postesAlternatifs.filter(porte);',
+    vers: '  const candidats: PosteSourceRef[] = [];',
+    construire: '@enr/scoring',
+    cwd: 'packages/scoring',
+    tests: ['test/raccordement-poste-renseigne.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/raccordement-poste-renseigne.test.ts'],
+  },
+  {
+    audit: 'audit 13 (raccordement)',
+    /*
+     * LE DOCUMENT CESSE DE DIRE QUE LE CHIFFRE VIENT D'UN AUTRE POSTE. La capacite residuelle d'un
+     * poste n'est pas celle d'un autre : la substituer en silence ferait lire, sur la ligne
+     * « poste le plus proche » d'un dossier remis a un tiers, un chiffre qui n'est pas le sien.
+     * C'est la moitie de la correction, et la seule qui ne se voie pas dans un score.
+     */
+    quoi: 'la capacite lue sur un autre poste ne dit plus qu’elle vient d’ailleurs',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '  if (!estLePlusProche) morceaux.push(`au poste ${mentionAutrePoste(poste)}`);',
+    vers: '',
+    construire: '@enr/scoring',
+    cwd: 'packages/scoring',
+    tests: ['test/raccordement-poste-renseigne.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/raccordement-poste-renseigne.test.ts'],
+  },
+  {
+    audit: 'audit 13 (rescoring)',
+    /*
+     * UNE FILIERE MANQUANTE N'EST PLUS JAMAIS RECALCULEE. La selection exigeait qu'il n'existe
+     * AUCUN score a la version courante, toutes filieres confondues : une parcelle notee sur
+     * quatre filieres et pas sur la cinquieme etait jugee a jour. Mesure sur la base d'essai,
+     * 299 parcelles sur 301 avaient perdu leur score solaire et `rescorerTout` a rendu
+     * « nbParcelles: 0 ». Le cas reel est l'AJOUT d'une filiere : le parc entier porterait deja
+     * des scores a la version courante, et la nouvelle filiere resterait vide partout. La panne
+     * est silencieuse — une parcelle sans score sort de la carte sans erreur ni compteur.
+     */
+    quoi: 'une filiere manquante sur une parcelle deja notee n’est plus jamais recalculee',
+    fichier: 'apps/api/src/depots/parcelles.ts',
+    de: '                          AND sc.filiere = demandee.filiere\n',
+    vers: '',
+    cwd: 'apps/api',
+    tests: ['test/rescoring-filiere-manquante.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/rescoring-filiere-manquante.test.ts'],
+  },
+  {
     audit: 'audit 13 (cartes des dossiers)',
     /*
      * LA FICHE PDF REPART EN POST, AVEC UN CORPS. Elle est passee d'un simple lien au chemin de

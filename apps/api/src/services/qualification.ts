@@ -989,7 +989,11 @@ export async function rescorerTout(
   // L'ordre importe : on selectionne AVANT de supprimer. Une parcelle dont le score
   // obsolete vient d'etre efface doit se retrouver dans la liste a recalculer, faute de
   // quoi elle sort de la carte et des listes sans que personne ne s'en apercoive.
-  const idus = await depotParcelles.idusSansScoreCourant(VERSION_MOTEUR, limite);
+  //
+  // LES FILIERES DEMANDEES SONT PASSEES A LA SELECTION, et non seulement au calcul : une
+  // parcelle notee sur quatre filieres et pas sur la cinquieme doit etre reprise. Sans cela,
+  // une filiere ajoutee reste vide sur tout le parc — voir `idusSansScoreCourant`.
+  const idus = await depotParcelles.idusSansScoreCourant(VERSION_MOTEUR, filieres, limite);
 
   let nbScores = 0;
   for (const idu of idus) {

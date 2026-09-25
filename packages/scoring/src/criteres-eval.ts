@@ -10,7 +10,14 @@
  */
 
 import { FILIERES_HORS_ZAER, libelleGestionnaire, LIBELLES_TYPE_SOL } from '@enr/core';
-import type { Filiere, OptionsScoring, ParcelleSnapshot, SeveritePlanPpr, TypeSol } from '@enr/core';
+import type {
+  Filiere,
+  OptionsScoring,
+  ParcelleSnapshot,
+  PosteSourceRef,
+  SeveritePlanPpr,
+  TypeSol,
+} from '@enr/core';
 import { FILIERES_META } from '@enr/core';
 import {
   booleen,
@@ -185,10 +192,61 @@ const racc_distance_poste: Evaluateur = (s, ctx) => {
   };
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LE POSTE LE PLUS PROCHE QUI PORTE REELLEMENT L'INFORMATION DEMANDEE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * LE DEFAUT MESURE, et il tenait a une ligne. Les criteres de capacite et de quote-part ne
+ * lisaient QUE `posteLePlusProche`. Or les postes viennent de deux sources qui ne portent pas la
+ * meme chose : la BD TOPO donne la POSITION de tous les postes, Capareseau donne la CAPACITE
+ * d'accueil d'une partie d'entre eux. Le plus proche est presque toujours un poste de la BD TOPO,
+ * sans capacite.
+ *
+ * RESULTAT CHIFFRE, sur les 301 parcelles de la base d'essai : `racc_capacite_residuelle` gris sur
+ * 301/301, et `racc_quote_part` de meme — alors que les 301 parcelles portaient un poste
+ * ALTERNATIF renseigne, dans le meme instantane, a quelques centaines de metres de plus. La donnee
+ * etait ingeree, stockee, et a un champ du critere qui la reclamait. C'est ce qui maintenait la
+ * filiere BESS entierement grise, a 1,8 point du seuil de couverture.
+ *
+ * ═══ CE QU'ON NE FAIT PAS : PRENDRE LE CHIFFRE D'UN AUTRE POSTE EN SILENCE
+ *
+ * La capacite residuelle d'un poste n'est pas celle d'un autre. Substituer sans le dire ferait
+ * lire, sur la ligne « poste le plus proche », un chiffre qui n'est pas le sien — exactement le
+ * genre d'affirmation qu'un dossier remis a un tiers ne peut pas porter. Quand le poste retenu
+ * n'est pas le plus proche, la valeur affichee le NOMME et donne sa distance.
+ *
+ * LE TRI SE FAIT ICI, ET NE SE SUPPOSE PAS. Les postes alternatifs ne sont pas ordonnes par
+ * distance — verifie sur la base : « 8,88 ; 7,88 ; 9 » pour une parcelle. Prendre le premier de la
+ * liste retiendrait donc parfois un poste plus lointain qu'un autre disponible.
+ */
+function posteRenseigne(
+  s: ParcelleSnapshot,
+  porte: (p: PosteSourceRef) => boolean,
+): { poste: PosteSourceRef; estLePlusProche: boolean } | null {
+  const plusProche = s.raccordement.posteLePlusProche;
+  if (plusProche && porte(plusProche)) return { poste: plusProche, estLePlusProche: true };
+
+  const candidats = s.raccordement.postesAlternatifs.filter(porte);
+  const retenu = candidats.reduce<PosteSourceRef | null>(
+    (meilleur, p) => (meilleur == null || p.distanceKm < meilleur.distanceKm ? p : meilleur),
+    null,
+  );
+  return retenu ? { poste: retenu, estLePlusProche: false } : null;
+}
+
+/** La mention qui accompagne une valeur lue sur un autre poste que le plus proche. */
+function mentionAutrePoste(poste: PosteSourceRef): string {
+  return `${poste.nom} (${formatNombre(poste.distanceKm, 'km')})`;
+}
+
 const racc_capacite_residuelle: Evaluateur = (s, ctx) => {
-  const poste = s.raccordement.posteLePlusProche;
-  if (!poste) return indispo(SRC.postes);
-  if (poste.capaciteResiduelleMw == null && poste.etatSaturation == null) return indispo(SRC.postes);
+  const retenu = posteRenseigne(
+    s,
+    (p) => p.capaciteResiduelleMw != null || p.etatSaturation != null,
+  );
+  if (!retenu) return indispo(SRC.postes);
+  const { poste, estLePlusProche } = retenu;
 
   // Un renforcement programme rattrape partiellement un poste sature.
   const renfort = poste.renforcement.prevu === true;
@@ -215,21 +273,33 @@ const racc_capacite_residuelle: Evaluateur = (s, ctx) => {
   if (poste.etatSaturation) morceaux.push(poste.etatSaturation);
   if (poste.fileAttenteMw != null) morceaux.push(`file d'attente ${formatNombre(poste.fileAttenteMw, 'MW')}`);
   if (renfort) morceaux.push(`renforcement ${poste.renforcement.horizon ?? 'programme'}`);
+  // Le poste retenu est NOMME des qu'il n'est pas le plus proche : sans cela, la fiche ferait lire
+  // sur la ligne « poste le plus proche » une capacite qui n'est pas la sienne.
+  if (!estLePlusProche) morceaux.push(`au poste ${mentionAutrePoste(poste)}`);
 
   return {
     note,
     valeurBrute: poste.capaciteResiduelleMw,
     valeurAffichee: morceaux.join(' - ') || INDISPO,
-    commentaire: renfort
-      ? "Un renforcement est inscrit au S3REnR : le poste peut redevenir intéressant à l'horizon de développement du projet."
-      : "Capacité issue de Capareseau : indicative, non engageante et évolutive au fil des demandes de raccordement.",
+    commentaire:
+      (estLePlusProche
+        ? ''
+        : `Le poste le plus proche n’est pas renseigné en capacité : la mesure porte sur ${mentionAutrePoste(poste)}, ` +
+          'le plus proche de ceux qui le sont. ') +
+      (renfort
+        ? "Un renforcement est inscrit au S3REnR : le poste peut redevenir intéressant à l'horizon de développement du projet."
+        : 'Capacité issue de Capareseau : indicative, non engageante et évolutive au fil des demandes de raccordement.'),
     sourceKey: SRC.postes,
   };
 };
 
 const racc_quote_part: Evaluateur = (s) => {
-  const q = s.raccordement.posteLePlusProche?.quotePartEurParKw;
-  if (q == null) return indispo(SRC.postes);
+  // MEME LECTURE QUE LA CAPACITE, et pour la meme raison : la quote-part vient de Capareseau, que
+  // le poste le plus proche ne porte presque jamais. Elle etait grise sur 301 parcelles sur 301
+  // alors que toutes portaient un poste alternatif renseigne. Voir `posteRenseigne`.
+  const retenu = posteRenseigne(s, (p) => p.quotePartEurParKw != null);
+  if (!retenu) return indispo(SRC.postes);
+  const q = retenu.poste.quotePartEurParKw!;
   return {
     note: paliers(q, [
       [0, 100],
@@ -240,8 +310,15 @@ const racc_quote_part: Evaluateur = (s) => {
       [250, 0],
     ]),
     valeurBrute: q,
-    valeurAffichee: `${formatNombre(q, 'EUR/kW', 0)}`,
-    commentaire: "Quote-part du schéma régional de raccordement, à intégrer au budget de raccordement.",
+    valeurAffichee:
+      formatNombre(q, 'EUR/kW', 0) +
+      (retenu.estLePlusProche ? '' : ` - au poste ${mentionAutrePoste(retenu.poste)}`),
+    commentaire:
+      (retenu.estLePlusProche
+        ? ''
+        : `Le poste le plus proche n’est pas renseigné : la quote-part est celle de ${mentionAutrePoste(retenu.poste)}, ` +
+          'le plus proche de ceux qui le sont. ') +
+      'Quote-part du schéma régional de raccordement, à intégrer au budget de raccordement.',
     sourceKey: SRC.postes,
   };
 };

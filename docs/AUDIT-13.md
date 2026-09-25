@@ -182,35 +182,86 @@ des tuiles, nom de couche WFS `BDTOPO_V3:batiment`.
 
 ---
 
-## 5. Ce qui ne fonctionne pas et que cet audit n'a pas corrigé : la donnée
+## 5. Ce qui manquait à la donnée — et ce qui a été débloqué depuis
 
-C'est la limite principale de l'application aujourd'hui, et elle n'est pas dans le code.
+> **Section remesurée le 25/09/2026.** Sa première rédaction annonçait « seize critères jamais
+> résolus » et « aucune parcelle ne peut ressortir propice sur trois des cinq filières ». Ces deux
+> affirmations sont devenues fausses, et il a fallu deux corrections pour le voir.
 
-**Seize critères ne sont résolus sur aucune des 301 parcelles**, faute de couche ingérée :
+### 5.1 Deux défauts trouvés en voulant simplement refaire la mesure
+
+**Le rescoring ne reprenait jamais une filière manquante.** `idusSansScoreCourant` exigeait qu'il
+n'existe *aucun* score à la version courante du moteur, toutes filières confondues. Une parcelle
+notée sur quatre filières et pas sur la cinquième était donc jugée à jour. Mesuré : 299 parcelles
+sur 301 avaient perdu leur score solaire, `rescorerTout` a répondu « nbParcelles: 0 ». Après
+correction, la même commande a repris les 299 parcelles et réécrit 1 495 scores. **Le cas qui
+compte n'est pas une base d'essai, c'est l'ajout d'une filière** : le jour où l'agrivoltaïsme est
+devenu la cinquième, tout le parc portait déjà quatre scores à la version courante, et la nouvelle
+filière serait restée vide partout. La panne est silencieuse — une parcelle sans score sort de la
+carte et des listes sans erreur ni compteur.
+
+**La capacité d'accueil était ingérée mais illisible.** Les postes viennent de deux sources qui ne
+portent pas la même chose : la BD TOPO donne la *position* de tous les postes, Capareseau la
+*capacité d'accueil* d'une partie. Les critères `racc_capacite_residuelle` et `racc_quote_part` ne
+lisaient que `posteLePlusProche` — presque toujours un poste BD TOPO, sans capacité. Résultat :
+gris sur 301 parcelles sur 301, **alors que les 301 portaient un poste alternatif renseigné dans le
+même instantané**, à quelques centaines de mètres de plus. La donnée était ingérée, stockée, et à
+un champ du critère qui la réclamait.
+
+Les critères lisent désormais le poste renseigné le plus proche — et **le document nomme ce poste**
+dès qu'il n'est pas le plus proche : la capacité d'un poste n'est pas celle d'un autre, et une
+substitution muette ferait lire, sur la ligne « poste le plus proche » d'un dossier remis à un
+tiers, un chiffre qui n'est pas le sien.
+
+### 5.2 Ce que cela change, mesuré sur les 301 parcelles
+
+| Filière | Verdicts avant | Verdicts après | Couverture avant | après |
+| --- | --- | --- | --- | --- |
+| **BESS** | **301 gris** | **300 orange, 1 rouge** | 78,2 % | **98,3 %** |
+| Solaire au sol | 299 orange, 1 gris, 1 rouge | 300 orange, 1 rouge | 85,1 % | **93,2 %** |
+| Agrivoltaïsme | 296 orange, 5 gris | 299 orange, 1 gris, 1 rouge | 81,5 % | **88,2 %** |
+| Éolien terrestre | 91 gris, 210 rouge | 91 gris, 210 rouge | 68,6 % | **74,6 %** |
+| Méthanisation | 216 orange, 85 rouge | 216 orange, 85 rouge | 81,1 % | 81,1 % |
+
+**Aucune donnée nouvelle n'a été ingérée : seule la lecture a changé.** La filière BESS était
+entièrement grise à 1,8 point du seuil de couverture, `racc_capacite_residuelle` y pesant 20 % de
+la note.
+
+Couverture des critères effectivement résolus, après correction :
+
+| Filière | Résolus / évalués | Couverture |
+| --- | --- | --- |
+| BESS | 5 116 / 5 719 | **89,5 %** |
+| Solaire au sol | 6 608 / 8 729 | **75,7 %** |
+| Agrivoltaïsme | 6 313 / 8 424 | **74,9 %** |
+| Éolien terrestre | 4 487 / 6 622 | **67,8 %** |
+| Méthanisation | 3 012 / 5 117 | **58,9 %** |
+
+### 5.3 Ce qui reste non résolu, et qui demande vraiment une ingestion
+
+**Treize critères** ne sont résolus sur aucune des 301 parcelles — contre seize à la première
+rédaction : `racc_distance_poste` l'est désormais sur 301/301 et les cinq filières grâce à
+l'ingestion des postes, et `racc_capacite_residuelle` et `racc_quote_part` grâce à la correction
+ci-dessus.
 
 | Critère | Filières concernées |
 | --- | --- |
-| `fonc_nb_proprietaires`, `racc_distance_poste` | les 5 |
-| `pat_monuments`, `racc_capacite_residuelle` | 4 |
-| `pat_sites`, `env_especes_protegees`, `env_tvb`, `fonc_maitrise` | 3 |
+| `fonc_nb_proprietaires` | les 5 |
+| `pat_monuments` | 4 |
+| `env_especes_protegees`, `env_tvb`, `fonc_maitrise`, `pat_sites` | 3 |
 | `pat_archeologie` | 2 |
-| `risq_karst`, `gis_intrants`, `gis_vent`, `gis_debouche_epandage`, `racc_distance_reseau_gaz`, `racc_quote_part`, `dist_captage` | 1 chacun |
-
-**Couverture des critères effectivement résolus, par filière :**
-
-| Filière | Résolus / évalués | Couverture | Verdict dominant |
-| --- | --- | --- | --- |
-| Solaire au sol | 6 006 / 8 729 | **68,8 %** | 301 « données manquantes » |
-| Agrivoltaïsme | 5 711 / 8 424 | **67,8 %** | 301 « données manquantes » |
-| BESS | 4 213 / 5 719 | **73,7 %** | 301 « données manquantes » |
-| Éolien terrestre | 3 885 / 6 622 | **58,7 %** | 210 écartées, 91 « données manquantes » |
-| Méthanisation | 2 711 / 5 117 | **53,0 %** | 85 écartées, 214 « données manquantes » |
+| `dist_captage`, `gis_debouche_epandage`, `gis_intrants`, `gis_vent`, `racc_distance_reseau_gaz`, `risq_karst` | 1 chacun |
 
 **L'application se comporte ici exactement comme elle doit** : elle refuse de déclarer une parcelle
-propice tant que la couverture est insuffisante, et elle le dit à l'écran (« Couverture de données :
-75 % — 9 critère(s) non évalué(s) »). Mais il faut le nommer sans détour : **en l'état de la donnée
-ingérée, aucune parcelle ne peut ressortir « propice »** sur trois des cinq filières. Ce n'est pas un
-défaut de calcul, c'est un manque d'ingestion.
+propice tant que la couverture est insuffisante, et elle le dit à l'écran. La méthanisation et
+l'éolien restent les deux filières où le manque d'ingestion pèse le plus.
+
+### 5.4 La leçon de méthode
+
+Les deux défauts de 5.1 ne se voyaient dans **aucun test et sur aucun écran**. Ils ont été trouvés
+en voulant refaire une mesure déjà publiée, c'est-à-dire en refusant de recopier un chiffre. Une
+section d'audit qui n'est jamais remesurée devient, en quelques semaines, une source d'erreurs
+aussi sûre qu'un commentaire périmé — avec l'autorité d'un document en plus.
 
 ---
 

@@ -347,25 +347,51 @@ export async function nbARafraichir(): Promise<number> {
 }
 
 /**
- * IDU disposant d'un snapshot mais d'aucun score a la version courante du moteur.
+ * IDU disposant d'un snapshot mais dont AU MOINS UNE des filieres demandees n'a pas de score
+ * a la version courante du moteur.
  *
  * C'est la population exacte a recalculer apres une montee de version : le recalcul se fait
  * a partir du snapshot deja stocke, sans reinterroger la moindre source.
+ *
+ * ═══ « AU MOINS UNE », ET NON « AUCUNE » — LE DEFAUT MESURE
+ *
+ * La requete exigeait qu'il n'existe AUCUN score a la version courante, toutes filieres
+ * confondues. Une parcelle notee sur quatre filieres et pas sur la cinquieme etait donc jugee
+ * a jour, et le rescoring ne la reprenait JAMAIS.
+ *
+ * MESURE, sur la base d'essai : 299 parcelles sur 301 avaient perdu leur score solaire ;
+ * `rescorerTout` a rendu « nbParcelles: 0 » et n'a rien recalcule. La filiere manquante le reste
+ * indefiniment, et une parcelle sans score sort simplement de la carte et des listes pour cette
+ * filiere — sans erreur, sans compteur, sans rien a l'ecran qui le signale.
+ *
+ * LE CAS QUI COMPTE VRAIMENT N'EST PAS UNE BASE D'ESSAI : c'est l'AJOUT D'UNE FILIERE. Le jour
+ * ou l'agrivoltaisme est devenu la cinquieme, toutes les parcelles existantes portaient deja
+ * quatre scores a la version courante du moteur ; aucune n'aurait ete reprise par le rescoring,
+ * et la nouvelle filiere serait restee vide sur l'ensemble du parc.
  *
  * A ne pas confondre avec `idusARafraichir`, qui designe les parcelles dont la DONNEE est
  * perimee. Piloter le rescoring sur ce dernier critere effacait les scores des parcelles en
  * bonne sante - snapshot recent, donc absentes de la liste - sans jamais les recalculer :
  * elles disparaissaient de la carte et des listes.
  */
-export async function idusSansScoreCourant(version: string, limite = 5000): Promise<string[]> {
+export async function idusSansScoreCourant(
+  version: string,
+  filieres: readonly string[],
+  limite = 5000,
+): Promise<string[]> {
   const lignes = await requete<{ idu: string }>(
     `SELECT s.idu
        FROM parcelle_snapshot s
-      WHERE NOT EXISTS (
-              SELECT 1 FROM score_parcelle_filiere sc
-               WHERE sc.idu = s.idu AND sc.version_moteur = $1)
-      LIMIT $2`,
-    [version, limite],
+      WHERE EXISTS (
+              SELECT 1
+                FROM unnest($2::text[]) AS demandee(filiere)
+               WHERE NOT EXISTS (
+                       SELECT 1 FROM score_parcelle_filiere sc
+                        WHERE sc.idu = s.idu
+                          AND sc.filiere = demandee.filiere
+                          AND sc.version_moteur = $1))
+      LIMIT $3`,
+    [version, filieres, limite],
   );
   return lignes.map((l) => l.idu);
 }

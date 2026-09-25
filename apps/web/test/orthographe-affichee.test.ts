@@ -577,9 +577,10 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
     // depuis l'ouverture de la filiere agrivoltaisme, « le regime agrivoltaique ne s'applique
     // pas » sur un terrain inculte. Aucune n'est le participe.
     'packages/scoring/src/criteres-eval.ts|applique': 3,
-    // Deux occurrences du NOM « mesure », relues : « la mesure porte sur » et « une mesure
-    // compensatoire ». Aucune n'est le participe.
-    'packages/scoring/src/criteres-eval.ts|mesure': 2,
+    // Trois occurrences du NOM « mesure », relues une par une : « la mesure porte sur » (le poste
+    // retenu pour la capacite), « une campagne de mesure » (le vent) et « une mesure de la qualite
+    // du sol ». Aucune n'est le participe.
+    'packages/scoring/src/criteres-eval.ts|mesure': 3,
     // Trois fois le NOM, relues une par une : le libelle du bouton « Cahier des charges (Word) »,
     // son infobulle, et le titre du bandeau « Cahier des charges « … » » qui annonce le profil
     // applique a la recherche. Aucune n'est le participe « chargés ».
