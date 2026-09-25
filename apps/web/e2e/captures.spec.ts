@@ -188,6 +188,24 @@ test('@revue captures des vues principales', async ({ page }) => {
       .catch(() => undefined);
   }
 
+  /*
+   * 3 ter. LE BLOC DES EXPORTS.
+   *
+   * C'EST DESORMAIS LA PARTIE LA PLUS CHANGEANTE DE LA FICHE — quatre commandes la ou il y en
+   * avait trois, et chacune porte maintenant un etat d'attente, puisque la preparation d'un
+   * document illustre demande plusieurs secondes de reseau. Aucune capture ne la montrait : la
+   * correction ne se relisait donc pas, ce qui est exactement le reproche que cet outil se fait a
+   * lui-meme pour la vue « recherche ».
+   */
+  const exports = page.locator('.bloc-exports').first();
+  if (await exports.count()) {
+    await exports.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await exports
+      .screenshot({ path: `${SORTIE}/12-exports.png`, timeout: 10_000 })
+      .catch(() => undefined);
+  }
+
   // 4. Liste.
   await ouvrirListe(page);
   await page.screenshot({ path: `${SORTIE}/04-liste.png` });

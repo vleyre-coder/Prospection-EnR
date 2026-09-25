@@ -1357,8 +1357,15 @@ function BlocProspection({
 
 function BlocExports({ idu, filiere }: { idu: string; filiere: Filiere }): JSX.Element {
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+   * DEUX CLASSES, ET CHACUNE A SON ROLE. `fiche-actions` est la classe que la feuille
+   * d'impression masque — un bloc de boutons n'a rien a faire sur un document imprime, et
+   * l'en-tete de la fiche la porte pour la meme raison. `bloc-exports` ne sert qu'a DESIGNER ce
+   * bloc-ci : l'outil de revue le capture, et sans nom propre il attrapait l'en-tete a sa place —
+   * la capture montrait « Rafraichir / Imprimer / Fermer » au lieu des exports.
+   */
   return (
-    <details className="section fiche-actions" open>
+    <details className="section fiche-actions bloc-exports" open>
       <summary>Exports</summary>
       <div className="section-corps" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {/*
