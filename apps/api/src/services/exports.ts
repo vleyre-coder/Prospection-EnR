@@ -649,6 +649,18 @@ export function sourcesIndisponibles(
   return groupes;
 }
 
+/**
+ * La surface d'une parcelle en hectares : la geometrie si on l'a, la contenance cadastrale sinon.
+ *
+ * Elle etait recopiee dans chaque generateur qui en avait besoin. Trois copies d'une meme regle de
+ * repli, c'est trois occasions qu'elles cessent d'etre la meme — et la surface est le nombre qui
+ * porte la puissance, donc le modele economique.
+ */
+function surfaceHa(p: ParcelleEnBase): number | null {
+  const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
+  return m2 == null ? null : m2 / 10000;
+}
+
 const dateFr = (v: string | Date | null | undefined): string =>
   v == null ? '-' : new Date(v).toLocaleDateString('fr-FR');
 
@@ -1333,11 +1345,6 @@ export function chiffresDuSite(
   surfaceExploitable: ReturnType<typeof surfaceUtileSiteHa> | null;
   puissanceExploitable: ReturnType<typeof puissanceEstimee> | null;
 } {
-  const surfaceHa = (p: ParcelleEnBase): number | null => {
-    const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
-    return m2 == null ? null : m2 / 10000;
-  };
-
   const surface = surfaceUtileSiteHa(
     parcelles.map((p) => surfaceHa(p.parcelle)),
     parcelles.map((p) => p.snapshot.foncier.morcellementIndice),
@@ -1458,11 +1465,6 @@ export function dossierSitePdf(
     },
   });
   const total = largeurUtile(doc);
-
-  const surfaceHa = (p: ParcelleEnBase): number | null => {
-    const m2 = p.surfaceCalculeeM2 ?? p.contenanceM2;
-    return m2 == null ? null : m2 / 10000;
-  };
 
   const communes = [
     ...new Set(parcelles.map((p) => p.parcelle.nomCommune ?? p.parcelle.codeInsee)),
