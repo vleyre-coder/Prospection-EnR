@@ -4264,8 +4264,8 @@ const MUTATIONS = [
      */
     quoi: 'un hote tombe reconsomme tout son budget de reprises a chaque appel',
     fichier: 'apps/api/src/http.ts',
-    de: '  if (hoteEnPanne(domaine)) {',
-    vers: '  if (false) {',
+    de: '  const tentatives = hoteFragile(domaine) ? 1 : tentativesVoulues;',
+    vers: '  const tentatives = tentativesVoulues;',
     cwd: 'apps/api',
     tests: ['test/coupe-circuit-http.test.ts'],
   },
@@ -4274,10 +4274,10 @@ const MUTATIONS = [
     /*
      * UN 404 FAIT PASSER UN SERVICE SAIN POUR INJOIGNABLE. Une erreur definitive dit que CETTE
      * requete est mauvaise — identifiant inconnu, parametre hors domaine — pas que l'hote est
-     * tombe. Couper dessus griserait tous les criteres qui en dependent parce qu'une parcelle a
-     * pose une mauvaise question, et la panne se propagerait de parcelle en parcelle.
+     * tombe. Degrader dessus priverait de leurs reprises tous les appels suivants vers un service
+     * qui repond parfaitement, sur une simple faute de parametre.
      */
-    quoi: 'un 404 coupe l’hote entier et grise les criteres d’un service qui repond',
+    quoi: 'un 404 rend l’hote fragile et prive de reprises un service qui repond',
     fichier: 'apps/api/src/http.ts',
     de: "    if (!(derniereErreur as { definitive?: boolean } | null)?.definitive) {",
     vers: '    if (true) {',

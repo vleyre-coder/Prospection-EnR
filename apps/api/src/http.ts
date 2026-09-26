@@ -149,15 +149,20 @@ const TENTATIVES_PAR_PROFIL = { reactif: 3, patient: 5 } as const;
  * autrement dit, on ne reprend pas. La lenteur d'un service tiers devient une impossibilite
  * d'exploiter la sienne.
  *
- * ═══ CE QUE LE COUPE-CIRCUIT FAIT, ET CE QU'IL NE FAIT PAS
+ * ═══ IL DEGRADE VERS UNE SEULE TENTATIVE, JAMAIS VERS ZERO
  *
- * Quand un hote a epuise son budget de reprises, il est note « en panne » pour une courte duree.
- * Les appels suivants vers CE MEME hote echouent alors IMMEDIATEMENT, avec la meme `ErreurSource`
- * qu'ils auraient fini par lever. Rien ne change pour l'appelant : le critere reste gris, avec le
- * meme motif. Seule l'attente disparait.
+ * Quand un hote a epuise son budget de reprises, il est note « fragile » pour une courte duree :
+ * les appels suivants vers CE MEME hote n'ont plus droit qu'a UNE tentative, au lieu de rejouer
+ * tout le budget. La requete part quand meme, pour de vrai.
  *
- * IL N'INVENTE AUCUN RESULTAT et ne masque aucune panne : un hote coupe reste un hote coupe, et
- * l'echec est journalise comme avant. C'est une economie d'attente, pas une tolerance a la panne.
+ * MA PREMIERE VERSION LES COURT-CIRCUITAIT ENTIEREMENT, et un test l'a arretee net. Une campagne
+ * par grande emprise decoupe le territoire en cellules qui visent TOUTES le meme hote : une seule
+ * cellule ayant epuise ses reprises aurait condamne toutes les suivantes pendant trente secondes,
+ * transformant un secteur manquant en secteurs manquants par dizaines. Le remede etait pire que le
+ * mal — et il ne se serait vu qu'en production, sur une carte avec des trous.
+ *
+ * La regle est donc : on ne supprime que la REPETITION, jamais l'essai. Un hote qui revient est
+ * retrouve des la premiere requete suivante, sans que personne ait a redemarrer quoi que ce soit.
  *
  * LA DUREE EST COURTE — trente secondes — pour deux raisons opposees et egalement importantes :
  * assez longue pour couvrir la qualification en cours, assez breve pour qu'un service qui revient
@@ -165,14 +170,14 @@ const TENTATIVES_PAR_PROFIL = { reactif: 3, patient: 5 } as const;
  * de se refermer est pire que pas de coupe-circuit.
  */
 const PANNE_MS = 30_000;
-const hotesEnPanne = new Map<string, number>();
+const hotesFragiles = new Map<string, number>();
 
-/** L'hote est-il connu en panne a cet instant ? Purge l'entree des qu'elle a expire. */
-function hoteEnPanne(hote: string): boolean {
-  const jusqua = hotesEnPanne.get(hote);
+/** L'hote vient-il d'epuiser ses reprises ? Purge l'entree des qu'elle a expire. */
+function hoteFragile(hote: string): boolean {
+  const jusqua = hotesFragiles.get(hote);
   if (jusqua == null) return false;
   if (Date.now() >= jusqua) {
-    hotesEnPanne.delete(hote);
+    hotesFragiles.delete(hote);
     return false;
   }
   return true;
@@ -186,7 +191,7 @@ function hoteEnPanne(hote: string): boolean {
  * couplage qui rend une suite verte ou rouge selon son ordre d'execution.
  */
 export function reinitialiserCoupeCircuit(): void {
-  hotesEnPanne.clear();
+  hotesFragiles.clear();
 }
 
 export async function jsonExterne<T>(url: string, options: OptionsRequete): Promise<T> {
@@ -200,25 +205,16 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
   }
 
   const domaine = new URL(url).host;
-  /*
-   * LE CONTROLE PRECEDE LE VERROU DE CONCURRENCE. Le placer apres reviendrait a faire la queue
-   * pour apprendre qu'on n'a rien a demander — et c'est precisement cette file d'attente qui
-   * transformait six echecs en cent quarante secondes.
-   */
-  if (hoteEnPanne(domaine)) {
-    throw new ErreurSource(
-      options.connecteur,
-      url,
-      `Hote ${domaine} injoignable lors d'un appel precedent : appel court-circuite pendant ` +
-        `${Math.round(PANNE_MS / 1000)} s. Le critere reste non evalue, comme il le serait apres ` +
-        'les reprises.',
-    );
-  }
   const liberer = await acquerir(domaine);
   const profil = options.profilAttente ?? 'reactif';
-  const tentatives =
+  const tentativesVoulues =
     options.tentatives ??
     (options.profilAttente ? TENTATIVES_PAR_PROFIL[profil] : config.http.tentatives);
+  /*
+   * UNE SEULE TENTATIVE SI L'HOTE VIENT DE TOMBER. La requete part quand meme : on retire la
+   * REPETITION, pas l'essai. Voir le bloc `hotesFragiles` pour ce que la premiere version cassait.
+   */
+  const tentatives = hoteFragile(domaine) ? 1 : tentativesVoulues;
   const timeoutMs = options.timeoutMs ?? config.http.timeoutMs;
 
   try {
@@ -323,11 +319,16 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
      * sur un 404 ferait passer pour injoignable un service qui repond parfaitement.
      */
     if (!(derniereErreur as { definitive?: boolean } | null)?.definitive) {
-      hotesEnPanne.set(domaine, Date.now() + PANNE_MS);
-      journal.warn(
-        { connecteur: options.connecteur, hote: domaine, pauseMs: PANNE_MS },
-        'Hote injoignable apres toutes les tentatives : appels suivants court-circuites',
-      );
+      const deja = hoteFragile(domaine);
+      hotesFragiles.set(domaine, Date.now() + PANNE_MS);
+      // Une seule fois par fenetre : sinon une campagne de trois cents cellules ecrit trois cents
+      // lignes identiques, et l'avertissement se noie dans sa propre repetition.
+      if (!deja) {
+        journal.warn(
+          { connecteur: options.connecteur, hote: domaine, fenetreMs: PANNE_MS },
+          'Hote injoignable apres toutes les tentatives : les appels suivants n’auront qu’un essai',
+        );
+      }
     }
     throw derniereErreur instanceof ErreurSource
       ? derniereErreur
