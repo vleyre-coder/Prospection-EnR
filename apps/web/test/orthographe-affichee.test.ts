@@ -553,6 +553,13 @@ test('une exception ne couvre jamais deux occurrences de sens different', () => 
   // module, l'exception les couvre TOUTES — ce qui n'est acceptable que si elles ont le meme sens.
   // Les URL de tuiles de `Carte.tsx` en sont le cas legitime : cinq fois le meme `?filiere=`.
   const CONNUS: Record<string, number> = {
+    /*
+     * Les trois occurrences sont le MEME nom, dans « cahier des charges », relues une par une :
+     * le titre de la section des grandeurs de recherche, la note qui la suit, et la mention
+     * « jamais au cahier des charges d'un developpeur » du dossier de site. Aucune n'est le
+     * participe « charges ».
+     */
+    'apps/api/src/services/exports.ts|charges': 3,
     'apps/web/src/components/Carte.tsx|filiere': 5,
     // Les trois occurrences sont le MEME verbe, relues une par une : « le RPG ne publie pas
     // l'identité de l'exploitant », « aucune API nationale ne publie ces documents »,

@@ -42,6 +42,7 @@ import {
 } from '@enr/scoring';
 import { reparerDoubleEncodage } from '../texte.js';
 import type { ParcelleEnBase } from '../depots/parcelles.js';
+import { SEUILS_RECHERCHE } from '@enr/core';
 import { CONNECTEURS } from '../connecteurs/base.js';
 import type { FigureCarte, Fond } from './carte-statique.js';
 import type { LigneResultatFiltre } from './recherche.js';
@@ -711,6 +712,103 @@ function couvertureEnDeuxLignes(score: ResultatScore): string[] {
   return lignes;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LES GRANDEURS SUR LESQUELLES LE DEVELOPPEUR PEUT FILTRER — et ce qu'elles valent ici
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, le 26/09/2026, en confrontant le cahier des charges au rapport, filiere par
+ * filiere. La boucle du produit est censee se refermer : le developpeur remplit le cahier des
+ * charges, ses seuils pilotent la recherche, et le rapport lui rend compte. **Elle ne se refermait
+ * pas.** Le formulaire propose des seuils sur des grandeurs qu'AUCUN critere du rapport ne rend :
+ *
+ *   - BESS filtre sur la PENTE — « une plateforme de conteneurs se veut plane », seuil usuel 3 % —
+ *     et son rapport ne mentionne la pente nulle part ;
+ *   - l'eolien filtre sur la SENSIBILITE AVIFAUNE, qui decide souvent du sort d'un parc ;
+ *   - trois filieres sur cinq filtrent sur la ZONE DE SISMICITE, qu'aucun rapport n'affiche ;
+ *   - la methanisation filtre sur le NOMBRE D'ELEVAGES dans le rayon, son gisement d'intrants ;
+ *   - le solaire filtre sur l'ALTITUDE.
+ *
+ * Le developpeur pose donc un critere, recoit des parcelles filtrees dessus, et ne peut ni
+ * verifier que le filtre a porte, ni juger la valeur. Il doit croire sur parole.
+ *
+ * ═══ POURQUOI UNE SECTION, ET NON DE NOUVEAUX CRITERES NOTES
+ *
+ * Transformer ces grandeurs en criteres noterait la parcelle dessus, donc redistribuerait tous les
+ * poids et changerait TOUS les scores de la filiere. C'est une decision de modele, qui appartient
+ * au proprietaire du projet — et l'arbitrage en vigueur est la non-regression du score existant.
+ *
+ * La section ne note rien. Elle affiche la grandeur, sa valeur, et son nom DANS LE LOGICIEL — la
+ * meme colonne que le cahier des charges, pour que la verification soit une recopie et non une
+ * traduction. Le score est inchange, la boucle est refermee.
+ */
+function blocGrandeursDeRecherche(doc: Doc, snapshot: ParcelleSnapshot, filiere: Filiere): void {
+  const seuils = SEUILS_RECHERCHE[filiere];
+  if (seuils.length === 0) return;
+
+  titreSection(doc, 'Grandeurs de recherche — ce sur quoi le cahier des charges permet de filtrer');
+  doc
+    .fontSize(7.8)
+    .font('Helvetica')
+    .fillColor(ENCRE_FAIBLE)
+    .text(
+      net(
+        'Ces grandeurs pilotent la recherche quand le cahier des charges leur donne un seuil. ' +
+          'Elles ne sont pas notées et n’entrent pas dans le score : elles sont rendues ici pour ' +
+          'que la valeur retenue soit vérifiable. « Non renseigné » signifie que la grandeur n’a ' +
+          'pas été mesurée sur cette parcelle — un seuil portant dessus ne l’aurait pas retenue.',
+      ),
+      MARGE,
+      doc.y,
+      { width: largeurUtile(doc), align: 'justify' },
+    );
+  doc.fillColor(ENCRE);
+  doc.moveDown(0.3);
+
+  tableau(
+    doc,
+    [
+      { titre: 'Grandeur', part: 0.34 },
+      { titre: 'Valeur mesurée', part: 0.22 },
+      { titre: 'Usuel', part: 0.12 },
+      { titre: 'Nom dans le logiciel', part: 0.32 },
+    ],
+    seuils.map((s) => {
+      const valeur = lireCheminSnapshot(snapshot, s.chemin);
+      return {
+        cellules: [
+          s.libelle,
+          valeur == null
+            ? 'non renseigné'
+            : typeof valeur === 'number'
+              ? `${formatNombre(valeur, s.unite, valeur < 10 ? 1 : 0)}`
+              : String(valeur),
+          s.usuel == null ? '-' : `${s.sens === 'min' ? '≥' : '≤'} ${s.usuel}`,
+          s.chemin,
+        ],
+        pastille: valeur == null ? ('gris' as Feu) : undefined,
+      };
+    }),
+  );
+}
+
+/**
+ * Lit une grandeur dans l'instantane, par son chemin pointe.
+ *
+ * LE MEME CHEMIN QUE LA RECHERCHE, litteralement : `recherche.ts` fait
+ * `s.chemin.split('.')` et interroge le JSON en base avec `#>>`. Recopier la valeur a la main dans
+ * une table du rapport aurait cree deux facons de lire la meme grandeur, donc deux occasions de
+ * diverger — et le rapport aurait pu afficher autre chose que ce sur quoi le filtre a porte.
+ */
+function lireCheminSnapshot(snapshot: ParcelleSnapshot, chemin: string): unknown {
+  let courant: unknown = snapshot;
+  for (const segment of chemin.split('.')) {
+    if (courant == null || typeof courant !== 'object') return null;
+    courant = (courant as Record<string, unknown>)[segment];
+  }
+  return courant ?? null;
+}
+
 const dateFr = (v: string | Date | null | undefined): string =>
   v == null ? '-' : new Date(v).toLocaleDateString('fr-FR');
 
@@ -970,6 +1068,8 @@ export function ficheParcellePdf(
     doc.fontSize(7.6).fillColor(ENCRE_FAIBLE).text(net(`Règlement applicable : ${zonagePrincipal.urlReglement}`), MARGE, doc.y, { width: total });
     doc.fillColor(ENCRE);
   }
+
+  blocGrandeursDeRecherche(doc, snapshot, score.filiere);
 
   // =============================================================== raccordement
   const racc = snapshot.raccordement;

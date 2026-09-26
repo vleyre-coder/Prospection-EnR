@@ -2461,8 +2461,8 @@ const MUTATIONS = [
      */
     quoi: 'une parcelle dont la grandeur n’est pas mesuree est presumee satisfaire le seuil',
     fichier: 'apps/api/src/services/recherche.ts',
-    de: '        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric >= $${params.length}`,',
-    vers: '        `COALESCE((sn.snapshot #>> $${params.length - 1}::text[])::numeric, 1e9) >= $${params.length}`,',
+    de: '      conditions.push(`${lecture} >= $${params.length}`);',
+    vers: '      conditions.push(`COALESCE(${lecture}, 1e9) >= $${params.length}`);',
     tests: ['apps/api/test/recherche-territoire.test.ts'],
     cwd: 'apps/api',
     commande: ['tsx', '--test', '--test-concurrency=1', 'test/recherche-territoire.test.ts'],
@@ -4252,6 +4252,38 @@ const MUTATIONS = [
     vers: '  if (false) {',
     cwd: 'apps/api',
     tests: ['test/courriel-fiche.test.ts'],
+  },
+  {
+    audit: 'audit 14 (seuils)',
+    /*
+     * UN SEUIL DE CAPACITE ECARTE 91 % DU PARC EN SILENCE. Les postes viennent de deux sources :
+     * la BD TOPO donne la POSITION de tous, Capareseau la CAPACITE de certains. Le plus proche est
+     * presque toujours un poste BD TOPO, sans capacite. Mesure sur les 301 parcelles : lire
+     * `posteLePlusProche` retient 17 parcelles la ou la grandeur existe sur 291. Le developpeur
+     * recoit une liste courte et parfaitement plausible, sans aucun message.
+     */
+    quoi: 'un seuil de capacite ne lit que le poste le plus proche et ecarte 91 % du parc',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "  if (!GRANDEURS_DE_POSTE.has(chemin)) {",
+    vers: '  if (true) {',
+    cwd: 'apps/api',
+    tests: ['test/seuil-poste-renseigne.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/seuil-poste-renseigne.test.ts'],
+  },
+  {
+    audit: 'audit 14 (seuils)',
+    /*
+     * LE SEUIL RETIENT LE POSTE LE MIEUX DOTE AU LIEU DU PLUS PROCHE RENSEIGNE. Le critere de
+     * notation, lui, retient le plus proche qui porte la grandeur. La liste et la fiche
+     * repondraient alors differemment a la meme question — chacune plausible, et contradictoires.
+     */
+    quoi: 'le seuil retient le poste le mieux dote, la fiche le plus proche : les deux se contredisent',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "     ORDER BY (p ->> 'distanceKm')::numeric NULLS LAST",
+    vers: "     ORDER BY (p ->> ${cle})::numeric DESC NULLS LAST",
+    cwd: 'apps/api',
+    tests: ['test/seuil-poste-renseigne.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/seuil-poste-renseigne.test.ts'],
   },
   {
     audit: 'audit 14 (coupe-circuit)',

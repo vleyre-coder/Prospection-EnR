@@ -853,17 +853,18 @@ export async function filtrerParcelles(
      * bon sens d'erreur — un seuil qu'on ne peut pas verifier ne doit pas etre repute satisfait.
      */
     const segments = s.chemin.split('.');
+    /*
+     * LES GRANDEURS DE CAPARESEAU SE LISENT SUR LE POSTE QUI LES PORTE, pas sur le plus proche.
+     * Voir `expressionSeuil` : lire `posteLePlusProche` ecartait 92 % du parc en silence.
+     */
+    const lecture = expressionSeuil(s.chemin, params, segments);
     if (s.min != null) {
-      params.push(segments, s.min);
-      conditions.push(
-        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric >= $${params.length}`,
-      );
+      params.push(s.min);
+      conditions.push(`${lecture} >= $${params.length}`);
     }
     if (s.max != null) {
-      params.push(segments, s.max);
-      conditions.push(
-        `(sn.snapshot #>> $${params.length - 1}::text[])::numeric <= $${params.length}`,
-      );
+      params.push(s.max);
+      conditions.push(`${lecture} <= $${params.length}`);
     }
   }
 
@@ -1005,6 +1006,62 @@ export async function filtrerParcelles(
  * Vit ici, a cote de `filtrerParcelles`, et non dans la route : les deux doivent evoluer
  * ensemble, et une regle de validation eloignee du SQL qu'elle protege finit par en diverger.
  */
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * OU LIRE LA GRANDEUR D'UN SEUIL — et pourquoi `posteLePlusProche` ne suffit pas
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE, le 26/09/2026, sur les 301 parcelles de la base :
+ *
+ *   - `posteLePlusProche.capaciteResiduelleMw` renseigne sur **24** parcelles ;
+ *   - un poste ALTERNATIF renseigne sur **301**.
+ *
+ * Les postes viennent de deux sources : la BD TOPO donne la POSITION de tous, Capareseau la
+ * CAPACITE d'accueil et la QUOTE-PART de certains. Le plus proche est presque toujours un poste
+ * BD TOPO, sans capacite. Un developpeur ecrivant « capacite residuelle >= 10 MW » dans son cahier
+ * des charges recevait donc au mieux 24 parcelles sur 301 — **92 % du parc ecarte en silence**,
+ * non pour un manque de capacite mais parce que la valeur se trouvait sur un autre poste du meme
+ * instantane.
+ *
+ * C'EST LE MEME DEFAUT QUE CELUI CORRIGE LA VEILLE DANS LE MOTEUR DE NOTATION, sur l'autre
+ * versant : le critere avait ete reparé, le filtre de recherche ne l'avait pas ete. Les deux
+ * lisent desormais la meme chose — le poste le plus proche QUI PORTE la grandeur — sans quoi la
+ * liste et la fiche auraient repondu differemment a la meme question.
+ *
+ * LE CHEMIN RESTE PASSE EN PARAMETRE et n'est jamais concatene : seule la FORME de la lecture
+ * change, et elle est choisie parmi deux expressions ecrites ici, en dur.
+ */
+function expressionSeuil(chemin: string, params: unknown[], segments: string[]): string {
+  const GRANDEURS_DE_POSTE = new Set([
+    'raccordement.posteLePlusProche.capaciteResiduelleMw',
+    'raccordement.posteLePlusProche.quotePartEurParKw',
+  ]);
+
+  if (!GRANDEURS_DE_POSTE.has(chemin)) {
+    params.push(segments);
+    return `(sn.snapshot #>> $${params.length}::text[])::numeric`;
+  }
+
+  /*
+   * Le poste le plus proche QUI PORTE la grandeur, parmi le plus proche et les alternatifs. Les
+   * alternatifs ne sont PAS tries par distance — verifie sur la base : « 8,88 ; 7,88 ; 9 » pour
+   * une parcelle — d'ou le tri explicite.
+   */
+  const attribut = segments[segments.length - 1]!;
+  params.push(attribut);
+  const cle = `$${params.length}`;
+  return `(
+    SELECT (p ->> ${cle})::numeric
+      FROM jsonb_array_elements(
+             COALESCE(sn.snapshot -> 'raccordement' -> 'postesAlternatifs', '[]'::jsonb)
+             || COALESCE(jsonb_build_array(sn.snapshot -> 'raccordement' -> 'posteLePlusProche'), '[]'::jsonb)
+           ) p
+     WHERE p ->> ${cle} IS NOT NULL
+     ORDER BY (p ->> 'distanceKm')::numeric NULLS LAST, p ->> 'id'
+     LIMIT 1
+  )`;
+}
+
 export function filtresValides(
   corps: unknown,
   /** Plafond applique a `limite`. Les exports en passent un plus haut. */

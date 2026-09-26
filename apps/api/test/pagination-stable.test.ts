@@ -240,6 +240,17 @@ test('tout tri suivi d une troncature finit par une colonne unique', async () =>
    */
   const DEMONTRES: ReadonlyArray<{ tri: string; raison: string }> = [
     {
+      tri: "ORDER BY (p ->> 'distanceKm')::numeric NULLS LAST, p ->> 'id'",
+      raison:
+        "choix du poste source qui PORTE la grandeur d'un seuil, parmi le poste le plus proche et " +
+        "les alternatifs d'un meme instantane. `id` est la clef primaire de `poste_source` : " +
+        'MESURE le 26/09/2026, 3 081 postes pour 3 081 identifiants distincts, et AUCUNE parcelle ' +
+        "ne porte deux fois le meme identifiant dans sa liste. Le couple (distance, id) est donc " +
+        'un ordre total sur cette liste, et la troncature `LIMIT 1` est deterministe. Le moteur de ' +
+        'notation departage les ex aequo par le MEME couple, sans quoi la liste et la fiche ' +
+        'pourraient retenir chacune un poste jumele different.',
+    },
+    {
       tri: 'ORDER BY c.geom <-> q.geom',
       raison:
         'etage interne du plus proche poste : la valeur rendue est la distance MINIMALE, donc une ' +

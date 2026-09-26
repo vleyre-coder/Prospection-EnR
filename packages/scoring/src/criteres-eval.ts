@@ -228,8 +228,19 @@ function posteRenseigne(
   if (plusProche && porte(plusProche)) return { poste: plusProche, estLePlusProche: true };
 
   const candidats = s.raccordement.postesAlternatifs.filter(porte);
+  /*
+   * A EGALITE DE DISTANCE, L'IDENTIFIANT DEPARTAGE — exactement comme le filtre de recherche, qui
+   * trie par `(distanceKm, id)`. Des postes jumeles sur un meme site existent reellement ; sans
+   * ordre total, le moteur et la recherche pourraient retenir chacun le leur, et la fiche
+   * contredirait la liste sur une parcelle, de facon intermittente.
+   */
   const retenu = candidats.reduce<PosteSourceRef | null>(
-    (meilleur, p) => (meilleur == null || p.distanceKm < meilleur.distanceKm ? p : meilleur),
+    (meilleur, p) =>
+      meilleur == null ||
+      p.distanceKm < meilleur.distanceKm ||
+      (p.distanceKm === meilleur.distanceKm && p.id < meilleur.id)
+        ? p
+        : meilleur,
     null,
   );
   return retenu ? { poste: retenu, estLePlusProche: false } : null;
