@@ -45,6 +45,17 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.5.0 : le resultat porte `couvertureCatalogue` a cote de `couvertureDonnees`. Le document
+ *   annoncait « Couverture des donnees : 81 % » la ou 46,8 % du poids avait ete evalue — l'ecart
+ *   vient des criteres sans source sur le territoire, hors du denominateur historique.
+ *
+ *   POURQUOI UNE VERSION, ALORS QU'AUCUN SCORE NE CHANGE. `EMPREINTE_REFERENTIEL` suit ce qui
+ *   change les NOTES : regles, ponderations, baremes. Elle ne voit pas la FORME du resultat. Sans
+ *   cette incrementation, `idusSansScoreCourant` jugeait tous les scores a jour, le nouveau champ
+ *   restait absent de la base entiere, et la seconde ligne du rapport disparaissait en silence —
+ *   verifie a l'execution avant d'ecrire cette ligne. C'est exactement le cas ou la version de
+ *   code se bump a la main.
+ *
  * 1.4.0 : la pente n'est plus celle d'une regression mal conditionnee. Le critere de pente
  *   notait des valeurs jusqu'a 1 666 % sur 14 % des parcelles reelles, ce qui le mettait a
  *   0/100 au lieu de 99/100 — 8 a 12 points de score global, assez pour changer de couleur.
@@ -55,7 +66,7 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.4.0';
+export const VERSION_CODE_MOTEUR = '1.5.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.
@@ -416,6 +427,13 @@ export function calculerScore(
 
   const couvertureDonnees =
     poidsTotalApplicable === 0 ? 0 : Math.round((poidsRenseigne / poidsTotalApplicable) * 1000) / 1000;
+  /*
+   * LA MEME MESURE, SUR LE CATALOGUE COMPLET. Le denominateur inclut cette fois les criteres sans
+   * source sur le territoire. Voir `ResultatScore.couvertureCatalogue` : c'est le chiffre que lit
+   * le developpeur, et il vaut jusqu'a 34 points de moins que l'autre.
+   */
+  const couvertureCatalogue =
+    poidsTotalCatalogue === 0 ? 0 : Math.round((poidsRenseigne / poidsTotalCatalogue) * 1000) / 1000;
   const scoreBrut = poidsRenseigne === 0 ? null : borne(sommePonderee / poidsRenseigne);
 
   // -- 3. Statut de coloration --------------------------------------------
@@ -552,6 +570,7 @@ export function calculerScore(
     pointsVigilance: [...pointsVigilance, ...grisImportants].slice(0, 3),
     seuilsProcedure: construireSeuilsProcedure(snapshot, filiere, options, surfaceHa, regimeImplantation),
     couvertureDonnees,
+    couvertureCatalogue,
     regimeImplantation,
     ponderationsAppliquees: Object.fromEntries(criteres.map((c) => [c.id, c.poids])),
     versionMoteur: VERSION_MOTEUR,

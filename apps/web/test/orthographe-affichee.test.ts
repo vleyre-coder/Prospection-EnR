@@ -146,6 +146,12 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'packages/core/src/reglementation.ts', mot: 'norme', raison: 'le NOM norme (« conformite a une norme »), pas le participe « normé »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'prive', raison: 'verbe priver : « prive le projet du portage politique »' },
   { module: 'packages/core/src/bornes.ts', mot: 'foret', raison: 'chemin de champ `occupationSol.foret.partBoisee`' },
+  /*
+   * « chiffre » (le NOM) contre « chiffré » (le participe), entres ensemble avec la double mesure
+   * de couverture : l'infobulle de la fiche explique que les criteres sans source « sont comptes
+   * ici, alors qu'ils sont hors du premier chiffre ». Le nom, jamais le participe.
+   */
+  { module: 'apps/web/src/components/FicheParcelle.tsx', mot: 'chiffre', raison: 'le NOM chiffre : « hors du premier chiffre »' },
   { module: 'packages/core/src/reglementation.ts', mot: 'publie', raison: 'verbe publier : « aucune API nationale ne publie ces documents »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'majore', raison: 'verbe majorer : « qui majore la pente moyenne réelle »' },
   /*

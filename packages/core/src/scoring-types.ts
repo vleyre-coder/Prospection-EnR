@@ -154,10 +154,40 @@ export interface ResultatScore {
   /** Seuils de procedure applicables, avec leur date. */
   seuilsProcedure: SeuilProcedure[];
   /**
-   * Indice de couverture de donnees, 0-1 : part du poids total portee par des criteres
+   * Indice de couverture de donnees, 0-1 : part du poids MESURABLE portee par des criteres
    * effectivement renseignes. En dessous du seuil de fiabilite, le statut passe a GRIS.
+   *
+   * « MESURABLE » : les criteres dont aucune source n'est ingeree sur le territoire sont hors du
+   * denominateur. C'est un choix voulu et bien fonde POUR CLASSER DES PARCELLES — un critere qui
+   * manque identiquement partout ne discrimine rien, et l'inclure ferait basculer toute la filiere
+   * en gris sans rien apprendre. Voir `couvertureCatalogue` pour l'autre moitie de la verite.
    */
   couvertureDonnees: number;
+
+  /**
+   * Part du catalogue COMPLET de la filiere reellement evaluee, 0-1.
+   *
+   * ═══ POURQUOI DEUX CHIFFRES, ET PAS UN SEUL
+   *
+   * `couvertureDonnees` repond a « parmi ce qui etait mesurable ici, qu'a-t-on mesure ? ». C'est la
+   * bonne question pour ordonner des parcelles entre elles. Ce n'est PAS la question que se pose le
+   * developpeur qui recoit le document : lui demande « quelle part du sujet a ete regardee ? ».
+   *
+   * ═══ L'ECART MESURE, LE 26/09/2026, ET POURQUOI IL COMPTE
+   *
+   * Sur une parcelle de methanisation reelle, le rapport annoncait « Couverture des donnees : 81 % »
+   * et un score de 90/100. Le poids reellement evalue etait de **46,8 %**. Le critere nomme
+   * « determinant » en tete du document — la densite d'intrants mobilisables, 16,5 % a lui seul —
+   * faisait partie des non evalues.
+   *
+   * Ecart moyen mesure par filiere : methanisation 34,2 points, agrivoltaisme 8,6, solaire 6,3,
+   * eolien 5,7, BESS 2,4.
+   *
+   * Un lecteur qui lit « 81 % » comprend « on a regarde l'essentiel ». Les deux chiffres sont
+   * desormais rendus cote a cote partout ou la couverture est affichee : le premier reste ce qui
+   * fonde le statut, le second dit ce qui a reellement ete instruit.
+   */
+  couvertureCatalogue: number;
   /** Regime d'implantation retenu (specifique solaire), ex. "agrivoltaisme". */
   regimeImplantation: string | null;
   /** Ponderations effectivement appliquees (tracabilite du calcul). */

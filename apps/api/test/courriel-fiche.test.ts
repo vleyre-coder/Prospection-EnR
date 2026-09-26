@@ -95,6 +95,7 @@ function score(partiel: Partial<ResultatScore> = {}): ResultatScore {
     pointsVigilance: [],
     seuilsProcedure: [],
     couvertureDonnees: 0.98,
+    couvertureCatalogue: 0.98,
     regimeImplantation: null,
     ponderationsAppliquees: {},
     versionMoteur: 'test',

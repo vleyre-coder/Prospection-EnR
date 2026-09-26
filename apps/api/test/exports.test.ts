@@ -105,6 +105,7 @@ function scoreVide(): ResultatScore {
     pointsVigilance: [],
     seuilsProcedure: [],
     couvertureDonnees: 0,
+    couvertureCatalogue: 0,
     regimeImplantation: null,
     ponderationsAppliquees: {},
     versionMoteur: 'test',
@@ -366,6 +367,41 @@ function figureFictive(fond: 'plan' | 'ortho'): FigureCarte {
   etendueM: [796, 548],
   };
 }
+
+test('LE RAPPORT DIT LES DEUX COUVERTURES, PAS SEULEMENT LA PLUS FLATTEUSE', async () => {
+  /**
+   * LA FAUTE MESUREE, le 26/09/2026, sur une parcelle de methanisation reelle :
+   *
+   *     « 90 sur 100 — Sous conditions / a etudier »
+   *     « Couverture des donnees : 81 % »
+   *     « Critere determinant : Densite d'intrants mobilisables et debouche »
+   *
+   * Le poids reellement evalue etait de **46,8 %**, et le critere nomme « determinant » — 16,5 % a
+   * lui seul — faisait partie des NON EVALUES.
+   *
+   * `couvertureDonnees` exclut de son denominateur les criteres sans source sur le territoire :
+   * juste pour CLASSER des parcelles, trompeur pour qui recoit le document. Les deux chiffres sont
+   * desormais rendus ensemble.
+   */
+  const lu = texteDuPdf(
+    await pdf(snapshot(), { ...scoreVide(), couvertureDonnees: 0.81, couvertureCatalogue: 0.47 }),
+  );
+  assert.match(lu, /81 % du mesurable/);
+  assert.match(lu, /47 % du sujet complet/);
+});
+
+test('SANS ECART REEL, LA SECONDE LIGNE NE S’AFFICHE PAS', async () => {
+  /*
+   * LE CONTRE-EXEMPLE. Une ligne qui s'affiche toujours cesse d'etre lue — et sur les filieres ou
+   * l'ecart vaut deux points (BESS : 2,4), elle n'apprendrait rien. Le seuil est a un point, donc
+   * au-dessus du simple arrondi.
+   */
+  const lu = texteDuPdf(
+    await pdf(snapshot(), { ...scoreVide(), couvertureDonnees: 0.93, couvertureCatalogue: 0.93 }),
+  );
+  assert.match(lu, /93 % du mesurable/);
+  assert.doesNotMatch(lu, /du sujet complet/);
+});
 
 test('UNE COUCHE JAMAIS INGEREE NE FAIT PAS PROMETTRE QU’UNE RELANCE LA COMPLETERA', async () => {
   /**

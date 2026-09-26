@@ -661,6 +661,56 @@ function surfaceHa(p: ParcelleEnBase): number | null {
   return m2 == null ? null : m2 / 10000;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LA COUVERTURE SE DIT EN DEUX CHIFFRES, PARCE QU'ELLE REPOND A DEUX QUESTIONS
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE LE RAPPORT ANNONCAIT, mesure le 26/09/2026 sur une parcelle de methanisation reelle :
+ *
+ *     « 90 sur 100 — Sous conditions / a etudier »
+ *     « Couverture des donnees : 81 % »
+ *     « Critere determinant : Densite d'intrants mobilisables et debouche (injection gaz ou
+ *       epandage) »
+ *
+ * Le poids reellement evalue etait de **46,8 %**, et le critere nomme « determinant » — 16,5 % a
+ * lui seul — faisait partie des NON EVALUES. Trois affirmations en tete de document, dont la
+ * deuxieme fait lire les deux autres de travers.
+ *
+ * ═══ POURQUOI LES 81 % N'ETAIENT PAS UN BUG
+ *
+ * `couvertureDonnees` exclut de son denominateur les criteres dont aucune source n'est ingeree sur
+ * le territoire. C'est justifie POUR CLASSER : un critere absent partout ne discrimine rien, et
+ * l'inclure ferait basculer la filiere entiere en gris sans rien apprendre. Le chiffre repond a
+ * « parmi ce qui etait mesurable ici, qu'a-t-on mesure ? ».
+ *
+ * Ce n'est simplement pas la question du developpeur qui recoit le document. Lui demande « quelle
+ * part du sujet a ete regardee ? », et la reponse etait ailleurs, en page trois, repartie sur
+ * autant de lignes grises qu'il fallait les compter soi-meme.
+ *
+ * Les deux chiffres sont donc rendus ensemble. Le premier reste celui qui fonde le statut ; le
+ * second dit ce qui a reellement ete instruit. L'ecart moyen mesure va de 2,4 points en BESS a
+ * 34,2 en methanisation : la ou il est negligeable, la seconde ligne ne s'affiche pas.
+ */
+function couvertureEnDeuxLignes(score: ResultatScore): string[] {
+  const mesurable = Math.round(score.couvertureDonnees * 100);
+  const catalogue = Math.round(score.couvertureCatalogue * 100);
+  /*
+   * LE LIBELLE EST COURT PARCE QUE LA COLONNE L'EST. Le bandeau de droite fait 170 points : une
+   * phrase complete s'y replie en trois lignes illisibles. La premiere version — « Couverture des
+   * donnees : 81 % du mesurable » — coupait entre « du » et « mesurable ».
+   */
+  const lignes = [`Couverture : ${mesurable} % du mesurable`];
+  /*
+   * LE SEUIL D'AFFICHAGE EST A UN POINT, pas a zero : un ecart d'arrondi n'apprend rien et une
+   * ligne qui s'affiche toujours cesse d'etre lue. Des qu'il y a un ecart reel, il est dit.
+   */
+  if (mesurable - catalogue >= 1) {
+    lignes.push(`soit ${catalogue} % du sujet complet`);
+  }
+  return lignes;
+}
+
 const dateFr = (v: string | Date | null | undefined): string =>
   v == null ? '-' : new Date(v).toLocaleDateString('fr-FR');
 
@@ -738,7 +788,7 @@ export function ficheParcellePdf(
   // Colonne de droite du bandeau : les libelles de regime peuvent passer a la ligne, donc
   // la hauteur du bandeau est deduite de leur hauteur reelle au lieu d'etre fixee.
   const infos = [
-    `Couverture des données : ${Math.round(score.couvertureDonnees * 100)} %`,
+    ...couvertureEnDeuxLignes(score),
     score.regimeImplantation
       ? `Régime : ${LIBELLES_REGIME[score.regimeImplantation] ?? score.regimeImplantation}`
       : "Régime d'implantation non déterminé",

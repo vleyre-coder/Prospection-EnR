@@ -4254,6 +4254,40 @@ const MUTATIONS = [
     tests: ['test/courriel-fiche.test.ts'],
   },
   {
+    audit: 'audit 14 (couverture)',
+    /*
+     * LE RAPPORT REDIT UN SEUL CHIFFRE DE COUVERTURE. Mesure le 26/09/2026 : sur une parcelle de
+     * methanisation reelle, l'en-tete annoncait « Couverture des donnees : 81 % » et 90/100, alors
+     * que 46,8 % du poids avait ete evalue — et que le critere nomme « determinant » en tete du
+     * meme document, 16,5 % a lui seul, faisait partie des non evalues. Le premier chiffre exclut
+     * les criteres sans source sur le territoire, ce qui est juste pour CLASSER des parcelles et
+     * trompeur pour qui recoit le document. Ecart mesure : 34,2 points en methanisation.
+     */
+    quoi: 'le rapport ne redit qu’un seul chiffre de couverture, le plus flatteur',
+    fichier: 'apps/api/src/services/exports.ts',
+    de: '  if (mesurable - catalogue >= 1) {',
+    vers: '  if (false) {',
+    cwd: 'apps/api',
+    tests: ['test/exports.test.ts'],
+  },
+  {
+    audit: 'audit 14 (couverture)',
+    /*
+     * LA COUVERTURE DU CATALOGUE REDEVIENT CELLE DU MESURABLE. Recopier l'un dans l'autre fait
+     * disparaitre l'information sans casser le moindre test d'inegalite : les deux chiffres
+     * restent coherents, simplement identiques, et le document se remet a annoncer 81 % la ou 47 %
+     * du sujet a ete instruit.
+     */
+    quoi: 'la couverture du catalogue redevient celle du mesurable, et l’ecart disparait',
+    fichier: 'packages/scoring/src/index.ts',
+    de: '    poidsTotalCatalogue === 0 ? 0 : Math.round((poidsRenseigne / poidsTotalCatalogue) * 1000) / 1000;',
+    vers: '    poidsTotalApplicable === 0 ? 0 : Math.round((poidsRenseigne / poidsTotalApplicable) * 1000) / 1000;',
+    construire: '@enr/scoring',
+    cwd: 'packages/scoring',
+    tests: ['test/couverture-deux-chiffres.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/couverture-deux-chiffres.test.ts'],
+  },
+  {
     audit: 'audit 13 (sources)',
     /*
      * LE RAPPORT PROMET QU'UNE RELANCE COMPLETERA UNE COUCHE JAMAIS INGEREE. Treize connecteurs

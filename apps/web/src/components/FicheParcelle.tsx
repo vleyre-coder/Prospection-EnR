@@ -295,7 +295,17 @@ function Synthese({
             <div style={{ width: `${Math.round(score.couvertureDonnees * 100)}%` }} />
           </div>
           <div className="jauge-legende">
-            Couverture de données : {Math.round(score.couvertureDonnees * 100)} %
+            Couverture de données : {Math.round(score.couvertureDonnees * 100)} % du mesurable
+            {Math.round(score.couvertureDonnees * 100) - Math.round(score.couvertureCatalogue * 100) >= 1 && (
+              /*
+                LE SECOND CHIFFRE, A L'ECRAN COMME AU DOCUMENT. Le premier dit « parmi ce qui etait
+                mesurable ici, qu'a-t-on mesure », ce qui fonde le statut. Le second dit quelle part
+                du SUJET a ete regardee — jusqu'a 34 points de moins en methanisation.
+              */
+              <span title="Part du catalogue complet de la filière réellement évaluée : les critères sans source ingérée sur ce territoire sont comptés ici, alors qu'ils sont hors du premier chiffre.">
+                {' '}— soit {Math.round(score.couvertureCatalogue * 100)} % du sujet complet
+              </span>
+            )}
             {score.couvertureDonnees < 0.8 &&
               ` — ${score.criteres.filter((c) => c.note == null).length} critère(s) non évalué(s)`}
           </div>

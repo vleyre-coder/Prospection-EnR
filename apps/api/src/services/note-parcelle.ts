@@ -85,11 +85,20 @@ export function noteParcelle(
   );
 
   // ═══ le verdict, et ce qui le fonde
-  const couverture = Math.round(score.couvertureDonnees * 100);
+  const mesurable = Math.round(score.couvertureDonnees * 100);
+  const catalogue = Math.round(score.couvertureCatalogue * 100);
   lignes.push(
     `VERDICT : ${LIBELLES_SCORE[score.statut]}` +
       (score.scoreGlobal != null ? ` - ${score.scoreGlobal.toFixed(0)}/100` : ''),
-    `Couverture des données : ${couverture} %`,
+    /*
+     * LES DEUX CHIFFRES, ICI PLUS QU'AILLEURS. Le corps d'un courriel est lu par quelqu'un qui
+     * n'ouvrira peut-etre pas la piece jointe : c'est le dernier endroit ou l'on peut se permettre
+     * d'annoncer « 81 % » quand 47 % du sujet a ete instruit.
+     */
+    `Couverture des données : ${mesurable} % du mesurable` +
+      (mesurable - catalogue >= 1
+        ? `, soit ${catalogue} % du sujet complet (critères sans source sur ce territoire)`
+        : ''),
   );
   if (score.regimeImplantation) {
     lignes.push(

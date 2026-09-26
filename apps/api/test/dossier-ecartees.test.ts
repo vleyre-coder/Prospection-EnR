@@ -60,6 +60,7 @@ function score(idu: string, statut: Feu, knockOuts: KnockOut[]): ResultatScore {
     pointsVigilance: [],
     seuilsProcedure: [],
     couvertureDonnees: 0.9,
+    couvertureCatalogue: 0.9,
     regimeImplantation: null,
     ponderationsAppliquees: {},
     versionMoteur: '0.0.0+test',
