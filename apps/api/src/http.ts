@@ -134,6 +134,61 @@ export const ATTENTES_PAR_PROFIL = {
 /** Nombre de tentatives par defaut selon le profil : une ingestion insiste davantage. */
 const TENTATIVES_PAR_PROFIL = { reactif: 3, patient: 5 } as const;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * COUPE-CIRCUIT PAR HOTE — mesure le 26/09/2026 sur une qualification reelle
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUI A ETE MESURE. Une parcelle qualifiee pendant que `georisques.gouv.fr` etait injoignable :
+ * **140 secondes**, pour six points d'entree en echec. Le mecanisme n'est pas mysterieux — les
+ * connecteurs partent en parallele, mais `acquerir(domaine)` SERIALISE les appels vers un meme
+ * hote, et chacun consommait alors son budget complet de reprises. Six fois le meme mur.
+ *
+ * CE QUE CELA COUTE A L'EXPLOITANT. Apres une ingestion, il faut reprendre les parcelles pour
+ * qu'elles voient la nouvelle donnee. A 140 secondes piece, 300 parcelles demandent douze heures —
+ * autrement dit, on ne reprend pas. La lenteur d'un service tiers devient une impossibilite
+ * d'exploiter la sienne.
+ *
+ * ═══ CE QUE LE COUPE-CIRCUIT FAIT, ET CE QU'IL NE FAIT PAS
+ *
+ * Quand un hote a epuise son budget de reprises, il est note « en panne » pour une courte duree.
+ * Les appels suivants vers CE MEME hote echouent alors IMMEDIATEMENT, avec la meme `ErreurSource`
+ * qu'ils auraient fini par lever. Rien ne change pour l'appelant : le critere reste gris, avec le
+ * meme motif. Seule l'attente disparait.
+ *
+ * IL N'INVENTE AUCUN RESULTAT et ne masque aucune panne : un hote coupe reste un hote coupe, et
+ * l'echec est journalise comme avant. C'est une economie d'attente, pas une tolerance a la panne.
+ *
+ * LA DUREE EST COURTE — trente secondes — pour deux raisons opposees et egalement importantes :
+ * assez longue pour couvrir la qualification en cours, assez breve pour qu'un service qui revient
+ * soit reessaye sans que personne ait a redemarrer quoi que ce soit. Un coupe-circuit qui oublie
+ * de se refermer est pire que pas de coupe-circuit.
+ */
+const PANNE_MS = 30_000;
+const hotesEnPanne = new Map<string, number>();
+
+/** L'hote est-il connu en panne a cet instant ? Purge l'entree des qu'elle a expire. */
+function hoteEnPanne(hote: string): boolean {
+  const jusqua = hotesEnPanne.get(hote);
+  if (jusqua == null) return false;
+  if (Date.now() >= jusqua) {
+    hotesEnPanne.delete(hote);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Remet tous les hotes en service.
+ *
+ * Exportee pour les TESTS, et pour eux seuls : sans cela, un test qui fait tomber un hote laisse
+ * le suivant echouer immediatement pour une raison qui ne le concerne pas. C'est le genre de
+ * couplage qui rend une suite verte ou rouge selon son ordre d'execution.
+ */
+export function reinitialiserCoupeCircuit(): void {
+  hotesEnPanne.clear();
+}
+
 export async function jsonExterne<T>(url: string, options: OptionsRequete): Promise<T> {
   const methode = options.methode ?? 'GET';
   const ttl = options.cacheTtlMs ?? (methode === 'GET' ? config.http.cacheTtlMs : 0);
@@ -145,6 +200,20 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
   }
 
   const domaine = new URL(url).host;
+  /*
+   * LE CONTROLE PRECEDE LE VERROU DE CONCURRENCE. Le placer apres reviendrait a faire la queue
+   * pour apprendre qu'on n'a rien a demander — et c'est precisement cette file d'attente qui
+   * transformait six echecs en cent quarante secondes.
+   */
+  if (hoteEnPanne(domaine)) {
+    throw new ErreurSource(
+      options.connecteur,
+      url,
+      `Hote ${domaine} injoignable lors d'un appel precedent : appel court-circuite pendant ` +
+        `${Math.round(PANNE_MS / 1000)} s. Le critere reste non evalue, comme il le serait apres ` +
+        'les reprises.',
+    );
+  }
   const liberer = await acquerir(domaine);
   const profil = options.profilAttente ?? 'reactif';
   const tentatives =
@@ -247,6 +316,18 @@ export async function jsonExterne<T>(url: string, options: OptionsRequete): Prom
       } finally {
         clearTimeout(minuteur);
       }
+    }
+    /*
+     * BUDGET EPUISE : l'hote est note en panne. Une erreur DEFINITIVE (4xx hors 429) n'y entre
+     * pas — elle dit que CETTE requete est mauvaise, pas que le service est tombe. Couper l'hote
+     * sur un 404 ferait passer pour injoignable un service qui repond parfaitement.
+     */
+    if (!(derniereErreur as { definitive?: boolean } | null)?.definitive) {
+      hotesEnPanne.set(domaine, Date.now() + PANNE_MS);
+      journal.warn(
+        { connecteur: options.connecteur, hote: domaine, pauseMs: PANNE_MS },
+        'Hote injoignable apres toutes les tentatives : appels suivants court-circuites',
+      );
     }
     throw derniereErreur instanceof ErreurSource
       ? derniereErreur

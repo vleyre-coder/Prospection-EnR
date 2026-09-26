@@ -4254,6 +4254,37 @@ const MUTATIONS = [
     tests: ['test/courriel-fiche.test.ts'],
   },
   {
+    audit: 'audit 14 (coupe-circuit)',
+    /*
+     * LE COUPE-CIRCUIT DISPARAIT, ET LE RAFRAICHISSEMENT REDEVIENT IMPRATICABLE. Mesure le
+     * 26/09/2026, `georisques.gouv.fr` injoignable : 140 secondes pour UNE parcelle, six points
+     * d'entree en echec serialises par la limitation de concurrence, chacun consommant son budget
+     * complet de reprises. Apres correction : 11 s puis 8,7 s. A 140 secondes piece, reprendre
+     * 300 parcelles apres une ingestion demande douze heures — autrement dit, on ne les reprend pas.
+     */
+    quoi: 'un hote tombe reconsomme tout son budget de reprises a chaque appel',
+    fichier: 'apps/api/src/http.ts',
+    de: '  if (hoteEnPanne(domaine)) {',
+    vers: '  if (false) {',
+    cwd: 'apps/api',
+    tests: ['test/coupe-circuit-http.test.ts'],
+  },
+  {
+    audit: 'audit 14 (coupe-circuit)',
+    /*
+     * UN 404 FAIT PASSER UN SERVICE SAIN POUR INJOIGNABLE. Une erreur definitive dit que CETTE
+     * requete est mauvaise — identifiant inconnu, parametre hors domaine — pas que l'hote est
+     * tombe. Couper dessus griserait tous les criteres qui en dependent parce qu'une parcelle a
+     * pose une mauvaise question, et la panne se propagerait de parcelle en parcelle.
+     */
+    quoi: 'un 404 coupe l’hote entier et grise les criteres d’un service qui repond',
+    fichier: 'apps/api/src/http.ts',
+    de: "    if (!(derniereErreur as { definitive?: boolean } | null)?.definitive) {",
+    vers: '    if (true) {',
+    cwd: 'apps/api',
+    tests: ['test/coupe-circuit-http.test.ts'],
+  },
+  {
     audit: 'audit 14 (couverture)',
     /*
      * LE RAPPORT REDIT UN SEUL CHIFFRE DE COUVERTURE. Mesure le 26/09/2026 : sur une parcelle de
