@@ -689,8 +689,34 @@ export async function ingererSitesProteges(): Promise<{
     lot.length = 0;
   };
 
-  try {
-    for (const couche of COUCHES_SITES) {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   * UNE COUCHE EN ECHEC N'EMPORTE PLUS LES AUTRES — defaut MESURE le 26/09/2026
+   * ═══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QUI S'EST PASSE. La couche Guadeloupe-Martinique a rendu 400. Le `try` englobait la boucle
+   * entiere : le `catch` a donc rendu la main AVANT l'etape de couverture, alors que la couche
+   * METROPOLE etait deja entierement ingeree. Resultat mesure : **6 617 sites classes et inscrits
+   * ecrits dans `contrainte`, et ZERO ligne de couverture**. Or `patrimoine()` interroge la
+   * couverture, pas la table : pour le moteur, la couche n'existait toujours pas. Les criteres
+   * `pat_sites` sont restes gris sur les 301 parcelles, avec la donnee en base.
+   *
+   * ET LE JOURNAL DISAIT « Ingestion terminee, 7 634 objets ». L'exploitant n'avait aucune raison
+   * de soupconner que rien n'etait exploitable.
+   *
+   * POURQUOI CELA SE REPRODUIRA. Le nom de la couche fautive porte une DATE —
+   * `sites_guadeloupe_martinique_gpkg_26-01-2026_wfs` — que le fournisseur fait tourner. Chaque
+   * rotation d'un millesime outre-mer desactivait donc silencieusement la metropole entiere.
+   *
+   * CHAQUE COUCHE EST DESORMAIS ISOLEE. Ce qui a ete lu est conserve, la couverture est enregistree
+   * pour ce qui est arrive, et les echecs sont NOMMES dans le bilan. L'effacement des disparus,
+   * lui, reste interdit des qu'une pagination est incomplete : on ne supprime jamais sur une
+   * lecture partielle.
+   */
+  const couchesEnEchec: Array<{ couche: string; message: string }> = [];
+
+  for (const couche of COUCHES_SITES) {
+    try {
       const pagination: EtatPagination = { complete: false };
       paginations.push(pagination);
       for await (const entite of objetsWfs(couche, pagination)) {
@@ -759,12 +785,16 @@ export async function ingererSitesProteges(): Promise<{
         if (lot.length >= 500) await viderLot();
       }
       journal.info({ couche, nbObjets }, 'Couche de sites ingérée');
+      await viderLot();
+    } catch (err) {
+      /*
+       * LE LOT EST VIDE AVANT DE PASSER A LA SUITE. Sans cela, les objets d'une couche interrompue
+       * resteraient en memoire et seraient ecrits avec ceux de la couche suivante — ou perdus.
+       */
+      await viderLot().catch(() => undefined);
+      couchesEnEchec.push({ couche, message: (err as Error).message });
+      journal.error({ err, couche }, "Échec d'une couche de sites : les autres continuent");
     }
-    await viderLot();
-  } catch (err) {
-    journal.error({ err }, "Échec de l'ingestion des sites protégés");
-    await enregistrerIngestion('patrimoine_sites', 'echec', (err as Error).message, nbObjets);
-    return { connecteur: 'patrimoine_sites', nbObjets, nbSansGeometrie, nbNonReconnus, millesime: null };
   }
 
   /**
@@ -835,12 +865,29 @@ export async function ingererSitesProteges(): Promise<{
   }
   oublierPresenceCouches();
 
+  /*
+   * LE BILAN NOMME LES COUCHES EN ECHEC. « ok » sur une ingestion dont une couche sur quatre n'a
+   * rien rendu est un mensonge par omission : c'est precisement ce que disait le journal le jour ou
+   * 6 617 sites sont restes invisibles. L'etat devient « partiel », et les couches fautives sont
+   * ecrites en clair — leur nom porte un millesime que le fournisseur fait tourner, donc la
+   * prochaine panne ressemblera a celle-ci et doit se diagnostiquer en une ligne.
+   */
+  const etat = nbObjets === 0 ? 'echec' : couchesEnEchec.length > 0 ? 'partiel' : 'ok';
+  if (couchesEnEchec.length > 0) {
+    journal.warn(
+      { couchesEnEchec, nbObjets, couples: parDepEtType.length },
+      'Ingestion des sites PARTIELLE : les couches lues sont exploitables, les autres non',
+    );
+  }
   await enregistrerIngestion(
     'patrimoine_sites',
-    nbObjets > 0 ? 'ok' : 'echec',
+    etat,
     `${nbObjets} sites classes et inscrits, ${nbNonReconnus} labels ou types non reconnus ecartes, ` +
       `${nbSansGeometrie} sans geometrie, ${parDepEtType.length} couples departement/type couverts, ` +
-      `${disparus.supprimes} disparus effaces (${disparus.motif})`,
+      `${disparus.supprimes} disparus effaces (${disparus.motif})` +
+      (couchesEnEchec.length > 0
+        ? `. COUCHES EN ECHEC : ${couchesEnEchec.map((c) => `${c.couche} (${c.message.slice(0, 120)})`).join(' ; ')}`
+        : ''),
     nbObjets,
   );
   return { connecteur: 'patrimoine_sites', nbObjets, nbSansGeometrie, nbNonReconnus, millesime: null };

@@ -121,6 +121,20 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
   let nbPoints = 0;
   let nbFermes = 0;
   /**
+   * Enregistrements LUS, et ceux ecartes faute de coordonnees.
+   *
+   * SANS CES DEUX COMPTEURS, LE DIAGNOSTIC EST FAUX. Mesure le 26/09/2026 : le jeu GRDF repond
+   * 200, annonce 855 sites, et ne publie PLUS AUCUN champ geographique — ni `geo_point_2d`, ni
+   * latitude, ni longitude ; il ne reste que `code_commune`. Les 855 enregistrements etaient donc
+   * lus puis ecartes un par un, et le bilan concluait « Aucun jeu GRDF exploitable : verifier les
+   * identifiants de jeux ». L'exploitant allait verifier des identifiants parfaitement valides.
+   *
+   * Distinguer « le jeu est introuvable » de « le jeu a perdu sa geometrie » est tout l'ecart entre
+   * une minute et une apres-midi.
+   */
+  let nbLus = 0;
+  let nbSansCoordonnees = 0;
+  /**
    * Pagination reellement terminee, ou interrompue en cours de route ?
    *
    * AUDIT 9, DEFAUT A4. Le `catch` ci-dessous entoure toute la boucle de pagination : une erreur a
@@ -149,8 +163,12 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
         total = rep.total_count ?? resultats.length;
 
         for (const [index, r] of resultats.entries()) {
+          nbLus += 1;
           const geo = extraireCoordonnees(r);
-          if (!geo) continue;
+          if (!geo) {
+            nbSansCoordonnees += 1;
+            continue;
+          }
 
           // Un site ferme n'offre plus de debouche d'injection : le retenir donnerait une
           // fausse proximite a un projet de methanisation.
@@ -232,7 +250,12 @@ export async function ingererReseauGaz(): Promise<{ connecteur: string; nbPoints
       ? `${nbPoints} sites d'injection en service, ${nbFermes} sites fermes ecartes, ` +
         `${nbDepartements} departement(s) couvert(s)` +
         (paginationComplete ? '' : ' — PAGINATION INTERROMPUE, couverture non enregistree')
-      : "Aucun jeu GRDF exploitable : vérifier les identifiants de jeux sur opendata.grdf.fr",
+      : nbLus === 0
+        ? 'Aucun jeu GRDF exploitable : vérifier les identifiants de jeux sur opendata.grdf.fr'
+        : `${nbLus} enregistrement(s) lus et ${nbSansCoordonnees} sans coordonnées : la source ` +
+          'répond, mais ne publie plus de champ géographique (seul `code_commune` subsiste). Le ' +
+          'jeu n’est donc plus ingérable en l’état — rien n’est inventé, et la distance au site ' +
+          'd’injection reste non renseignée plutôt que déduite d’un centroïde communal.',
     nbPoints,
   );
   return { connecteur: 'reseau_gaz', nbPoints };
