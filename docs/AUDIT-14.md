@@ -194,8 +194,12 @@ ingérés avec lui. Durée totale : **297 secondes** pour 445 061 parcelles RPG 
 | `env_tvb` | 3 | 1,5 à 1,7 % |
 | `pat_archeologie` | 2 | 0,8 % |
 
-**La méthanisation reste la filière la plus pénalisée**, mais moins qu'hier : **45,0 % de son poids
-était non instruit, il en reste 37,6 %**. Les données de propriété (`fonc_*`) ne sont pas publiques —
+**La méthanisation reste la filière la plus pénalisée**, mais moins qu'hier. Mesuré sur les 301
+parcelles reprises, **49,5 % de son poids reste gris**, en deux parts qui ne se traitent pas
+pareil : **34,9 % sans source** (hors du dénominateur de couverture, plafonnant le statut à orange)
+et **14,7 % indisponible** (dans le dénominateur — c'est cette part qui décide du gris). Avant la
+reprise, le poids gris valait 53,2 % : **+7,3 pour l'épandage réglé, −3,7 pour `risq_inondation`,
+devenu gris entre les deux mesures parce que Géorisques est tombé.** Les données de propriété (`fonc_*`) ne sont pas publiques —
 elles relèvent d'une demande encadrée auprès du service de la publicité foncière, et l'application le
 dit.
 
@@ -291,13 +295,37 @@ des développeurs des projets *fiables*.
 | **Les données de propriété ne sont pas publiques** | structurel : demande encadrée auprès de la publicité foncière |
 | **La relecture juridique reste à faire** | 128 articles à confronter, 28 règles marquées à valider |
 
+### [27/09] L'état du parc après reprise des 301 parcelles
+
+Toutes les parcelles ont été reprises et renotées au moteur 1.6.0. Ce tableau est la réponse la
+plus directe à « est-ce utilisable aujourd'hui ».
+
+| Filière | Classées | Grises | Écartées | Score : min → max (σ) | Couverture mesurable / catalogue |
+| --- | --- | --- | --- | --- | --- |
+| Solaire au sol | **200 orange** | 0 | 101 | 51,5 → 68,0 (3,0) | 91,7 % / 86,8 % |
+| Stockage (BESS) | **200 orange** | 0 | 101 | 42,9 → 56,8 (2,7) | 89,1 % / 86,9 % |
+| Agrivoltaïsme | **199 orange** | 1 | 101 | 47,5 → 71,0 (3,5) | 86,7 % / 79,4 % |
+| Éolien terrestre | 0 | 60 | **241** | 45,8 → 65,1 (4,2) | 72,6 % / 68,8 % |
+| Méthanisation | 2 orange | **153** | 146 | 62,1 → 89,9 (6,3) | 77,6 % / 50,5 % |
+
+**`gis_debouche_epandage` est renseigné sur 301 parcelles sur 301** — il l'était sur zéro.
+
+**Aucune parcelle n'est verte, sur aucune filière, et c'est voulu.** Tant qu'un critère n'a aucune
+source sur le territoire, la limite `criteres_sans_source` plafonne le statut à orange : « aucune
+parcelle ne peut être déclarée propice tant que ces enjeux n'ont pas été regardés ». L'outil classe
+donc *à l'intérieur* de l'orange, par score — ce qui est exactement ce qu'il faut pour prospecter,
+mais il faut le savoir en lisant une liste.
+
+**L'éolien n'écarte pas par manque de données : il écarte par knock-out.** 241 parcelles sur 301,
+sur l'éloignement de l'habitat et le patrimoine désormais ingéré. C'est un résultat, pas une panne.
+
 ### Ce qui sépare la méthanisation d'un classement utilisable : un seul point d'entrée
 
 La mesure mérite d'être posée exactement, parce qu'elle change ce qu'il y a à faire.
 
 Le gris d'une filière se décide sur la couverture du **mesurable** — les critères sans source en
 sont exclus, puisqu'ils manquent identiquement à toutes les parcelles et ne discriminent rien. Le
-seuil est de **80 %**. Mesuré sur les parcelles reprises : **77,5 %**. Il manque 2,5 points.
+seuil est de **80 %**. Mesuré sur les 301 parcelles : **77,6 %**. Il manque 2,4 points.
 
 Ce qui manque au dénominateur se décompose ainsi :
 
@@ -311,8 +339,8 @@ Ce qui manque au dénominateur se décompose ainsi :
 | `risq_karst` | 4,59 % | sans source — exclu |
 | `fonc_nb_proprietaires` | 2,75 % | sans source — exclu |
 
-**Retrouver `risq_inondation` seul fait passer la couverture de 77,5 % à 83,1 %** — au-dessus du
-seuil — et la méthanisation redevient classable. C'est **un point d'entrée Géorisques**, pas une
+**Retrouver `risq_inondation` seul fait passer la couverture de 77,6 % à 83,1 %** — au-dessus du
+seuil — et **les 153 parcelles grises deviennent classables**. C'est **un point d'entrée Géorisques**, pas une
 ingestion à écrire. Et ce n'est pas une hypothèse : ce critère était **renseigné sur 100 % des
 parcelles qualifiées avant que Géorisques ne devienne injoignable**, et gris sur 100 % de celles
 reprises depuis. Le basculement se lit directement dans la base. Les 16,5 % du gisement d'intrants, eux, sont hors du dénominateur : ils
