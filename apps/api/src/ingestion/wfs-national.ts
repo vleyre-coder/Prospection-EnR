@@ -919,6 +919,27 @@ export async function ingererSitesProteges(): Promise<{
 // ---------------------------------------------------------------------------
 
 /**
+ * Ce run a-t-il relu EN ENTIER tous les departements qui portent des lignes en base ?
+ *
+ * Fonction PURE, exportee pour etre testee, et c'est justifie : c'est la condition qui autorise une
+ * SUPPRESSION. Le perimetre d'`effacerDisparus` est le connecteur, pas le departement, alors que ce
+ * job s'execute departement par departement — lui declarer un parcours complet apres avoir ingere le
+ * seul 28 ferait passer pour disparues les communes du 41, du 45 et du 91, ingerees la veille et
+ * parfaitement valides.
+ *
+ * Un departement en base dont le code est `null` interdit la suppression : on ne peut pas affirmer
+ * l'avoir relu.
+ */
+export function tousDepartementsRelus(
+  depsEnBase: readonly (string | null)[],
+  depsComplets: readonly string[],
+  parcoursComplet: boolean,
+): boolean {
+  if (!parcoursComplet) return false;
+  return depsEnBase.every((d) => d != null && depsComplets.includes(d));
+}
+
+/**
  * Identifiant stable d'une parcelle RPG, ou `null` si la source n'en porte aucun.
  *
  * `iup` est l'identifiant unique de la parcelle au RPG — un UUID, verifie sur la source le
@@ -1049,6 +1070,8 @@ export async function ingererRpgCommunal(departements?: readonly string[]): Prom
    * emprise presente en table est la sienne, et l'agregation ne retient que ses propres communes.
    */
   const depsComplets: string[] = [];
+  /* Pris AVANT la premiere insertion : toute ligne plus ancienne n'a pas ete revue par ce run. */
+  const debutRun = new Date();
 
   /*
    * UNE TABLE TEMPORAIRE, et non une insertion par parcelle. Des dizaines de milliers d'allers-
@@ -1114,6 +1137,7 @@ export async function ingererRpgCommunal(departements?: readonly string[]): Prom
 
     await requete(`TRUNCATE rpg_tmp`);
     lot.length = 0;
+    clesDuLot.clear();
     const pagination: EtatPagination = { complete: false };
     // WFS 2.0 en EPSG:4326 : l'ordre des axes est lat,lon. Verifie a l'execution — l'ordre lon,lat
     // rend « numberMatched=0 » sans erreur, ce qui se lirait comme un departement sans agriculture.
@@ -1225,6 +1249,37 @@ export async function ingererRpgCommunal(departements?: readonly string[]): Prom
   await requete(`TRUNCATE rpg_tmp`);
   const complete = depsComplets.length === deps.length;
   if (depsComplets.length > 0) oublierPresenceCouches();
+
+  /**
+   * EFFACEMENT DES COMMUNES DISPARUES — sous une condition que les autres ingestions n'ont pas.
+   *
+   * Le perimetre d'`effacerDisparus` est le CONNECTEUR, pas le departement : il regarde toutes les
+   * lignes `rpg_communal` de la table. Or ce job s'execute departement par departement. Lui
+   * declarer un parcours « complet » apres avoir ingere le seul 28 ferait passer pour disparues
+   * toutes les communes du 41, du 45 et du 91 — ingerees la veille, parfaitement valides, et
+   * simplement pas regardees aujourd'hui.
+   *
+   * Le garde-fou de proportion les sauverait probablement, mais compter dessus serait s'en remettre
+   * au hasard des volumes : sur une base ou le 28 pese la majorite des lignes, la suppression
+   * passerait. La condition est donc explicite — on n'efface que si ce run a lu EN ENTIER tous les
+   * departements qui portent des lignes.
+   */
+  const depsEnBase = await requete<{ code_departement: string | null }>(
+    `SELECT DISTINCT code_departement FROM contrainte WHERE connecteur = 'rpg_communal'`,
+  );
+  const tousRelus = tousDepartementsRelus(
+    depsEnBase.map((d) => d.code_departement),
+    depsComplets,
+    complete,
+  );
+  const disparus = await effacerDisparus(
+    { table: 'contrainte', connecteur: 'rpg_communal' },
+    debutRun,
+    tousRelus,
+  );
+  if (disparus.supprimes > 0) {
+    journal.info({ supprimes: disparus.supprimes, motif: disparus.motif }, 'Communes RPG disparues effacees');
+  }
 
   await enregistrerIngestion(
     'rpg_communal',

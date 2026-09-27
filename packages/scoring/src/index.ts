@@ -45,6 +45,18 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.6.0 : les trois textes qui annoncaient un « rayon de 15 km » pour le gisement d'intrants
+ *   disaient faux. Le code compte les elevages et les surfaces agricoles a 10 km, les industries
+ *   agroalimentaires a 20 km — mesure sur le code, pas suppose.
+ *
+ *   POURQUOI UNE VERSION, ALORS QU'AUCUNE NOTE NE CHANGE. Ces phrases sont ECRITES DANS LE
+ *   `detail` de chaque score, et y restent telles quelles. Sans incrementation, la base porterait
+ *   deux generations de texte melangees — les parcelles recalculees apres ce changement decrivant
+ *   la bonne methode, les autres l'ancienne — et rien ne distinguerait les unes des autres. Un
+ *   document remis a un developpeur enoncerait alors une methode que l'application n'applique pas.
+ *   `EMPREINTE_REFERENTIEL` ne peut pas le voir : elle ne suit que les cles des criteres, les
+ *   ponderations, les regles et les baremes.
+ *
  * 1.5.0 : le resultat porte `couvertureCatalogue` a cote de `couvertureDonnees`. Le document
  *   annoncait « Couverture des donnees : 81 % » la ou 46,8 % du poids avait ete evalue — l'ecart
  *   vient des criteres sans source sur le territoire, hors du denominateur historique.
@@ -66,7 +78,7 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.5.0';
+export const VERSION_CODE_MOTEUR = '1.6.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.

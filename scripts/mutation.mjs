@@ -4553,6 +4553,35 @@ const MUTATIONS = [
     cwd: 'apps/api',
     tests: ['test/cle-parcelle-rpg.test.ts'],
   },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * LA SUPPRESSION DES DISPARUS S'AUTORISE SUR LE SEUL PARCOURS. Le perimetre d'`effacerDisparus`
+     * est le CONNECTEUR, pas le departement, alors que ce job s'execute departement par
+     * departement : reingerer le seul 28 ferait passer pour disparues toutes les communes du 41, du
+     * 45 et du 91, ingerees la veille et parfaitement valides. Le garde-fou de proportion les
+     * sauverait peut-etre — compter dessus, c'est s'en remettre au hasard des volumes.
+     */
+    quoi: 'la suppression des communes disparues ne verifie plus que les departements ont ete relus',
+    fichier: 'apps/api/src/ingestion/wfs-national.ts',
+    de: '  return depsEnBase.every((d) => d != null && depsComplets.includes(d));',
+    vers: '  return true;',
+    cwd: 'apps/api',
+    tests: ['test/cle-parcelle-rpg.test.ts'],
+  },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * UNE PAGINATION INTERROMPUE N'INTERDIT PLUS LA SUPPRESSION. Les communes non revues faute
+     * d'avoir ete lues seraient effacees comme si elles avaient disparu de la source.
+     */
+    quoi: 'une pagination interrompue n’interdit plus l’effacement des communes non revues',
+    fichier: 'apps/api/src/ingestion/wfs-national.ts',
+    de: '  if (!parcoursComplet) return false;',
+    vers: '  void parcoursComplet;',
+    cwd: 'apps/api',
+    tests: ['test/cle-parcelle-rpg.test.ts'],
+  },
 ];
 
 /**

@@ -107,3 +107,62 @@ test('SANS AUCUN IDENTIFIANT, LA REPONSE EST « JE NE SAIS PAS » ET NON UNE CLE
     'un pacage sans ilot ni parcelle designe une exploitation entiere, pas une parcelle',
   );
 });
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LA CONDITION QUI AUTORISE UNE SUPPRESSION
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `effacerDisparus` prend pour périmètre le CONNECTEUR, pas le département — il regarde toutes les
+ * lignes `rpg_communal` de la table. Or ce job s'exécute département par département.
+ *
+ * Lui déclarer un parcours « complet » après avoir ingéré le seul 28 ferait passer pour disparues
+ * toutes les communes du 41, du 45 et du 91 : ingérées la veille, parfaitement valides, et
+ * simplement pas regardées aujourd'hui. Le garde-fou de proportion d'`effacerDisparus` les sauverait
+ * peut-être — mais compter dessus, c'est s'en remettre au hasard des volumes : sur une base où le 28
+ * pèse la majorité des lignes, la suppression passerait.
+ */
+
+import { tousDepartementsRelus } from '../src/ingestion/wfs-national.js';
+
+test('N’EFFACER QUE SI TOUS LES DEPARTEMENTS EN BASE ONT ETE RELUS EN ENTIER', () => {
+  assert.equal(
+    tousDepartementsRelus(['28', '41'], ['28', '41'], true),
+    true,
+    'les deux departements en base ont ete relus : la suppression est legitime',
+  );
+});
+
+test('UN DEPARTEMENT EN BASE NON RELU INTERDIT TOUTE SUPPRESSION', () => {
+  /*
+   * LE CAS REEL : on reingere le 28 seul, alors que le 41 est en base depuis hier. Ses communes
+   * n'ont pas ete revues par ce run, et elles n'ont pas disparu pour autant.
+   */
+  assert.equal(
+    tousDepartementsRelus(['28', '41'], ['28'], true),
+    false,
+    'le 41 n’a pas ete regarde : ses communes ne sont pas des disparues',
+  );
+});
+
+test('UNE PAGINATION INTERROMPUE INTERDIT LA SUPPRESSION, MEME SI LES DEPARTEMENTS COINCIDENT', () => {
+  /**
+   * LES DEUX CONDITIONS SONT INDEPENDANTES. Un run peut couvrir exactement les bons départements et
+   * n'en avoir lu qu'une partie : une pagination coupée laisse des communes non revues, qui seraient
+   * alors effacées alors qu'elles existent.
+   */
+  assert.equal(tousDepartementsRelus(['28'], ['28'], false), false);
+});
+
+test('UN DEPARTEMENT INCONNU EN BASE INTERDIT LA SUPPRESSION', () => {
+  /*
+   * Une ligne sans departement ne peut pas etre declaree relue : on ne sait pas d'ou elle vient.
+   * Mieux vaut garder une ligne perimee qu'en effacer une valide.
+   */
+  assert.equal(tousDepartementsRelus([null], ['28'], true), false);
+  assert.equal(tousDepartementsRelus(['28', null], ['28'], true), false);
+});
+
+test('UNE BASE VIDE N’EMPECHE PAS LA SUPPRESSION — IL N’Y A SIMPLEMENT RIEN A EFFACER', () => {
+  assert.equal(tousDepartementsRelus([], ['28'], true), true);
+});

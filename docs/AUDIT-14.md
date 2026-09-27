@@ -7,9 +7,13 @@
 > filières. Si tu vois d'autres éléments à ingérer que j'ai oublié, fais-le. Pour finir, donne-moi un
 > score sur 100. »
 
-Tous les chiffres de ce document viennent d'une exécution du 26/09/2026. Aucun n'est repris d'un
-audit précédent sans avoir été remesuré — c'est la leçon de l'audit 13, dont deux affirmations
+Tous les chiffres de ce document viennent d'une exécution du 26 ou du 27/09/2026. Aucun n'est repris
+d'un audit précédent sans avoir été remesuré — c'est la leçon de l'audit 13, dont deux affirmations
 étaient devenues fausses sans que rien ne le signale.
+
+Le **27/09** a été consacré à la méthanisation, la filière que le 26/09 avait désignée comme la moins
+instruite du catalogue. Les sections 3, 4 et 5 portent la marque **[27/09]** là où elles ont été
+remesurées ce jour-là.
 
 ---
 
@@ -134,8 +138,15 @@ erreur de plusieurs kilomètres, présentée comme une mesure.
 | Sites classés et inscrits | 0 | **6 674** | `pat_sites` : **105 / 105 renseignés** (était 0) |
 | Raster de vent 100 m | absent | 52 Mo | `gis_vent` : **30 / 35 renseignés** (était 0) — 10,9 % du poids éolien |
 | Sites d'injection gaz | 0 | 0 | source sans géométrie : non ingérable, et le bilan le dit |
+| **[27/09] Surfaces agricoles communales (RPG 2024)** | 0 | **1 123 communes, 1 145 861 ha** | `gis_debouche_epandage` : **renseigné sur 100 % des parcelles reprises** (était 0) — 7,3 % du poids méthanisation |
 
 Le téléchargement des monuments — 220 Mo annoncés — a pris **13 secondes**.
+
+**[27/09] Le RPG a demandé quatre départements, pas un.** Mesuré sur la base : **les 301 parcelles du
+28 sont toutes à moins de 10 km d'une frontière départementale**. En n'ingérant que le 28, le critère
+serait resté gris partout — et c'est le comportement voulu, pas un échec : une somme d'hectares sur un
+disque n'est une mesure que si le disque entier est ingéré. Les départements 41, 45 et 91 ont donc été
+ingérés avec lui. Durée totale : **297 secondes** pour 445 061 parcelles RPG lues.
 
 ---
 
@@ -148,16 +159,45 @@ Le téléchargement des monuments — 220 Mo annoncés — a pris **13 secondes*
 | `gis_intrants` | méthanisation | **16,5 %** |
 | `racc_distance_reseau_gaz` | méthanisation | **11,0 %** |
 | `env_especes_protegees` | éolien, solaire, agri | 7,0 % en éolien |
-| `gis_debouche_epandage` | méthanisation | 7,3 % |
+| ~~`gis_debouche_epandage`~~ | ~~méthanisation~~ | **[27/09] résolu — 7,3 %** |
 | `fonc_nb_proprietaires` | les 5 | 2,5 à 6,7 % |
 | `fonc_maitrise` | 3 | 1,5 à 6,7 % |
 | `dist_captage`, `risq_karst` | méthanisation | 5,5 et 4,6 % |
 | `env_tvb` | 3 | 1,5 à 1,7 % |
 | `pat_archeologie` | 2 | 0,8 % |
 
-**La méthanisation est la filière la plus pénalisée** : 45,8 % de son poids reste non instruit, et son
-critère roi en fait partie. Les données de propriété (`fonc_*`) ne sont pas publiques — elles relèvent
-d'une demande encadrée auprès du service de la publicité foncière, et l'application le dit.
+**La méthanisation reste la filière la plus pénalisée**, mais moins qu'hier : **45,0 % de son poids
+était non instruit, il en reste 37,6 %**. Les données de propriété (`fonc_*`) ne sont pas publiques —
+elles relèvent d'une demande encadrée auprès du service de la publicité foncière, et l'application le
+dit.
+
+#### [27/09] Les trois sources manquantes de la méthanisation ont été cherchées, et voici ce qu'on a trouvé
+
+Ce n'est pas une liste de pistes : chaque ligne a été essayée depuis ce poste, et la raison de l'échec
+est mesurée. C'est ce qui manquait pour que quelqu'un puisse reprendre le travail sans refaire le
+chemin.
+
+| Ce qu'il faut | Poids | Source essayée | Résultat mesuré |
+| --- | --- | --- | --- |
+| Surfaces agricoles | 7,3 % | WFS Géoplateforme, RPG 2024 | ✅ **ingéré** — 4 départements, 1 123 communes |
+| Élevages et IAA | 16,5 % | API Géorisques `installations_classees` | ❌ hôte injoignable depuis ce conteneur |
+| Élevages et IAA | " | WFS BRGM `mapsref.brgm.fr` | ❌ **requête rejetée par le pare-feu applicatif** (« Request Rejected », HTTP 200) |
+| Élevages et IAA | " | miroir `data.cquest.org/icpe` | ❌ **`Last-Modified: 28 février 2021`** — cinq ans et demi, inutilisable pour un recensement |
+| Tracé gaz | 11,0 % | WFS Géoplateforme | ❌ aucune couche gaz au catalogue (231 Ko de capacités inspectés) |
+| Tracé gaz | " | API Agence ORE | ❌ HTTP 403 |
+| Tracé gaz | " | ODRE, corridors 10 et 20 km | ⚠️ joignables, **mais non validables** — voir ci-dessous |
+| Captages, karst | 10,1 % | Géorisques | ❌ même hôte injoignable ; le karst n'est de toute façon **jamais exposé** par cette API |
+
+**Le cas des corridors gaz mérite d'être raconté, parce qu'il a failli passer.** ODRE publie les
+corridors de 10 et 20 km autour du réseau de distribution, en une géométrie nationale chacun, tous
+deux joignables. Pour un point intérieur à un tampon de rayon *r*, la distance au réseau vaut
+exactement *r* moins la distance au bord : les deux jeux devaient donc donner le **même** résultat, ce
+qui offrait une validation croisée gratuite. **Ils ne concordent pas.** Le corridor de 10 km porte 125
+trous pour 443 538 km² ; celui de 20 km n'en porte que 24 pour **567 921 km², soit plus que la
+superficie de la France métropolitaine**. Le second est une enveloppe dissoute, pas un tampon — la
+formule y rend des distances de −100 km. Renseigner 11 % du poids d'une filière sur une inférence
+invalidable aurait été exactement le défaut que cet audit passe son temps à retirer ailleurs : une
+valeur crédible, du bon ordre de grandeur, et invérifiable. **Elle n'a pas été retenue.**
 
 ### 4.2 Ce qui relève de cet environnement, et non de l'application
 
@@ -180,11 +220,18 @@ marquées `aValiderParJuriste`, 128 articles à confronter à Légifrance — **
 
 ## 5. Axes d'amélioration, par valeur décroissante
 
-1. **Ingérer le gisement d'intrants méthanisables et le débouché d'épandage** (23,8 % du poids de la
-   filière). Aucune source nationale ne les porte directement ; le RPG et le recensement agricole
-   permettraient une estimation, qui devrait être présentée comme telle.
-2. **Ingérer le tracé des canalisations de gaz** (11 % de la méthanisation). GRTgaz publie un tracé ;
-   la table `canalisation_gaz` existe et n'est peuplée par aucun job.
+1. **[27/09 — fait pour un tiers] Ingérer le gisement d'intrants méthanisables et le débouché
+   d'épandage.** Le débouché d'épandage (7,3 %) est réglé : RPG 2024 national, agrégé par commune,
+   §2.8 de `SOURCES_DONNEES.md`. Le gisement d'intrants (16,5 %) attend les élevages et les industries
+   agroalimentaires, qui viennent de la base ICPE : **le travail restant n'est pas de l'écriture de
+   code, c'est un accès réseau**. Sur un poste où `georisques.gouv.fr` répond, ou avec un export ICPE
+   récent, le connecteur et son agrégation sont déjà écrits et testés — il ne manque que le job
+   d'ingestion, sur le modèle de `rpg_communal`.
+2. **Ingérer le tracé des canalisations de gaz** (11 % de la méthanisation). La table
+   `canalisation_gaz` existe et n'est peuplée par aucun job. **Les corridors ODRE ne suffisent pas**
+   (§4.1) : il faut le tracé, à demander à GRTgaz et GRDF, ou à lire sur les publications DREAL
+   région par région — la DREAL Auvergne-Rhône-Alpes publie `CANA-TRACE-GRTGAZ-VUE`, ce qui montre
+   que le format existe et que l'obstacle est la couverture nationale, pas la donnée.
 3. **Ingérer l'INPN** — espèces protégées et trame verte et bleue, jusqu'à 7 % en éolien.
 4. **Relancer `patrimoine_sites`** quand le millésime outre-mer sera réparé : la couche
    Guadeloupe-Martinique reste absente, et son nom porte une date qui tournera encore.
@@ -217,10 +264,26 @@ DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e npm run e2e -w @enr/web
 npm run ingest -w @enr/api -- patrimoine_culture
 npm run ingest -w @enr/api -- patrimoine_sites
 npm run ingest -w @enr/api -- vent_100m
+# [27/09] Surfaces agricoles communales : le departement ET SES VOISINS, sans quoi le critere
+# reste gris pour toute parcelle a moins de 10 km d'une frontiere — c'est-a-dire ici, toutes.
+npm run ingest -w @enr/api -- rpg_communal:28,41,45,91
 
 # Campagne de mutation complete, sur une COPIE hors de l'arbre suivi
 cp -a . /tmp/campagne && cd /tmp/campagne
 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e node scripts/mutation.mjs
+```
+
+**[27/09] Le double compte du RPG se redetecte par un contrôle physique** — une commune ne peut pas
+porter plus d'hectares agricoles qu'elle n'a d'hectares :
+
+```sql
+SELECT count(*) FILTER (WHERE ha_rpg > ha_commune) AS impossibles, count(*) AS total
+FROM (SELECT (ct.attributs->>'surface_ha')::numeric AS ha_rpg,
+             ST_Area(c.geom::geography)/10000 AS ha_commune
+      FROM contrainte ct JOIN commune c ON c.code_insee = ct.identifiant_source
+      WHERE ct.type = 'surface_agricole_commune') x;
+-- Attendu : 2 sur 1 123, depassant de 1 et 2 % (approximation par centroide).
+-- Avant correction : le Loiret affichait 67 % de sa superficie en surface agricole declaree.
 ```
 
 **L'écart entre les deux couvertures se remesure ainsi :**
