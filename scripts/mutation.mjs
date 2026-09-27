@@ -4754,7 +4754,21 @@ if (ecartees > 0) {
  * mutation est verifie avant d'en jouer une seule : une lecture de fichier par mutation, contre
  * vingt minutes pour apprendre qu'il fallait corriger une ligne.
  */
-const ECARTEES = candidates === MUTATIONS ? [] : MUTATIONS.filter((m) => m.e2e);
+/**
+ * LES ECARTEES SONT CELLES QU'ON N'A PAS JOUEES, pas « celles de bout en bout ».
+ *
+ * La definition precedente — toutes les mutations `e2e` des lors que la selection n'etait pas
+ * complete — rendait le bilan FAUX dans le mode qui les joue justement. `--e2e-seulement` affichait
+ * « 9/9 mutations attrapees », puis, juste en dessous, « ce chiffre ne couvre PAS 9 mutations de
+ * bout en bout : elles n'ont pas ete jouees ». Les deux lignes se contredisaient sur la meme
+ * execution.
+ *
+ * Ce n'est pas un defaut cosmetique. Cette derniere ligne existe pour etre COPIEE dans un message
+ * de livraison, et son role est de dire ce que le chiffre ne couvre pas. Une mise en garde qui se
+ * declenche a tort apprend a ne plus la lire — apres quoi elle ne protege plus rien le jour ou elle
+ * a raison.
+ */
+const ECARTEES = MUTATIONS.filter((m) => m.e2e && !A_JOUER.includes(m));
 let motifsPerdus = 0;
 for (const m of MUTATIONS) {
   if (readFileSync(m.fichier, 'utf8').includes(m.de)) continue;
