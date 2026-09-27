@@ -19,7 +19,7 @@ import { requete, tenterVerrou } from '../bdd.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
 import { oublierPresenceCouches } from '../connecteurs/couches.js';
 
-import { ingererSitesProteges, ingererZaer } from './wfs-national.js';
+import { ingererRpgCommunal, ingererSitesProteges, ingererZaer } from './wfs-national.js';
 import { entitesDepuisFlux, urlRessourceDataGouv } from './flux-geojson.js';
 import { telechargerRaster } from '../connecteurs/vent.js';
 export { ingererPostesSources } from './postes-sources.js';
@@ -505,6 +505,12 @@ export const JOBS: Record<string, (departements?: readonly string[]) => Promise<
   // reglementaire le plus utile de la prospection depuis la loi APER.
   patrimoine_sites: ingererSitesProteges,
   zaer_local: ingererZaer,
+  /*
+   * Ajoute a l'audit 14 : la methanisation etait la filiere la moins instruite du catalogue, avec
+   * 45,8 % de son poids gris. `surface_agricole_commune` en debloque a elle seule le debouche
+   * d'epandage (7,3 %) et fournit l'un des trois termes du gisement d'intrants (16,5 %).
+   */
+  rpg_communal: ingererRpgCommunal,
 };
 
 /** Signalee quand une ingestion du meme connecteur est deja en cours. */
@@ -584,10 +590,14 @@ export async function avecVerrouIngestion<T>(
  *
  * TOUS LES JOBS N'ACCEPTENT PAS DE RESTRICTION, et c'est deliberement un refus explicite plutot
  * qu'un parametre ignore : demander `postes_sources:28` et recevoir une ingestion nationale
- * silencieuse serait la pire des reponses — on croirait avoir limite le travail. Seul `zaer_local`
- * sait aujourd'hui restreindre, parce que sa source expose un attribut de departement.
+ * silencieuse serait la pire des reponses — on croirait avoir limite le travail.
+ *
+ * DEUX JOBS SAVENT RESTREINDRE, pour deux raisons differentes : `zaer_local` parce que sa source
+ * expose un attribut de departement, `rpg_communal` parce qu'il decoupe par emprise geographique.
+ * Le second l'EXIGE, et le dit lui-meme : le RPG national porte environ neuf millions de parcelles,
+ * qu'aucun exploitant n'attendra en une fois.
  */
-const JOBS_PAR_DEPARTEMENT = new Set(['zaer_local']);
+const JOBS_PAR_DEPARTEMENT = new Set(['zaer_local', 'rpg_communal']);
 
 export async function lancerIngestion(
   connecteur: string,

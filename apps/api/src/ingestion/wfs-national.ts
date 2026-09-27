@@ -42,6 +42,7 @@ import { ATTENTES_PAR_PROFIL, avecParams } from '../http.js';
 import { enregistrerCouverture, enregistrerIngestion } from '../depots/sources.js';
 import { effacerDisparus } from './disparus.js';
 import { oublierPresenceCouches } from '../connecteurs/couches.js';
+import { centroideDe } from '../geo.js';
 import { createHash } from 'node:crypto';
 import { entitesDepuisFlux } from './flux-geojson.js';
 
@@ -103,6 +104,15 @@ async function* objetsWfs(
   typeName: string,
   etat?: EtatPagination,
   filtreCql?: string,
+  /**
+   * Parametres supplementaires, passes tels quels au service.
+   *
+   * Ajoute pour le RPG, qui ne porte NI code commune NI code departement dans ses attributs : la
+   * seule facon de n'en demander qu'une partie est un `BBOX`. Le filtre CQL ne convenait pas — il
+   * suppose de connaitre le nom de la colonne geometrique de la couche, qui varie d'une couche a
+   * l'autre sur ce service.
+   */
+  parametresSupplementaires?: Record<string, string>,
 ): AsyncGenerator<Entite> {
   for (let page = 0; page < PAGES_MAX; page += 1) {
     const url = avecParams(config.sources.geoplateformeWfs, {
@@ -115,6 +125,7 @@ async function* objetsWfs(
       COUNT: String(TAILLE_PAGE),
       STARTINDEX: String(page * TAILLE_PAGE),
       ...(filtreCql ? { CQL_FILTER: filtreCql } : {}),
+      ...(parametresSupplementaires ?? {}),
     });
 
     /**
@@ -561,6 +572,16 @@ export async function ingererZaer(departements?: readonly string[]): Promise<{
  * Guadeloupe, en Martinique, en Guyane et a La Reunion — la meme faute que celle corrigee ici, sur
  * un territoire plus petit.
  */
+/**
+ * La couche nationale du RPG sur la Geoplateforme.
+ *
+ * Le millesime fait partie du NOM de la couche, comme pour les sites proteges : il tournera, et
+ * l'ingestion echouera alors franchement plutot que de rendre zero parcelle en silence. Le bilan
+ * nomme la couche, ce qui rend le diagnostic immediat.
+ */
+const COUCHE_RPG =
+  'IGNF_RPG_PARCELLES-AGRICOLES-CATEGORISEES_2024:parcelles_agricole_categorisees_2024';
+
 const COUCHES_SITES = [
   'sites_metropole_gpkg_26-01-2026_wfs:STE_Metropole',
   'sites_guadeloupe_martinique_gpkg_26-01-2026_wfs:site_guadeloupe_martinique',
@@ -891,4 +912,338 @@ export async function ingererSitesProteges(): Promise<{
     nbObjets,
   );
   return { connecteur: 'patrimoine_sites', nbObjets, nbSansGeometrie, nbNonReconnus, millesime: null };
+}
+
+// ---------------------------------------------------------------------------
+// Surface agricole par commune, depuis le RPG
+// ---------------------------------------------------------------------------
+
+/**
+ * Identifiant stable d'une parcelle RPG, ou `null` si la source n'en porte aucun.
+ *
+ * `iup` est l'identifiant unique de la parcelle au RPG — un UUID, verifie sur la source le
+ * 27/09/2026. Le repli sur pacage/ilot/parcelle couvre un millesime qui cesserait de l'exposer :
+ * le triplet identifie la parcelle dans la declaration de son exploitant.
+ *
+ * RETOURNE `null` PLUTOT QU'UNE CHAINE VIDE OU CONSTANTE. Une cle constante ferait s'effondrer
+ * toutes les parcelles sans identifiant sur une seule ligne : au lieu d'un doublon possible, on
+ * perdrait des milliers d'hectares reels. L'appelant est ainsi force de fabriquer une cle unique.
+ */
+export function cleParcelleRpg(proprietes: Record<string, unknown>): string | null {
+  const iup = proprietes['iup'];
+  if (typeof iup === 'string' && iup.length > 0) return iup;
+  const pacage = proprietes['pacage'];
+  if (typeof pacage === 'string' && pacage.length > 0) {
+    const ilot = proprietes['num_ilot'];
+    const parcel = proprietes['num_parcel'];
+    if (ilot != null && parcel != null) return `${pacage}/${String(ilot)}/${String(parcel)}`;
+  }
+  return null;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LE REGISTRE PARCELLAIRE GRAPHIQUE, AGREGE PAR COMMUNE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * POURQUOI CE JOB EXISTE. Le connecteur de gisement sait estimer les intrants methanisables et le
+ * debouche d'epandage depuis TROIS couches — elevages, industries agroalimentaires, surfaces
+ * agricoles communales. Toute la machinerie est ecrite, testee, et attend depuis l'audit 8. Aucune
+ * des trois n'etait ingeree. Consequence mesuree le 26/09/2026 : `gis_intrants` (16,5 % du poids de
+ * la methanisation, son critere ROI) et `gis_debouche_epandage` (7,3 %) gris sur les 301 parcelles.
+ *
+ * CETTE COUCHE-CI DEBLOQUE L'EPANDAGE A ELLE SEULE — le connecteur distingue l'etat de chaque
+ * couche, et `surfacesEpandageHa` ne depend que de celle-ci. Elle est aussi l'un des trois termes
+ * du total d'intrants, qui reste `null` tant que les trois ne sont pas la : un total partiel serait
+ * une borne inferieure presentee comme une estimation.
+ *
+ * ═══ POURQUOI PAR DEPARTEMENT, ET NON EN UNE FOIS
+ *
+ * Le RPG national porte environ neuf millions de parcelles. Mesure sur l'emprise du departement 28 :
+ * 49 643 parcelles, 5,7 Mo et 20 s par page de 5 000. Un departement demande donc quelques minutes ;
+ * la France entiere demanderait une journee et personne ne l'attendrait. La forme `job:departements`
+ * existe deja pour exactement cette raison (voir `ingerer.ts`).
+ *
+ * ═══ POURQUOI UN BBOX ET NON UN FILTRE
+ *
+ * Le RPG ne porte NI code commune NI code departement dans ses attributs — seulement un numero de
+ * pacage, la culture, et la surface administrative. La commune ne peut donc etre determinee que
+ * GEOGRAPHIQUEMENT, par jointure avec la table `commune`. C'est aussi pourquoi les geometries sont
+ * telechargees : sans elles, aucune parcelle n'est attribuable.
+ *
+ * ═══ LES PARCELLES DEBORDANTES SONT ECARTEES, ET C'EST LE POINT DELICAT DE CE JOB
+ *
+ * L'emprise rectangulaire d'un departement deborde largement sur ses voisins. Ma premiere version
+ * rattachait les parcelles debordantes a leur vraie commune, en se disant qu'une surface agricole
+ * ne s'arrete pas a une limite administrative. C'ETAIT FAUX, et d'une facon qui ne se serait jamais
+ * vue : une commune voisine A CHEVAL sur le bord du rectangle n'aurait ete lue qu'en PARTIE — ses
+ * parcelles hors rectangle n'etant jamais telechargees — et la somme obtenue, un SOUS-COMPTE, se
+ * serait presentee comme une mesure. Un total d'hectares trop bas ne ressemble pas a une erreur : il
+ * ressemble a une commune peu agricole.
+ *
+ * Seules les communes des departements DEMANDES sont donc retenues : l'emprise les contient
+ * entierement, donc chacune est lue en entier. Une parcelle tombant dans un departement non demande
+ * est comptee a part et jetee.
+ *
+ * ═══ ET LA FRONTIERE, ALORS ?
+ *
+ * Le rayon de 10 km du connecteur franchit bien les frontieres, et une parcelle du 28 proche du 45
+ * doit voir les surfaces du 45. La reponse n'est pas de ramasser un bout de 45 au passage : c'est
+ * `disqueEntierementCouvert`, qui laisse le critere GRIS tant que tous les departements traverses
+ * par le disque ne sont pas ingeres (audit 9, defaut A3). Pour rendre un departement reellement
+ * exploitable, il faut donc l'ingerer AVEC SES VOISINS — ce que la forme `rpg_communal:28,45,41`
+ * permet en une commande.
+ */
+export async function ingererRpgCommunal(departements?: readonly string[]): Promise<{
+  connecteur: string;
+  nbParcelles: number;
+  nbCommunes: number;
+  nbHorsDepartements: number;
+  departements: string[] | null;
+}> {
+  const deps = departements && departements.length > 0 ? [...departements] : null;
+  if (!deps) {
+    /*
+     * REFUS EXPLICITE PLUTOT QUE NEUF MILLIONS DE PARCELLES. Un job qui accepterait « tout » ici
+     * tournerait une journee avant de rendre quoi que ce soit, et serait interrompu — laissant une
+     * couverture partielle qui se croit complete. Mieux vaut le dire.
+     */
+    await enregistrerIngestion(
+      'rpg_communal',
+      'echec',
+      'Ce job exige des departements : le RPG national porte environ 9 millions de parcelles. ' +
+        'Utilisez `npm run ingest -- rpg_communal:28,45`.',
+      0,
+    );
+    return {
+      connecteur: 'rpg_communal',
+      nbParcelles: 0,
+      nbCommunes: 0,
+      nbHorsDepartements: 0,
+      departements: null,
+    };
+  }
+
+  let nbParcelles = 0;
+  let nbSansGeometrie = 0;
+  let nbHorsDepartement = 0;
+  let nbCommunes = 0;
+  /*
+   * UN DEPARTEMENT EST TRAITE DE BOUT EN BOUT AVANT LE SUIVANT, et la table temporaire est videe
+   * entre les deux. CE N'EST PAS UN DETAIL D'ORGANISATION, c'est la correction d'un faux compte.
+   *
+   * Ma premiere version accumulait les trois departements dans une seule table avant d'agreger. Or
+   * les emprises RECTANGULAIRES de deux departements voisins se recouvrent largement : une parcelle
+   * du Loir-et-Cher proche du Loiret est telechargee DEUX fois, une fois par emprise, et se
+   * retrouvait donc deux fois dans la table. La commune la comptait deux fois.
+   *
+   * MESURE QUI L'A REVELE — et c'est la seule raison pour laquelle le defaut a ete vu : la somme
+   * obtenue depassait la surface agricole utile REELLE du departement. Le RPG ne recense que les
+   * surfaces declarees a la PAC : il est necessairement INFERIEUR a la SAU. Un total superieur est
+   * donc impossible, et signale un double compte. Mesure sur le lot 41/45/91 : 302 885 ha pour le
+   * Loir-et-Cher (SAU reelle 245 000), 454 247 pour le Loiret (340 000), 93 673 pour l'Essonne
+   * (78 000) — de 20 a 34 % de trop. Le departement 28, ingere seul, donnait 439 950 ha pour une SAU
+   * de 460 000 : sous la borne, donc juste. Aucun message d'erreur nulle part.
+   *
+   * Traiter un departement a la fois rend le double compte STRUCTURELLEMENT impossible : la seule
+   * emprise presente en table est la sienne, et l'agregation ne retient que ses propres communes.
+   */
+  const depsComplets: string[] = [];
+
+  /*
+   * UNE TABLE TEMPORAIRE, et non une insertion par parcelle. Des dizaines de milliers d'allers-
+   * retours SQL par departement couteraient plus que le telechargement lui-meme. Les centroides y
+   * sont deverses par lots, puis UNE seule requete fait la jointure spatiale et l'agregation.
+   */
+  await requete(
+    `CREATE TEMP TABLE IF NOT EXISTS rpg_tmp (
+       cle text PRIMARY KEY, lon float8, lat float8, surface_ha numeric)`,
+  );
+
+  /*
+   * LA CLE NATURELLE EST INDISPENSABLE ICI, ET ELLE NE L'EST PAS AILLEURS.
+   *
+   * `objetsWfs` rejoue une page entiere quand le flux se coupe en cours de route, et le dit dans le
+   * journal : « des objets ont deja ete emis, les reemettre est sans consequence, l'insertion est
+   * idempotente sur la cle naturelle ». C'est vrai de toutes les autres ingestions, qui ECRIVENT un
+   * objet par ligne sous une cle. Ce job-ci SOMME — et une somme n'est pas idempotente. Une coupure
+   * a la septieme page du Loiret (observee le 27/09/2026 : 3 484 objets deja emis) ajoutait donc
+   * 3 484 parcelles en double aux hectares de leurs communes, sans qu'aucun compteur ne bouge.
+   *
+   * `iup` est l'identifiant unique de la parcelle dans le RPG — un UUID, verifie sur la source. Le
+   * repli sur pacage/ilot/parcelle couvre un millesime qui cesserait de l'exposer ; le repli final
+   * sur un compteur garantit qu'une parcelle sans aucun identifiant est COMPTEE plutot que perdue,
+   * quitte a risquer le doublon qu'elle seule pourrait causer.
+   */
+  let sansIdentifiant = 0;
+  const cleDe = (p: Record<string, unknown>): string => {
+    const cle = cleParcelleRpg(p);
+    if (cle !== null) return cle;
+    sansIdentifiant += 1;
+    return `sans-id:${sansIdentifiant}`;
+  };
+
+  const lot: Array<[string, number, number, number]> = [];
+  /*
+   * Les cles DEJA dans le lot courant. `ON CONFLICT` ne tranche que les conflits avec ce qui est
+   * deja EN TABLE : deux lignes de meme cle dans un meme `INSERT` font echouer l'insertion entiere.
+   */
+  const clesDuLot = new Set<string>();
+  const viderLot = async (): Promise<void> => {
+    if (lot.length === 0) return;
+    await requete(
+      `INSERT INTO rpg_tmp (cle, lon, lat, surface_ha)
+       SELECT * FROM unnest($1::text[], $2::float8[], $3::float8[], $4::numeric[])
+       ON CONFLICT (cle) DO NOTHING`,
+      [lot.map((l) => l[0]), lot.map((l) => l[1]), lot.map((l) => l[2]), lot.map((l) => l[3])],
+    );
+    lot.length = 0;
+    clesDuLot.clear();
+  };
+
+  for (const dep of deps) {
+    const [emprise] = await requete<{ lat_min: number; lon_min: number; lat_max: number; lon_max: number }>(
+      `SELECT ST_YMin(e) AS lat_min, ST_XMin(e) AS lon_min, ST_YMax(e) AS lat_max, ST_XMax(e) AS lon_max
+         FROM (SELECT ST_Extent(geom) AS e FROM commune WHERE code_departement = $1) t`,
+      [dep],
+    );
+    if (!emprise || emprise.lat_min == null) {
+      journal.warn({ dep }, 'Departement inconnu de la table `commune` : RPG non ingere pour lui');
+      continue;
+    }
+
+    await requete(`TRUNCATE rpg_tmp`);
+    lot.length = 0;
+    const pagination: EtatPagination = { complete: false };
+    // WFS 2.0 en EPSG:4326 : l'ordre des axes est lat,lon. Verifie a l'execution — l'ordre lon,lat
+    // rend « numberMatched=0 » sans erreur, ce qui se lirait comme un departement sans agriculture.
+    const bbox = `${emprise.lat_min},${emprise.lon_min},${emprise.lat_max},${emprise.lon_max}`;
+
+    for await (const entite of objetsWfs(COUCHE_RPG, pagination, undefined, { BBOX: bbox })) {
+      const p = entite.properties ?? {};
+      const g = entite.geometry;
+      if (!g || typeof g !== 'object') {
+        nbSansGeometrie += 1;
+        continue;
+      }
+      // `sf_adm_co` : surface administrative constatee, en hectares. `sf_adm_de` est la surface
+      // DECLAREE ; la constatee est celle que l'administration retient.
+      const surface = Number(p['sf_adm_co'] ?? p['sf_adm_de']);
+      if (!Number.isFinite(surface) || surface <= 0) continue;
+
+      const c = centroideDe(g as Parameters<typeof centroideDe>[0]);
+      if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) {
+        nbSansGeometrie += 1;
+        continue;
+      }
+      nbParcelles += 1;
+      const cle = cleDe(p);
+      if (!clesDuLot.has(cle)) {
+        clesDuLot.add(cle);
+        lot.push([cle, c[0], c[1], surface]);
+      }
+      if (lot.length >= 5000) await viderLot();
+      if (nbParcelles % 20000 === 0) journal.info({ nbParcelles, dep }, 'Parcelles RPG lues');
+    }
+    await viderLot();
+
+    /*
+     * LE COMPTE DU DEPARTEMENT SE LIT EN TABLE, et non sur les objets recus : c'est le nombre de
+     * parcelles DISTINCTES retenues, une fois les doublons de page rejouee ecartes. Le compter a la
+     * reception rendrait `nbHorsDepartement` faux du nombre de doublons.
+     */
+    const [compte] = await requete<{ n: number }>(`SELECT count(*)::int AS n FROM rpg_tmp`);
+    const luesIci = compte?.n ?? 0;
+
+    /*
+     * LA JOINTURE SPATIALE, EN UNE REQUETE, ET SEULEMENT SUR LES COMMUNES DE CE DEPARTEMENT.
+     *
+     * Le centroide rattache une parcelle a une seule commune : une parcelle a cheval est comptee
+     * dans celle de son centre. MESURE DE L'ECART QUE CELA PRODUIT, sur les 1 123 communes des
+     * departements 28, 41, 45 et 91 : deux communes depassent leur propre superficie, de 1 et 2 %.
+     * C'est la borne de l'erreur, et elle est sans consequence a l'echelle d'un rayon de 10 km. Ce
+     * controle est aussi le meilleur detecteur de double compte disponible — une commune ne peut pas
+     * porter plus d'hectares agricoles qu'elle n'a d'hectares — et c'est lui qui a confirme que la
+     * correction du doublon avait pris : avant elle, le Loiret affichait 67 % de surface agricole
+     * pour une realite de 55 %. Les
+     * parcelles tombant hors du departement demande — le debordement de l'emprise rectangulaire sur
+     * les voisins — sont ECARTEES : leur commune n'aurait ete lue qu'en partie (voir l'en-tete).
+     */
+    const agregats = await requete<{ code_insee: string; surface_ha: string; n: number }>(
+      `SELECT c.code_insee, round(sum(t.surface_ha), 1)::text AS surface_ha, count(*)::int AS n
+         FROM rpg_tmp t
+         JOIN commune c ON ST_Contains(c.geom, ST_SetSRID(ST_MakePoint(t.lon, t.lat), 4326))
+        WHERE c.code_departement = $1
+        GROUP BY c.code_insee`,
+      [dep],
+    );
+    nbHorsDepartement += luesIci - agregats.reduce((t, a) => t + a.n, 0);
+
+    for (const a of agregats) {
+      await requete(
+        `INSERT INTO contrainte
+           (type, sous_type, nom, identifiant_source, geom, attributs, connecteur, code_departement,
+            date_donnee)
+         SELECT 'surface_agricole_commune', NULL,
+                'Surface agricole déclarée - ' || c.nom, c.code_insee,
+                ST_Centroid(c.geom), jsonb_build_object('surface_ha', $2::numeric, 'nb_parcelles', $3::int),
+                'rpg_communal', c.code_departement, current_date
+           FROM commune c WHERE c.code_insee = $1
+         ON CONFLICT (connecteur, type, identifiant_source) DO UPDATE SET
+           attributs = EXCLUDED.attributs,
+           geom = EXCLUDED.geom,
+           nom = EXCLUDED.nom,
+           code_departement = EXCLUDED.code_departement,
+           date_donnee = EXCLUDED.date_donnee,
+           updated_at = now()`,
+        [a.code_insee, a.surface_ha, a.n],
+      );
+    }
+
+    /*
+     * UN DEPARTEMENT N'EST DECLARE COUVERT QUE SI SA PAGINATION EST ALLEE AU BOUT. Une lecture
+     * interrompue laisserait des communes lues a moitie — et le connecteur lirait leur somme
+     * partielle comme un constat de terrain, ce qui est precisement le defaut que ce fichier
+     * combat partout ailleurs.
+     *
+     * La couverture se declare pour le departement DEMANDE, meme a zero commune : une ligne a zero
+     * signifie « on a regarde ici, il n'y a rien » et non « jamais regarde » (voir `couches.ts`).
+     * Sans cela, un departement sans agriculture declaree resterait gris pour toujours.
+     */
+    if (pagination.complete) {
+      await enregistrerCouverture('rpg_communal', 'surface_agricole_commune', dep, agregats.length);
+      depsComplets.push(dep);
+      nbCommunes += agregats.length;
+    } else {
+      journal.warn(
+        { dep, luesIci },
+        'Pagination RPG interrompue : aucune couverture declaree pour ce departement',
+      );
+    }
+    journal.info({ dep, luesIci, communes: agregats.length }, 'Departement RPG termine');
+  }
+  await requete(`TRUNCATE rpg_tmp`);
+  const complete = depsComplets.length === deps.length;
+  if (depsComplets.length > 0) oublierPresenceCouches();
+
+  await enregistrerIngestion(
+    'rpg_communal',
+    nbParcelles === 0 ? 'echec' : complete ? 'ok' : 'partiel',
+    `${nbParcelles} parcelles RPG lues sur l'emprise de ${deps.length} departement(s), ` +
+      `${nbCommunes} commune(s) renseignee(s), ${nbHorsDepartement} parcelle(s) ecartee(s) comme ` +
+      `debordant hors des departements demandes, ${nbSansGeometrie} sans geometrie exploitable` +
+      (complete
+        ? ''
+        : ` — COUVERTURE DECLAREE POUR ${depsComplets.length} DEPARTEMENT(S) SEULEMENT : ` +
+          `${deps.filter((d) => !depsComplets.includes(d)).join(', ')} n'ont pas ete lus en entier`),
+    nbParcelles,
+  );
+
+  return {
+    connecteur: 'rpg_communal',
+    nbParcelles,
+    nbCommunes,
+    nbHorsDepartements: nbHorsDepartement,
+    departements: deps,
+  };
 }

@@ -14,7 +14,7 @@ import type { Gisement } from '@enr/core';
 import { avecParams, jsonExterne } from '../http.js';
 import type { Position } from '../geo.js';
 import { requete } from '../bdd.js';
-import { couchesPresentes, oublierPresenceCouches } from './couches.js';
+import { couchesPresentes, disqueEntierementCouvert, oublierPresenceCouches } from './couches.js';
 import { ventA100m } from './vent.js';
 
 const CONNECTEUR = 'gisement';
@@ -79,6 +79,20 @@ export async function vent(pt: Position): Promise<number | null> {
  * par couche (voir `couchesIntrantsIngerees`).
  */
 const COUCHES_INTRANTS = ['elevage', 'industrie_agroalimentaire', 'surface_agricole_commune'] as const;
+
+/**
+ * Rayon de comptage de chaque couche, en metres. UNE SEULE DEFINITION.
+ *
+ * Ces rayons servaient jusqu'ici deux fois, ecrits en clair : dans la requete de comptage et nulle
+ * part ailleurs. Ils servent desormais AUSSI a verifier que le disque parcouru est entierement
+ * ingere, et les deux usages doivent porter exactement le meme nombre — un ecart ferait verifier la
+ * couverture d'un disque different de celui qu'on somme.
+ */
+const RAYONS_INTRANTS_M = {
+  elevage: 10000,
+  industrie_agroalimentaire: 20000,
+  surface_agricole_commune: 10000,
+} as const satisfies Record<(typeof COUCHES_INTRANTS)[number], number>;
 
 /**
  * Ces couches sont-elles ingerees ? UNE REPONSE PAR COUCHE.
@@ -188,10 +202,40 @@ function intrantsVides(sourcesIngerees: boolean | null): Intrants {
  */
 export async function intrantsMethanisation(pt: Position, codeInsee: string): Promise<Intrants> {
   void codeInsee;
-  const presence = await couchesPresentes(COUCHES_INTRANTS);
-  // Aucune des trois couches : rien a compter, et on le dit. Un comptage a zero sur une table vide
-  // serait indiscernable d'un comptage a zero sur un territoire sans elevage.
-  if (!COUCHES_INTRANTS.some((t) => presence[t])) return intrantsVides(false);
+  /**
+   * UNE SOMME SUR UN DISQUE N'EST UNE MESURE QUE SI LE DISQUE ENTIER EST INGERE.
+   *
+   * La version precedente se contentait de `couchesPresentes`, qui repond « cette couche existe-t-elle
+   * quelque part ? ». C'etait suffisant tant qu'aucune des trois couches n'etait alimentee. Des lors
+   * que l'une l'est DEPARTEMENT PAR DEPARTEMENT — c'est le cas du RPG, dont le national pese neuf
+   * millions de parcelles — la question devient fausse : une parcelle du 28 a trois kilometres du 45
+   * sommerait les seules communes du 28 et presenterait le resultat comme le potentiel de son rayon
+   * de 10 km. Un total d'hectares trop bas ne ressemble pas a une erreur, il ressemble a un
+   * territoire peu agricole — et le critere passe de gris a ORANGE sur une donnee amputee.
+   *
+   * C'est le defaut A3 de l'audit 9, transpose d'une DISTANCE a une SOMME, ou il est plus grave
+   * encore : une distance manquante s'allonge et produit un faux rouge visible, une somme manquante
+   * se contente de retrecir, silencieusement et de facon parfaitement plausible.
+   *
+   * `disqueEntierementCouvert` repond a la bonne question, couche par couche et rayon par rayon.
+   */
+  const [presenteQuelquePart, couvertures] = await Promise.all([
+    couchesPresentes(COUCHES_INTRANTS),
+    Promise.all(
+      COUCHES_INTRANTS.map(async (t) => [t, await disqueEntierementCouvert(t, pt, RAYONS_INTRANTS_M[t])] as const),
+    ),
+  ]);
+  const presence = Object.fromEntries(couvertures) as Record<string, boolean>;
+  // Aucune des trois couches exploitable ici : rien a compter, et on le dit. Un comptage a zero sur
+  // une table vide serait indiscernable d'un comptage a zero sur un territoire sans elevage.
+  if (!COUCHES_INTRANTS.some((t) => presence[t])) {
+    /*
+     * `false` signifie « les sources ne sont pas la », et c'est ce que le critere affiche. On le
+     * reserve au cas ou la couche est REELLEMENT absente de la base ; si elle existe mais ne couvre
+     * pas ce disque, la bonne reponse est `null` — « indisponible ici », et non « jamais ingere ».
+     */
+    return intrantsVides(COUCHES_INTRANTS.some((t) => presenteQuelquePart[t]) ? null : false);
+  }
 
   try {
     const rows = await requete<{
@@ -220,17 +264,24 @@ export async function intrantsMethanisation(pt: Position, codeInsee: string): Pr
        SELECT
          (SELECT count(*) FROM contrainte c, pt
            WHERE c.type = 'elevage'
-             AND ST_DWithin(c.geom, pt.geom, 10000 / pt.metres_par_degre)
-             AND ST_DWithin(c.geom::geography, pt.g, 10000)) AS elevages,
+             AND ST_DWithin(c.geom, pt.geom, $3 / pt.metres_par_degre)
+             AND ST_DWithin(c.geom::geography, pt.g, $3)) AS elevages,
          (SELECT count(*) FROM contrainte c, pt
            WHERE c.type = 'industrie_agroalimentaire'
-             AND ST_DWithin(c.geom, pt.geom, 20000 / pt.metres_par_degre)
-             AND ST_DWithin(c.geom::geography, pt.g, 20000)) AS iaa,
+             AND ST_DWithin(c.geom, pt.geom, $4 / pt.metres_par_degre)
+             AND ST_DWithin(c.geom::geography, pt.g, $4)) AS iaa,
          (SELECT sum((c.attributs->>'surface_ha')::numeric) FROM contrainte c, pt
            WHERE c.type = 'surface_agricole_commune'
-             AND ST_DWithin(c.geom, pt.geom, 10000 / pt.metres_par_degre)
-             AND ST_DWithin(c.geom::geography, pt.g, 10000)) AS surfaces_ha`,
-      [pt[0], pt[1]],
+             AND ST_DWithin(c.geom, pt.geom, $5 / pt.metres_par_degre)
+             AND ST_DWithin(c.geom::geography, pt.g, $5)) AS surfaces_ha`,
+      [
+        pt[0],
+        pt[1],
+        // Les memes nombres que ceux dont la couverture vient d'etre verifiee, et pas une copie.
+        RAYONS_INTRANTS_M.elevage,
+        RAYONS_INTRANTS_M.industrie_agroalimentaire,
+        RAYONS_INTRANTS_M.surface_agricole_commune,
+      ],
     );
     const r = rows[0];
     // Requete aboutie mais sans ligne : anomalie, pas une absence de couche.

@@ -73,7 +73,7 @@ export const CRITERES: Record<string, DefinitionCritere> = Object.fromEntries(
       'gis_intrants',
       'gisement',
       'Densité d\'intrants méthanisables',
-      "Tonnage de matière sèche mobilisable dans un rayon de 15 km : effluents d'élevage (RPG + cheptel), CIVE, coproduits d'industries agroalimentaires. C'est le critère déterminant de la filière.",
+      "Tonnage de matière sèche mobilisable : effluents d'élevage et CIVE dans un rayon de 10 km, coproduits d'industries agroalimentaires dans un rayon de 20 km. C'est le critère déterminant de la filière.",
       't MS/an',
     ),
     def(

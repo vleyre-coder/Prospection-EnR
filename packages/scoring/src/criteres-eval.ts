@@ -453,7 +453,7 @@ const gis_intrants: Evaluateur = (s) => {
     return sansSource(
       SRC.gisement,
       "Le gisement d'intrants méthanisables",
-      'À établir par un recensement des élevages, des industries agroalimentaires et des surfaces de CIVE dans un rayon de 15 km, puis par des lettres d’intention d’apporteurs.',
+      'À établir par un recensement des élevages et des surfaces de CIVE dans un rayon de 10 km et des industries agroalimentaires dans un rayon de 20 km, puis par des lettres d’intention d’apporteurs.',
     );
   }
   const v = s.gisement.intrantsMethaTonnesMsAn;
@@ -473,7 +473,7 @@ const gis_intrants: Evaluateur = (s) => {
     valeurBrute: v,
     valeurAffichee: details.join(' - '),
     commentaire:
-      "Estimation du gisement mobilisable dans un rayon de 15 km, à partir du RPG, du cheptel et des industries agroalimentaires. À confirmer par des lettres d'intention d'apporteurs.",
+      "Estimation du gisement mobilisable : élevages et surfaces agricoles déclarées à moins de 10 km, industries agroalimentaires à moins de 20 km. À confirmer par des lettres d'intention d'apporteurs.",
     sourceKey: SRC.gisement,
   };
 };
@@ -493,7 +493,7 @@ const gis_debouche_epandage: Evaluateur = (s) => {
     return sansSource(
       SRC.gisement,
       'Le débouché du digestat',
-      'À établir par un plan d’épandage signe avec les exploitants voisins, ou par une filière de sortie du statut de déchet (digestat normé). Les surfaces agricoles communales ne sont pas ingérées sur ce territoire.',
+      'À établir par un plan d’épandage signé avec les exploitants voisins, ou par une filière de sortie du statut de déchet (digestat normé). Les surfaces agricoles communales ne sont pas ingérées sur ce territoire.',
     );
   }
   return {

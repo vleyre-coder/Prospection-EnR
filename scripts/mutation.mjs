@@ -4488,6 +4488,71 @@ const MUTATIONS = [
     cwd: 'apps/web',
     tests: ['test/telechargement-export.test.ts'],
   },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * LA SOMME D'HECTARES REPOND A LA QUESTION « CETTE COUCHE EXISTE-T-ELLE QUELQUE PART ? » AU
+     * LIEU DE « CE DISQUE EST-IL INGERE ? ». Tant qu'aucune des trois couches d'intrants n'etait
+     * alimentee, la question grossiere suffisait : la reponse etait non partout. Le RPG s'ingere
+     * departement par departement — neuf millions de parcelles au national — donc des le premier
+     * departement charge, la question grossiere repond oui pour la France entiere.
+     *
+     * Mesure : les 301 parcelles du 28 sont TOUTES a moins de 10 km d'une frontiere. Chacune
+     * aurait somme son seul departement et affiche le resultat comme le potentiel de son rayon.
+     * Un total trop bas ne ressemble pas a une erreur, il ressemble a un territoire peu agricole.
+     */
+    quoi: 'la somme d’epandage se contente de savoir que la couche existe quelque part',
+    fichier: 'apps/api/src/connecteurs/gisement.ts',
+    de: '  const presence = Object.fromEntries(couvertures) as Record<string, boolean>;',
+    vers: '  const presence = presenteQuelquePart;',
+    cwd: 'apps/api',
+    tests: ['test/intrants-disque.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/intrants-disque.test.ts'],
+  },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * LE RAYON VERIFIE CESSE D'ETRE LE RAYON SOMME. Les deux usages doivent porter le meme nombre :
+     * verifier la couverture d'un disque de 20 km puis sommer sur 10 km laisserait passer un
+     * departement manquant, et l'inverse griserait des parcelles parfaitement couvertes.
+     */
+    quoi: 'le disque verifie est plus large que le disque somme',
+    fichier: 'apps/api/src/connecteurs/gisement.ts',
+    de: '  surface_agricole_commune: 10000,',
+    vers: '  surface_agricole_commune: 2000,',
+    cwd: 'apps/api',
+    tests: ['test/intrants-disque.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/intrants-disque.test.ts'],
+  },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * UNE PARCELLE SANS IDENTIFIANT RECOIT UNE CLE CONSTANTE. Toutes s'effondrent alors sur une
+     * seule ligne de la table de travail : la premiere est comptee, les autres jetees par
+     * `ON CONFLICT DO NOTHING`. Au lieu d'un doublon possible, on perd des milliers d'hectares
+     * reels — et le total reste parfaitement plausible.
+     */
+    quoi: 'une parcelle RPG sans identifiant recoit une cle constante au lieu de « je ne sais pas »',
+    fichier: 'apps/api/src/ingestion/wfs-national.ts',
+    de: '  return null;\n}\n\n/**\n * \u2550\u2550\u2550',
+    vers: "  return 'inconnu';\n}\n\n/**\n * \u2550\u2550\u2550",
+    cwd: 'apps/api',
+    tests: ['test/cle-parcelle-rpg.test.ts'],
+  },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * LA CLE SE RESUME AU NUMERO DE PACAGE. Toutes les parcelles d'un meme exploitant se
+     * confondent : le dedoublonnage n'ecarte plus des doublons mais des parcelles REELLES, et la
+     * commune perd des hectares qu'elle possede. L'erreur va dans l'autre sens, sans plus de bruit.
+     */
+    quoi: 'la cle d’une parcelle RPG se resume au numero d’exploitation',
+    fichier: 'apps/api/src/ingestion/wfs-national.ts',
+    de: '    if (ilot != null && parcel != null) return `${pacage}/${String(ilot)}/${String(parcel)}`;',
+    vers: '    return pacage;',
+    cwd: 'apps/api',
+    tests: ['test/cle-parcelle-rpg.test.ts'],
+  },
 ];
 
 /**

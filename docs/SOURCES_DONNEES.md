@@ -105,6 +105,31 @@ scoring, et c'est elle qui détermine la faisabilité du raccordement. Les sites
 
 GRTgaz et Teréga n'exposent pas de portail propre joignable ; leurs jeux passent par ODRE.
 
+**Le tracé des canalisations n'est toujours pas ingéré, et `racc_distance_reseau_gaz` — 11 % du
+poids de la méthanisation — reste donc gris.** La piste la plus sérieuse a été instruite puis
+**écartée à la mesure**, le 27/09/2026 ; elle est consignée ici pour qui la reprendrait avec un
+accès au tracé réel.
+
+ODRE publie deux jeux, `corridor_grd_10_km-nat-grtgaz` et `corridor_grd_20_km-nat-grtgaz` : les
+corridors de 10 et 20 km de part et d'autre du réseau de **distribution**. Chacun tient en une seule
+géométrie nationale, 3,5 et 7,6 Mo, et les deux sont joignables. L'idée était géométriquement exacte :
+pour un point intérieur à un tampon de rayon *r*, la distance au réseau vaut *r* moins la distance au
+bord du tampon — les deux jeux devaient donc donner le **même** résultat, ce qui aurait constitué une
+validation croisée gratuite.
+
+**Les deux ne concordent pas, et la raison est mesurable.** Le corridor de 10 km porte 125 trous pour
+443 538 km² ; celui de 20 km n'en porte que 24 pour 567 921 km² — soit **plus que la superficie de la
+France métropolitaine** (551 695 km²). Le second est donc une enveloppe dissoute, pas un tampon : sur
+les parcelles d'essai, la formule y rend des distances négatives de l'ordre de −100 km. Le premier
+n'est pas corroborable seul, et son degré de simplification est inconnu.
+
+Renseigner 11 % du poids d'une filière sur une inférence géométrique invalidable serait exactement le
+défaut que cet audit a passé sa journée à retirer ailleurs : une valeur crédible, du bon ordre de
+grandeur, et invérifiable. **Ce qui reste utilisable sans aucune inférence** est l'appartenance au
+corridor telle que publiée — au-delà de 20 km, l'injection est exclue, ce qui est un fait et non une
+estimation. Mesuré sur les 301 parcelles du 28 : elles sont **toutes** dans le corridor des 10 km,
+donc ce fait ne les distingue pas. Ailleurs en France, il le ferait.
+
 ## 2.6 Calques cartographiques (affichage)
 
 Distincts des sources de **scoring** : ces calques servent à *voir* les contraintes, pas à
@@ -218,6 +243,67 @@ communes, aucune couverture n'est enregistrée et l'ingestion le **dit**.
 Commandes : `npm run ingest -- patrimoine_sites` puis `npm run ingest -- zaer_local`. La seconde
 demande environ une heure. La table `commune` doit être ingérée avant la première.
 
+### 2.8 Surfaces agricoles communales — le RPG agrégé, pour la méthanisation
+
+Ajoutée à l'audit 14. La méthanisation était la filière la moins instruite du catalogue : **45,0 %
+de son poids gris**, dont son critère nommé *déterminant*. Toute la machinerie d'estimation existait
+depuis l'audit 8 et attendait trois couches — `elevage`, `industrie_agroalimentaire`,
+`surface_agricole_commune` — dont aucune n'était alimentée. Cette ingestion apporte la troisième.
+
+| Couche WFS | Table | Type |
+|---|---|---|
+| `IGNF_RPG_PARCELLES-AGRICOLES-CATEGORISEES_2024:parcelles_agricole_categorisees_2024` | `contrainte` | `surface_agricole_commune` |
+
+Chaque ligne porte une commune, avec `attributs = {surface_ha, nb_parcelles}`. Le connecteur somme
+ces hectares dans un rayon de 10 km autour de la parcelle pour renseigner le débouché d'épandage du
+digestat (`gis_debouche_epandage`, **7,3 %** du poids de la filière), et s'en sert comme l'un des
+trois termes du gisement d'intrants — lequel reste gris tant que les deux autres manquent, car un
+total partiel serait une borne inférieure présentée comme une estimation.
+
+**L'ingestion se fait département par département, et le job le refuse autrement.** Le RPG national
+porte environ neuf millions de parcelles ; l'emprise du seul Eure-et-Loir en rend 131 127 en
+149 secondes. `npm run ingest -- rpg_communal:28,41,45,91`.
+
+**Il faut ingérer les départements VOISINS, et ce n'est pas facultatif.** Mesuré sur la base :
+**les 301 parcelles du 28 sont toutes à moins de 10 km d'une frontière départementale**. En
+n'ingérant que le 28, le critère reste gris partout — ce qui est le comportement voulu
+(`disqueEntierementCouvert`, audit 9 défaut A3) : une somme sur un disque n'est une mesure que si le
+disque entier est ingéré. Sommer le seul département ingéré aurait rendu un total crédible, du bon
+ordre de grandeur, et faux d'un tiers — un total d'hectares trop bas ne ressemble pas à une erreur,
+il ressemble à un territoire peu agricole.
+
+**Trois pièges mesurés à l'exécution, et deux étaient des faux comptes silencieux.**
+
+- **Le RPG ne porte ni code commune ni code département** — seulement un numéro de pacage, la
+  culture et la surface. Le rattachement est donc géométrique, par le centroïde de chaque îlot, d'où
+  le téléchargement des géométries. Erreur mesurée : sur 1 123 communes, **deux dépassent leur propre
+  superficie, de 1 et 2 %**, ce qui est la borne de l'approximation par centroïde.
+- **L'emprise rectangulaire d'un département déborde largement sur ses voisins** (39 % des objets
+  téléchargés pour le 28). Ces parcelles sont **écartées** : une commune voisine à cheval sur le bord
+  du rectangle n'aurait été lue qu'en partie, et sa somme — un sous-compte — se serait présentée
+  comme une mesure.
+- **Une page WFS rejouée après une coupure de flux recompte ses objets.** Le rejeu est sans
+  conséquence pour toutes les autres ingestions, qui écrivent un objet par ligne sous une clé ; celle-ci
+  *somme*, et une somme n'est pas idempotente. Coupure observée à la septième page du Loiret :
+  3 484 objets déjà émis, puis la page rejouée entière. Le dédoublonnage se fait donc sur `iup`,
+  l'identifiant unique de la parcelle au RPG. **Le double compte a été pris par un contrôle
+  physique** — une commune ne peut pas porter plus d'hectares agricoles qu'elle n'a d'hectares : le
+  Loiret affichait 67 % de sa superficie en surface agricole déclarée, pour une réalité voisine de
+  55 %.
+
+**Ce que ces hectares ne disent pas.** Ce sont des surfaces **déclarées à la PAC**, non des surfaces
+disponibles : un hectare déclaré appartient à un exploitant qui n'a rien signé. Les surfaces
+agricoles non déclarées n'y figurent pas, ce qui en fait une **borne inférieure**. Le plan d'épandage
+reste à signer, et l'alternative — sortie du statut de déchet par digestat normé — est rappelée dans
+le critère.
+
+| Département | Communes | Hectares déclarés | Part de la superficie |
+|---|---|---|---|
+| 28 Eure-et-Loir | 363 | 439 950 | 75 % |
+| 41 Loir-et-Cher | 267 | 278 994 | 44 % |
+| 45 Loiret | 323 | 344 191 | 51 % |
+| 91 Essonne | 170 | 82 726 | 46 % |
+
 ## 3. Sources sans API nationale — ingestion territoriale
 
 Ces couches n'existent pas sous forme consolidée. Leur absence est traitée comme **absence de
@@ -229,7 +315,7 @@ donnée** (critère gris), jamais comme absence de contrainte.
 | **Sites classés et inscrits** | ✅ **couvert depuis l'audit 8** — voir §2.7 | couches `STE` du WFS Géoplateforme, 6 617 sites (2 612 classés, 4 005 inscrits) plus l'outre-mer. Les **SPR ne sont pas** dans cette couche et restent non ingérés. |
 | **Document-cadre départemental PV au sol** (art. L.111-29 CU) | arrêtés préfectoraux départementaux | table `document_cadre_pv`. Un département non ingéré **n'écarte pas** une parcelle inculte : le knock-out ne se déclenche que si le département est ingéré **et** la parcelle absente de la liste. Certains documents-cadres procèdent par critères littéraux et non par cartographie : l'éligibilité reste alors à apprécier. |
 | **Vent à 100 m** | ✅ **couvert** — voir §2.5 | raster national Global Wind Atlas, ingéré et échantillonné localement |
-| **Intrants méthanisables** | aucune base nationale d'élevages ni de gisement | dérivés des couches locales `elevage`, `industrie_agroalimentaire` et `surface_agricole_commune` si elles sont ingérées, selon des ratios documentés dans le code. Gris sinon. |
+| **Intrants méthanisables** | ⚠️ **un tiers couvert** — voir §2.8 | `surface_agricole_commune` est ingérée depuis l'audit 14 (RPG national, §2.8) et débloque à elle seule le débouché d'épandage. `elevage` et `industrie_agroalimentaire` viennent de la base ICPE, dont **aucune source n'est joignable depuis ce poste** : l'API Géorisques ne répond pas, le WFS du BRGM (`mapsref.brgm.fr`) refuse la requête au niveau de son pare-feu applicatif, et le miroir tiers `data.cquest.org/icpe` n'a **pas été mis à jour depuis le 28 février 2021** — cinq ans et demi, donc inutilisable pour un recensement d'élevages. Le total d'intrants reste donc `null`, et non une estimation partielle. |
 | **Servitudes aéronautiques (T4, T5, T7)** | ⚠️ **partiellement couvert** — SUP du GPU, voir §2.6 | national mais publié territoire par territoire par les services de l'État |
 | **Radars météorologiques et militaires** | pas de jeu national ouvert identifié | non couverts. Les positions du réseau ARAMIS de Météo-France ne sont pas publiées en open data réutilisable ; les seuils de consultation sont rappelés dans la fiche et l'avis du gestionnaire reste à solliciter. |
 | **Périmètres de protection de captage** | ⚠️ **partiellement couvert** — SUP `AS1` du GPU, voir §2.6 | l'assiette est exposée, mais **pas la sous-catégorie** (immédiat, rapproché, éloigné), qui doit être lue sur l'arrêté de DUP du captage |

@@ -244,6 +244,25 @@ export const CONNECTEURS: Record<string, DescriptionConnecteur> = {
       'portée réglementaire propre. Les sites patrimoniaux remarquables (SPR) ne sont pas couverts ' +
       'par cette couche.',
   },
+  rpg_communal: {
+    connecteur: 'rpg_communal',
+    nom: 'Registre parcellaire graphique 2024 agrégé par commune (WFS Geoplateforme)',
+    url: 'https://data.geopf.fr/wfs/ows',
+    modeAcces: 'ingestion',
+    valeurJuridique: 'indicative',
+    // DÉPARTEMENTALE et non nationale : le RPG national porte environ neuf millions de parcelles,
+    // et l'ingestion se fait département par département. Un département non ingéré doit donner
+    // une donnée GRISE et non « aucune surface agricole », d'où la couverture déclarée ici.
+    couverture: 'departementale',
+    periodiciteJours: 365,
+    millesime: '2024',
+    avertissement:
+      'Surfaces DÉCLARÉES à la PAC, agrégées par commune à partir du centroïde de chaque îlot. ' +
+      'Elles mesurent le potentiel d’épandage et de CIVE du territoire, en aucun cas une ' +
+      'disponibilité : un hectare déclaré appartient à un exploitant qui n’a rien signé. Les ' +
+      'surfaces agricoles non déclarées à la PAC (petites exploitations, cultures hors aides) ne ' +
+      'figurent pas au RPG, qui est donc une borne INFÉRIEURE.',
+  },
   document_cadre_local: {
     connecteur: 'document_cadre_local',
     nom: 'Documents-cadres départementaux photovoltaïque au sol (art. L.111-29 CU)',
