@@ -783,7 +783,16 @@ function blocGrandeursDeRecherche(doc: Doc, snapshot: ParcelleSnapshot, filiere:
             : typeof valeur === 'number'
               ? `${formatNombre(valeur, s.unite, valeur < 10 ? 1 : 0)}`
               : String(valeur),
-          s.usuel == null ? '-' : `${s.sens === 'min' ? '≥' : '≤'} ${s.usuel}`,
+          /*
+           * LE SEUIL USUEL PASSE PAR LE MEME FORMATEUR QUE LA VALEUR MESUREE, et ce n'est pas un
+           * detail de presentation. Interpole tel quel, un seuil comme 0,1 s'ecrivait « 0.1 » — un
+           * point decimal anglais dans un document francais remis a un proprietaire. Le garde du
+           * rapport l'a pris ; il n'aurait pas du avoir a le prendre, la colonne d'a cote etant
+           * formatee depuis le premier jour.
+           */
+          s.usuel == null
+            ? '-'
+            : `${s.sens === 'min' ? '≥' : '≤'} ${formatNombre(s.usuel, s.unite, s.usuel < 10 ? 1 : 0)}`,
           s.chemin,
         ],
         pastille: valeur == null ? ('gris' as Feu) : undefined,

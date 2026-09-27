@@ -180,8 +180,21 @@ async function rapport(filiere: string, iduCible: string): Promise<string> {
 function pointsDecimaux(t: string): string[] {
   const sansCoordonnees = t.replace(/\d+\.\d+\s*[NSEW]\b/g, ' ');
   return [...sansCoordonnees.matchAll(/(?<![\d.])\d+(?:\.\d+)+(?![\d.])/g)]
-    .map((m) => m[0])
-    .filter((s) => s.split('.').length === 2);
+    .filter((m) => m[0].split('.').length === 2)
+    /**
+     * LE CONTEXTE FAIT PARTIE DU CONSTAT, et son absence a coute une demi-heure de recherche.
+     *
+     * Ce garde a signale « 0.1 » dans le rapport solaire, et rien d'autre : ni ou, ni dans quelle
+     * phrase. Or un nombre a point decimal ne se retrouve pas par recherche dans le code — il est
+     * produit par une interpolation, quelque part parmi des centaines. Le garde disait donc qu'il y
+     * avait un defaut sans permettre de le corriger, ce qui est la moitie du travail.
+     */
+    .map((m) => {
+      const i = m.index ?? 0;
+      const avant = sansCoordonnees.slice(Math.max(0, i - 45), i).replace(/\s+/g, ' ');
+      const apres = sansCoordonnees.slice(i + m[0].length, i + m[0].length + 25).replace(/\s+/g, ' ');
+      return `${m[0]} (« …${avant}[${m[0]}]${apres}… »)`;
+    });
 }
 
 test('LA PORTEE EST EXIGEE, plus seulement annoncee', () => {

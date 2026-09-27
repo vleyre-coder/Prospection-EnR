@@ -111,6 +111,27 @@ test('tout litteral SQL est analysable par PostgreSQL', async () => {
   const fautifs: string[] = [];
   const client = await pool.connect();
   try {
+    /**
+     * LES TABLES TEMPORAIRES SONT CREEES D'ABORD, sur CETTE connexion.
+     *
+     * Une table temporaire n'existe que pour la session qui l'a creee. Les requetes d'ingestion qui
+     * s'en servent — le RPG agrege par commune en deverse ses centroides — sont donc refusees ici
+     * avec `42P01`, alors qu'elles sont parfaitement valides a l'execution.
+     *
+     * Deux mauvaises reponses etaient possibles : ajouter `rpg_tmp` a une liste d'exclusions, ce qui
+     * dispenserait de verification les deux requetes les plus difficiles a tester autrement (elles
+     * ne s'executent qu'apres un telechargement de plusieurs minutes) ; ou retirer le code
+     * `42P01` des fautes, ce qui laisserait passer toutes les vraies tables inconnues du projet.
+     *
+     * La bonne reponse est de donner au garde le contexte que la requete aura a l'execution. La DDL
+     * ci-dessous doit rester identique a celle du job : si elles divergent, le garde verifie une
+     * table qui n'existe pas sous cette forme — mais il le dira, en refusant les requetes.
+     */
+    await client.query(
+      `CREATE TEMP TABLE IF NOT EXISTS rpg_tmp (
+         cle text PRIMARY KEY, lon float8, lat float8, surface_ha numeric)`,
+    );
+
     for (const [i, l] of litteraux.entries()) {
       try {
         // `PREPARE` analyse et planifie sans executer. Chaque nom est unique, et la transaction est

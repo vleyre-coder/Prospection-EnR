@@ -170,12 +170,33 @@ function ignorer(): boolean {
   return false;
 }
 
+/**
+ * En-tetes d'un compte de prospection, jeton signe par le serveur d'essai lui-meme.
+ *
+ * LA ROUTE DE RECHERCHE EST PROTEGEE, et c'est voulu : une liste de parcelles filtree sur le cahier
+ * des charges d'un developpeur n'a rien de public. Le jeton est donc fabrique ici plutot que
+ * d'eteindre l'authentification — `AUTH_DESACTIVEE` ne doit jamais etre une condition de passage
+ * d'un test, sans quoi la suite verte cesserait de dire quoi que ce soit du comportement reel.
+ */
+function entetes(): Record<string, string> {
+  return {
+    authorization: `Bearer ${app!.jwt.sign({
+      id: '00000000-0000-0000-0000-000000000002',
+      email: 'prospection@local',
+      nom: 'prospection',
+      role: 'prospection',
+      habiliteDonneesProprietaires: false,
+    })}`,
+  };
+}
+
 /** La parcelle fictive ressort-elle pour ce seuil ? */
 async function retenue(chemin: string, borne: { min?: number; max?: number }): Promise<boolean> {
   const rep = await app!.inject({
     method: 'POST',
     url: '/api/recherche/parcelles',
     payload: { filiere: 'bess', limite: 50, seuils: [{ chemin, ...borne }] },
+    headers: entetes(),
   });
   assert.equal(rep.statusCode, 200, rep.body.slice(0, 200));
   const corps = rep.json() as { resultats?: Array<{ idu: string }> };
