@@ -153,7 +153,21 @@ function ignorer(): boolean {
   return false;
 }
 
-/** Les IDU fictifs retenus par ce seuil. */
+/**
+ * Les IDU fictifs retenus par ce seuil.
+ *
+ * LA RECHERCHE EST BORNEE AU TERRITOIRE FICTIF, et ce n'est pas une precaution de style.
+ *
+ * Sans emprise, ce test dependait de la POPULATION REELLE de la base : il a passe tant que peu de
+ * parcelles du departement 28 portaient une borne, puis a echoue des que la reprise en a donne une
+ * a 299 d'entre elles. Elles remplissaient alors la limite de resultats et reléguaient les
+ * parcelles fictives hors de la page — le filtre fonctionnait parfaitement, et le test disait le
+ * contraire.
+ *
+ * Un test qui depend de ce que contient la base par ailleurs finit toujours par accuser le code a
+ * la place des donnees. L'emprise l'en isole : le territoire fictif est en pleine mer, au large de
+ * la Bretagne, ou aucune parcelle reelle ne se trouve.
+ */
 async function retenues(borne: { min?: number; max?: number }): Promise<string[]> {
   const rep = await app!.inject({
     method: 'POST',
@@ -161,6 +175,7 @@ async function retenues(borne: { min?: number; max?: number }): Promise<string[]
     payload: {
       filiere: 'methanisation',
       limite: 50,
+      bbox: [PT[0] - 0.5, PT[1] - 0.5, PT[0] + 0.5, PT[1] + 0.5],
       seuils: [{ chemin: 'eau.distanceCoursEauM', ...borne }],
     },
     headers: entetes(),
@@ -227,6 +242,7 @@ test('UNE GRANDEUR SANS BORNE DECLAREE SE LIT TOUJOURS A SON CHEMIN', async () =
     payload: {
       filiere: 'methanisation',
       limite: 50,
+      bbox: [PT[0] - 0.5, PT[1] - 0.5, PT[0] + 0.5, PT[1] + 0.5],
       seuils: [{ chemin: 'acces.distanceVoirieM', max: 50000 }],
     },
     headers: entetes(),
