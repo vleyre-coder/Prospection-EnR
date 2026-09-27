@@ -48,12 +48,18 @@ n'était écrite : pour le moteur, la couche n'existait pas.
 | Vérification | Résultat |
 | --- | --- |
 | Typage des cinq projets | vert |
-| Tests hors base | **1 165 / 1 165** |
-| Tests exigeant une base | 158 / 158 (4 ignorés : migrations destructives) |
+| Tests hors base | **1 179 / 1 179** |
+| Tests exigeant une base | **166 / 166** (4 ignorés : migrations destructives) |
 | Bout en bout (navigateur réel) | **27 / 27**, 2 ignorés |
-| Motifs de mutation | **330 déclarés**, tous applicables ; campagne complète **321 / 321 attrapés**, 0 survivant, 0 non mesurée (les 9 restants exigent un navigateur) |
-| Exports × filières | **25 / 25 en HTTP 200** (dossier, CSV, GeoJSON, Shapefile, `.eml`, fiche PDF) |
+| Motifs de mutation | **337 déclarés**, tous applicables au code courant |
+| Chaîne complète × filières | **30 / 30 en HTTP 200** — recherche, fiche PDF, fiche `.eml`, dossier de site, cahier des charges, CSV, pour chacune des cinq |
 | Cahiers des charges | 5 / 5, et **réellement distincts** par filière |
+
+**[27/09] Quatre de ces tests étaient rouges la veille, et l'audit ne l'avait pas vu.** Les quatre
+tests de seuil sur le poste renseigné n'envoyaient aucun jeton à une route protégée : ils recevaient
+401 et échouaient sur leur première assertion. Le correctif qu'ils gardent — un seuil de capacité lit
+la valeur sur le poste qui la *porte* — n'était donc gardé par rien depuis qu'il avait été écrit.
+C'est la même leçon que l'audit 13 : **un chiffre de vérification doit être remesuré, pas recopié.**
 
 **Les cinq filières fonctionnent.** Chacune produit un score, une fiche illustrée, un dossier de
 site, un cahier des charges spécifique et les quatre exports de données. L'agrivoltaïsme est bien une
@@ -387,8 +393,24 @@ npm run ingest -w @enr/api -- vent_100m
 npm run ingest -w @enr/api -- rpg_communal:28,41,45,91
 
 # Campagne de mutation complete, sur une COPIE hors de l'arbre suivi
+# JAMAIS par `import()` depuis l'arbre de travail : le module lance la campagne a l'import,
+# et mute alors les fichiers versionnes. (Un marqueur `.mutation-en-cours` les restaure a
+# l'invocation suivante, mais mieux vaut ne pas en avoir besoin.)
 cp -a . /tmp/campagne && cd /tmp/campagne
 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e node scripts/mutation.mjs
+```
+
+**[27/09] Reprendre les 301 parcelles apres une ingestion**, ce qu'il faut faire pour qu'elles voient
+la nouvelle donnee. Compter **46 secondes par parcelle** tant que Georisques est injoignable — six
+points d'entree qui attendent chacun leur delai. En un seul processus, les 301 demandent quatre
+heures ; **en six processus shardes par reste modulo, trente-sept minutes**. Le coupe-circuit par
+hote est par PROCESSUS, donc chaque shard decouvre la panne une fois et une seule.
+
+```bash
+# Un shard par processus : `i % 6 === shard` repartit les parcelles sans recouvrement.
+for s in 0 1 2 3 4 5; do
+  DATABASE_URL=... npx tsx reprise.ts $s 6 &
+done; wait
 ```
 
 **[27/09] Le double compte du RPG se redetecte par un contrôle physique** — une commune ne peut pas
