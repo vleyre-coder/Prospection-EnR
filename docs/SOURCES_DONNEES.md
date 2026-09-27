@@ -297,6 +297,17 @@ agricoles non déclarées n'y figurent pas, ce qui en fait une **borne inférieu
 reste à signer, et l'alternative — sortie du statut de déchet par digestat normé — est rappelée dans
 le critère.
 
+**L'ingestion est idempotente, et cela a été vérifié plutôt que supposé.** Relancée à l'identique
+sur les quatre départements, elle rend exactement les mêmes 1 123 communes et les mêmes hectares, et
+**n'efface aucune ligne** — la suppression des disparus n'est autorisée que si tous les départements
+porteurs de lignes ont été relus *en entier*, faute de quoi réingérer le seul 28 ferait passer pour
+disparues les communes du 41, du 45 et du 91.
+
+Détail qui confirme le dédoublonnage : le second passage a reçu 441 828 objets contre 445 061 au
+premier — moins de coupures de flux, donc moins de pages rejouées — mais le nombre de parcelles
+*distinctes* retenues est identique département par département (131 127, 159 894, 126 334, 24 473).
+Le compte ne dépend plus des aléas du réseau.
+
 | Département | Communes | Hectares déclarés | Part de la superficie |
 |---|---|---|---|
 | 28 Eure-et-Loir | 363 | 439 950 | 75 % |
