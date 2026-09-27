@@ -720,8 +720,14 @@ const MUTATIONS = [
     quoi: 'une servitude aeronautique se refonde sur l’arrete « radars », qui ne la regit pas',
     fichier: 'packages/scoring/src/knockouts.ts',
     construire: '@enr/scoring',
-    de: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est à vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n    );",
-    vers: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est à vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.\",\n      'risques',\n      'eol_radar',\n    );",
+    /*
+     * REALIGNE LE 28/09/2026. Le motif visait le texte du knock-out, reecrit quand il est devenu
+     * derogeable — l'application connait l'assiette de la servitude, pas la cote de hauteur qu'elle
+     * autorise. Ce que le motif garde est inchange : refonder cette servitude sur l'arrete
+     * « radars », qui ne la regit pas, doit faire echouer un test.
+     */
+    de: "      'risques',\n      null,\n      true,\n    );\n  }\n  return null;\n};",
+    vers: "      'risques',\n      'eol_radar',\n      true,\n    );\n  }\n  return null;\n};",
     tests: ['packages/scoring/test/fondement-knockouts.test.ts'],
   },
   {

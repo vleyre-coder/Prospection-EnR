@@ -45,6 +45,12 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.8.0 : un quatrieme changement de verdict, trouve par la contrainte de type posee sur `ko()`.
+ *   `ko_eol_servitude_aero` ecartait la parcelle sans citer d'article — l'application connait
+ *   l'assiette de la servitude aeronautique, pas la cote de hauteur qu'elle autorise, et c'est la
+ *   hauteur qui decide. Il plafonne desormais a orange. Aucune parcelle du parc d'essai n'est
+ *   concernee ; la version change quand meme, parce que le verdict change pour qui l'est.
+ *
  * 1.7.0 : trois changements de VERDICT, et c'est la seule version de cette serie a en porter.
  *
  *   - Un poste source sature ne supprime plus le score : le knock-out devient DEROGEABLE, donc
@@ -91,7 +97,7 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.7.0';
+export const VERSION_CODE_MOTEUR = '1.8.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.
