@@ -57,6 +57,28 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 /**
+ * DELAI MAXIMAL D'UN LOT DE TESTS SOUS MUTATION.
+ *
+ * POURQUOI IL A FALLU L'AJOUTER, et c'est le genre de panne qui ne se voit qu'une fois. La campagne
+ * du 27/09/2026 s'est arretee net sur le motif « le rayon de raccordement redevient un `Number()`
+ * non valide » : prive de sa validation, la route ne rend plus 400 — elle part chercher dans un
+ * rayon absurde et ne revient jamais. Le test la SIGNALE correctement, en n'obtenant pas de
+ * reponse ; mais `execFileSync` sans delai attend, et la campagne entiere s'est immobilisee pendant
+ * vingt-cinq minutes sur un motif sur trois cent trente-sept, sans rien afficher.
+ *
+ * C'est le pire mode de panne pour un outil de verification : il ne dit pas « echec », il ne dit
+ * rien. Un exploitant qui lance la campagne le soir la retrouve au matin bloquee au tiers, et n'a
+ * aucun moyen de savoir sur quoi.
+ *
+ * UN DEPASSEMENT DE DELAI COMPTE COMME UNE MUTATION ATTRAPEE, et c'est juste : le lot de tests n'a
+ * pas rendu de succes. Une mutation qui fait boucler le code est detectee par cela meme.
+ *
+ * La valeur est large — le lot le plus lent du depot tourne en moins de deux minutes — pour qu'un
+ * depassement signale une boucle et jamais une machine chargee.
+ */
+const DELAI_TEST_MS = 8 * 60 * 1000;
+
+/**
  * `construire` : espace de travail a reconstruire avant de lancer les tests.
  *
  * Necessaire, et decouvert par ce script lui-meme. Les mutations portant sur `packages/core` ou
@@ -4832,6 +4854,8 @@ for (const m of A_JOUER) {
     const argv = m.commande ?? ['tsx', '--test', ...m.tests];
     execFileSync('npx', argv, {
       stdio: 'pipe',
+      timeout: DELAI_TEST_MS,
+      killSignal: 'SIGKILL',
       ...(m.cwd ? { cwd: m.cwd } : {}),
     });
   } catch {
