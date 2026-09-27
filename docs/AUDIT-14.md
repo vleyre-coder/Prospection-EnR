@@ -287,16 +287,17 @@ des développeurs des projets *fiables*.
 
 | | |
 | --- | --- |
-| **Quatre filières sur cinq classent et discriminent** | solaire au sol, agrivoltaïsme, stockage, éolien terrestre |
+| **Trois filières produisent une liste classée** | solaire au sol, stockage, agrivoltaïsme : 199 à 200 parcelles classées chacune, avec un score qui discrimine |
+| **Une quatrième tranche, sans classer** | l'éolien écarte 241 parcelles sur 301 par knock-out. C'est utile — cela dit où ne pas aller — mais ce n'est pas un classement |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | 1 178 tests hors base, 336 motifs de mutation tous attrapés, bout en bout au navigateur |
+| **La vérification est sérieuse** | 1 179 tests hors base, 166 avec base, 27/27 au navigateur, 337 motifs de mutation, 30/30 sur la chaîne complète des cinq filières |
 
 ### Ce qui l'empêche de monter
 
 | | |
 | --- | --- |
-| **La méthanisation ne classe pas** | 37,6 % de son poids reste non instruit. Les verdicts sont honnêtes — gris, pas verts — mais on ne peut pas en tirer un classement. **Une filière sur cinq est hors d'usage pour le tri** — voir juste en dessous ce qui l'en sépare. |
+| **La méthanisation ne classe pas** | 153 parcelles grises sur les 155 qui portent un score : **49,5 % de son poids reste gris**. Les verdicts sont honnêtes — gris, pas verts — mais on n'en tire pas un classement. Voir juste en dessous ce qui l'en sépare, et c'est moins que prévu. |
 | **Géorisques est injoignable d'ici** | six critères de risque gris, et 46 secondes par parcelle passées à attendre un hôte muet. Ce n'est pas un défaut de l'application, mais l'exploitant le subit quand même |
 | **Les données de propriété ne sont pas publiques** | structurel : demande encadrée auprès de la publicité foncière |
 | **La relecture juridique reste à faire** | 128 articles à confronter, 28 règles marquées à valider |
@@ -358,16 +359,25 @@ sort du gris **sans une ligne de code de plus**.
 
 ### Pourquoi +2 et pas +5
 
-Le débouché d'épandage réglé, c'est **7,3 points sur les 45,0** qui manquaient à la méthanisation.
-Le reste — 37,6 % — ne demande pas d'écrire du code : le connecteur et l'agrégation sont déjà
-écrits et testés, **il manque un accès réseau** (§4.1). Un audit qui compterait cela comme réglé
-parce que « la mécanique est prête » se raconterait une histoire.
+Le débouché d'épandage réglé, c'est **7,3 points** sur une filière qui en avait 53,2 de gris. Le
+reste — 49,5 % — ne demande pas d'écrire du code : le connecteur et l'agrégation sont écrits et
+testés, **il manque un accès réseau** (§4.1). Un audit qui compterait cela comme réglé parce que « la
+mécanique est prête » se raconterait une histoire, et le prospecteur s'en apercevrait au premier
+dossier.
 
-Le reste du gain n'est pas visible dans une couverture : **trois faux comptes ont été retirés avant
-d'atteindre la production** (§2.7), et un quatrième n'a pas été livré faute d'être vérifiable (§4.1).
-Aucun des trois n'aurait produit d'erreur ni de ligne de journal — ils auraient produit des nombres
-crédibles. C'est exactement le genre de défaut qui fait qu'un développeur cesse de croire un outil,
-et ils comptent dans la note même s'ils ne se voient nulle part.
+Le reste du gain ne se voit dans aucune couverture. **Quatre faux comptes ont été retirés avant
+d'atteindre la production** (§2.7 et §4.1), un cinquième n'a pas été livré faute d'être vérifiable
+(les corridors gaz), et **quatre tests que l'audit de la veille comptait comme verts étaient rouges**
+(§1). Aucun des faux comptes n'aurait produit d'erreur ni de ligne de journal — ils auraient produit
+des nombres crédibles. C'est exactement le genre de défaut qui fait qu'un développeur cesse de croire
+un outil, et ils comptent dans la note même s'ils ne se voient nulle part.
+
+**Pourquoi pas moins non plus.** On pourrait soutenir que découvrir quatre tests rouges et quatre
+faux comptes en une journée devrait faire *baisser* la note. Je ne le crois pas : ils ont tous été
+trouvés par des gardes que le dépôt possède déjà — le contrôle de superficie, le garde des points
+décimaux, l'analyse SQL, la vérification par mutation — et aucun n'a atteint un document remis à
+quelqu'un. Un outil qui trouve ses propres défauts avant l'utilisateur vaut mieux qu'un outil qui
+n'en trouve aucun.
 
 ---
 
