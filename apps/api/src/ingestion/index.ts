@@ -13,6 +13,7 @@
  */
 
 import { avecParams, jsonExterne } from '../http.js';
+import { resolve } from 'node:path';
 import { journal } from '../journal.js';
 import { config } from '../config.js';
 import { requete, tenterVerrou } from '../bdd.js';
@@ -477,15 +478,34 @@ export async function ingererPatrimoine(): Promise<{
  * Environ 55 Mo, republie a l'occasion des nouvelles versions du modele : une ingestion
  * annuelle suffit.
  */
-export async function ingererVent(): Promise<{ connecteur: string; octets: number; chemin: string }> {
+export async function ingererVent(): Promise<{
+  connecteur: string;
+  octets: number;
+  chemin: string;
+  cheminAbsolu: string;
+}> {
   const r = await telechargerRaster();
+  /**
+   * LE CHEMIN ABSOLU, ET PAS SEULEMENT CELUI DE LA CONFIGURATION.
+   *
+   * `REPERTOIRE_DONNEES` vaut « data » par defaut : un chemin RELATIF, donc resolu contre le
+   * repertoire de travail du processus. Le 28/09/2026, l'ingestion lancee depuis `apps/api` a
+   * depose le raster dans `apps/api/data/vent/`, et une reprise de parcelles lancee depuis la
+   * racine du depot l'a cherche dans `data/vent/` — ou il n'etait pas. Resultat : `gis_vent` gris
+   * sur 100 % du parc, soit 10,9 % du poids eolien, sans aucune erreur nulle part.
+   *
+   * Le bilan disait « chemin: data/vent/gwa-fra-100m.tif », ce qui etait exact et inutilisable :
+   * c'est precisement l'ambiguite du chemin relatif qui rendait la panne invisible. Le chemin
+   * resolu, lui, se compare d'un coup d'oeil a celui que le serveur cherche.
+   */
+  const cheminAbsolu = resolve(r.chemin);
   await enregistrerIngestion(
     'vent_100m',
     'ok',
-    `Raster Global Wind Atlas a 100 m, ${Math.round(r.octets / 1_048_576)} Mo`,
+    `Raster Global Wind Atlas a 100 m, ${Math.round(r.octets / 1_048_576)} Mo, ecrit dans ${cheminAbsolu}`,
     null,
   );
-  return { connecteur: 'vent_100m', ...r };
+  return { connecteur: 'vent_100m', ...r, cheminAbsolu };
 }
 
 // ---------------------------------------------------------------------------

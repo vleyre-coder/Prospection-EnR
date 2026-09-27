@@ -176,6 +176,20 @@ Valeurs de contrôle relevées : 6,97 m/s en Beauce, 6,96 m/s dans la vallée du
 davantage en terrain complexe. Il ne remplace pas une campagne de mesure sur site — mais il
 suffit largement à écarter un secteur peu venté avant tout déplacement.
 
+**⚠️ Le raster est un FICHIER, pas une table — et `REPERTOIRE_DONNEES` est relatif par défaut.**
+Deux conséquences vécues le 28/09/2026, chacune silencieuse :
+
+- **Un redémarrage de conteneur l'emporte.** Les couches ingérées en base survivent, lui non : il
+  faut relancer `npm run ingest -- vent_100m`. Sans cela `gis_vent` est gris sur tout le parc,
+  soit **10,9 % du poids éolien**, sans qu'aucune erreur n'apparaisse — le connecteur journalise en
+  `debug` et rend `null`, ce qui est le comportement voulu mais discret.
+- **Il se cherche là où le processus a été lancé.** `REPERTOIRE_DONNEES` vaut `data`, un chemin
+  relatif. Une ingestion lancée depuis `apps/api` écrit dans `apps/api/data/vent/` ; un script lancé
+  depuis la racine du dépôt cherche dans `data/vent/`, où il n'est pas. Le bilan d'ingestion annonce
+  désormais le chemin **résolu**, précisément parce que l'ambiguïté du chemin relatif est ce qui
+  rendait la panne invisible. En cas de doute, comparez ce chemin à celui que cherche le serveur, ou
+  posez `REPERTOIRE_DONNEES` en absolu.
+
 ### 2.6 Servitudes d'utilité publique — le Géoportail de l'Urbanisme
 
 Le GPU **est** une API nationale pour les servitudes d'utilité publique, publiées par
