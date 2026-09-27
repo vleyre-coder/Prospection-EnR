@@ -4749,6 +4749,23 @@ const MUTATIONS = [
     tests: ['test/moteur.test.ts'],
     commande: ['node', '--test', '--experimental-strip-types', 'test/moteur.test.ts'],
   },
+  {
+    audit: 'audit 15 (fondement des knock-outs)',
+    /*
+     * UN KNOCK-OUT ECARTE UNE PARCELLE SANS CITER SON FONDEMENT. C'est le verdict le plus lourd de
+     * l'application — statut rouge, score annule, sortie des listes et des sites — et il n'est
+     * legitime que s'il traduit une INTERDICTION. Deux knock-outs etaient dans ce cas au 28/09/2026,
+     * et l'un d'eux ecartait 100 parcelles sur 301 dans les cinq filieres.
+     */
+    quoi: 'la servitude aeronautique ecarte de nouveau la parcelle sans citer d’article',
+    fichier: 'packages/scoring/src/knockouts.ts',
+    de: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement. Ces servitudes plafonnent la hauteur des ouvrages, et un aérogénérateur les dépasse presque toujours — mais la cote autorisée n'est pas publiée avec l'assiette : elle est à lire sur le plan de servitudes, auprès du gestionnaire de l'aérodrome ou de la DGAC, avant tout engagement.\",\n      'risques',\n      null,\n      true,",
+    vers: "      \"La parcelle est grevée d'une servitude aéronautique de dégagement.\",\n      'risques',\n      null as unknown as string,",
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/hors-portee-des-sources.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/hors-portee-des-sources.test.ts'],
+  },
 ];
 
 /**

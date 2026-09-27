@@ -24,6 +24,46 @@ interface CtxKo {
 
 type RegleKo = (s: ParcelleSnapshot, ctx: CtxKo) => Omit<KnockOut, 'source'> | null;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UN KNOCK-OUT NON DEROGEABLE DOIT CITER SON ARTICLE — GARANTI PAR LE TYPE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Un knock-out non derogeable ECARTE la parcelle : statut rouge, score annule, sortie des listes et
+ * des sites. C'est le verdict le plus lourd que rende l'application, et il n'est legitime que s'il
+ * traduit une interdiction — pas une difficulte, pas un cout, pas un indicateur defavorable.
+ *
+ * POURQUOI CETTE SURCHARGE EXISTE. Au 28/09/2026, un seul knock-out non derogeable ne citait aucune
+ * regle : `ko_poste_sature`. Ce n'etait pas un oubli de documentation, c'etait le symptome — le
+ * referentiel ne contient aucune regle sur la saturation parce qu'il n'en existe aucune, et ce
+ * knock-out ecartait pourtant 100 parcelles sur 301 dans les cinq filieres. L'absence de fondement
+ * etait visible dans la signature de l'appel, et personne ne la lisait.
+ *
+ * Le type la rend desormais impossible a ecrire : **sans `regleLiee`, un knock-out ne peut etre que
+ * derogeable**. Un futur auteur qui voudrait ecarter definitivement une parcelle devra nommer
+ * l'article qui l'y autorise — ou admettre qu'il n'en a pas, et se contenter du plafond orange.
+ *
+ * Ce n'est pas une contrainte de forme : c'est la question « de quel droit ? » posee a la
+ * compilation.
+ */
+function ko(
+  id: string,
+  libelle: string,
+  motif: string,
+  famille: KnockOut['famille'],
+  /** Obligatoire : un knock-out qui ecarte definitivement doit dire de quel droit. */
+  regleLiee: string,
+  derogeable?: false,
+): Omit<KnockOut, 'source'>;
+function ko(
+  id: string,
+  libelle: string,
+  motif: string,
+  famille: KnockOut['famille'],
+  /** Facultatif ici : un knock-out derogeable plafonne le statut, il n'ecarte personne. */
+  regleLiee: string | null,
+  derogeable: true,
+): Omit<KnockOut, 'source'>;
 function ko(
   id: string,
   libelle: string,
@@ -439,11 +479,31 @@ const koRadar: RegleKo = (s) => {
      * ecarter la parcelle ; sa base juridique est a etablir par un juriste, avec les cinq autres
      * knock-outs de nature juridique qui n'en portent pas (voir docs/VERIFICATION-COUVERTURE.md).
      */
+    /**
+     * DEROGEABLE DEPUIS LE 28/09/2026, et c'est la contrainte de type qui a pose la question.
+     *
+     * Ce knock-out ecartait definitivement la parcelle sans citer aucun article — le seul cas
+     * restant apres la correction du poste sature. La surcharge de `ko()` l'a rendu inecrivable, ce
+     * qui a oblige a trancher plutot qu'a laisser courir.
+     *
+     * CE QUE L'APPLICATION SAIT : une servitude T4/T5 recouvre la parcelle. CE QU'ELLE NE SAIT PAS :
+     * la HAUTEUR que cette servitude autorise — le GPU publie l'assiette, pas la cote. Or c'est la
+     * hauteur qui decide. Affirmer « la hauteur des aerogenerateurs y est incompatible » etait donc
+     * une inference, et le motif le reconnaissait dans la phrase suivante en renvoyant au plan de
+     * servitudes : la meme contradiction que celle du poste sature — ecarter la parcelle tout en
+     * disant qu'il faut aller verifier.
+     *
+     * La contrainte reste LOURDE et s'affiche comme telle ; elle plafonne le statut a orange au lieu
+     * d'annuler le score. Le jour ou la cote de la servitude sera lisible, ce knock-out pourra
+     * redevenir excluant — en citant enfin son fondement.
+     */
     return ko(
       'ko_eol_servitude_aero',
       'Servitude aéronautique',
-      "La parcelle est grevée d'une servitude aéronautique de dégagement : la hauteur des aérogénérateurs y est incompatible. Le plan de servitudes applicable est à vérifier auprès du gestionnaire de l'aérodrome ou de la DGAC.",
+      "La parcelle est grevée d'une servitude aéronautique de dégagement. Ces servitudes plafonnent la hauteur des ouvrages, et un aérogénérateur les dépasse presque toujours — mais la cote autorisée n'est pas publiée avec l'assiette : elle est à lire sur le plan de servitudes, auprès du gestionnaire de l'aérodrome ou de la DGAC, avant tout engagement.",
       'risques',
+      null,
+      true,
     );
   }
   return null;

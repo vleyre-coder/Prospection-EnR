@@ -145,3 +145,91 @@ test('LA LIMITE NOMME LES CRITERES CONCERNES, ELLE NE SE CONTENTE PAS DE LES COM
   assert.ok(limite);
   assert.match(limite.motif, /espèces|Maîtrise foncière|propriétaires/i);
 });
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UN KNOCK-OUT NON DÉROGEABLE DOIT CITER SON ARTICLE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Un knock-out non dérogeable ÉCARTE la parcelle : statut rouge, score annulé, sortie des listes et
+ * des sites. C'est le verdict le plus lourd de l'application, et il n'est légitime que s'il traduit
+ * une **interdiction** — pas une difficulté, pas un coût, pas un indicateur défavorable.
+ *
+ * Au 28/09/2026, deux knock-outs non dérogeables ne citaient aucune règle. Ce n'était pas un oubli
+ * de documentation, c'était le symptôme :
+ *
+ *   - `ko_poste_sature` écartait 100 parcelles sur 301 dans les cinq filières sur une saturation de
+ *     réseau, que le référentiel ne régit pas parce qu'aucun texte ne la régit ;
+ *   - `ko_eol_servitude_aero` affirmait l'incompatibilité d'un aérogénérateur avec une servitude
+ *     aéronautique, alors que l'application connaît l'assiette de la servitude mais **pas la cote
+ *     de hauteur qu'elle autorise** — et son motif renvoyait au plan de servitudes dans la phrase
+ *     suivante.
+ *
+ * La surcharge de `ko()` rend désormais ce cas inécrivable : sans `regleLiee`, un knock-out ne peut
+ * être que dérogeable. Ce test le vérifie sur les knock-outs RÉELLEMENT PRODUITS, parce qu'une
+ * garantie de type se contourne par un `as` et que celle-ci mérite les deux.
+ */
+test('AUCUN KNOCK-OUT N’ECARTE UNE PARCELLE SANS CITER SON FONDEMENT', () => {
+  const sansFondement: string[] = [];
+  let observes = 0;
+
+  for (const filiere of ['methanisation', 'eolien_terrestre', 'solaire_sol', 'bess', 'agrivoltaisme'] as const) {
+    for (const declencheur of declencheurs()) {
+      const s = snapshot();
+      declencheur(s);
+      for (const k of calculerScore(s, filiere).knockOuts) {
+        observes += 1;
+        if (!k.derogeable && !k.regleLiee) sansFondement.push(`${filiere}/${k.id}`);
+      }
+    }
+  }
+
+  /*
+   * UN TEST QUI N'OBSERVE RIEN NE GARDE RIEN. Si les déclencheurs cessaient de déclencher — un
+   * champ renommé, un seuil déplacé — la boucle passerait à vide et ce garde deviendrait décoratif
+   * sans que rien ne le dise.
+   */
+  assert.ok(observes >= 5, `aucun knock-out déclenché (${observes}) : les déclencheurs ne déclenchent plus`);
+  assert.deepEqual(
+    [...new Set(sansFondement)],
+    [],
+    'un knock-out qui écarte définitivement doit dire de quel droit — sinon il plafonne à orange',
+  );
+});
+
+/** Situations qui déclenchent des knock-outs de familles différentes. */
+function declencheurs(): Array<(s: ParcelleSnapshot) => void> {
+  return [
+    (s) => {
+      s.raccordement.posteLePlusProche = {
+        id: 'X',
+        nom: 'POSTE SATURE',
+        gestionnaire: 'RTE',
+        tension: 'HTA',
+        distanceKm: 5,
+        capaciteResiduelleMw: 0,
+        etatSaturation: 'sature',
+        fileAttenteMw: null,
+        quotePartEurParKw: null,
+        renforcement: { prevu: false, horizon: null, capaciteAttendueMw: null },
+        enProjet: false,
+      };
+      s.raccordement.postesAlternatifs = [];
+    },
+    // Habitation trop proche : le recul reglementaire devient inatteignable, quelle que soit la
+    // surface. C'est le knock-out le plus lourd de l'eolien et de la methanisation.
+    (s) => {
+      s.bati.distanceHabitationM = 10;
+      s.identite.contenanceM2 = 5000;
+    },
+    (s) => {
+      s.risques.servitudesAeronautiques = true;
+    },
+    (s) => {
+      s.patrimoine.siteClasse.recouvre = true;
+    },
+    (s) => {
+      s.bati.distanceZoneHabitatM = 50;
+    },
+  ];
+}
