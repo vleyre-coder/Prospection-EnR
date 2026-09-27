@@ -12,8 +12,8 @@ d'un audit précédent sans avoir été remesuré — c'est la leçon de l'audit
 étaient devenues fausses sans que rien ne le signale.
 
 Le **27/09** a été consacré à la méthanisation, la filière que le 26/09 avait désignée comme la moins
-instruite du catalogue. Les sections 3, 4 et 5 portent la marque **[27/09]** là où elles ont été
-remesurées ce jour-là.
+instruite du catalogue. La section **2.7** et le **score (§6)** lui sont entièrement consacrés ; les
+sections 3, 4, 5 et 7 portent la marque **[27/09]** là où elles ont été remesurées ce jour-là.
 
 ---
 
@@ -270,8 +270,70 @@ marquées `aValiderParJuriste`, 128 articles à confronter à Légifrance — **
 
 ## 6. Score
 
-**76 / 100** pour l'usage demandé : prospecter aujourd'hui et proposer à des développeurs des projets
-fiables. Le détail et le raisonnement sont dans la réponse qui accompagne ce document.
+**26/09 : 76 / 100. 27/09 : 78 / 100**, pour l'usage demandé — prospecter aujourd'hui et proposer à
+des développeurs des projets *fiables*.
+
+### Ce qui porte la note
+
+| | |
+| --- | --- |
+| **Quatre filières sur cinq classent et discriminent** | solaire au sol, agrivoltaïsme, stockage, éolien terrestre |
+| **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
+| **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
+| **La vérification est sérieuse** | 1 178 tests hors base, 336 motifs de mutation tous attrapés, bout en bout au navigateur |
+
+### Ce qui l'empêche de monter
+
+| | |
+| --- | --- |
+| **La méthanisation ne classe pas** | 37,6 % de son poids reste non instruit. Les verdicts sont honnêtes — gris, pas verts — mais on ne peut pas en tirer un classement. **Une filière sur cinq est hors d'usage pour le tri** — voir juste en dessous ce qui l'en sépare. |
+| **Géorisques est injoignable d'ici** | six critères de risque gris, et 46 secondes par parcelle passées à attendre un hôte muet. Ce n'est pas un défaut de l'application, mais l'exploitant le subit quand même |
+| **Les données de propriété ne sont pas publiques** | structurel : demande encadrée auprès de la publicité foncière |
+| **La relecture juridique reste à faire** | 128 articles à confronter, 28 règles marquées à valider |
+
+### Ce qui sépare la méthanisation d'un classement utilisable : un seul point d'entrée
+
+La mesure mérite d'être posée exactement, parce qu'elle change ce qu'il y a à faire.
+
+Le gris d'une filière se décide sur la couverture du **mesurable** — les critères sans source en
+sont exclus, puisqu'ils manquent identiquement à toutes les parcelles et ne discriminent rien. Le
+seuil est de **80 %**. Mesuré sur les parcelles reprises : **77,5 %**. Il manque 2,5 points.
+
+Ce qui manque au dénominateur se décompose ainsi :
+
+| Critère gris | Poids | Nature |
+| --- | --- | --- |
+| `dist_captage` | 5,50 % | indisponible — **compte** dans le dénominateur |
+| `dist_eau` | 5,50 % | indisponible — **compte** |
+| `risq_inondation` | 3,67 % | indisponible — **compte** (PPRI, Géorisques) |
+| `gis_intrants` | 16,51 % | sans source — exclu |
+| `racc_distance_reseau_gaz` | 11,01 % | sans source — exclu |
+| `risq_karst` | 4,59 % | sans source — exclu |
+| `fonc_nb_proprietaires` | 2,75 % | sans source — exclu |
+
+**Retrouver `risq_inondation` seul fait passer la couverture de 77,5 % à 83,1 %** — au-dessus du
+seuil — et la méthanisation redevient classable. C'est **un point d'entrée Géorisques**, pas une
+ingestion à écrire. Et ce n'est pas une hypothèse : ce critère était **renseigné sur 100 % des
+parcelles qualifiées avant que Géorisques ne devienne injoignable**, et gris sur 100 % de celles
+reprises depuis. Le basculement se lit directement dans la base. Les 16,5 % du gisement d'intrants, eux, sont hors du dénominateur : ils
+plafonnent le statut à orange, ce qui est voulu, mais **ils n'empêchent pas le classement**.
+
+Autrement dit : la méthanisation n'est pas bloquée par ce qui lui manque le plus lourdement, mais
+par trois critères moyens dont un seul suffirait. Sur un poste où Géorisques répond, la filière
+sort du gris **sans une ligne de code de plus**.
+
+### Pourquoi +2 et pas +5
+
+Le débouché d'épandage réglé, c'est **7,3 points sur les 45,0** qui manquaient à la méthanisation.
+Le reste — 37,6 % — ne demande pas d'écrire du code : le connecteur et l'agrégation sont déjà
+écrits et testés, **il manque un accès réseau** (§4.1). Un audit qui compterait cela comme réglé
+parce que « la mécanique est prête » se raconterait une histoire.
+
+Le reste du gain n'est pas visible dans une couverture : **trois faux comptes ont été retirés avant
+d'atteindre la production** (§2.7), et un quatrième n'a pas été livré faute d'être vérifiable (§4.1).
+Aucun des trois n'aurait produit d'erreur ni de ligne de journal — ils auraient produit des nombres
+crédibles. C'est exactement le genre de défaut qui fait qu'un développeur cesse de croire un outil,
+et ils comptent dans la note même s'ils ne se voient nulle part.
 
 ---
 

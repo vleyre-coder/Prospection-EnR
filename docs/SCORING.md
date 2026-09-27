@@ -144,8 +144,14 @@ Le compter comme non renseigné fait chuter la couverture de la même quantité 
 ne discrimine rien, et peut faire passer une filière entière sous le seuil. C'est exactement
 ce qui est arrivé à la méthanisation — `gis_intrants` (16,5 %) et `gis_debouche_epandage`
 (7,3 %) dépendent de couches d'élevages, d'industries agroalimentaires et de surfaces
-agricoles qui ne sont ingérées nulle part, soit 23,8 % du poids. La couverture plafonnait à
-76 %, sous le seuil de 80 % : **toute parcelle, partout en France, ressortait grise.**
+agricoles, soit 23,8 % du poids. Aucune n'était ingérée : la couverture plafonnait à 76 %,
+sous le seuil de 80 %, et **toute parcelle, partout en France, ressortait grise.**
+
+**Depuis l'audit 14, une des trois est ingérée** : les surfaces agricoles communales, tirées du
+RPG national (voir `SOURCES_DONNEES.md` §2.8). `gis_debouche_epandage` est donc devenu un critère
+ordinaire — il ne dépend que de cette couche-là, le connecteur distinguant l'état de chacune.
+`gis_intrants` reste sans source : son total n'est calculé que si les **trois** couches sont là,
+car un total partiel serait une borne inférieure présentée comme une estimation.
 
 Un tel critère est donc :
 
@@ -242,7 +248,16 @@ coûte cher à maîtriser. L'optimum est de 1 à 3 ha.
 ### 4.4 Méthanisation
 
 Deux critères rois : la **densité d'intrants** et le **débouché** (injection ou épandage).
-L'un et l'autre dépendent de couches locales ; en leur absence, ils sont gris.
+
+- La **densité d'intrants** (16,5 %) compte les élevages et les surfaces agricoles à moins de
+  10 km, les industries agroalimentaires à moins de 20 km. Elle reste grise tant que les couches
+  ICPE ne sont pas ingérées.
+- Le **débouché d'épandage** (7,3 %) somme les surfaces agricoles déclarées à moins de 10 km. Il
+  est renseigné là où le RPG est ingéré — **et seulement si tout le disque de 10 km l'est** :
+  sommer un département et pas son voisin rendrait un total crédible et faux, ce qui est pire
+  qu'un gris.
+- Le **débouché par injection** (11 %) attend le tracé des canalisations de gaz, qu'aucune source
+  nationale joignable ne publie à ce jour.
 
 Au-delà de 8 km du réseau gaz, l'injection devient difficile à financer même avec le droit à
 l'injection : la fiche invite alors à étudier la cogénération.
