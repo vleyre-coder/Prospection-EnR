@@ -51,7 +51,7 @@ n'était écrite : pour le moteur, la couche n'existait pas.
 | Tests hors base | **1 179 / 1 179** |
 | Tests exigeant une base | **166 / 166** (4 ignorés : migrations destructives) |
 | Bout en bout (navigateur réel) | **27 / 27**, 2 ignorés |
-| Motifs de mutation | **337 déclarés**, tous applicables au code courant |
+| Motifs de mutation | **337 déclarés**, tous applicables ; campagne complète **328 / 328 attrapés, 0 survivant** (les 9 restants exigent un navigateur, joués à part) |
 | Chaîne complète × filières | **30 / 30 en HTTP 200** — recherche, fiche PDF, fiche `.eml`, dossier de site, cahier des charges, CSV, pour chacune des cinq |
 | Cahiers des charges | 5 / 5, et **réellement distincts** par filière |
 
@@ -291,7 +291,7 @@ des développeurs des projets *fiables*.
 | **Une quatrième tranche, sans classer** | l'éolien écarte 241 parcelles sur 301 par knock-out. C'est utile — cela dit où ne pas aller — mais ce n'est pas un classement |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | 1 179 tests hors base, 166 avec base, 27/27 au navigateur, 337 motifs de mutation, 30/30 sur la chaîne complète des cinq filières |
+| **La vérification est sérieuse** | 1 179 tests hors base, 166 avec base, 27/27 au navigateur, **328/328 mutations attrapées sans un survivant**, 30/30 sur la chaîne complète des cinq filières |
 
 ### Ce qui l'empêche de monter
 
