@@ -265,7 +265,31 @@ describe('moteur de scoring', () => {
     assert.equal(r.regimeImplantation, 'pv_sol_document_cadre');
   });
 
-  it('traite un poste sature avec renforcement comme derogeable (orange, pas rouge)', () => {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * UN POSTE SATURE PLAFONNE, IL N'EXCLUT PAS — ET CE TEST A CHANGE D'AVIS LE 28/09/2026
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * CE QU'IL EXIGEAIT AVANT : sans renforcement programme, statut ROUGE et score ANNULE, donc la
+   * parcelle sortait des listes et des sites. Mesure du 28/09 : cela frappait **100 parcelles sur
+   * 301, dans les cinq filieres**, soit cinq cents verdicts.
+   *
+   * POURQUOI CE N'ETAIT PAS SOUTENABLE. Ce knock-out etait le seul non derogeable a ne citer
+   * AUCUN article — tous les autres portent leur fondement (L.515-44, R.411-15, L.341-10), et le
+   * referentiel ne contient aucune regle sur la saturation parce qu'il n'en existe pas : un poste
+   * sature n'est pas une servitude et ne s'oppose a personne. La source elle-meme refuse
+   * d'engager — « capacites indicatives et NON ENGAGEANTES, evolutives au fil des demandes » — et
+   * le motif se contredisait, ecartant la parcelle tout en ecrivant qu'un poste alternatif pouvait
+   * etre etudie. Sur la parcelle 280290000Z0399, deux postes raccordables figuraient dans
+   * l'instantane pendant qu'elle etait ecartee.
+   *
+   * CE QUE CE TEST GARDE MAINTENANT, et les deux moities comptent autant :
+   *   - la parcelle CONSERVE son score et son rang, avec ou sans renforcement ;
+   *   - le knock-out RESTE POSE et plafonne a orange. Le supprimer ferait disparaitre de la fiche
+   *     le premier obstacle pratique d'un projet ENR ; c'est la derive inverse, et elle serait
+   *     bien pire.
+   */
+  it('un poste sature plafonne a orange et ne supprime jamais le score', () => {
     const avecRenfort = calculerScore(
       parcelleType((p) => {
         p.raccordement.posteLePlusProche!.etatSaturation = 'sature';
@@ -285,8 +309,89 @@ describe('moteur de scoring', () => {
       }),
       'bess',
     );
-    assert.equal(sansRenfort.statut, 'rouge');
-    assert.equal(sansRenfort.scoreGlobal, null);
+    /*
+     * SANS RENFORCEMENT NON PLUS la parcelle n'est ecartee : l'obstacle est economique et
+     * calendaire, pas juridique. L'arbitrage revient au prospecteur, qui connait le calendrier du
+     * projet et l'appetence du developpeur pour une quote-part.
+     */
+    assert.equal(sansRenfort.statut, 'orange');
+    assert.ok(
+      sansRenfort.scoreGlobal != null,
+      'le score doit survivre : sans lui, la parcelle disparait des listes et des sites',
+    );
+    const k = sansRenfort.knockOuts.find((x) => x.id === 'ko_poste_sature');
+    assert.ok(k, 'le knock-out doit rester pose : c’est le premier obstacle pratique d’un projet');
+    assert.equal(k.derogeable, true);
+    /*
+     * ET IL DOIT DIRE QU'IL N'ENGAGE PAS. Une exclusion fondee sur un indicateur non engageant
+     * serait une faute ; l'afficher sans cette reserve en serait une autre.
+     */
+    assert.match(k.motif, /non engageantes/i);
+  });
+
+  it('le motif nomme le poste raccordable le plus proche, avec sa capacite et sa distance', () => {
+    /*
+     * « Un poste alternatif peut etre etudie » n'aide personne. Un nom, une capacite et une
+     * distance se verifient et s'appellent — et c'est precisement ce qui manquait pour que le
+     * prospecteur puisse trancher lui-meme.
+     */
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.raccordement.posteLePlusProche!.etatSaturation = 'sature';
+        p.raccordement.posteLePlusProche!.capaciteResiduelleMw = 0;
+        p.raccordement.postesAlternatifs = [
+          {
+            id: 'LOIN',
+            nom: 'POSTE LOINTAIN',
+            gestionnaire: 'Enedis',
+            tension: 'HTA',
+            distanceKm: 18,
+            capaciteResiduelleMw: 40,
+            etatSaturation: 'disponible',
+            fileAttenteMw: null,
+            quotePartEurParKw: null,
+            renforcement: { prevu: false, horizon: null, capaciteAttendueMw: null },
+            enProjet: false,
+          },
+          {
+            id: 'PRES',
+            nom: 'ORGERES',
+            gestionnaire: 'Enedis',
+            tension: 'HTA',
+            distanceKm: 9.3,
+            capaciteResiduelleMw: 1.5,
+            etatSaturation: 'disponible',
+            fileAttenteMw: null,
+            quotePartEurParKw: null,
+            renforcement: { prevu: false, horizon: null, capaciteAttendueMw: null },
+            enProjet: false,
+          },
+        ];
+      }),
+      'bess',
+    );
+    const k = r.knockOuts.find((x) => x.id === 'ko_poste_sature');
+    assert.ok(k);
+    assert.match(k.motif, /ORGERES/, 'le plus PROCHE des raccordables, pas le mieux dote');
+    assert.ok(!/POSTE LOINTAIN/.test(k.motif));
+  });
+
+  it('sans alternative raccordable, le motif le dit au lieu de laisser croire', () => {
+    /*
+     * LE CONTRE-EXEMPLE INDISPENSABLE. Un motif qui promettrait toujours une alternative serait
+     * pire que l'ancien : il enverrait le prospecteur chercher un poste qui n'existe pas.
+     */
+    const r = calculerScore(
+      parcelleType((p) => {
+        p.raccordement.posteLePlusProche!.etatSaturation = 'sature';
+        p.raccordement.posteLePlusProche!.capaciteResiduelleMw = 0;
+        p.raccordement.postesAlternatifs = [];
+      }),
+      'bess',
+    );
+    const k = r.knockOuts.find((x) => x.id === 'ko_poste_sature');
+    assert.ok(k);
+    assert.match(k.motif, /aucun poste alternatif/i);
   });
 
   it('passe en gris lorsque la couverture de donnees est insuffisante', () => {

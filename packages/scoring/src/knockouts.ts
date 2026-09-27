@@ -217,21 +217,88 @@ const koZonageIncompatible: RegleKo = (s, ctx) => {
   return null;
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * POSTE SOURCE SATURE — UN OBSTACLE MAJEUR, ET JAMAIS UNE INTERDICTION
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE KNOCK-OUT ECARTAIT DEFINITIVEMENT LA PARCELLE — statut rouge, score annule, sortie des listes
+ * et des sites — sauf si un renforcement etait programme. Mesure du 28/09/2026 : il se declenchait
+ * sur **100 parcelles sur 301, dans les CINQ filieres**, soit cinq cents verdicts.
+ *
+ * CE N'EST PAS UNE LECTURE JURIDIQUEMENT SOUTENABLE, et quatre choses le montrent :
+ *
+ *   1. AUCUN ARTICLE NE L'ADOSSE. Ce knock-out est le seul non derogeable a porter
+ *      `regleLiee: null`. Tous les autres citent leur fondement — L.515-44 pour les 500 m de
+ *      l'eolien, R.411-15 pour l'arrete de biotope, L.341-10 pour le site classe. Le referentiel
+ *      ne contient aucune regle sur la saturation, parce qu'il n'en existe aucune : la saturation
+ *      d'un poste n'est pas une servitude, elle ne s'oppose a personne.
+ *   2. LA SOURCE ELLE-MEME REFUSE D'ENGAGER. L'avertissement du connecteur Capareseau, affiche
+ *      dans la fiche, dit : « Capacites indicatives et NON ENGAGEANTES, evolutives au fil des
+ *      demandes de raccordement. Seule une etude de raccordement puis une proposition technique et
+ *      financiere du gestionnaire engagent une capacite. » Fonder une exclusion definitive sur un
+ *      indicateur que l'application declare non engageant est contradictoire.
+ *   3. LE MOTIF SE CONTREDISAIT LUI-MEME : il ecartait la parcelle tout en ecrivant « un poste
+ *      alternatif plus eloigne peut etre etudie ».
+ *   4. LES ALTERNATIVES EXISTENT DANS LA DONNEE. Sur la parcelle 280290000Z0399, DAMBRON est
+ *      sature a 6,75 km — mais ORGERES porte 1,5 MW a 9,28 km et TIVERNON 1,1 MW a 9,7 km. La
+ *      parcelle etait ecartee alors que deux postes raccordables figuraient dans son instantane.
+ *
+ * CE QUI CHANGE, ET CE QUI NE CHANGE PAS. Le knock-out reste — la saturation du poste le plus
+ * proche est le premier obstacle pratique d'un projet, et elle doit se voir dans la fiche, dans le
+ * dossier et dans la liste. Il devient DEROGEABLE : la parcelle conserve son score et son rang, et
+ * reste plafonnee a orange, donc jamais declaree propice. L'arbitrage revient au prospecteur, qui
+ * dispose du calendrier du projet et de l'appetence du developpeur pour une quote-part — deux
+ * choses que l'application ne connait pas.
+ *
+ * ET LE MOTIF NOMME DESORMAIS L'ALTERNATIVE quand il en existe une : sa distance et sa capacite.
+ * « Un poste alternatif peut etre etudie » n'aide personne ; « ORGERES, 1,5 MW a 9,3 km » se
+ * verifie et s'appelle.
+ */
 const koPosteSature: RegleKo = (s) => {
   const p = s.raccordement.posteLePlusProche;
   if (!p) return null;
   const sature = p.etatSaturation === 'sature' || (p.capaciteResiduelleMw != null && p.capaciteResiduelleMw <= 0);
   if (!sature) return null;
+
   const renfort = p.renforcement.prevu === true;
+  /*
+   * Le poste raccordable le plus proche parmi les alternatifs : capacite residuelle strictement
+   * positive et non sature. A egalite de distance, l'identifiant departage — meme ordre total que
+   * le moteur et le filtre de recherche, sans quoi la fiche et la liste pourraient retenir chacune
+   * le sien.
+   */
+  const alternatif = s.raccordement.postesAlternatifs
+    .filter((a) => a.capaciteResiduelleMw != null && a.capaciteResiduelleMw > 0 && a.etatSaturation !== 'sature')
+    .reduce<(typeof s.raccordement.postesAlternatifs)[number] | null>(
+      (meilleur, a) =>
+        meilleur == null ||
+        a.distanceKm < meilleur.distanceKm ||
+        (a.distanceKm === meilleur.distanceKm && a.id < meilleur.id)
+          ? a
+          : meilleur,
+      null,
+    );
+
+  const suite = renfort
+    ? `, mais un renforcement est inscrit au S3REnR${p.renforcement.horizon ? ` à l'horizon ${p.renforcement.horizon}` : ''}${p.renforcement.capaciteAttendueMw != null ? ` (+${formatNombre(p.renforcement.capaciteAttendueMw, 'MW')})` : ''}. La parcelle reste intéressante si le calendrier du projet s'aligne sur celui du renforcement.`
+    : ` et aucun renforcement n'est inscrit au S3REnR.`;
+  const recours = alternatif
+    ? ` Poste raccordable le plus proche : ${alternatif.nom}, ${formatNombre(alternatif.capaciteResiduelleMw ?? 0, 'MW')} disponibles à ${formatNombre(alternatif.distanceKm, 'km')} — le linéaire supplémentaire et la quote-part sont à chiffrer.`
+    : ` Aucun poste alternatif porteur de capacité dans l'instantané : le raccordement est à instruire avec le gestionnaire avant tout engagement.`;
+
   return ko(
     'ko_poste_sature',
     'Poste source saturé',
-    renfort
-      ? `Le poste source ${p.nom} est saturé, mais un renforcement est inscrit au S3REnR${p.renforcement.horizon ? ` à l'horizon ${p.renforcement.horizon}` : ''}${p.renforcement.capaciteAttendueMw != null ? ` (+${formatNombre(p.renforcement.capaciteAttendueMw, 'MW')})` : ''}. La parcelle reste intéressante si le calendrier du projet s'aligne sur celui du renforcement.`
-      : `Le poste source ${p.nom} est saturé et aucun renforcement n'est programmé au S3REnR. Sans perspective de capacité à l'horizon du projet, le raccordement est bloquant. Un poste alternatif plus éloigné peut être étudié.`,
+    `Le poste source ${p.nom} est saturé${suite}${recours} Les capacités de Capareseau sont indicatives et non engageantes : seule une étude de raccordement, puis une proposition technique et financière du gestionnaire, engagent une capacité.`,
     'raccordement',
     null,
-    renfort,
+    /*
+     * TOUJOURS DEROGEABLE. La saturation n'est adossee a aucun article, et la source se declare
+     * elle-meme non engageante : elle ne peut pas fonder une exclusion definitive. Elle plafonne le
+     * statut a orange, ce qui est la severite juste — un obstacle majeur, pas une interdiction.
+     */
+    true,
   );
 };
 

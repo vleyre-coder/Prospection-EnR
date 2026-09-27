@@ -45,6 +45,19 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.7.0 : trois changements de VERDICT, et c'est la seule version de cette serie a en porter.
+ *
+ *   - Un poste source sature ne supprime plus le score : le knock-out devient DEROGEABLE, donc
+ *     plafonne a orange au lieu d'ecarter. Il etait le seul knock-out non derogeable a ne citer
+ *     aucun article, et la source dont il depend se declare elle-meme non engageante. Mesure :
+ *     100 parcelles sur 301 etaient ecartees dans les cinq filieres.
+ *   - « Aucun objet dans le rayon interroge » devient une borne notee au lieu d'un gris :
+ *     `dist_eau` et `dist_captage` passent de non renseignes a renseignes sur la quasi-totalite du
+ *     parc.
+ *   - `env_especes_protegees` et `fonc_maitrise` sortent du denominateur de couverture : la donnee
+ *     n'est exposee par aucune source nationale, et les compter comme indisponibles faisait chuter
+ *     la couverture partout en France pour un manque que nul ne peut combler.
+ *
  * 1.6.0 : les trois textes qui annoncaient un « rayon de 15 km » pour le gisement d'intrants
  *   disaient faux. Le code compte les elevages et les surfaces agricoles a 10 km, les industries
  *   agroalimentaires a 20 km — mesure sur le code, pas suppose.
@@ -78,7 +91,7 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.6.0';
+export const VERSION_CODE_MOTEUR = '1.7.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.

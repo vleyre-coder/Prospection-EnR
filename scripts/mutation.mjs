@@ -4717,6 +4717,38 @@ const MUTATIONS = [
     tests: ['test/hors-portee-des-sources.test.ts'],
     commande: ['node', '--test', '--experimental-strip-types', 'test/hors-portee-des-sources.test.ts'],
   },
+  {
+    audit: 'audit 15 (poste sature)',
+    /*
+     * LE POSTE SATURE REDEVIENT UNE EXCLUSION DEFINITIVE. Mesure du 28/09/2026 : cela ecartait
+     * 100 parcelles sur 301 dans les CINQ filieres, soit cinq cents verdicts — sur un knock-out
+     * qui ne cite aucun article, alors que tous les autres non derogeables portent leur fondement,
+     * et dont la source se declare elle-meme « non engageante ».
+     */
+    quoi: 'un poste sature redevient une exclusion definitive au lieu d’un plafond',
+    fichier: 'packages/scoring/src/knockouts.ts',
+    de: "    `Le poste source ${p.nom} est saturé${suite}${recours} Les capacités de Capareseau sont indicatives et non engageantes : seule une étude de raccordement, puis une proposition technique et financière du gestionnaire, engagent une capacité.`,\n    'raccordement',\n    null,",
+    vers: "    `Le poste source ${p.nom} est saturé${suite}${recours}`,\n    'raccordement',\n    null,\n    // mutation : exclusion definitive\n    false ||",
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/moteur.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/moteur.test.ts'],
+  },
+  {
+    audit: 'audit 15 (poste sature)',
+    /*
+     * LE MOTIF PROMET UNE ALTERNATIVE QUI N'EXISTE PAS. Pire que l'ancien texte : il enverrait le
+     * prospecteur chercher un poste absent de l'instantane.
+     */
+    quoi: 'le motif promet une alternative meme quand il n’y en a aucune',
+    fichier: 'packages/scoring/src/knockouts.ts',
+    de: "    : ` Aucun poste alternatif porteur de capacité dans l'instantané",
+    vers: "    : ` Un poste alternatif peut être étudié. (ancien texte)`; const _inutilise = ` Aucun poste alternatif porteur de capacité dans l'instantané",
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/moteur.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/moteur.test.ts'],
+  },
 ];
 
 /**
