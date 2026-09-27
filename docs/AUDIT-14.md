@@ -128,6 +128,34 @@ identifiants de jeux » — parfaitement valides. Le bilan nomme désormais la v
 inventé : déduire la position d'un site du centroïde de sa commune aurait rempli la colonne d'une
 erreur de plusieurs kilomètres, présentée comme une mesure.
 
+### 2.7 [27/09] Trois faux comptes, trouvés en écrivant une ingestion qui somme
+
+Ils méritent d'être racontés ensemble, parce qu'ils ont la même forme et qu'aucun des trois n'aurait
+levé d'erreur. **Toutes les ingestions de ce dépôt écrivent un objet par ligne sous une clé ; celle du
+RPG *somme* des hectares par commune. Une écriture par clé est idempotente, une somme ne l'est pas** —
+et tous les mécanismes de sûreté existants supposaient la première.
+
+1. **Le connecteur ne savait que « cette couche existe-t-elle quelque part ? »**, ce qui suffisait tant
+   qu'aucune des trois couches d'intrants n'était alimentée. Dès le premier département chargé, la
+   question devient fausse : une parcelle du 28 à trois kilomètres du 45 aurait sommé les seules
+   communes du 28 et présenté le résultat comme le potentiel de son rayon de 10 km. Il passe
+   désormais par `disqueEntierementCouvert`, couche par couche et rayon par rayon.
+2. **L'emprise rectangulaire d'un département déborde sur ses voisins** — 39 % des objets téléchargés
+   pour le 28. Les rattacher à leur vraie commune paraissait généreux ; c'était un sous-compte, la
+   commune voisine à cheval sur le bord n'étant lue qu'en partie.
+3. **Une page WFS rejouée après une coupure de flux recomptait ses objets.** Coupure observée à la
+   septième page du Loiret : 3 484 objets déjà émis, puis la page rejouée entière. Le dédoublonnage
+   se fait sur `iup`, l'identifiant unique de la parcelle au RPG.
+
+**Aucun des trois ne se voyait dans un journal. Le contrôle qui les a pris est physique** : une
+commune ne peut pas porter plus d'hectares agricoles qu'elle n'a d'hectares. Le Loiret affichait
+**67 % de sa superficie** en surface agricole déclarée, pour une réalité voisine de 55 %. Après
+correction, sur les 1 123 communes des quatre départements, **deux dépassent leur superficie, de 1 et
+2 %** — la borne de l'approximation par centroïde. La requête est en §7.
+
+Le même raisonnement a conduit à **ne pas** livrer une quatrième chose (§4.1, corridors gaz) : une
+inférence géométriquement exacte, mais dont les deux jeux de données ne concordaient pas.
+
 ---
 
 ## 3. Ce qui a été ingéré, et ce que cela change
