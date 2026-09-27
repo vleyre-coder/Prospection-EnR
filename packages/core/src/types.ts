@@ -426,11 +426,50 @@ export interface Eau {
   zoneHumide: 'oui' | 'non' | 'a_confirmer' | null;
   /** Distance au cours d'eau le plus proche, en m. */
   distanceCoursEauM: number | null;
+  /**
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * RIEN TROUVE DANS UN RAYON INTERROGE EXHAUSTIVEMENT : LE RAYON EN QUESTION, EN METRES.
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `null` DES QUE `distanceCoursEauM` VAUT QUELQUE CHOSE : les deux champs ne sont jamais
+   * renseignes ensemble. L'un porte une mesure, l'autre une BORNE INFERIEURE demontree.
+   *
+   * POURQUOI CE CHAMP EXISTE. Mesure du 28/09/2026 sur les 301 parcelles : `distanceCoursEauM`
+   * etait renseigne sur DEUX d'entre elles. Le connecteur BD TOPO n'etait pourtant jamais en echec
+   * — il interrogeait bien la couche des cours d'eau dans un rayon de 1 000 m, et n'en trouvait
+   * aucun. En Beauce, plateau de craie, c'est le cas general et c'est un FAIT de terrain.
+   *
+   * Or ce fait etait rendu comme une ignorance : le connecteur retournait `null`, le critere passait
+   * gris, et 5,5 % du poids de la methanisation disparaissait du calcul sur 99 % du parc — pour une
+   * parcelle dont on savait qu'aucun cours d'eau ne coule a moins d'un kilometre, c'est-a-dire la
+   * situation la plus favorable que le critere puisse noter.
+   *
+   * « Aucun objet dans un rayon exhaustivement interroge » est une MESURE, pas une absence de
+   * donnee. Ce qu'on ignore alors, c'est la distance exacte ; ce qu'on sait, c'est qu'elle depasse
+   * le rayon. La distinguer d'un `null` permet de noter ce qui est demontre sans jamais affirmer
+   * plus : la fiche ecrit « au-dela de 1 000 m », et non « 1 000 m ».
+   *
+   * DEUX CONDITIONS, sans lesquelles ce champ mentirait : la requete doit avoir ABOUTI (un echec
+   * reseau laisse les deux champs nuls), et la couche doit etre nationalement complete pour l'objet
+   * cherche. La BD TOPO l'est pour les cours d'eau ; une couche ingeree departement par departement
+   * ne le serait pas, et ce champ ne doit pas etre utilise pour elle.
+   */
+  coursEauAuDelaDeM: number | null;
   /** Perimetre de protection de captage AEP. */
   captageAep: {
     dansPerimetre: boolean | null;
     type: 'immediat' | 'rapproche' | 'eloigne' | null;
     distanceM: number | null;
+    /**
+     * Meme regle que `coursEauAuDelaDeM` : rayon interroge sans trouver de perimetre de captage.
+     *
+     * La condition supplementaire tient a la SOURCE. Le GPU ne publie que les servitudes
+     * effectivement televersees : l'absence d'AS1 peut signifier « aucun captage ici » comme
+     * « rien n'a ete televerse pour ce secteur ». La borne n'est donc posee que si le GPU a rendu
+     * AU MOINS UNE servitude pour l'emprise — preuve que le secteur est renseigne — ce qui est
+     * deja la convention retenue pour les servitudes aeronautiques et radioelectriques.
+     */
+    auDelaDeM: number | null;
   };
   /** Zone inondable / PPRI. */
   inondation: {

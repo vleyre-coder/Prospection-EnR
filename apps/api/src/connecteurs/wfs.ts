@@ -339,7 +339,9 @@ export async function acces(
 // Hydrographie : seuil de 35 m pour la methanisation
 // ---------------------------------------------------------------------------
 
-export async function distanceCoursEau(parcelle: GeoJsonGeometry): Promise<number | null> {
+export async function distanceCoursEau(
+  parcelle: GeoJsonGeometry,
+): Promise<{ distanceM: number | null; auDelaDeM: number | null }> {
   try {
     // Le seuil reglementaire structurant est de 35 m (methanisation) : un repli sur 200 m
     // reste largement suffisant pour le trancher.
@@ -350,12 +352,31 @@ export async function distanceCoursEau(parcelle: GeoJsonGeometry): Promise<numbe
       [1000, 200],
       COUNT_MAX_WFS,
     );
-    if (!r) return null;
+    // Requete en echec : on ne sait rien, ni la distance ni une borne.
+    if (!r) return { distanceM: null, auDelaDeM: null };
     const geoms = r.fc.features.map((f) => f.geometry as GeoJsonGeometry).filter(Boolean);
-    if (geoms.length === 0) return null;
-    return distanceDemontree(distanceMinEntreGeometries(parcelle, geoms), r.rayonCouvertM);
+    /**
+     * AUCUN COURS D'EAU DANS LE RAYON INTERROGE : C'EST UNE MESURE, PAS UNE IGNORANCE.
+     *
+     * Cette ligne rendait `null`, et le critere passait gris. Mesure du 28/09/2026 sur les 301
+     * parcelles : la distance n'etait renseignee que sur DEUX d'entre elles, alors que la BD TOPO
+     * n'etait jamais en echec. En Beauce, plateau de craie, l'absence de cours d'eau a moins d'un
+     * kilometre est le cas general — et c'est la situation la plus favorable que ce critere puisse
+     * noter, puisqu'il sature a 300 m.
+     *
+     * La requete a abouti et la couche est nationalement complete : la distance DEPASSE donc le
+     * rayon couvert. On rend cette borne, que l'appelant affichera « au-dela de X m » — jamais
+     * « X m », qui serait une mesure qu'on n'a pas faite.
+     */
+    if (geoms.length === 0) return { distanceM: null, auDelaDeM: r.rayonCouvertM };
+    const d = distanceDemontree(distanceMinEntreGeometries(parcelle, geoms), r.rayonCouvertM);
+    /*
+     * Des objets ont ete trouves, mais le plus proche est au-dela du rayon garanti exhaustif : la
+     * distance n'est pas demontree, la borne l'est.
+     */
+    return d == null ? { distanceM: null, auDelaDeM: r.rayonCouvertM } : { distanceM: d, auDelaDeM: null };
   } catch {
-    return null;
+    return { distanceM: null, auDelaDeM: null };
   }
 }
 

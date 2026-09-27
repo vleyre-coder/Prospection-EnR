@@ -241,9 +241,9 @@ export async function enrichirParcelle(parcelle: ParcelleBrute): Promise<Resulta
   } else {
     echecs.add('zones_humides');
   }
-  if (rCoursEau !== null) {
-    snapshot.eau.distanceCoursEauM = rCoursEau;
-  }
+  // Les deux champs sont exclusifs : une mesure, ou une borne inferieure demontree, jamais les deux.
+  snapshot.eau.distanceCoursEauM = rCoursEau.distanceM;
+  snapshot.eau.coursEauAuDelaDeM = rCoursEau.auDelaDeM;
 
   // --- Milieux naturels ----------------------------------------------------
   if (rMilieux) {

@@ -4622,6 +4622,101 @@ const MUTATIONS = [
     tests: ['test/intrants-disque.test.ts'],
     commande: ['tsx', '--test', '--test-concurrency=1', 'test/intrants-disque.test.ts'],
   },
+  {
+    audit: 'audit 15 (bornes demontrees)',
+    /*
+     * « RIEN DANS LE RAYON INTERROGE » REDEVIENT UNE IGNORANCE. Mesure du 28/09/2026 : la distance
+     * au cours d'eau n'etait renseignee que sur 2 parcelles sur 301, alors que la BD TOPO n'etait
+     * jamais en echec — en Beauce, plateau de craie, l'absence de cours d'eau a moins d'un
+     * kilometre est le cas general, et c'est la situation la PLUS FAVORABLE que le critere puisse
+     * noter. 5,5 % du poids de la methanisation disparaissaient du calcul sur 99 % du parc.
+     */
+    quoi: 'une absence constatee dans le rayon interroge redevient une donnee manquante',
+    fichier: 'apps/api/src/connecteurs/wfs.ts',
+    de: '    if (geoms.length === 0) return { distanceM: null, auDelaDeM: r.rayonCouvertM };',
+    vers: '    if (geoms.length === 0) return { distanceM: null, auDelaDeM: null };',
+    cwd: 'apps/api',
+    tests: ['test/cours-eau-borne.test.ts'],
+  },
+  {
+    audit: 'audit 15 (bornes demontrees)',
+    /*
+     * UNE REPONSE INCOMPLETE DEVIENT UN CONSTAT DE TERRAIN. Ce n'est pas le chemin de la panne —
+     * une requete en echec leve une exception et n'atteint jamais cette ligne. C'est celui de la
+     * TRONCATURE : le WFS repond, mais rend un echantillon sur les emprises denses. Conclure
+     * « aucun cours d'eau a moins d'un kilometre » sur un echantillon fabriquerait une absence
+     * constatee — et la troncature frappe precisement les secteurs denses, donc les plus
+     * susceptibles d'en porter un.
+     */
+    quoi: 'une reponse tronquee fabrique une borne, donc une absence constatee',
+    fichier: 'apps/api/src/connecteurs/wfs.ts',
+    de: '    if (!r) return { distanceM: null, auDelaDeM: null };',
+    vers: '    if (!r) return { distanceM: null, auDelaDeM: 1000 };',
+    cwd: 'apps/api',
+    tests: ['test/cours-eau-borne.test.ts'],
+  },
+  {
+    audit: 'audit 15 (bornes demontrees)',
+    /*
+     * UN SEUIL « AU PLUS » SE LAISSE SATISFAIRE PAR UNE BORNE. La distance reelle DEPASSE la borne,
+     * sans majorant connu : elle peut depasser le seuil demande. Un developpeur cherchant une
+     * parcelle PROCHE d'un cours d'eau recevrait precisement celles qui en sont le plus eloignees.
+     */
+    quoi: 'un seuil « au plus » se laisse satisfaire par une borne inferieure',
+    fichier: 'apps/api/src/services/recherche.ts',
+    de: "    const borne = sens === 'min' ? BORNE_INFERIEURE[chemin] : undefined;",
+    vers: '    const borne = BORNE_INFERIEURE[chemin];',
+    cwd: 'apps/api',
+    tests: ['test/seuil-borne-demontree.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/seuil-borne-demontree.test.ts'],
+  },
+  {
+    audit: 'audit 15 (bornes demontrees)',
+    /*
+     * LA BORNE EST AFFICHEE COMME UNE MESURE. Un rayon de recherche presente comme un releve, dans
+     * un document remis a un proprietaire : c'est le defaut que la correction pretend reparer,
+     * retourne.
+     */
+    quoi: 'la borne s’affiche comme une mesure, sans « au-dela de »',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '      valeurAffichee: `au-delà de ${formatDistance(auDelaDe)}`,',
+    vers: '      valeurAffichee: formatDistance(auDelaDe),',
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/borne-demontree.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/borne-demontree.test.ts'],
+  },
+  {
+    audit: 'audit 15 (bornes demontrees)',
+    /*
+     * LE CAPTAGE SUPPOSE DE NOUVEAU CINQ KILOMETRES faute de distance connue — c'est-a-dire qu'il
+     * note le mieux possible ce qu'il sait le moins. Ce qui est demontre est le rayon interroge.
+     */
+    quoi: 'le captage suppose 5 km au lieu de noter le rayon interroge',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '  const base = c.distanceM ?? c.auDelaDeM;',
+    vers: '  const base = c.distanceM ?? 5000;',
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/borne-demontree.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/borne-demontree.test.ts'],
+  },
+  {
+    audit: 'audit 15 (hors portee des sources)',
+    /*
+     * LE PLAFOND ORANGE TOMBE. Sortir un critere du denominateur fait monter la couverture ; si ce
+     * mouvement suffisait a lever le plafond, une correction d'honnetete deviendrait une
+     * complaisance — la parcelle passerait verte parce qu'on a cesse de compter ce qu'on ignore.
+     */
+    quoi: 'un critere hors de portee des sources ne plafonne plus le statut a orange',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: "    valeurAffichee: 'non évalué - aucune source nationale',\n    commentaire: `${quoi} n'est exposé par aucune source nationale",
+    vers: "    valeurAffichee: 'non évalué - aucune source nationale',\n    sansSource: false,\n    commentaire: `${quoi} n'est exposé par aucune source nationale",
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/hors-portee-des-sources.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/hors-portee-des-sources.test.ts'],
+  },
 ];
 
 /**

@@ -143,6 +143,18 @@ const EXCEPTIONS: ReadonlyArray<{ module: string; mot: string; raison: string }>
   { module: 'apps/web/src/App.tsx', mot: 'affiche', raison: "verbe : « l'avancement s'affiche en bas de la carte »" },
   { module: 'packages/core/src/bornes.ts', mot: 'acces', raison: 'chemin de champ `acces.distanceVoirieM`' },
   { module: 'packages/core/src/bornes.ts', mot: 'normalise', raison: 'verbe : « le calcul normalise dans [0, 360[ »' },
+  /*
+   * Trois verbes au present, homographes de participes passes introduits le 28/09 en decrivant les
+   * bornes demontrees (« exposé par aucune source », « publiées au GPU », « rayon interrogé »). La
+   * graphie nue est juste dans chacun de ces six emplois : « aucune API n'expose », « le GPU ne
+   * publie que », « le connecteur interroge ».
+   */
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'expose', raison: "verbe : « qu'aucune API nationale n'expose »" },
+  { module: 'packages/scoring/src/criteres-eval.ts', mot: 'publie', raison: 'verbe : « le GPU ne publie que les servitudes téléversées »' },
+  { module: 'packages/core/src/bornes.ts', mot: 'interroge', raison: 'verbe : « le connecteur interroge sept millésimes »' },
+  { module: 'apps/web/src/components/PanneauGauche.tsx', mot: 'interroge', raison: 'verbe : « qui interroge les services officiels en direct »' },
+  { module: 'apps/api/src/services/exports.ts', mot: 'expose', raison: "verbe : « L'API Géorisques expose la liste des zones »" },
+  { module: 'apps/api/src/connecteurs/base.ts', mot: 'expose', raison: "verbe : « qui n'expose que la dénomination »" },
   { module: 'packages/core/src/reglementation.ts', mot: 'norme', raison: 'le NOM norme (« conformite a une norme »), pas le participe « normé »' },
   { module: 'packages/scoring/src/criteres-eval.ts', mot: 'prive', raison: 'verbe priver : « prive le projet du portage politique »' },
   { module: 'packages/core/src/bornes.ts', mot: 'foret', raison: 'chemin de champ `occupationSol.foret.partBoisee`' },

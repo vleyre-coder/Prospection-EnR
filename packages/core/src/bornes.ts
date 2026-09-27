@@ -109,6 +109,24 @@ export const BORNES_SNAPSHOT: readonly BorneGrandeur[] = [
       'recensé. 100 km est une borne large qui ne rejette que l’absurde.',
   },
   {
+    chemin: 'eau.coursEauAuDelaDeM',
+    min: 0,
+    max: 100_000,
+    unite: 'm',
+    motif:
+      'Rayon interrogé sans trouver de cours d’eau. C’est un rayon de recherche, donc de l’ordre ' +
+      'du kilomètre ; la même borne large que la distance elle-même suffit à rejeter l’absurde.',
+  },
+  {
+    chemin: 'eau.captageAep.auDelaDeM',
+    min: 0,
+    max: 100_000,
+    unite: 'm',
+    motif:
+      'Rayon interrogé sans trouver de périmètre de protection de captage. Même nature et même ' +
+      'borne que ci-dessus.',
+  },
+  {
     chemin: 'eau.captageAep.distanceM',
     min: 0,
     max: 200_000,

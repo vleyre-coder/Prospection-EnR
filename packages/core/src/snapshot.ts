@@ -56,7 +56,8 @@ export function snapshotVide(identite: Identite, dateSnapshot = new Date().toISO
     eau: {
       zoneHumide: null,
       distanceCoursEauM: null,
-      captageAep: { dansPerimetre: null, type: null, distanceM: null },
+      coursEauAuDelaDeM: null,
+      captageAep: { dansPerimetre: null, type: null, distanceM: null, auDelaDeM: null },
       inondation: { zonagePpri: null, alea: null, dansTri: null },
       karst: null,
     },

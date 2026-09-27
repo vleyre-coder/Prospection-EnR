@@ -2109,7 +2109,17 @@ export function dossierSitePdf(
               : 'non renseignée',
           e.inondation.alea ?? 'non renseigné',
           e.inondation.dansTri == null ? 'non renseigné' : ouiNon(e.inondation.dansTri),
-          nb(e.distanceCoursEauM, 'm'),
+          /*
+           * UNE BORNE S'ECRIT COMME UNE BORNE. Quand la BD TOPO n'a rendu aucun cours d'eau dans le
+           * rayon interroge, ce qu'on sait est « au-dela de X m », pas « X m ». Imprimer le nombre
+           * seul presenterait un rayon de recherche comme un releve, dans un document remis a un
+           * proprietaire.
+           */
+          e.distanceCoursEauM != null
+            ? nb(e.distanceCoursEauM, 'm')
+            : e.coursEauAuDelaDeM != null
+              ? `au-delà de ${nb(e.coursEauAuDelaDeM, 'm')}`
+              : nb(null, 'm'),
           e.zoneHumide === 'a_confirmer' ? 'à confirmer' : (e.zoneHumide ?? 'non renseigné'),
         ],
         pastille: (ppri.present == null

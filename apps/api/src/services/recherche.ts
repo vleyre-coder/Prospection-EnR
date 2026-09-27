@@ -857,12 +857,13 @@ export async function filtrerParcelles(
      * LES GRANDEURS DE CAPARESEAU SE LISENT SUR LE POSTE QUI LES PORTE, pas sur le plus proche.
      * Voir `expressionSeuil` : lire `posteLePlusProche` ecartait 92 % du parc en silence.
      */
-    const lecture = expressionSeuil(s.chemin, params, segments);
     if (s.min != null) {
+      const lecture = expressionSeuil(s.chemin, params, segments, 'min');
       params.push(s.min);
       conditions.push(`${lecture} >= $${params.length}`);
     }
     if (s.max != null) {
+      const lecture = expressionSeuil(s.chemin, params, segments, 'max');
       params.push(s.max);
       conditions.push(`${lecture} <= $${params.length}`);
     }
@@ -1031,15 +1032,52 @@ export async function filtrerParcelles(
  * LE CHEMIN RESTE PASSE EN PARAMETRE et n'est jamais concatene : seule la FORME de la lecture
  * change, et elle est choisie parmi deux expressions ecrites ici, en dur.
  */
-function expressionSeuil(chemin: string, params: unknown[], segments: string[]): string {
+function expressionSeuil(
+  chemin: string,
+  params: unknown[],
+  segments: string[],
+  sens: 'min' | 'max',
+): string {
   const GRANDEURS_DE_POSTE = new Set([
     'raccordement.posteLePlusProche.capaciteResiduelleMw',
     'raccordement.posteLePlusProche.quotePartEurParKw',
   ]);
 
+  /**
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   * LES GRANDEURS QUI PEUVENT N'ETRE CONNUES QUE PAR UNE BORNE INFERIEURE
+   * ═════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Quand aucun objet n'est trouve dans un rayon interroge exhaustivement, le connecteur ne rend
+   * pas la distance mais le RAYON : « au-dela de 1 000 m » (voir `Eau.coursEauAuDelaDeM`). Mesure
+   * du 28/09/2026 : c'est le cas de 299 parcelles sur 301 pour les cours d'eau.
+   *
+   * SANS CE TRAITEMENT, LE FILTRE LES ECARTERAIT TOUTES EN SILENCE. Un developpeur ecrivant
+   * « au moins 35 m d'un cours d'eau » dans son cahier des charges recevrait deux parcelles sur
+   * trois cents — non pour un manque de recul, mais parce que le recul est si grand qu'il n'a pas
+   * ete mesure. C'est exactement le defaut corrige le 26/09 sur la capacite des postes, sur une
+   * autre grandeur.
+   *
+   * LE SENS DE LA COMPARAISON DECIDE, et c'est le point delicat :
+   *
+   *   - `min` (« au moins X ») : une borne B prouve le seuil des lors que B >= X. La distance
+   *     reelle depasse B, donc elle depasse X a fortiori. On lit la borne a defaut de la mesure.
+   *   - `max` (« au plus X ») : une borne ne prouve RIEN. La distance reelle est superieure a B,
+   *     sans majorant connu — elle peut depasser X. La parcelle doit donc etre ecartee, et seule la
+   *     mesure est lue. C'est le sens d'erreur prudent : un seuil qu'on ne peut pas verifier n'est
+   *     jamais repute satisfait.
+   */
+  const BORNE_INFERIEURE: Record<string, readonly string[]> = {
+    'eau.distanceCoursEauM': ['eau', 'coursEauAuDelaDeM'],
+  };
+
   if (!GRANDEURS_DE_POSTE.has(chemin)) {
+    const borne = sens === 'min' ? BORNE_INFERIEURE[chemin] : undefined;
     params.push(segments);
-    return `(sn.snapshot #>> $${params.length}::text[])::numeric`;
+    const mesure = `(sn.snapshot #>> $${params.length}::text[])::numeric`;
+    if (!borne) return mesure;
+    params.push([...borne]);
+    return `COALESCE(${mesure}, (sn.snapshot #>> $${params.length}::text[])::numeric)`;
   }
 
   /*

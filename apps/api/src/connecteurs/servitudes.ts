@@ -99,14 +99,37 @@ export async function servitudes(
       .filter((s) => s.distanceM != null)
       .sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0))[0];
 
+    /**
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     * « AUCUN CAPTAGE DANS L'EMPRISE » SE DIT, MAIS SEULEMENT QUAND LE SECTEUR EST RENSEIGNE
+     * ═════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * `dansPerimetre` ne valait `false` que si une servitude AS1 avait effectivement ete trouvee a
+     * proximite — autrement dit, on ne concluait « hors perimetre » qu'en ayant vu un captage. Sur
+     * un secteur sans aucun captage, le critere restait gris : 5,5 % du poids de la methanisation
+     * perdus sur 100 % du parc, pour un enjeu dont on savait qu'il etait absent.
+     *
+     * LA CONVENTION EXISTAIT DEJA DANS CETTE MEME FONCTION, trois lignes plus bas : les servitudes
+     * aeronautiques et radioelectriques concluent `false` des lors que `liste.length > 0`,
+     * c'est-a-dire des que le GPU a rendu AU MOINS UNE servitude pour l'emprise. C'est la preuve
+     * que le secteur est televerse — ce que le GPU ne garantit pas par ailleurs, sa couverture
+     * n'etant que partielle. Le captage etait le seul a ne pas l'appliquer, sans raison ecrite.
+     *
+     * LA BORNE PLUTOT QU'UN NOMBRE INVENTE. Le critere notait `c.distanceM ?? 5000` : sans captage
+     * trouve, il aurait suppose 5 km, c'est-a-dire la note maximale, sur une distance que rien ne
+     * demontre. Ce qui est demontre est le RAYON INTERROGE. On le rend, et le critere note dessus.
+     */
+    const secteurRenseigne = liste.length > 0;
     const eau: Partial<Eau> = {
       captageAep: {
-        dansPerimetre: captageRecouvrant != null ? true : captages.length > 0 ? false : null,
+        dansPerimetre: captageRecouvrant != null ? true : secteurRenseigne ? false : null,
         // Le GPU expose l'assiette de la servitude sans distinguer les perimetres
         // immediat, rapproche et eloigne : la sous-categorie doit etre lue sur l'arrete
         // de declaration d'utilite publique du captage. On ne l'invente pas.
         type: null,
         distanceM: captageRecouvrant ? 0 : (captagePlusProche?.distanceM ?? null),
+        auDelaDeM:
+          captageRecouvrant == null && captagePlusProche == null && secteurRenseigne ? rayonM : null,
       },
     };
 

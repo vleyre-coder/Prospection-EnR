@@ -753,7 +753,7 @@ export async function risquesEtEau(
     },
     // Les perimetres de protection de captage relevent des ARS et des SUP du GPU :
     // non exposes de facon homogene, laisses a null (critere gris) plutot qu'inventes.
-    captageAep: { dansPerimetre: null, type: null, distanceM: null },
+    captageAep: { dansPerimetre: null, type: null, distanceM: null, auDelaDeM: null },
     karst: null,
   };
 

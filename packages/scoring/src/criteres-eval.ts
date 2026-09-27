@@ -448,6 +448,54 @@ function sansSource(sourceKey: string, quoi: string, ou: string): EvalBrute {
   };
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * MARQUE UN CRITERE QU'AUCUNE SOURCE NE PEUT RENSEIGNER, NULLE PART
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * DISTINCT DE `sansSource`, ET DISTINCT DE `indispo`, et la nuance decide d'un denominateur.
+ *
+ *   - `indispo`        : la donnee EXISTE et n'a pas pu etre lue pour CETTE parcelle — une source
+ *                        en panne, une parcelle hors couverture. Elle reste au denominateur de
+ *                        couverture, parce qu'on aurait du l'avoir.
+ *   - `sansSource`     : la couche existe mais n'est pas ingeree SUR CE TERRITOIRE. Hors
+ *                        denominateur : elle manque identiquement a toutes les parcelles d'ici.
+ *   - celle-ci        : la donnee n'est exposee par AUCUNE source nationale exploitable a la
+ *                        parcelle, et ne le sera pas par une ingestion. Hors denominateur pour la
+ *                        meme raison, mais le texte ne doit pas laisser croire qu'un
+ *                        `npm run ingest` y changerait quelque chose.
+ *
+ * POURQUOI ELLE A FALLU L'ECRIRE. Deux criteres etaient classes `indispo` alors que le code qui les
+ * alimente met leur donnee a `null` DELIBEREMENT, avec le raisonnement ecrit :
+ *
+ *   - `env_especes_protegees` — `preEnjeuEspeces` a ete mis a `null` a l'audit 8 parce que sa
+ *     derivation comptait deux fois les memes couches. Un enjeu especes se determine par un
+ *     inventaire sur un cycle biologique complet, ou par les atlas regionaux DREAL / LPO, dont
+ *     aucun n'est expose par une API nationale a la parcelle.
+ *   - `fonc_maitrise` — ses trois indicateurs sont nuls par construction : le nombre de comptes
+ *     cadastraux n'est pas deductible de la structure parcellaire, et la donnee nominative n'est
+ *     accessible par aucune API publique.
+ *
+ * Les compter comme « indisponibles » faisait chuter la couverture de la meme quantite sur TOUTES
+ * les parcelles de France, pour une donnee que personne ne peut obtenir par API. C'est exactement la
+ * situation que la regle des criteres sans source decrit, appliquee a l'echelon national plutot
+ * qu'au territoire.
+ *
+ * CE QUE CE CHANGEMENT NE FAIT PAS : il ne donne de note a personne, ne fait monter aucun score, et
+ * ne peut rendre aucune parcelle PROPICE — la limite `criteres_sans_source` plafonne le statut a
+ * orange precisement pour cela. Il rend la couverture affichee egale a ce qui PEUT etre su.
+ */
+function horsPorteeDesSources(sourceKey: string, quoi: string, ou: string): EvalBrute {
+  return {
+    note: null,
+    valeurBrute: null,
+    valeurAffichee: 'non évalué - aucune source nationale',
+    commentaire: `${quoi} n'est exposé par aucune source nationale exploitable à la parcelle : aucune ingestion ne le renseignera. Ce n'est pas une absence constatée sur le terrain — l'enjeu n'a pas été regardé, et il doit l'être. ${ou}`,
+    sourceKey,
+    sansSource: true,
+  };
+}
+
 const gis_intrants: Evaluateur = (s) => {
   if (s.gisement.sourcesIntrantsIngerees === false) {
     return sansSource(
@@ -1366,7 +1414,22 @@ const env_tvb: Evaluateur = (s) => {
 
 const env_especes_protegees: Evaluateur = (s) => {
   const p = s.milieux.preEnjeuEspeces;
-  if (p == null) return indispo(SRC.nature);
+  /*
+   * `preEnjeuEspeces` est mis a `null` DELIBEREMENT par le connecteur Nature (audit 8, C2/E9) : sa
+   * derivation comptait une seconde fois les couches deja notees par `env_proximite_natura2000` et
+   * `env_znieff`. Aucune ingestion ne le remplira donc, et aucune API nationale n'expose de donnee
+   * d'espece exploitable a la parcelle. Le declarer « indisponible » faisait porter 7 % du poids
+   * eolien a un manque que personne ne peut combler par API.
+   */
+  if (p == null) {
+    return horsPorteeDesSources(
+      SRC.nature,
+      "L'enjeu espèces protégées",
+      'À établir par un inventaire faune-flore sur un cycle biologique complet, ou à défaut par les ' +
+        'atlas régionaux DREAL et LPO et les mailles INPN. Pour l’éolien, la sensibilité avifaune et ' +
+        'chiroptères conditionne l’acceptabilité du parc et ne se déduit d’aucun zonage.',
+    );
+  }
   return {
     note: paliers(p, [
       [0, 100],
@@ -1845,18 +1908,51 @@ const dist_habitation: Evaluateur = (s, ctx) => {
   };
 };
 
+const COURBE_DIST_EAU: readonly Palier[] = [
+  [0, 0],
+  [35, 45],
+  [75, 70],
+  [150, 90],
+  [300, 100],
+];
+
 const dist_eau: Evaluateur = (s, ctx) => {
   if (ctx.filiere !== 'methanisation') return null;
   const d = s.eau.distanceCoursEauM;
+  const auDelaDe = s.eau.coursEauAuDelaDeM;
+
+  /**
+   * AUCUN COURS D'EAU DANS LE RAYON INTERROGE : ON NOTE LA BORNE, ET ON L'ECRIT COMME UNE BORNE.
+   *
+   * Le connecteur distingue desormais « je n'ai pas pu regarder » (les deux champs nuls) de « j'ai
+   * regarde jusqu'a X metres et n'ai rien vu ». Le second est une mesure : la BD TOPO est
+   * nationalement complete pour les cours d'eau, et la requete a abouti.
+   *
+   * LA NOTE EST CALCULEE SUR LA BORNE, donc MINOREE — la distance reelle depasse le rayon, et cette
+   * courbe est croissante. On ne peut pas surestimer la parcelle. Ici la courbe sature a 300 m et le
+   * rayon vaut 1 000 m : la note est exacte, pas seulement prudente.
+   *
+   * LA VALEUR AFFICHEE DIT « au-delà de », jamais le nombre seul. Ecrire « 1 000 m » dans un
+   * document remis a un proprietaire presenterait un rayon de recherche comme un releve.
+   */
+  if (d == null && auDelaDe != null) {
+    return {
+      note: paliers(auDelaDe, COURBE_DIST_EAU),
+      valeurBrute: null,
+      valeurAffichee: `au-delà de ${formatDistance(auDelaDe)}`,
+      commentaire:
+        `35 m minimum des puits, forages, sources et berges des cours d'eau, pour les ouvrages ` +
+        `comme pour les épandages. Aucun cours d'eau de la BD TOPO dans un rayon de ` +
+        `${formatDistance(auDelaDe)} : la note porte sur cette borne, la distance réelle lui est ` +
+        `supérieure. Les puits, forages et sources privés n'y figurent pas et restent à relever sur place.`,
+      sourceKey: SRC.bdtopo,
+      reglesLiees: ['metha_distance_eau'],
+    };
+  }
+
   if (d == null) return indispo(SRC.bdtopo);
   return {
-    note: paliers(d, [
-      [0, 0],
-      [35, 45],
-      [75, 70],
-      [150, 90],
-      [300, 100],
-    ]),
+    note: paliers(d, COURBE_DIST_EAU),
     valeurBrute: d,
     valeurAffichee: formatDistance(d),
     commentaire:
@@ -1881,8 +1977,25 @@ const dist_captage: Evaluateur = (s) => {
       reglesLiees: ['metha_distance_eau'],
     };
   }
+  /**
+   * HORS PERIMETRE : SUR QUELLE DISTANCE NOTE-T-ON ?
+   *
+   * Cette ligne valait `c.distanceM ?? 5000`. Le repli supposait 5 km — la note maximale — des lors
+   * qu'aucune distance n'etait connue, c'est-a-dire qu'il notait le mieux possible ce qu'il savait
+   * le moins. Il etait jusqu'ici quasi inatteignable ; il devient courant maintenant que le secteur
+   * peut etre declare renseigne sans qu'aucun captage n'y figure.
+   *
+   * Ce qui est demontre dans ce cas n'est pas 5 km : c'est le RAYON INTERROGE. On note dessus, donc
+   * en MINORANT — la courbe est croissante et la distance reelle depasse le rayon.
+   */
+  const base = c.distanceM ?? c.auDelaDeM;
+  // `dansPerimetre === false` sans distance ni borne ne devrait pas se produire : le secteur n'est
+  // declare renseigne que par la presence d'au moins une servitude, qui pose l'un ou l'autre. Si
+  // cela arrive, on ne devine pas.
+  if (base == null) return indispo(SRC.georisques);
+  const borne = c.distanceM == null;
   return {
-    note: paliers(c.distanceM ?? 5000, [
+    note: paliers(base, [
       [0, 10],
       [200, 45],
       [500, 70],
@@ -1890,8 +2003,15 @@ const dist_captage: Evaluateur = (s) => {
       [2000, 100],
     ]),
     valeurBrute: c.distanceM,
-    valeurAffichee: `Hors périmètre${c.distanceM != null ? ` - ${formatDistance(c.distanceM)} du plus proche` : ''}`,
-    commentaire: "Hors périmètre de protection de captage identifié.",
+    valeurAffichee: borne
+      ? `Hors périmètre - aucun captage à moins de ${formatDistance(base)}`
+      : `Hors périmètre - ${formatDistance(base)} du plus proche`,
+    commentaire: borne
+      ? `Aucun périmètre de protection de captage dans un rayon de ${formatDistance(base)} parmi les ` +
+        `servitudes publiées au Géoportail de l'urbanisme pour ce secteur. La note porte sur cette ` +
+        `borne, la distance réelle lui est supérieure. Le GPU ne publie que les servitudes ` +
+        `effectivement téléversées : un captage en cours de procédure de DUP peut n'y pas figurer.`
+      : "Hors périmètre de protection de captage identifié.",
     sourceKey: SRC.georisques,
   };
 };
@@ -1956,7 +2076,30 @@ const fonc_maitrise: Evaluateur = (s) => {
     s.foncier.indivisionProbable == null ? null : s.foncier.indivisionProbable ? 35 : 90,
     s.foncier.proprietairePublic == null ? null : s.foncier.proprietairePublic ? 60 : 85,
   );
-  if (note == null) return indispo(SRC.foncier);
+  /*
+   * LES TROIS INDICATEURS SONT NULS PAR CONSTRUCTION, pas par accident de collecte.
+   *
+   * `nbProprietairesEstime` et `indivisionProbable` sont mis a `null` par `contexteFoncier` avec le
+   * raisonnement ecrit (audit 8, B2) : le nombre de comptes cadastraux n'est pas deductible de la
+   * structure parcellaire, et un proxy dont on ne peut pas evaluer l'erreur n'a pas sa place sur le
+   * premier facteur de mortalite d'un projet. `proprietairePublic` vient de
+   * `proprietaire_parcelle`, que le snapshot ne lit DELIBEREMENT pas — l'acces aux donnees de
+   * propriete est reserve, motive et journalise, et le snapshot alimente les tuiles et les exports.
+   *
+   * Le critere est donc dans la meme situation que `fonc_nb_proprietaires`, deja declare sans
+   * source, et doit etre declare de la meme facon : la donnee existe et s'obtient, mais par demande
+   * documentee aupres de la DGFiP ou de la mairie, jamais par une ingestion.
+   */
+  if (note == null) {
+    return horsPorteeDesSources(
+      SRC.foncier,
+      'La maîtrise foncière',
+      'Les données nominatives de propriété ne sont accessibles par aucune API publique : elles ' +
+        's’obtiennent par demande documentée auprès du service de la publicité foncière ou de la ' +
+        'mairie, puis se versent dans la base par le script dédié. La maîtrise foncière est le ' +
+        'premier facteur de mortalité d’un projet : elle se vérifie avant toute promesse.',
+    );
+  }
 
   const morceaux: string[] = [];
   if (s.foncier.proprietairePublic) morceaux.push('propriétaire public');
