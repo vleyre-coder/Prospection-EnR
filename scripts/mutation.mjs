@@ -4582,6 +4582,24 @@ const MUTATIONS = [
     cwd: 'apps/api',
     tests: ['test/cle-parcelle-rpg.test.ts'],
   },
+  {
+    audit: 'audit 14 (methanisation - RPG)',
+    /*
+     * UNE COUCHE INGEREE AILLEURS DEVIENT « INDISPONIBLE » ICI PLUTOT QUE « SANS SOURCE ». La
+     * nuance decide d'un denominateur : un critere sans source sort du calcul de couverture, un
+     * critere indisponible y reste. Le RPG s'ingerant departement par departement, en ingerer un
+     * seul ferait alors entrer 16,5 % de poids au denominateur de toutes les parcelles des autres
+     * departements, qui passeraient sous le seuil de gris — punies pour une ingestion faite
+     * ailleurs.
+     */
+    quoi: 'une couche ingeree ailleurs rend le critere indisponible au lieu de sans source',
+    fichier: 'apps/api/src/connecteurs/gisement.ts',
+    de: '  if (!COUCHES_INTRANTS.some((t) => presence[t])) return intrantsVides(false);',
+    vers: '  if (!COUCHES_INTRANTS.some((t) => presence[t])) return intrantsVides(null);',
+    cwd: 'apps/api',
+    tests: ['test/intrants-disque.test.ts'],
+    commande: ['tsx', '--test', '--test-concurrency=1', 'test/intrants-disque.test.ts'],
+  },
 ];
 
 /**

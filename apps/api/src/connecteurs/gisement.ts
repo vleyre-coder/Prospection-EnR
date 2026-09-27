@@ -219,23 +219,29 @@ export async function intrantsMethanisation(pt: Position, codeInsee: string): Pr
    *
    * `disqueEntierementCouvert` repond a la bonne question, couche par couche et rayon par rayon.
    */
-  const [presenteQuelquePart, couvertures] = await Promise.all([
-    couchesPresentes(COUCHES_INTRANTS),
-    Promise.all(
-      COUCHES_INTRANTS.map(async (t) => [t, await disqueEntierementCouvert(t, pt, RAYONS_INTRANTS_M[t])] as const),
+  const couvertures = await Promise.all(
+    COUCHES_INTRANTS.map(
+      async (t) => [t, await disqueEntierementCouvert(t, pt, RAYONS_INTRANTS_M[t])] as const,
     ),
-  ]);
+  );
   const presence = Object.fromEntries(couvertures) as Record<string, boolean>;
-  // Aucune des trois couches exploitable ici : rien a compter, et on le dit. Un comptage a zero sur
-  // une table vide serait indiscernable d'un comptage a zero sur un territoire sans elevage.
-  if (!COUCHES_INTRANTS.some((t) => presence[t])) {
-    /*
-     * `false` signifie « les sources ne sont pas la », et c'est ce que le critere affiche. On le
-     * reserve au cas ou la couche est REELLEMENT absente de la base ; si elle existe mais ne couvre
-     * pas ce disque, la bonne reponse est `null` — « indisponible ici », et non « jamais ingere ».
-     */
-    return intrantsVides(COUCHES_INTRANTS.some((t) => presenteQuelquePart[t]) ? null : false);
-  }
+
+  /**
+   * Aucune des trois couches exploitable ICI : c'est « sans source », et non « indisponible ».
+   *
+   * LA DISTINCTION N'EST PAS COSMETIQUE, elle decide d'un denominateur. Un critere SANS SOURCE est
+   * retire du calcul de couverture — il manque identiquement a toutes les parcelles du territoire,
+   * donc il ne discrimine rien — et il plafonne le statut a orange. Un critere INDISPONIBLE, lui,
+   * reste au denominateur : c'est une donnee qu'on aurait du avoir pour CETTE parcelle-la.
+   *
+   * J'avais d'abord distingue « la couche n'existe nulle part » (sans source) de « elle existe mais
+   * pas ici » (indisponible). C'etait une erreur, et elle ne se serait vue qu'apres coup : des lors
+   * qu'un seul departement est ingere, toutes les parcelles des autres departements auraient fait
+   * entrer 16,5 % de poids au denominateur et seraient passees sous le seuil de gris — punies pour
+   * une ingestion faite ailleurs. Le message du critere dit d'ailleurs exactement le bon mot :
+   * « n'est alimente par aucune couche ingeree SUR CE TERRITOIRE ».
+   */
+  if (!COUCHES_INTRANTS.some((t) => presence[t])) return intrantsVides(false);
 
   try {
     const rows = await requete<{

@@ -151,6 +151,36 @@ test('UN DEPARTEMENT MANQUANT DANS LE DISQUE LAISSE LA SOMME GRISE, PAS AMPUTEE'
   );
 });
 
+test('UNE COUCHE INGEREE AILLEURS EST « SANS SOURCE » ICI, ET NON « INDISPONIBLE »', async () => {
+  if (ignorer()) return;
+  /**
+   * LA DISTINCTION DECIDE D'UN DENOMINATEUR, et c'est pour cela qu'elle merite un test a elle.
+   *
+   * Un critere SANS SOURCE sort du calcul de couverture — il manque identiquement a toutes les
+   * parcelles du territoire, donc il ne discrimine rien — et plafonne le statut a orange. Un
+   * critere INDISPONIBLE reste au denominateur : c'est une donnee qu'on aurait du avoir pour CETTE
+   * parcelle-la.
+   *
+   * Le RPG s'ingere departement par departement. Si « la couche existe quelque part en France »
+   * suffisait a la declarer indisponible plutot que sans source, alors ingerer un seul departement
+   * ferait entrer 16,5 % de poids au denominateur de TOUTES les parcelles des autres departements,
+   * qui passeraient sous le seuil de gris — punies pour une ingestion faite ailleurs.
+   *
+   * Ici, la couche existe (le departement voisin en porte), mais elle ne couvre pas le disque de
+   * cette parcelle. La reponse doit donc etre `false`.
+   */
+  await viderCouvertureFictive();
+  await declarerCouvertureFictive(CONNECTEUR, 'surface_agricole_commune', DEP_LOCAL, 1);
+  oublierCouchesIntrantes();
+
+  const r = await intrantsMethanisation(PT, INSEE_LOCAL);
+  assert.equal(
+    r.sourcesIntrantsIngerees,
+    false,
+    'la couche n’est pas ingeree SUR CE TERRITOIRE : c’est un « sans source », pas un « indisponible »',
+  );
+});
+
 test('LE DISQUE ENTIEREMENT COUVERT SE SOMME, ET IL SOMME LES DEUX DEPARTEMENTS', async () => {
   if (ignorer()) return;
   /**
