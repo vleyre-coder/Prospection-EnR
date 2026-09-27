@@ -48,10 +48,10 @@ n'était écrite : pour le moteur, la couche n'existait pas.
 | Vérification | Résultat |
 | --- | --- |
 | Typage des cinq projets | vert |
-| Tests hors base | **1 179 / 1 179** |
-| Tests exigeant une base | **166 / 166** (4 ignorés : migrations destructives) |
+| Tests hors base | **1 201 / 1 201** |
+| Tests exigeant une base | **170 / 170** (4 ignorés : migrations destructives) |
 | Bout en bout (navigateur réel) | **27 / 27**, 2 ignorés |
-| Motifs de mutation | **337 déclarés**, tous applicables ; **337 / 337 attrapés, 0 survivant** — 328 en campagne ordinaire, et les 9 de bout en bout joués au navigateur |
+| Motifs de mutation | **345 déclarés**, tous applicables au code courant |
 | Chaîne complète × filières | **30 / 30 en HTTP 200** — recherche, fiche PDF, fiche `.eml`, dossier de site, cahier des charges, CSV, pour chacune des cinq |
 | Cahiers des charges | 5 / 5, et **réellement distincts** par filière |
 
@@ -161,6 +161,54 @@ correction, sur les 1 123 communes des quatre départements, **deux dépassent l
 
 Le même raisonnement a conduit à **ne pas** livrer une quatrième chose (§4.1, corridors gaz) : une
 inférence géométriquement exacte, mais dont les deux jeux de données ne concordaient pas.
+
+### 2.8 [28/09] Un poste source saturé écartait 100 parcelles dans les cinq filières
+
+Ce knock-out écartait **définitivement** la parcelle — statut rouge, score annulé, sortie des listes
+et des sites — sauf si un renforcement était inscrit au S3REnR. Mesuré : **100 parcelles sur 301,
+dans les cinq filières**, soit cinq cents verdicts.
+
+Ce n'était pas une lecture juridiquement soutenable, et quatre choses le montrent :
+
+1. **Aucun article ne l'adossait.** Il était le seul knock-out non dérogeable à porter
+   `regleLiee: null`. Tous les autres citent leur fondement — L.515-44 pour les 500 m de l'éolien,
+   R.411-15 pour l'arrêté de biotope, L.341-10 pour le site classé. Le référentiel ne contient
+   aucune règle sur la saturation, **parce qu'il n'en existe aucune** : un poste saturé n'est pas
+   une servitude et ne s'oppose à personne.
+2. **La source refuse d'engager.** L'avertissement Capareseau, affiché dans la fiche, dit :
+   « capacités indicatives et **non engageantes**, évolutives au fil des demandes de raccordement ».
+   Fonder une exclusion définitive sur un indicateur que l'application déclare elle-même non
+   engageant est contradictoire.
+3. **Le motif se contredisait** : il écartait la parcelle tout en écrivant qu'un poste alternatif
+   plus éloigné pouvait être étudié.
+4. **Les alternatives figuraient dans la donnée.** Sur la parcelle 280290000Z0399, DAMBRON est
+   saturé à 6,75 km — mais ORGERES porte 1,5 MW à 9,28 km et TIVERNON 1,1 MW à 9,7 km. La parcelle
+   était écartée alors que deux postes raccordables figuraient dans son propre instantané.
+
+**Ce qui ne change pas, et c'est la moitié qui compte :** le knock-out reste posé et plafonne à
+orange. La saturation du poste le plus proche est le premier obstacle pratique d'un projet ENR — la
+faire disparaître de la fiche serait la dérive inverse, et bien pire. La parcelle conserve son score
+et son rang, et n'est **jamais** déclarée propice. L'arbitrage revient au prospecteur, qui connaît
+le calendrier du projet et l'appétence du développeur pour une quote-part — deux choses que
+l'application ignore. Un motif de mutation interdit désormais tout retour à l'exclusion définitive.
+
+Le motif **nomme l'alternative** quand il en existe une — nom, capacité, distance — ou dit qu'il n'y
+en a aucune. « Un poste alternatif peut être étudié » n'aide personne ; « ORGERES, 1,5 MW à 9,3 km »
+se vérifie et s'appelle.
+
+### 2.9 [28/09] Le raster de vent se cherchait là où le processus avait été lancé
+
+`gis_vent` — **10,9 % du poids éolien** — était gris sur 100 % du parc, et deux causes distinctes
+s'y superposaient, toutes deux silencieuses. Le raster est un **fichier**, pas une table : le
+redémarrage du conteneur l'a emporté quand les couches en base avaient survécu. Et
+`REPERTOIRE_DONNEES` vaut `data`, un chemin **relatif** : l'ingestion relancée depuis `apps/api`
+écrivait dans `apps/api/data/vent/`, la reprise lancée depuis la racine cherchait dans `data/vent/`.
+
+J'ai donc mesuré « vent indisponible » sur un raster présent, et j'ai failli l'écrire ici. Le bilan
+d'ingestion annonçait « chemin: data/vent/gwa-fra-100m.tif » — exact et inutilisable, puisque c'est
+précisément l'ambiguïté du chemin relatif qui rend la panne invisible. Il annonce désormais le
+chemin **résolu**. Valeur de contrôle après correction : **6,97 m/s en Beauce**, conforme à celle
+documentée en §2.5 de `SOURCES_DONNEES.md`.
 
 ---
 
@@ -280,27 +328,84 @@ marquées `aValiderParJuriste`, 128 articles à confronter à Légifrance — **
 
 ## 6. Score
 
-**26/09 : 76 / 100. 27/09 : 78 / 100**, pour l'usage demandé — prospecter aujourd'hui et proposer à
-des développeurs des projets *fiables*.
+**26/09 : 76 / 100. 27/09 : 78 / 100. 28/09 : 85 / 100**, pour l'usage demandé — prospecter
+aujourd'hui et proposer à des développeurs des projets *fiables*.
+
+Le saut du 28/09 ne vient d'aucune donnée nouvelle. **Il vient d'avoir cessé de compter comme des
+ignorances trois choses qui n'en étaient pas** : une absence constatée dans un rayon interrogé, une
+saturation de réseau prise pour une interdiction légale, et deux critères qu'aucune source au monde
+n'expose comptés comme des mesures manquantes. Les cinq filières classent désormais, sans une seule
+parcelle grise.
 
 ### Ce qui porte la note
 
 | | |
 | --- | --- |
-| **Trois filières produisent une liste classée** | solaire au sol, stockage, agrivoltaïsme : 199 à 200 parcelles classées chacune, avec un score qui discrimine |
-| **Une quatrième tranche, sans classer** | l'éolien écarte 241 parcelles sur 301 par knock-out. C'est utile — cela dit où ne pas aller — mais ce n'est pas un classement |
+| **Les cinq filières produisent une liste classée** | 300 parcelles en solaire, stockage et agrivoltaïsme ; **216 en méthanisation** ; 51 en éolien. **Plus une seule parcelle grise nulle part.** |
+| **Le classement discrimine** | écarts-types de 2,9 à 5,5 points ; la méthanisation, la plus instruite depuis le 28/09, est aussi la plus discriminante |
+| **Les écartées le sont pour un motif juridique** | après correction du poste saturé, les knock-outs restants citent tous leur article : L.515-44 (500 m), code du patrimoine (abords), L.341-10 (site classé) |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | 1 179 tests hors base, 166 avec base, 27/27 au navigateur, **337/337 mutations attrapées sans un survivant**, 30/30 sur la chaîne complète des cinq filières |
+| **La vérification est sérieuse** | 1 201 tests hors base, 170 avec base, 27/27 au navigateur, 345 motifs de mutation, 30/30 sur la chaîne complète des cinq filières |
 
 ### Ce qui l'empêche de monter
 
 | | |
 | --- | --- |
-| **La méthanisation ne classe pas** | 153 parcelles grises sur les 155 qui portent un score : **49,5 % de son poids reste gris**. Les verdicts sont honnêtes — gris, pas verts — mais on n'en tire pas un classement. Voir juste en dessous ce qui l'en sépare, et c'est moins que prévu. |
+| **La méthanisation classe, mais sur 56 % du sujet** | elle propose 216 parcelles et les discrimine bien. Mais `gis_intrants` (16,5 %) et `racc_distance_reseau_gaz` (11,0 %) restent sans source joignable : le document le dit en deux chiffres, et le développeur doit le lire |
 | **Géorisques est injoignable d'ici** | six critères de risque gris, et 46 secondes par parcelle passées à attendre un hôte muet. Ce n'est pas un défaut de l'application, mais l'exploitant le subit quand même |
+| **Aucune parcelle n'est verte, et ce n'est pas un défaut** | le plafond `criteres_sans_source` tient tant qu'un enjeu n'a aucune source. L'outil classe *à l'intérieur* de l'orange — il faut le savoir en lisant une liste |
 | **Les données de propriété ne sont pas publiques** | structurel : demande encadrée auprès de la publicité foncière |
 | **La relecture juridique reste à faire** | 128 articles à confronter, 28 règles marquées à valider |
+
+### [28/09] L'état du parc après les déblocages — plus une seule parcelle grise
+
+Trois corrections ont été apportées le 28/09, chacune parce qu'une donnée **existait** et n'était
+pas comptée. Aucune n'invente de valeur, aucune ne lève le plafond orange.
+
+| Filière | Classées | Grises | Écartées | Score : min → max (σ) | Couverture mesurable / catalogue |
+| --- | --- | --- | --- | --- | --- |
+| Solaire au sol | **300** | 0 | 1 | 50,6 → 68,0 (2,9) | **95,6 %** / 86,8 % |
+| Agrivoltaïsme | **300** | 0 | 1 | 42,6 → 71,0 (3,4) | **95,4 %** / 79,4 % |
+| Stockage (BESS) | **300** | 0 | 1 | 41,9 → 56,8 (3,0) | 89,1 % / 86,9 % |
+| **Méthanisation** | **216** | **0** | 85 | 65,8 → 91,7 (5,5) | **85,9 %** / 56,0 % |
+| Éolien terrestre | **51** | 0 | 250 | 51,2 → 70,4 (3,8) | **92,7 %** / 79,7 % |
+
+**Comparaison avec le 27/09, à données de terrain identiques** — seule la façon de les compter a
+changé :
+
+| Filière | Classées avant → après | Couverture mesurable avant → après |
+| --- | --- | --- |
+| Méthanisation | 2 → **216** (153 grises levées) | 77,6 % → **85,9 %** |
+| Éolien | 0 → **51** (60 grises levées) | 72,6 % → **92,7 %** |
+| Solaire | 200 → **300** | 91,7 % → 95,6 % |
+| Agrivoltaïsme | 199 → **300** | 86,7 % → 95,4 % |
+| Stockage | 200 → **300** | 89,1 % |
+
+**La méthanisation classe.** C'était l'objectif : elle ne laissait aucune parcelle exploitable pour
+le tri, elle en propose 216 avec un écart-type de 5,5 points — le plus discriminant des cinq.
+
+**Ce que chaque correction a apporté, mesuré séparément :**
+
+1. **« Rien dans le rayon interrogé » est une mesure.** `distanceCoursEauM` n'était renseignée que
+   sur **2 parcelles sur 301** ; **299 portent désormais une borne démontrée**. La BD TOPO n'était
+   jamais en échec — la Beauce est un plateau de craie, et l'absence de cours d'eau à moins d'un
+   kilomètre y est le cas général. C'est **la situation la plus favorable que ce critère puisse
+   noter**, puisqu'il sature à 300 m : 5,5 % du poids méthanisation étaient retirés du calcul pour
+   cela.
+2. **Un poste saturé plafonne, il n'exclut plus.** 100 parcelles étaient écartées dans les cinq
+   filières — cinq cents verdicts — sur le seul knock-out non dérogeable à ne citer aucun article.
+   Voir §2.8.
+3. **Deux critères qu'aucune source n'expose sortent du dénominateur** : `env_especes_protegees` et
+   `fonc_maitrise`. Ils restent affichés, plafonnent toujours le statut à orange, et disent
+   désormais où chercher l'information plutôt que de laisser croire qu'une ingestion y remédierait.
+
+**Ce qui reste gris, et pourquoi.** En méthanisation : `gis_intrants` (16,5 %) et
+`racc_distance_reseau_gaz` (11,0 %), faute de source joignable ; `risq_karst` (4,6 %), qu'aucune API
+n'expose ; `fonc_nb_proprietaires` (2,8 %), donnée non publique ; `risq_inondation` (3,7 %),
+Géorisques injoignable depuis ce poste ; et `dist_captage` (5,5 %) — **le garde a refusé de
+conclure**, le GPU n'ayant téléversé aucune servitude pour ces secteurs. L'absence d'AS1 n'y prouve
+rien, et le critère le dit.
 
 ### [27/09] L'état du parc après reprise des 301 parcelles
 
@@ -357,7 +462,35 @@ Autrement dit : la méthanisation n'est pas bloquée par ce qui lui manque le pl
 par trois critères moyens dont un seul suffirait. Sur un poste où Géorisques répond, la filière
 sort du gris **sans une ligne de code de plus**.
 
-### Pourquoi +2 et pas +5
+### [28/09] Pourquoi 85, et pourquoi pas plus
+
+**Ce qui justifie +7.** Les cinq filières classent, sans une seule parcelle grise, et les 566
+parcelles rendues au classement l'ont été **sans qu'aucune donnée nouvelle n'entre** : elles étaient
+écartées ou grisées par trois erreurs de comptage, dont une erreur de droit. Un outil de prospection
+qui écarte un tiers de son parc sur une saturation de réseau — un indicateur que sa propre source
+déclare non engageant — n'est pas fiable, il est timide au mauvais endroit.
+
+**Ce qui interdit d'aller plus haut**, et chacun de ces points est mesuré, pas supposé :
+
+- **27,5 % du poids de la méthanisation n'a aucune source joignable** — gisement d'intrants et
+  tracé gaz. Le document l'affiche en deux chiffres (85,9 % du mesurable, 56,0 % du sujet), ce qui
+  est honnête, mais un développeur qui ne lit que le premier se trompera.
+- **Six critères de risque dépendent de Géorisques**, injoignable depuis ce poste. Sur un poste où
+  il répond, quatre filières gagnent encore quelques points — et `risq_inondation` est le seul
+  critère qui empêchait la méthanisation de dépasser 90 %.
+- **Aucune parcelle ne peut être verte.** Tant qu'un enjeu n'a aucune source, le plafond tient. Le
+  classement est donc un ordre *à l'intérieur* de l'orange : utile pour prospecter, insuffisant pour
+  promettre.
+- **La relecture juridique reste entière** : 128 articles à confronter, 28 règles à valider.
+
+**Et une raison de ne pas aller plus haut qui tient à moi.** Les trois corrections du 28/09 changent
+des **verdicts**, pas des affichages : 566 parcelles ont changé de statut. Elles sont gardées par
+huit motifs de mutation, dont ceux qui interdisent de revenir à l'exclusion définitive, de faire
+passer une borne pour une mesure, et de lever le plafond orange. Mais elles n'ont pas encore été
+confrontées au terrain par un prospecteur. Une note plus haute demanderait cette confrontation, pas
+une correction de plus.
+
+### Pourquoi +2 et pas +5 (27/09)
 
 Le débouché d'épandage réglé, c'est **7,3 points** sur une filière qui en avait 53,2 de gris. Le
 reste — 49,5 % — ne demande pas d'écrire du code : le connecteur et l'agrégation sont écrits et
