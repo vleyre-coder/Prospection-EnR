@@ -48,10 +48,10 @@ n'était écrite : pour le moteur, la couche n'existait pas.
 | Vérification | Résultat |
 | --- | --- |
 | Typage des cinq projets | vert |
-| Tests hors base | **1 201 / 1 201** |
-| Tests exigeant une base | **170 / 170** (4 ignorés : migrations destructives) |
+| Tests hors base | **1 202 / 1 202** |
+| Tests exigeant une base | **170 / 170** (4 ignorés : migrations destructives, sur 174 déclarés) |
 | Bout en bout (navigateur réel) | **27 / 27**, 2 ignorés |
-| Motifs de mutation | **345 déclarés**, tous applicables au code courant |
+| Motifs de mutation | **346 déclarés**, tous applicables au code courant |
 | Chaîne complète × filières | **30 / 30 en HTTP 200** — recherche, fiche PDF, fiche `.eml`, dossier de site, cahier des charges, CSV, pour chacune des cinq |
 | Cahiers des charges | 5 / 5, et **réellement distincts** par filière |
 
@@ -346,7 +346,7 @@ parcelle grise.
 | **Les écartées le sont pour un motif juridique** | après correction du poste saturé, les knock-outs restants citent tous leur article : L.515-44 (500 m), code du patrimoine (abords), L.341-10 (site classé) |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | 1 201 tests hors base, 170 avec base, 27/27 au navigateur, 345 motifs de mutation, 30/30 sur la chaîne complète des cinq filières |
+| **La vérification est sérieuse** | 1 202 tests hors base, 170 avec base, 27/27 au navigateur, 346 motifs de mutation, 30/30 sur la chaîne complète des cinq filières |
 
 ### Ce qui l'empêche de monter
 
@@ -542,6 +542,13 @@ npm run ingest -w @enr/api -- rpg_communal:28,41,45,91
 cp -a . /tmp/campagne && cd /tmp/campagne
 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e node scripts/mutation.mjs
 ```
+
+**⚠️ Ne lancez pas `test:base` et la campagne de mutation en meme temps.** Les deux ecrivent dans la
+MEME base et se partagent le territoire fictif du departement 99. Le garde `refusDeCourse` protege
+contre le parallelisme des FICHIERS a l'interieur d'une execution, pas contre deux executions
+concurrentes : mesure du 28/09/2026, `test:base` a rendu 2 echecs pendant qu'une campagne tournait,
+et 170/170 seul, quelques minutes plus tard. Un echec qui ne se reproduit pas seul vient de la, et
+non du code.
 
 **[27/09] Reprendre les 301 parcelles apres une ingestion**, ce qu'il faut faire pour qu'elles voient
 la nouvelle donnee. Compter **46 secondes par parcelle** tant que Georisques est injoignable — six
