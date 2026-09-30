@@ -2015,7 +2015,7 @@ const dist_captage: Evaluateur = (s) => {
   // `dansPerimetre === false` sans distance ni borne ne devrait pas se produire : le secteur n'est
   // declare renseigne que par la presence d'au moins une servitude, qui pose l'un ou l'autre. Si
   // cela arrive, on ne devine pas.
-  if (base == null) return indispo(SRC.georisques);
+  if (base == null) return indispo(SRC.gpu);
   const borne = c.distanceM == null;
   return {
     note: paliers(base, [

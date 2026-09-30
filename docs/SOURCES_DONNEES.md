@@ -329,6 +329,48 @@ Le compte ne dépend plus des aléas du réseau.
 | 45 Loiret | 323 | 344 191 | 51 % |
 | 91 Essonne | 170 | 82 726 | 46 % |
 
+## 2.10 [30/09] Quelle source alimente quel critère — la revue, et pourquoi elle compte
+
+**Un critère déclare la source dont il vient. Si l'étiquette est fausse, la donnée est jetée.**
+
+Le moteur annule la note de tout critère dont la source figure parmi les connecteurs en échec.
+C'est un mécanisme juste — une donnée par défaut notée comme une mesure serait pire qu'une absence
+de note. Mais il compare la source **déclarée** aux connecteurs tombés : il ne sait pas quel
+connecteur remplit quel champ. Une étiquette fausse lui fait donc jeter une donnée valide, sans
+rien signaler.
+
+**Mesuré le 30/09/2026 :** `dist_captage` déclarait Géorisques. Or `eau.captageAep` n'est rempli
+que par le connecteur des servitudes, depuis les assiettes **AS1 du GPU** — le connecteur Géorisques
+écrit explicitement `null`, avec le commentaire qui le dit. Géorisques étant injoignable depuis ce
+poste, la note du captage disparaissait sur les 301 parcelles alors que le GPU avait répondu.
+
+| | avant | après |
+|---|---|---|
+| `dist_captage` | 301 gris | **273 renseignés**, 28 gris |
+| Méthanisation, couverture mesurable | 85,9 % | **93,6 %** |
+| Méthanisation, couverture catalogue | 56,0 % | **61,0 %** |
+
+Les 28 gris restants sont les parcelles pour lesquelles le GPU ne rend **aucune** servitude : le
+garde refuse alors de conclure, et c'est correct.
+
+**La revue a porté sur les 43 critères**, en confrontant la source déclarée aux champs réellement
+lus et à qui les écrit dans `enrichissement.ts`. Un seul était faux. Les deux cas qui méritaient un
+second regard :
+
+- `risq_aero_radar` déclare Géorisques et lit trois champs : `risques.radars` (écrit `[]` sans
+  condition par Géorisques, aucune source nationale ne le remplit) plus `servitudesAeronautiques` et
+  `faisceauxHertziens`, qui viennent du GPU. L'étiquette reste juste **pour la partie qui décide** :
+  le critère est déclaré sans source tant qu'aucun radar n'est connu, ce qui est le cas partout.
+- `env_zone_humide` lit `eau` et `milieux` et déclare `zones_humides` : c'est bien le connecteur qui
+  écrit le pré-repérage, les champs `milieux` n'entrant que dans le libellé.
+
+**Aucun garde automatique ne remplace cette revue**, et le test `source-declaree.test.ts` le dit
+dans son en-tête : de l'intérieur du moteur, un critère mal étiqueté et un critère bien étiqueté
+sont indiscernables. Ce test garde le *mécanisme* ; la revue garde les *étiquettes*. À refaire
+lorsqu'un connecteur change ce qu'il écrit.
+
+---
+
 ## 3. Sources sans API nationale — ingestion territoriale
 
 Ces couches n'existent pas sous forme consolidée. Leur absence est traitée comme **absence de
