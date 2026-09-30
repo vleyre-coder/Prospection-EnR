@@ -5067,6 +5067,114 @@ function exigeUneBase(m) {
   return (m.tests ?? []).some((t) => TESTS_AVEC_BASE.has(t));
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * UNE BASE TOMBEE FAISAIT PASSER LA CAMPAGNE ENTIERE POUR UN SUCCES
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * CE QUE CELA A COUTE, mesure le 30/09/2026. Le conteneur a ete suspendu puis restaure en cours de
+ * campagne — `uptime` remis a zero, `crng reseeded due to virtual machine fork` au journal noyau.
+ * PostgreSQL n'y a pas survecu : son journal dit « last known up at 08:30:48 » et « database system
+ * was not properly shut down ». Le processus de la campagne, lui, a survecu, et a tourne QUATRE
+ * HEURES ET DEMIE de plus sans base.
+ *
+ * Or la regle de verdict est « le lot de tests a-t-il echoue ». Un test qui ne peut pas se
+ * connecter echoue. **Chaque motif exigeant une base a donc ete compte ATTRAPE**, et la campagne a
+ * conclu « 351/351 mutations attrapees », exit 0.
+ *
+ * C'est la faute la plus grave qu'un outil de verification puisse commettre : non pas manquer un
+ * defaut, mais AFFIRMER qu'il n'y en a aucun. Et elle est parfaitement silencieuse — le chiffre
+ * final est le meilleur possible, et rien dans la sortie ne distingue « le garde a fait son
+ * travail » de « rien n'a tourne ».
+ *
+ * ═══ CE QUE VERIFIE CE GARDE, ET CE QU'IL NE VERIFIE PAS
+ *
+ * Il ouvre une connexion TCP sur l'hote et le port de `DATABASE_URL`. C'est etroit et c'est
+ * suffisant pour le cas reel : une base morte ne tient plus son port. Il ne dit pas que la base est
+ * SAINE — un serveur qui repond mais dont le schema a ete perdu passerait ce controle ; c'est le
+ * travail des tests eux-memes.
+ *
+ * Il est appele a DEUX moments. Avant la campagne, pour ne pas lancer des heures de calcul sur une
+ * base absente. Et, apres chaque motif exigeant une base et juge attrape, pour etablir que la base
+ * repondait encore a cet instant — sans quoi l'echec du test ne prouve rien.
+ */
+function baseJoignable() {
+  const url = process.env['DATABASE_URL'];
+  if (!url) return { verdict: 'sans-objet' };
+  let hote;
+  let port;
+  try {
+    const u = new URL(url);
+    hote = u.hostname;
+    port = Number(u.port || 5432);
+  } catch {
+    // Une URL illisible n'est pas une base tombee : les tests diront eux-memes ce qu'ils en font.
+    return { verdict: 'sans-objet' };
+  }
+  /*
+   * ATTENTE SYNCHRONE, VOLONTAIREMENT. La boucle de campagne est synchrone d'un bout a l'autre, et
+   * la rendre asynchrone pour un controle de trois millisecondes exposerait toute la mecanique de
+   * sauvegarde et de restauration des fichiers a un entrelacement. Un processus enfant qui ouvre la
+   * connexion et se retire garde la boucle inchangee.
+   */
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        '-e',
+        `const s=require('node:net').connect({host:process.argv[1],port:Number(process.argv[2])});` +
+          `s.setTimeout(3000);` +
+          `s.on('connect',()=>{s.destroy();process.exit(0)});` +
+          `s.on('timeout',()=>{s.destroy();process.exit(1)});` +
+          `s.on('error',()=>process.exit(1));`,
+        hote,
+        String(port),
+      ],
+      { stdio: 'pipe', timeout: 10_000 },
+    );
+    return { verdict: 'joignable', hote, port };
+  } catch {
+    return { verdict: 'injoignable', hote, port };
+  }
+}
+
+/** Interrompt la campagne en disant pourquoi les resultats deja affiches ne valent rien. */
+function abandonBaseTombee(m, etat) {
+  console.error(`\n${'═'.repeat(95)}`);
+  console.error('CAMPAGNE INTERROMPUE : LA BASE NE REPOND PLUS');
+  console.error('═'.repeat(95));
+  console.error(
+    `\nLe motif « ${m.quoi} » (${m.audit}) a fait echouer ses tests, mais ${etat.hote}:${etat.port}\n` +
+      "n'accepte plus de connexion. L'echec ne prouve donc RIEN : un test qui ne peut pas se\n" +
+      'connecter echoue quelle que soit la mutation.\n',
+  );
+  console.error(
+    'LES « OK » DEJA AFFICHES NE SONT PAS FIABLES a partir du moment ou la base est tombee, et\n' +
+      "rien dans la sortie ne dit quand c'etait. Relancez la campagne ENTIERE apres avoir remis la\n" +
+      'base en route :\n\n' +
+      '    pg_ctlcluster 16 main start\n' +
+      '    DATABASE_URL=… node scripts/mutation.mjs --avec-e2e\n',
+  );
+  process.exit(2);
+}
+
+/*
+ * CONTROLE D'ENTREE. Sans lui, une campagne lancee sur une base absente affiche des heures de
+ * « OK » avant qu'on ne s'apercoive que rien n'a ete mesure. Le refus est immediat et nomme l'hote.
+ */
+if (A_JOUER.some(exigeUneBase)) {
+  const etat = baseJoignable();
+  if (etat.verdict === 'injoignable') {
+    console.error(
+      `\nBASE INJOIGNABLE : ${etat.hote}:${etat.port} n'accepte pas de connexion.\n` +
+        `  ${A_JOUER.filter(exigeUneBase).length} motifs sur ${A_JOUER.length} exigent une base, et\n` +
+        '  leurs tests echoueraient faute de connexion — donc seraient comptes ATTRAPES a tort.\n' +
+        '  Demarrez la base, puis relancez :  pg_ctlcluster 16 main start',
+    );
+    process.exit(2);
+  }
+}
+
 for (const m of A_JOUER) {
   const original = readFileSync(m.fichier, 'utf8');
   if (!original.includes(m.de)) {
@@ -5120,6 +5228,15 @@ for (const m of A_JOUER) {
     rmSync(SAUVEGARDE, { force: true });
   }
   if (attrapee) {
+    /*
+     * UN ECHEC DE TEST NE PROUVE LA MUTATION QUE SI LA BASE REPONDAIT. Le controle ne porte que sur
+     * les motifs qui en exigent une, et ne coute que quelques millisecondes : c'est le prix pour
+     * que « 351/351 » veuille dire quelque chose.
+     */
+    if (exigeUneBase(m)) {
+      const etat = baseJoignable();
+      if (etat.verdict === 'injoignable') abandonBaseTombee(m, etat);
+    }
     console.log(`OK   (${m.audit}) ${m.quoi}`);
   } else if (exigeUneBase(m) && !process.env['DATABASE_URL']) {
     console.error(`\nNON MESUREE (${m.audit}) : « ${m.quoi} ».`);
