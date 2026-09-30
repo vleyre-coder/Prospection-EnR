@@ -265,6 +265,64 @@ adoption, la perte de la table de suivi et le refus d'adopter une base vierge so
 C'est le défaut le plus discret de cet audit : un test ignoré ne rougit pas, et le décompte global le
 fait passer pour un test qui passe.
 
+### 2.13 [30/09] La campagne de mutation a affirmé « 351/351 » sans base pendant quatre heures
+
+**C'est le défaut le plus grave trouvé ce jour-là, et il était dans l'outil de vérification
+lui-même.** Le conteneur a été suspendu puis restauré en cours de campagne — `uptime` remis à zéro,
+`crng reseeded due to virtual machine fork` au journal noyau. PostgreSQL n'y a pas survécu : son
+journal dit `last known up at 08:30:48` et `database system was not properly shut down`. Le processus
+de la campagne, lui, a survécu, et a tourné **quatre heures et demie de plus sans base**.
+
+Or la règle de verdict est « le lot de tests a-t-il échoué ». Un test qui ne peut pas se connecter
+échoue. Chaque motif exigeant une base a donc été compté **attrapé**, et la campagne a conclu
+`351/351 mutations attrapées`, code de sortie 0.
+
+Un outil de vérification qui manque un défaut est décevant ; un outil qui **affirme qu'il n'y en a
+aucun** est nuisible, parce qu'on cesse de chercher. Et c'est silencieux : le chiffre final est le
+meilleur possible. Je l'ai cru une heure, avant de trouver la base morte en lançant la vérification
+suivante.
+
+**Deux contrôles, au prix d'une connexion TCP de quelques millisecondes.** À l'entrée, si un seul
+motif exige une base, la campagne refuse de démarrer et nomme l'hôte injoignable. Et après chaque
+motif exigeant une base et jugé attrapé, deux questions au lieu d'une :
+
+| Question | Signal | Ce qu'elle attrape |
+| --- | --- | --- |
+| La base répond-elle **encore** ? | connexion TCP | la base est tombée et l'est restée |
+| A-t-elle **redémarré** depuis le début ? | `pg_postmaster_start_time()` | la base est tombée **et a été réparée** — le port est rouvert, et sans cette date l'incident serait invisible précisément parce qu'il a été réparé |
+
+La seconde question a dû être ajoutée parce que le conteneur s'est suspendu **deux fois de plus**
+pendant l'écriture du premier garde. Les deux ont été vérifiés en **reproduisant les pannes**, pas
+en relisant le code : base arrêtée et laissée arrêtée → le garde TCP s'interrompt en code 2 ; base
+arrêtée puis relancée aussitôt pendant qu'un motif tourne → le port est rouvert, le garde TCP ne voit
+rien, et l'heure de démarrage tranche (« tournait depuis 16:28:11, tourne maintenant depuis
+16:28:25 ») ; base stable → le même motif est attrapé normalement, aucun garde ne crie.
+
+### 2.14 [30/09] Les deux parcours de travail, mesurés de bout en bout
+
+La demande de l'exploitant porte sur deux façons de travailler, et aucun test ne les traversait
+entièrement. `scripts/verifier-parcours.mts` le fait désormais, pour **chacune des cinq filières** :
+
+| | A. Pure prospection | B. Cahier des charges |
+| --- | --- | --- |
+| 1 | des parcelles sont sélectionnables | une fiche **vierge** s'édite, à envoyer au développeur |
+| 2 | dossier PDF depuis une sélection **libre** | ses critères, une fois renvoyés et saisis, rendent des parcelles |
+| 3 | **les quatre vues thématiques y sont** | la fiche **remplie** s'édite et diffère de la vierge |
+| 4 | dossier prêt à envoyer par courriel | dossier depuis la sélection **issue de la recherche** |
+
+**Résultat : 40/40 étapes.** Dossiers de 1 069 à 1 661 ko selon la filière ; 20 parcelles rendues par
+la recherche sur critères.
+
+L'étape A3 est celle qui valait d'être écrite. Un dossier de 300 ko et un dossier de 1 500 ko ont le
+**même code de réponse** : la différence est que le second porte les images qui décident du projet.
+Un plafond de zoom mal posé, une couche qui cesse de répondre, une option perdue dans un remaniement
+— le dossier continue de sortir, plus léger, et personne ne le voit. A3 lit le **texte du PDF** et
+exige les quatre légendes.
+
+L'opérateur de contrôle n'est **pas** habilité aux données des propriétaires, volontairement : le
+parcours doit fonctionner entièrement sans elles, sans quoi une habilitation deviendrait de fait
+nécessaire pour éditer un dossier.
+
 ---
 
 ## 3. Ce qui a été ingéré, et ce que cela change
@@ -401,7 +459,7 @@ parcelle grise.
 | **Les écartées le sont pour un motif juridique** | après correction du poste saturé, les knock-outs restants citent tous leur article : L.515-44 (500 m), code du patrimoine (abords), L.341-10 (site classé) |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | 1 202 tests hors base, 170 avec base, 27/27 au navigateur, **346/346 mutations attrapées sans un survivant**, 30/30 sur la chaîne complète des cinq filières |
+| **La vérification est sérieuse** | **[30/09]** 1 211 tests hors base, 170 avec base **plus 4 tests destructifs de migration jamais exécutés jusqu'ici**, 27 au navigateur, **40/40 sur les deux parcours de travail des cinq filières**, campagne de mutation sur 351 motifs — et la campagne sait désormais dire quand elle n'a rien mesuré, ce qu'elle ne savait pas le matin même |
 
 ### Ce qui l'empêche de monter
 
