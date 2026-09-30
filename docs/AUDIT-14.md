@@ -265,6 +265,12 @@ adoption, la perte de la table de suivi et le refus d'adopter une base vierge so
 C'est le défaut le plus discret de cet audit : un test ignoré ne rougit pas, et le décompte global le
 fait passer pour un test qui passe.
 
+**Et la même famille de défaut existait ailleurs, en plus petit.** Dix tests de `zones.test.ts` et
+`zaer-implantation.test.ts` s'ignoraient sans base en affichant `# SKIP` **sans un mot**, parce que
+`skip: true` ne porte pas de raison. La convention du dépôt est pourtant écrite en tête de
+`postgis.test.ts` — la raison doit sortir « pour qu'un test silencieusement absent ne passe pas pour
+un test vert ». Corrigé : sur 1 211 tests hors base, **18 sont ignorés et les 18 disent pourquoi**.
+
 ### 2.13 [30/09] La campagne de mutation a affirmé « 351/351 » sans base pendant quatre heures
 
 **C'est le défaut le plus grave trouvé ce jour-là, et il était dans l'outil de vérification
@@ -459,7 +465,7 @@ parcelle grise.
 | **Les écartées le sont pour un motif juridique** | après correction du poste saturé, les knock-outs restants citent tous leur article : L.515-44 (500 m), code du patrimoine (abords), L.341-10 (site classé) |
 | **Les documents ne surestiment plus ce qu'ils savent** | deux couvertures affichées côte à côte, sources nommées, knock-outs rattachés à leur article |
 | **La boucle est fermée** | un cahier des charges se traduit en recherche, et le rapport rend les grandeurs filtrées |
-| **La vérification est sérieuse** | **[30/09]** 1 211 tests hors base, 170 avec base **plus 4 tests destructifs de migration jamais exécutés jusqu'ici**, 27 au navigateur, **40/40 sur les deux parcours de travail des cinq filières**, campagne de mutation sur 351 motifs — et la campagne sait désormais dire quand elle n'a rien mesuré, ce qu'elle ne savait pas le matin même |
+| **La vérification est sérieuse** | **[30/09]** 1 193 passés et 18 ignorés hors base (**chaque ignorance dit désormais pourquoi**), 170 avec base **plus 4 tests destructifs de migration jamais exécutés jusqu'ici**, 27 au navigateur, **40/40 sur les deux parcours de travail des cinq filières**, **351/351 mutations attrapées sans un survivant** — et la campagne sait désormais dire quand elle n'a rien mesuré, ce qu'elle ne savait pas le matin même |
 
 ### Ce qui l'empêche de monter
 

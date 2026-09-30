@@ -43,7 +43,14 @@ import {
   PT,
 } from './aides/communes-fictives.js';
 
-const SANS_BASE = !process.env['DATABASE_URL'];
+/*
+ * LA RAISON DE L'IGNORANCE SORT AVEC ELLE — meme motif que dans `zones.test.ts`, et meme cause :
+ * `skip: true` rend « # SKIP » sans un mot, et le test se compte alors comme un test vert. La
+ * convention est ecrite en tete de `postgis.test.ts`.
+ */
+const SANS_BASE = process.env['DATABASE_URL']
+  ? false
+  : 'ignore : base indisponible (DATABASE_URL requis)';
 const MARQUE = 'essai-implantation/';
 
 // --------------------------------------------------------------------------- lecture du vocabulaire

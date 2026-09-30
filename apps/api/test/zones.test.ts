@@ -38,7 +38,19 @@ import {
   versEst,
 } from './aides/communes-fictives.js';
 
-const SANS_BASE = !process.env['DATABASE_URL'];
+/*
+ * LA RAISON DE L'IGNORANCE DOIT SORTIR AVEC ELLE. `skip: true` rend « # SKIP » sans un mot : dans
+ * une suite de 1 211 lignes, le test se lit comme les autres et le decompte le porte au credit.
+ * C'est la convention ecrite en tete de `postgis.test.ts` — « pour qu'un test silencieusement
+ * absent ne passe pas pour un test vert » — et elle a coute d'etre oubliee ici : dix tests de ce
+ * fichier et du suivant s'ignoraient sans dire pourquoi, le 30/09/2026, le jour meme ou quatre
+ * tests de migration ignores depuis l'origine ont ete decouverts.
+ *
+ * Une chaine est une raison ; `false` ne saute pas. `if (SANS_BASE)` continue de fonctionner.
+ */
+const SANS_BASE = process.env['DATABASE_URL']
+  ? false
+  : 'ignore : base indisponible (DATABASE_URL requis)';
 const MARQUE = 'essai-zones/';
 
 /**
