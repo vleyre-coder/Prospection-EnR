@@ -45,6 +45,11 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  * Version du moteur. A incrementer des que le calcul change : elle sert a invalider les
  * scores materialises (`invaliderVersionsAnterieures`).
  *
+ * 1.9.0 : le perimetre de captage etait attribue a Georisques, qui ne le fournit pas — il vient des
+ *   assiettes AS1 du GPU. Le moteur annulant la note de tout critere dont la source est en echec,
+ *   cette etiquette fausse jetait la note sur les 301 parcelles alors que le GPU avait repondu :
+ *   5,5 % du poids de la methanisation, perdus sur un nom.
+ *
  * 1.8.0 : un quatrieme changement de verdict, trouve par la contrainte de type posee sur `ko()`.
  *   `ko_eol_servitude_aero` ecartait la parcelle sans citer d'article — l'application connait
  *   l'assiette de la servitude aeronautique, pas la cote de hauteur qu'elle autorise, et c'est la
@@ -97,7 +102,7 @@ import { BANDE_PERIMETRALE_M, surfaceUtileEstimee, surfaceUtileSiteHa } from './
  *   d'oiseau : la majoration se payait deux fois (jusqu'a 16 points d'ecart en stockage).
  *   Les scores anterieurs ne sont donc pas comparables sur ce critere.
  */
-export const VERSION_CODE_MOTEUR = '1.8.0';
+export const VERSION_CODE_MOTEUR = '1.9.0';
 
 /**
  * Empreinte du calcul, utilisee pour invalider les scores materialises.

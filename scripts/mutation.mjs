@@ -4772,6 +4772,41 @@ const MUTATIONS = [
     tests: ['test/hors-portee-des-sources.test.ts'],
     commande: ['node', '--test', '--experimental-strip-types', 'test/hors-portee-des-sources.test.ts'],
   },
+  {
+    audit: 'audit 15 (source du captage)',
+    /*
+     * LE CAPTAGE SE REATTRIBUE A GEORISQUES. `eau.captageAep` n'est rempli QUE par le connecteur des
+     * servitudes, depuis les assiettes AS1 du GPU ; Georisques ecrit explicitement `null`, avec le
+     * commentaire qui le dit. Le moteur annulant la note de tout critere dont la source est en
+     * echec — mecanisme juste — cette etiquette fausse jetait la note sur les 301 parcelles alors
+     * que le GPU avait repondu : 5,5 % du poids de la methanisation perdus. Et la fiche nommait
+     * Georisques comme source d'un perimetre de captage, ce qu'aucune verification ne retrouve.
+     */
+    quoi: 'le captage se reattribue a Georisques, qui ne le fournit pas',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: '  if (c.dansPerimetre == null && c.distanceM == null) return indispo(SRC.gpu);',
+    vers: '  if (c.dansPerimetre == null && c.distanceM == null) return indispo(SRC.georisques);',
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/borne-demontree.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/borne-demontree.test.ts'],
+  },
+  {
+    audit: 'audit 15 (source du captage)',
+    /*
+     * MEME DEFAUT SUR LA BRANCHE QUI REND LA NOTE. La premiere ligne decide du gris, celle-ci decide
+     * de ce que la fiche AFFICHE comme source : une reference fausse dans un document de
+     * tracabilite vaut moins que pas de reference du tout.
+     */
+    quoi: 'la fiche nomme Georisques comme source du perimetre de captage',
+    fichier: 'packages/scoring/src/criteres-eval.ts',
+    de: "      sourceKey: SRC.gpu,\n      reglesLiees: ['metha_distance_eau'],",
+    vers: "      sourceKey: SRC.georisques,\n      reglesLiees: ['metha_distance_eau'],",
+    cwd: 'packages/scoring',
+    construire: '@enr/scoring',
+    tests: ['test/borne-demontree.test.ts'],
+    commande: ['node', '--test', '--experimental-strip-types', 'test/borne-demontree.test.ts'],
+  },
 ];
 
 /**

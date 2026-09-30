@@ -1962,9 +1962,32 @@ const dist_eau: Evaluateur = (s, ctx) => {
   };
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * LE CAPTAGE VIENT DU GEOPORTAIL DE L'URBANISME, PAS DE GEORISQUES
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce critere declarait `SRC.georisques`. C'etait faux, et de deux facons qui se cumulent.
+ *
+ * LE FAIT : `eau.captageAep` n'est rempli QUE par le connecteur des servitudes, depuis les
+ * assiettes AS1 du GPU. Le connecteur Georisques, lui, ecrit explicitement `captageAep` a `null`
+ * avec le commentaire qui le dit — « les perimetres de protection de captage relevent des ARS et
+ * des SUP du GPU ». Il n'a jamais fourni cette donnee.
+ *
+ * PREMIERE CONSEQUENCE, MESUREE LE 30/09/2026 : le moteur annule la note de tout critere dont la
+ * source figure parmi les connecteurs en echec — mecanisme juste, et indispensable. Georisques
+ * etant injoignable depuis ce poste, la note du captage etait jetee sur les 301 parcelles, alors
+ * que le GPU avait repondu et que la donnee etait dans l'instantane : `dansPerimetre: false`,
+ * `auDelaDeM: 1000`. **5,5 % du poids de la methanisation perdus sur une erreur d'etiquette.**
+ *
+ * SECONDE CONSEQUENCE, plus discrete et plus grave : la fiche remise au developpeur nommait
+ * Georisques comme source d'un perimetre de captage. Une reference fausse dans un document de
+ * tracabilite vaut moins que pas de reference du tout — celui qui verifie ne trouve rien et cesse
+ * de croire les autres.
+ */
 const dist_captage: Evaluateur = (s) => {
   const c = s.eau.captageAep;
-  if (c.dansPerimetre == null && c.distanceM == null) return indispo(SRC.georisques);
+  if (c.dansPerimetre == null && c.distanceM == null) return indispo(SRC.gpu);
   if (c.dansPerimetre === true) {
     const note = correspondance(c.type, { immediat: 0, rapproche: 8, eloigne: 40 }, 15);
     return {
@@ -1973,7 +1996,7 @@ const dist_captage: Evaluateur = (s) => {
       valeurAffichee: `Périmètre de protection ${c.type ?? 'non précisé'}`,
       commentaire:
         "Interdiction en périmètre immédiat et rapproché ; prescriptions renforcées en périmètre éloigné. Se reporter à l'arrêté préfectoral de DUP du captage.",
-      sourceKey: SRC.georisques,
+      sourceKey: SRC.gpu,
       reglesLiees: ['metha_distance_eau'],
     };
   }
@@ -2012,7 +2035,7 @@ const dist_captage: Evaluateur = (s) => {
         `borne, la distance réelle lui est supérieure. Le GPU ne publie que les servitudes ` +
         `effectivement téléversées : un captage en cours de procédure de DUP peut n'y pas figurer.`
       : "Hors périmètre de protection de captage identifié.",
-    sourceKey: SRC.georisques,
+    sourceKey: SRC.gpu,
   };
 };
 

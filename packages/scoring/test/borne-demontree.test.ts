@@ -189,3 +189,126 @@ test('LA BORNE FAIT REMONTER LA COUVERTURE MESURABLE, PAS LE SUJET COMPLET', () 
   );
   assert.ok(b.couvertureCatalogue > a.couvertureCatalogue);
 });
+
+test('LE CAPTAGE SURVIT A UNE PANNE DE GEORISQUES, PARCE QUE CE N’EST PAS SA SOURCE', () => {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * UNE ERREUR D'ETIQUETTE COUTAIT 5,5 % DU POIDS DE LA METHANISATION
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `eau.captageAep` n'est rempli QUE par le connecteur des servitudes, depuis les assiettes AS1
+   * du Géoportail de l'urbanisme. Le connecteur Géorisques écrit explicitement `null`, avec le
+   * commentaire qui le dit. Le critère déclarait pourtant Géorisques comme source.
+   *
+   * Or le moteur annule la note de tout critère dont la source est en échec — mécanisme juste et
+   * indispensable. Géorisques étant injoignable, la note du captage était jetée sur les 301
+   * parcelles **alors que le GPU avait répondu et que la donnée était dans l'instantané**.
+   *
+   * Ce test met Géorisques en échec et exige que le captage garde sa note. Il échouerait sur
+   * l'ancien code, et il échouera de nouveau si quelqu'un réattribue ce critère par mégarde.
+   */
+  const s = snapshot();
+  s.eau.captageAep = { dansPerimetre: false, type: null, distanceM: null, auDelaDeM: 1000 };
+  /*
+   * Les deux sources sont declarees dans l'instantane : c'est ce qui permet de verifier LAQUELLE le
+   * critere revendique. Avec une seule, l'assertion passerait par defaut.
+   */
+  s.sources['apicarto_gpu'] = {
+    nom: "Géoportail de l'urbanisme — servitudes d'utilité publique",
+    connecteur: 'apicarto_gpu',
+    dateInterrogation: '2026-09-30T00:00:00.000Z',
+    valeurJuridique: 'opposable',
+  };
+  s.sources['georisques'] = {
+    nom: 'Géorisques (BRGM / MTE)',
+    connecteur: 'georisques',
+    dateInterrogation: '2026-09-30T00:00:00.000Z',
+    valeurJuridique: 'opposable',
+  };
+
+  const r = calculerScore(s, 'methanisation', {
+    connecteursEnEchec: [
+      'georisques/gaspar/pprn',
+      'georisques/cavites',
+      'georisques/installations_classees',
+    ],
+  });
+  const c = r.criteres.find((x) => x.id === 'dist_captage');
+  assert.ok(c);
+  assert.equal(c.note, 88, 'la panne de Géorisques ne doit pas emporter une donnée venue du GPU');
+  assert.equal(
+    c.source?.connecteur,
+    'apicarto_gpu',
+    'la fiche doit nommer la source réelle : une référence fausse vaut moins que pas de référence',
+  );
+});
+
+test('LE MECANISME D’ANNULATION SUR SOURCE EN ECHEC RESTE INTACT', () => {
+  /*
+   * LE CONTRE-EXEMPLE INDISPENSABLE. Corriger une etiquette ne doit pas desarmer le garde : un
+   * critere dont la VRAIE source est en echec doit toujours perdre sa note. Sans ce test, on
+   * pourrait « reparer » le captage en supprimant le mecanisme, et les deux tests passeraient.
+   */
+  const s = snapshot();
+  s.eau.captageAep = { dansPerimetre: false, type: null, distanceM: null, auDelaDeM: 1000 };
+  const r = calculerScore(s, 'methanisation', { connecteursEnEchec: ['apicarto_gpu'] });
+  const c = r.criteres.find((x) => x.id === 'dist_captage');
+  assert.ok(c);
+  assert.equal(c.note, null, 'une panne de la VRAIE source doit toujours annuler la note');
+});
+
+/** Les deux sources déclarées, pour que l'assertion porte sur celle que le critère revendique. */
+function avecDeuxSources(): ParcelleSnapshot {
+  const s = snapshot();
+  s.sources['apicarto_gpu'] = {
+    nom: "Géoportail de l'urbanisme — servitudes d'utilité publique",
+    connecteur: 'apicarto_gpu',
+    dateInterrogation: '2026-09-30T00:00:00.000Z',
+    valeurJuridique: 'opposable',
+  };
+  s.sources['georisques'] = {
+    nom: 'Géorisques (BRGM / MTE)',
+    connecteur: 'georisques',
+    dateInterrogation: '2026-09-30T00:00:00.000Z',
+    valeurJuridique: 'opposable',
+  };
+  return s;
+}
+
+test('LE CAPTAGE NOMME LE GPU SUR SES TROIS BRANCHES, PAS SEULEMENT UNE', () => {
+  /**
+   * LA VERIFICATION PAR MUTATION A MONTRE QUE LE PREMIER TEST N'EN COUVRAIT QU'UNE.
+   *
+   * Ce critère a trois sorties : la parcelle est DANS un périmètre, elle est HORS périmètre, ou
+   * l'on ne sait rien. Réattribuer l'une des trois à Géorisques ne faisait échouer aucun test tant
+   * que le seul cas couvert était « hors périmètre ».
+   *
+   * Les trois comptent, et pas pour la même raison. Celle qui décide du gris — « on ne sait rien » —
+   * emporte 5,5 % du poids de la méthanisation quand Géorisques tombe. Les deux autres décident de
+   * ce que la fiche **affiche** comme source, et une référence fausse dans un document de
+   * traçabilité vaut moins que pas de référence : celui qui vérifie ne trouve rien, et cesse de
+   * croire les autres.
+   */
+  const dedans = avecDeuxSources();
+  dedans.eau.captageAep = { dansPerimetre: true, type: 'rapproche', distanceM: 0, auDelaDeM: null };
+  const cDedans = calculerScore(dedans, 'methanisation').criteres.find((x) => x.id === 'dist_captage');
+  assert.ok(cDedans);
+  assert.equal(cDedans.source?.connecteur, 'apicarto_gpu', 'branche « dans le périmètre »');
+
+  const dehors = avecDeuxSources();
+  dehors.eau.captageAep = { dansPerimetre: false, type: null, distanceM: 350, auDelaDeM: null };
+  const cDehors = calculerScore(dehors, 'methanisation').criteres.find((x) => x.id === 'dist_captage');
+  assert.ok(cDehors);
+  assert.equal(cDehors.source?.connecteur, 'apicarto_gpu', 'branche « hors périmètre »');
+
+  const inconnu = avecDeuxSources();
+  inconnu.eau.captageAep = { dansPerimetre: null, type: null, distanceM: null, auDelaDeM: null };
+  const cInconnu = calculerScore(inconnu, 'methanisation').criteres.find((x) => x.id === 'dist_captage');
+  assert.ok(cInconnu);
+  assert.equal(cInconnu.note, null);
+  assert.equal(
+    cInconnu.source?.connecteur,
+    'apicarto_gpu',
+    'branche « on ne sait rien » : c’est elle qui décide du gris quand Géorisques tombe',
+  );
+});
