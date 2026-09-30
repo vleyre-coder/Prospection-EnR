@@ -210,6 +210,61 @@ précisément l'ambiguïté du chemin relatif qui rend la panne invisible. Il an
 chemin **résolu**. Valeur de contrôle après correction : **6,97 m/s en Beauce**, conforme à celle
 documentée en §2.5 de `SOURCES_DONNEES.md`.
 
+### 2.10 [30/09] Le dossier disait où est la parcelle, jamais ce qui la contraint
+
+Le dossier remis au développeur portait **trois** vues — plan, photographie aérienne, vue large.
+Elles répondent à « où est-ce » et « qu'y a-t-il au sol ». Aucune ne répond aux quatre questions
+qu'un développeur pose **avant de se déplacer**, et chacune décide d'un poste de coût :
+
+| Vue ajoutée | Couche | Ce qu'elle décide |
+| --- | --- | --- |
+| Zonage du document d'urbanisme | `du` (GPU, WMS) | le terrain est-il constructible |
+| Relief | `ELEVATION.CONTOUR.LINE` | la pente, donc le terrassement |
+| Milieux | `TOURBIERES_ZONES-HUMIDES.BCAE` + `LANDCOVER.FORESTINVENTORY.V2` | ce qui déclenchera une étude d'impact |
+| Parcellaire agricole | `LANDUSE.AGRICULTURE2023` | qui exploite, donc avec qui négocier |
+
+**Deux gardes valent d'être notés, parce qu'ils disent ce que le document ne fera jamais.** Une
+figure dont la surcouche demandée n'a pas répondu n'est **pas produite** : mieux vaut une vue absente
+qu'un fond de plan présenté comme un zonage d'urbanisme. Et le zoom est **plafonné par la couche la
+moins résolue** de la figure — `LANDUSE.AGRICULTURE2023` s'arrête au zoom 16 : dessiner une parcelle
+de 40 m au zoom 18 rendrait une image sans parcellaire, sans que rien ne le dise.
+
+Mesure : un dossier de **3 parcelles de méthanisation = 1 526 ko en 13 s**, les sept vues présentes.
+
+### 2.11 [30/09] Deux gardes de bout en bout accusaient l'application à tort
+
+La vérification complète a rendu **deux échecs, tous deux dans les gardes**. Ils méritent d'être
+écrits parce que le coût d'un garde qui accuse à tort est exactement celui d'un garde absent : on
+cherche une régression qui n'existe pas, puis on cesse de croire le rouge.
+
+1. **`recherche-criteres.spec.ts`** échouait sur ses deux premiers tests. `toBeHidden` est une
+   assertion **stricte** — elle exige que le sélecteur désigne UN élément — et la vue « Recherche »
+   porte **deux** tourniquets, montés par des composants différents et alimentés par deux requêtes
+   indépendantes : « Recherche des zones… » (panneau de gauche) et « Interrogation… » (au-dessus du
+   tableau). Tant que la première répondait avant l'évaluation de l'assertion, un seul élément
+   existait. `toHaveCount(0)` accepte le sélecteur multiple **et** est plus strict : il exige que les
+   deux requêtes aient rendu leur verdict. Vérifié en répétant le fichier trois fois — 13/13.
+
+2. **`dossier-site.spec.ts`** échouait avec le diagnostic que l'aide elle-même avait écrit :
+   « l'API a répondu **300 ligne(s) en 200** : la donnée est là, le défaut est au rendu ». Ni le
+   serveur ni la base : 10 s ne suffisent pas à peindre 300 lignes de dix colonnes dans un conteneur
+   qui porte le navigateur, l'API et PostgreSQL. `recherche-criteres.spec.ts` avait déjà mesuré cela
+   et relevé son délai à 30 s ; `ouvrirListe`, **partagée par quatre fichiers**, était restée au
+   délai par défaut. Ce message de diagnostic, écrit le 9 septembre, a payé ici : sans lui, trois
+   causes distinctes rendaient la même phrase muette.
+
+### 2.12 [30/09] Quatre tests n'avaient jamais été exécutés
+
+`migrations.test.ts` est destructif — il perd la table de suivi, adopte une base, en refuse une
+vierge — et s'ignore donc sans `TESTS_MIGRATIONS=1` **sur une base jetable**. Aucune n'existait dans
+ce conteneur : les quatre tests étaient ignorés à **chaque** campagne depuis l'origine, et le total
+« 174 » les comptait. Une base dédiée créée avec PostGIS les rend tous les quatre : **4/4**. Le mode
+adoption, la perte de la table de suivi et le refus d'adopter une base vierge sont désormais
+**mesurés**, plus seulement écrits.
+
+C'est le défaut le plus discret de cet audit : un test ignoré ne rougit pas, et le décompte global le
+fait passer pour un test qui passe.
+
 ---
 
 ## 3. Ce qui a été ingéré, et ce que cela change
@@ -523,9 +578,22 @@ npm run typecheck && npm test
 # Tests exigeant une base
 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e npm run test:base -w @enr/api
 
+# Les quatre tests DESTRUCTIFS de migration, que la commande ci-dessus ignore.
+# Ils perdent la table de suivi et adoptent la base : ils exigent une base JETABLE, et
+# PostGIS doit y etre installe par un superutilisateur (le role `enr` ne le peut pas).
+sudo -u postgres psql -c 'CREATE DATABASE enr_migr OWNER enr'
+sudo -u postgres psql -d enr_migr -c 'CREATE EXTENSION postgis'
+TESTS_MIGRATIONS=1 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_migr \
+  npx tsx --test apps/api/test/migrations.test.ts
+
 # Bout en bout
 E2E_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
 DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e npm run e2e -w @enr/web
+
+# Les DEUX PARCOURS DE TRAVAIL, sur les cinq filieres : pure prospection et cahier des
+# charges. C'est la seule verification qui traverse base + moteur + carto + documents ;
+# aucun test unitaire ne dit qu'une filiere a encore des parcelles a mettre en dossier.
+DATABASE_URL=postgres://enr:enr@127.0.0.1:5432/enr_e2e npx tsx scripts/verifier-parcours.mts
 
 # Ingestions ajoutees par cet audit
 npm run ingest -w @enr/api -- patrimoine_culture
