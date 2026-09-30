@@ -62,7 +62,22 @@ async function ouvrirRecherche(page: import('@playwright/test').Page): Promise<v
  * presentent comme une absence de tableau.
  */
 async function attendreResultats(page: import('@playwright/test').Page): Promise<void> {
-  await expect(page.locator('.chargement')).toBeHidden({ timeout: 30_000 });
+  /*
+   * ON ATTEND QUE TOUS LES TOURNIQUETS SOIENT PARTIS, ET IL A FALLU UN ECHEC POUR LE COMPRENDRE.
+   * `toBeHidden` est une assertion STRICTE : elle exige que le selecteur designe UN element. Or la
+   * vue « Recherche » en porte deux, montes par des composants differents et alimentes par deux
+   * requetes independantes — « Recherche des zones… » dans le panneau de gauche (`PanneauZones`) et
+   * « Interrogation… » au-dessus du tableau (`VueListe`). Tant que la premiere repondait avant que
+   * l'assertion ne s'evalue, un seul element existait et le test passait ; le 30/09/2026, dans un
+   * conteneur charge, les deux se sont chevauches et Playwright a refuse en mode strict — sur les
+   * deux tests du fichier, pour un defaut qui n'etait ni dans l'application ni dans la chaine
+   * mesuree.
+   *
+   * `toHaveCount(0)` accepte un selecteur multiple et attend qu'il n'en reste AUCUN. C'est aussi
+   * plus strict que l'ancienne formulation : les deux chargements sont rendus conditionnellement,
+   * donc demonter le dernier prouve que les deux requetes ont rendu leur verdict, succes ou echec.
+   */
+  await expect(page.locator('.chargement')).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator('table, .vide').first()).toBeVisible({ timeout: 30_000 });
 }
 

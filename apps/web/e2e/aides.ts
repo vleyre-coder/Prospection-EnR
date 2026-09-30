@@ -138,8 +138,23 @@ export async function ouvrirListe(page: Page): Promise<void> {
     const borne = page.getByLabel('Limiter à la zone affichée');
     if (await borne.isChecked()) await borne.uncheck();
 
-    await expect(page.getByRole('table')).toBeVisible();
-    await expect(page.locator('tbody tr').first()).toBeVisible();
+    /*
+     * TRENTE SECONDES, ET LE DIAGNOSTIC CI-DESSOUS EST CE QUI L'A ETABLI — mesure du 30/09/2026.
+     * `dossier-site.spec.ts` a echoue ici avec le message « l'API a repondu 300 ligne(s) en 200 :
+     * la donnee est la, le defaut est au rendu ou a la lenteur de peinture ». Ce n'etait donc ni le
+     * serveur ni la base : le delai par defaut de 10 s ne suffit pas a React pour peindre 300
+     * lignes de dix colonnes dans un conteneur qui fait tourner le navigateur, l'API et PostgreSQL
+     * a la fois. `recherche-criteres.spec.ts` avait deja mesure et documente exactement cela, et
+     * releve son propre delai a 30 s ; cette aide etait restee au delai par defaut.
+     *
+     * On attend d'abord la disparition des tourniquets : sans cela, « pas encore peint » et « rien
+     * a montrer » se presentent identiquement, et le `.first()` sur les lignes echouerait sur une
+     * liste legitimement vide. `toHaveCount(0)` plutot que `toBeHidden` parce que l'ecran en porte
+     * plusieurs — le panneau de gauche a le sien — et que `toBeHidden` est une assertion stricte.
+     */
+    await expect(page.locator('.chargement')).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByRole('table')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 30_000 });
   } catch (erreur) {
     const diagnostic =
       vues === 0
