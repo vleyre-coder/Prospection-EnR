@@ -4807,6 +4807,50 @@ const MUTATIONS = [
     tests: ['test/borne-demontree.test.ts'],
     commande: ['node', '--test', '--experimental-strip-types', 'test/borne-demontree.test.ts'],
   },
+  {
+    audit: 'audit 16 (calques thematiques)',
+    /*
+     * UNE VUE THEMATIQUE DONT LE CALQUE N'ARRIVE PAS MONTRE LE FOND NU. Sous une legende « Zonage
+     * du document d'urbanisme » ou « Milieux », le lecteur y lit une ABSENCE DE CONTRAINTE. C'est le
+     * defaut que ce depot combat partout, pose sur le support le plus difficile a dementir : une
+     * image dans un dossier remis a un developpeur, qu'il regardera avant de lire une ligne.
+     */
+    quoi: 'une vue thematique sans calque montre le fond nu au lieu de disparaitre',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: "  if ((options.calques?.length ?? 0) > 0 && surcouches.length === 0) return null;",
+    vers: '  // mutation : le fond nu passe pour une absence de contrainte',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
+  {
+    audit: 'audit 16 (calques thematiques)',
+    /*
+     * LE PLAFOND DE ZOOM DISPARAIT. Mesure du 30/09/2026 : le RPG, les zones humides et la BD Foret
+     * ne sont pre-tuiles que jusqu'au zoom 16, les courbes de niveau jusqu'au 18. Une vue cadree se
+     * cale au 19 : sans plafond, ces services ne rendent rien, la regle ci-dessus supprime la
+     * figure, et le dossier perd trois de ses quatre vues thematiques sans que rien ne l'explique.
+     */
+    quoi: 'le zoom cesse d’etre plafonne par le calque le plus contraignant',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: "    (m, c) => Math.min(m, CALQUES[c].zoomMax),",
+    vers: '    (m) => m,',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
+  {
+    audit: 'audit 16 (calques thematiques)',
+    /*
+     * LE CALQUE SE DECALE D'UNE TUILE. Le zonage d'urbanisme du secteur voisin se poserait sur la
+     * parcelle — une erreur invisible a la lecture, et grave : elle dit constructible ce qui ne
+     * l'est pas, ou l'inverse, sur une image que personne ne pense a verifier.
+     */
+    quoi: 'le calque se pose decale d’une tuile par rapport au fond',
+    fichier: 'apps/api/src/services/carte-statique.ts',
+    de: '          donnees ? { donnees, x: t.x, y: t.y, taille: t.taille } : null,',
+    vers: '          donnees ? { donnees, x: t.x + t.taille, y: t.y, taille: t.taille } : null,',
+    cwd: 'apps/api',
+    tests: ['test/carte-statique.test.ts'],
+  },
 ];
 
 /**

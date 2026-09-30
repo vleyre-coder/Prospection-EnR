@@ -427,6 +427,19 @@ function dessinerFigure(doc: Doc, figure: FigureCarte, x: number, y: number): vo
     }
   }
 
+  /*
+   * LES CALQUES THEMATIQUES, APRES LE FOND ET AVANT LE CONTOUR. L'ordre est le seul qui marche :
+   * sous le fond ils seraient invisibles, au-dessus du contour ils masqueraient la parcelle — or
+   * c'est elle que le lecteur cherche d'abord.
+   */
+  for (const t of figure.surcouches) {
+    try {
+      doc.image(t.donnees, x + t.x, y + t.y, { width: t.taille, height: t.taille });
+    } catch {
+      // Meme prudence que pour le fond : une tuile refusee ne doit pas emporter le dossier.
+    }
+  }
+
   // Le contour de la parcelle : un halo blanc dessous, le trait rouge dessus. Sans le halo, un
   // trait rouge sur une orthophoto sombre — un bois, une toiture d'ardoise — devient invisible.
   for (const passe of [

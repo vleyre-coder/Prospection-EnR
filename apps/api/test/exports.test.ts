@@ -352,6 +352,7 @@ function figureFictive(fond: 'plan' | 'ortho'): FigureCarte {
     largeur: 250,
     hauteur: 172,
     tuiles: [{ donnees: PNG_MINIMAL, x: 0, y: 0, taille: 256 }],
+    surcouches: [],
     anneaux: [
       [
         [20, 20],

@@ -35,7 +35,7 @@ import {
   zoomPour,
 } from '../src/services/carte-statique.js';
 import { emprise } from '../src/services/exports.js';
-import type { GeoJsonGeometry } from '../src/geo.js';
+import { bboxDe, type GeoJsonGeometry } from '../src/geo.js';
 
 /** Un carre d'environ 260 m de cote, pres de Tillay-le-Peneux (28). */
 const CARRE: GeoJsonGeometry = {
@@ -353,4 +353,230 @@ test('UNE GEOMETRIE SANS COORDONNEE N’ATTEINT MEME PAS LE RESEAU', async () =>
   }
 
   assert.equal(appels, 0, `${appels} requete(s) sortante(s) pour une geometrie vide`);
+});
+
+// ---------------------------------------------------------------------------
+// Calques thematiques
+// ---------------------------------------------------------------------------
+
+/** Un PNG de 1×1 pixel : la plus petite image valide que le code accepte. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/** Une parcelle fictive en Beauce, la ou les couches thematiques existent. */
+const PARCELLE_ESSAI: GeoJsonGeometry = {
+  type: 'Polygon',
+  coordinates: [
+    [
+      [1.772, 48.143],
+      [1.776, 48.143],
+      [1.776, 48.146],
+      [1.772, 48.146],
+      [1.772, 48.143],
+    ],
+  ],
+};
+
+/**
+ * Remplace le reseau : les tuiles de FOND repondent, celles de CALQUE suivent `calqueRepond`.
+ * Rend aussi les zooms demandes, ce qui permet de verifier le plafonnement sans deviner.
+ */
+function poserReseau(calqueRepond: boolean): { zooms: () => number[]; restaurer: () => void } {
+  const vrai = globalThis.fetch;
+  const zooms: number[] = [];
+  globalThis.fetch = (async (entree: Parameters<typeof fetch>[0]) => {
+    const url = String(entree);
+    const z = Number(new URL(url).searchParams.get('TILEMATRIX'));
+    if (Number.isFinite(z)) zooms.push(z);
+    // Le fond passe par `wmts` avec une couche de FONDS ; les calques ont leur propre couche.
+    const estFond = /LAYER=(GEOGRAPHICALGRIDSYSTEMS|ORTHOIMAGERY)/.test(url);
+    if (!estFond && !calqueRepond) return new Response('non', { status: 404 });
+    return new Response(PNG, { status: 200, headers: { 'Content-Type': 'image/png' } });
+  }) as typeof fetch;
+  return { zooms: () => zooms, restaurer: () => { globalThis.fetch = vrai; } };
+}
+
+test('UN CALQUE QUI NE REPOND PAS SUPPRIME LA FIGURE, IL NE LAISSE PAS LE FOND NU', async () => {
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   * LE GARDE LE PLUS IMPORTANT DE CE CHANTIER
+   * ═══════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Une vue thematique dont le calque n'arrive pas montre le fond seul — un plan, une
+   * photographie — sous une legende qui annonce « Zonage du document d'urbanisme » ou « Milieux ».
+   * Le lecteur y lit une ABSENCE DE CONTRAINTE. C'est le defaut que tout ce depot combat, pose sur
+   * le support le plus difficile a dementir : une image dans un dossier remis a un developpeur, qui
+   * la regardera avant de lire une seule ligne de texte.
+   *
+   * Une figure absente, elle, se lit comme ce qu'elle est : une vue qu'on n'a pas pu produire — et
+   * `blocCartes` ecrit la phrase qui le dit.
+   */
+  const reseau = poserReseau(false);
+  try {
+    const sansCalque = await construireFigure(PARCELLE_ESSAI, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+    });
+    assert.notEqual(sansCalque, null, 'sans calque demandé, le fond seul reste une figure valide');
+
+    const avecCalque = await construireFigure(PARCELLE_ESSAI, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['plu'],
+      legende: 'Zonage du document d’urbanisme',
+    });
+    assert.equal(
+      avecCalque,
+      null,
+      'un calque muet doit supprimer la figure, sans quoi le fond nu passe pour une absence de zonage',
+    );
+  } finally {
+    reseau.restaurer();
+  }
+});
+
+test('LE CALQUE SE POSE SUR LA MEME GRILLE QUE LE FOND, TUILE POUR TUILE', async () => {
+  const reseau = poserReseau(true);
+  try {
+    const f = await construireFigure(PARCELLE_ESSAI, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['plu'],
+    });
+    assert.ok(f);
+    assert.equal(
+      f.surcouches.length,
+      f.tuiles.length,
+      'un calque complet couvre exactement les tuiles du fond',
+    );
+    /*
+     * ET AUX MEMES COORDONNEES. Un decalage d'une seule tuile poserait le zonage d'urbanisme du
+     * secteur voisin sur la parcelle — une erreur invisible a la lecture, et grave.
+     */
+    for (const [i, t] of f.surcouches.entries()) {
+      assert.equal(t.x, f.tuiles[i]!.x);
+      assert.equal(t.y, f.tuiles[i]!.y);
+      assert.equal(t.taille, f.tuiles[i]!.taille);
+    }
+  } finally {
+    reseau.restaurer();
+  }
+});
+
+/**
+ * Une PETITE parcelle — environ 40 m de cote — dont le cadrage naturel se cale bien au-dessus du
+ * plafond des calques.
+ *
+ * LE CHOIX DE LA TAILLE EST LE TEST. Avec la parcelle ordinaire, large de 300 m, le cadrage tombe
+ * de lui-meme au zoom 16 : retirer le plafond ne changeait donc rien, et la verification par
+ * mutation l'a dit — le motif survivait. Un garde qui ne distingue pas le code du hasard des
+ * fixtures ne garde rien.
+ */
+const PARCELLE_PETITE: GeoJsonGeometry = {
+  type: 'Polygon',
+  coordinates: [
+    [
+      [1.7720, 48.1430],
+      [1.7725, 48.1430],
+      [1.7725, 48.1434],
+      [1.7720, 48.1434],
+      [1.7720, 48.1430],
+    ],
+  ],
+};
+
+test('LE ZOOM EST PLAFONNE PAR LE CALQUE LE PLUS CONTRAIGNANT', async () => {
+  /**
+   * MESURE DU 30/09/2026, zoom par zoom sur la tuile de la parcelle d'essai : le RPG, les zones
+   * humides et la BD Forêt s'arrêtent au 16, les courbes de niveau au 18. Une vue cadrée sur une
+   * parcelle se cale au 19 — au-delà du plafond, ces services ne rendent rien, la règle ci-dessus
+   * supprimait la figure, et le dossier perdait ses vues thématiques sans que rien ne l'explique.
+   */
+  const reseau = poserReseau(true);
+  try {
+    /*
+     * LA REFERENCE : sans calque, cette petite parcelle se cadre bien au-dela de 16. C'est ce qui
+     * rend le plafond observable — et ce qui manquait a la premiere version de ce test.
+     */
+    const sansCalque = await construireFigure(PARCELLE_PETITE, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+    });
+    assert.ok(sansCalque);
+    assert.ok(
+      sansCalque.zoom > 16,
+      `le fixture doit se cadrer au-delà du plafond pour que le test ait un sens (${sansCalque.zoom})`,
+    );
+
+    const rpg = await construireFigure(PARCELLE_PETITE, {
+      fond: 'ortho',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['rpg'],
+    });
+    assert.ok(rpg);
+    assert.equal(rpg.zoom, 16, `le RPG n'est pré-tuilé que jusqu'au 16, figure au ${rpg.zoom}`);
+
+    const courbes = await construireFigure(PARCELLE_PETITE, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['courbes'],
+    });
+    assert.ok(courbes);
+    assert.equal(courbes.zoom, 18, `les courbes montent au 18, figure au ${courbes.zoom}`);
+
+    /*
+     * DEUX CALQUES : C'EST LE PLUS CONTRAIGNANT QUI DECIDE. Retenir le plus permissif rendrait le
+     * second muet, donc supprimerait la figure — la vue « milieux » en porte deux.
+     */
+    const deux = await construireFigure(PARCELLE_PETITE, {
+      fond: 'ortho',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['courbes', 'rpg'],
+    });
+    assert.ok(deux);
+    assert.equal(deux.zoom, 16, `le plus contraignant des deux impose 16, figure au ${deux.zoom}`);
+  } finally {
+    reseau.restaurer();
+  }
+});
+
+test('SANS CALQUE DEMANDE, RIEN NE CHANGE — NI SURCOUCHE, NI PLAFOND', async () => {
+  /*
+   * LE CONTRE-EXEMPLE. Si le plafond des calques s'appliquait aussi aux vues ordinaires, le plan et
+   * la photographie perdraient trois niveaux de zoom, et la parcelle deviendrait illisible.
+   */
+  const reseau = poserReseau(true);
+  try {
+    const f = await construireFigure(PARCELLE_ESSAI, { fond: 'plan', largeur: 250, hauteur: 172 });
+    assert.ok(f);
+    assert.deepEqual(f.surcouches, []);
+    /*
+     * LE ZOOM ATTENDU SE RECALCULE, il ne se devine pas : celui d'une vue depend de la taille de la
+     * parcelle, et affirmer « plus de 16 » ferait dependre le test du fixture plutot que du code.
+     * Ce qui se verifie ici est que le plafond des calques n'est PAS applique.
+     */
+    const attendu = zoomPour(bboxDe(PARCELLE_ESSAI), 250 * 2, 172 * 2, 0.35);
+    assert.equal(f.zoom, attendu, 'sans calque, le zoom reste celui du cadrage, sans plafond');
+
+    // Et la preuve par la difference : la meme geometrie AVEC un calque plafonne a 16 descend.
+    const avec = await construireFigure(PARCELLE_ESSAI, {
+      fond: 'plan',
+      largeur: 250,
+      hauteur: 172,
+      calques: ['rpg'],
+    });
+    assert.ok(avec);
+    assert.ok(avec.zoom <= f.zoom, 'le plafond ne peut que baisser le zoom, jamais le monter');
+  } finally {
+    reseau.restaurer();
+  }
 });

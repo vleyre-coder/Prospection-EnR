@@ -64,6 +64,147 @@ export const FONDS = {
   ortho: { couche: 'ORTHOIMAGERY.ORTHOPHOTOS', format: 'image/jpeg', type: 'image/jpeg' },
 } as const;
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * CALQUES THEMATIQUES POSES SUR LE FOND — ce qu'un developpeur regarde avant de se deplacer
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Le dossier ne portait que le plan, la photographie et une vue large. Elles disent OU est la
+ * parcelle et CE QU'IL Y A au sol ; elles ne disent rien de ce qui la CONTRAINT. Un developpeur
+ * qui reçoit un dossier veut voir le zonage d'urbanisme, le relief, les milieux et le parcellaire
+ * agricole declare — quatre questions, quatre images.
+ *
+ * TOUTES CES COUCHES ONT ETE ESSAYEES SUR LE TERRITOIRE REEL avant d'etre inscrites ici, le
+ * 30/09/2026, et la moitie des noms « evidents » ne repondaient pas : ni `GEOGRAPHICALGRIDSYSTEMS.
+ * MAPS`, ni `ELEVATION.SLOPES`, ni `PROTECTEDAREAS.SIC`, ni `PROTECTEDAREAS.ZNIEFF1` — toutes en
+ * 400 ou 404. Celles qui figurent ci-dessous ont rendu une image PNG valide sur la tuile de la
+ * parcelle d'essai.
+ *
+ * LE ZONAGE D'URBANISME A ETE VERIFIE PLUS LOIN, parce qu'une couche peut repondre sans rien
+ * porter localement : trois empreintes de tuile ont ete comparees — 5 752 octets en Beauce,
+ * 10 964 a Chartres, 1 784 en pleine mer. Trois images distinctes, donc un contenu local reel.
+ *
+ * ═══ `zoomMax` EST MESURE, PAS SUPPOSE — ET SON ABSENCE RENDAIT TROIS VUES SUR QUATRE VIDES
+ *
+ * Les vues cadrees sur une parcelle se calent au zoom 19. Or ces couches ne sont pre-tuilees que
+ * jusqu'a un certain niveau : mesure zoom par zoom sur la tuile de la parcelle d'essai, le RPG, les
+ * zones humides et la BD Foret s'arretent au 16, les courbes de niveau au 18. Au-dela, le service
+ * ne rend rien — et la regle d'honnetete supprimait alors la figure entiere, ce qui etait le bon
+ * comportement mais donnait un dossier sans aucune vue thematique.
+ *
+ * Le zoom de la figure est donc plafonne au plus petit `zoomMax` des calques demandes. La vue
+ * couvre plus de terrain qu'une vue cadree, ce qui convient a ces themes : un parcellaire agricole
+ * ou un boisement se lisent a l'echelle du secteur, pas du bord de parcelle.
+ */
+export const CALQUES = {
+  plu: {
+    protocole: 'wms',
+    hote: 'https://data.geopf.fr/wms-v/ows',
+    couche: 'du',
+    attribution: "Géoportail de l'urbanisme",
+    /*
+     * Le WMS dessine a la demande : il n'a pas de niveaux pre-tuiles, donc pas de plafond. Verifie
+     * jusqu'au zoom 19, celui des vues cadrees sur la parcelle.
+     */
+    zoomMax: 19,
+  },
+  courbes: {
+    protocole: 'wmts',
+    hote: 'https://data.geopf.fr/wmts',
+    couche: 'ELEVATION.CONTOUR.LINE',
+    attribution: 'IGN — RGE ALTI',
+    zoomMax: 18,
+  },
+  rpg: {
+    protocole: 'wmts',
+    hote: 'https://data.geopf.fr/wmts',
+    couche: 'LANDUSE.AGRICULTURE2023',
+    attribution: 'ASP — RPG 2023',
+    zoomMax: 16,
+  },
+  zonesHumides: {
+    protocole: 'wmts',
+    hote: 'https://data.geopf.fr/wmts',
+    couche: 'TOURBIERES_ZONES-HUMIDES.BCAE',
+    attribution: 'Ministère de l\'agriculture — BCAE',
+    zoomMax: 16,
+  },
+  foret: {
+    protocole: 'wmts',
+    hote: 'https://data.geopf.fr/wmts',
+    couche: 'LANDCOVER.FORESTINVENTORY.V2',
+    attribution: 'IGN — BD Forêt V2',
+    zoomMax: 16,
+  },
+} as const;
+
+export type CleCalque = keyof typeof CALQUES;
+
+export function estCleCalque(v: unknown): v is CleCalque {
+  return typeof v === 'string' && v in CALQUES;
+}
+
+/**
+ * URL d'une tuile de calque.
+ *
+ * Le WMS ne connait pas les tuiles : il faut lui donner l'emprise de la tuile en metres projetes,
+ * c'est-a-dire refaire a l'envers le calcul du tuilage spherique. Le WMTS, lui, prend les indices
+ * directement. Les deux rendent une image de 256 pixels a la meme place, ce qui permet de les
+ * poser sur la meme grille que le fond.
+ */
+export function urlCalque(cle: CleCalque, z: number, x: number, y: number): string {
+  const c = CALQUES[cle];
+  if (c.protocole === 'wmts') {
+    return avecParams(c.hote, {
+      SERVICE: 'WMTS',
+      VERSION: '1.0.0',
+      REQUEST: 'GetTile',
+      LAYER: c.couche,
+      STYLE: 'normal',
+      TILEMATRIXSET: 'PM',
+      FORMAT: 'image/png',
+      TILEMATRIX: z,
+      TILEROW: y,
+      TILECOL: x,
+    });
+  }
+  const COTE = 20037508.342789244;
+  const pas = (2 * COTE) / 2 ** z;
+  const ouest = -COTE + x * pas;
+  const nord = COTE - y * pas;
+  return avecParams(c.hote, {
+    SERVICE: 'WMS',
+    VERSION: '1.3.0',
+    REQUEST: 'GetMap',
+    LAYERS: c.couche,
+    STYLES: '',
+    CRS: 'EPSG:3857',
+    BBOX: `${ouest},${nord - pas},${ouest + pas},${nord}`,
+    WIDTH: TUILE_PX,
+    HEIGHT: TUILE_PX,
+    FORMAT: 'image/png',
+    TRANSPARENT: 'true',
+  });
+}
+
+/** Telecharge une tuile de calque. Meme prudence que pour le fond : image ou rien. */
+async function tuileCalque(cle: CleCalque, z: number, x: number, y: number): Promise<Buffer | null> {
+  try {
+    const rep = await fetch(urlCalque(cle, z, x, y), {
+      headers: {
+        Accept: 'image/png',
+        'User-Agent': 'Prospection-EnR/0.1 (application de prospection fonciere ENR)',
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!rep.ok) return null;
+    const recu = Buffer.from(await rep.arrayBuffer());
+    return estImage(recu) ? recu : null;
+  } catch {
+    return null;
+  }
+}
+
 export type Fond = keyof typeof FONDS;
 
 /** Le fond demande appartient-il a la liste fermee ? */
@@ -92,6 +233,13 @@ export interface FigureCarte {
   attribution: string;
   /** Zoom WMTS retenu, utile au diagnostic et aux tests. */
   zoom: number;
+  /**
+   * Tuiles de calques thematiques, a dessiner APRES le fond et AVANT le contour de la parcelle.
+   *
+   * Vide quand la figure n'en demande aucun. Jamais partiellement vide sans que la legende le
+   * dise : voir `construireFigure`.
+   */
+  surcouches: TuilePosee[];
   /** Ce que la vignette montre, ecrit sous elle. Deux vues du meme fond n'ont pas le meme objet. */
   legende: string;
   /**
@@ -244,6 +392,16 @@ export async function construireFigure(
      */
     rayonMiniM?: number;
     legende?: string;
+    /**
+     * Calques thematiques poses sur le fond, dans l'ordre donne.
+     *
+     * UNE FIGURE THEMATIQUE DONT LE CALQUE N'ARRIVE PAS N'EST PAS PRODUITE. Montrer le fond seul
+     * sous une legende « Zonage du document d'urbanisme » ferait lire une ABSENCE DE ZONAGE la ou
+     * il n'y a qu'une panne de service — le meme defaut que ceux corriges partout ailleurs dans ce
+     * depot, sur le support le plus difficile a dementir : une image dans un dossier remis a un
+     * tiers.
+     */
+    calques?: readonly CleCalque[];
   },
 ): Promise<FigureCarte | null> {
   const { fond, largeur, hauteur } = options;
@@ -264,7 +422,16 @@ export async function construireFigure(
   const hauteurPx = hauteur * facteur;
   // Une vue d'environnement porte deja son recul dans son rayon : lui ajouter la marge de
   // respiration la ferait reculer deux fois, et la parcelle y deviendrait un point.
-  const zoom = zoomPour(bbox, largeurPx, hauteurPx, options.rayonMiniM ? 0.04 : 0.35);
+  /*
+   * LE PLAFOND DE ZOOM EST CELUI DU CALQUE LE PLUS CONTRAIGNANT. Sans lui, une vue cadree se cale
+   * au 19 et trois des quatre couches thematiques ne rendent rien — la figure est alors supprimee,
+   * a juste titre, et le dossier perd la vue.
+   */
+  const plafondCalques = (options.calques ?? []).reduce(
+    (m, c) => Math.min(m, CALQUES[c].zoomMax),
+    19,
+  );
+  const zoom = zoomPour(bbox, largeurPx, hauteurPx, options.rayonMiniM ? 0.04 : 0.35, plafondCalques);
   const centreLon = (bbox[0] + bbox[2]) / 2;
   const centreLat = (bbox[1] + bbox[3]) / 2;
 
@@ -302,6 +469,42 @@ export async function construireFigure(
   const tuiles = (await Promise.all(demandes)).filter((t): t is TuilePosee => t !== null);
   if (tuiles.length === 0) return null;
 
+  /*
+   * LES CALQUES SUIVENT EXACTEMENT LA GRILLE DU FOND, ce qui garantit qu'ils se posent au bon
+   * endroit sans aucun recalage : meme zoom, memes indices de tuile, meme origine.
+   */
+  const surcouches: TuilePosee[] = [];
+  let attendues = 0;
+  for (const cle of options.calques ?? []) {
+    const lot: Array<Promise<TuilePosee | null>> = [];
+    for (const t of tuiles) {
+      attendues += 1;
+      const tx = Math.round((t.x * facteur + originX) / TUILE_PX);
+      const ty = Math.round((t.y * facteur + originY) / TUILE_PX);
+      lot.push(
+        tuileCalque(cle, zoom, tx, ty).then((donnees) =>
+          donnees ? { donnees, x: t.x, y: t.y, taille: t.taille } : null,
+        ),
+      );
+    }
+    surcouches.push(...(await Promise.all(lot)).filter((t): t is TuilePosee => t !== null));
+  }
+
+  /**
+   * AUCUNE TUILE DE CALQUE : PAS DE FIGURE.
+   *
+   * Le fond seul, sous une legende thematique, se lit comme un constat — « pas de zonage »,
+   * « pas de zone humide ». Une figure absente se lit comme ce qu'elle est : une vue qu'on n'a pas
+   * pu produire. Le second message est le seul honnete, et `blocCartes` l'ecrit.
+   */
+  if ((options.calques?.length ?? 0) > 0 && surcouches.length === 0) return null;
+
+  /*
+   * COUVERTURE PARTIELLE : la legende le dit. Un calque qui ne couvre que la moitie du cadre
+   * laisserait croire que l'autre moitie est vide de l'enjeu represente.
+   */
+  const partielle = attendues > 0 && surcouches.length < attendues;
+
   const anneaux = anneauxEnPoints(geometrie, zoom, originX, originY, facteur);
   // Une figure se lit en points : l'echelle doit donc se compter en points, pas en pixels.
   const metresParPt = metresParPixel(centreLat, zoom) * facteur;
@@ -314,7 +517,10 @@ export async function construireFigure(
     echelle: barreEchelle(metresParPt, largeur / 3),
     attribution: '© IGN — Géoplateforme',
     zoom,
-    legende: options.legende ?? LEGENDE_DEFAUT[fond],
+    surcouches,
+    legende:
+      (options.legende ?? LEGENDE_DEFAUT[fond]) +
+      (partielle ? ' — calque incomplet sur ce cadre, les zones sans figuré ne sont pas des absences' : ''),
     etendueM: [largeur * metresParPt, hauteur * metresParPt],
   };
 }

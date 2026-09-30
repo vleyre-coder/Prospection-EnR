@@ -247,6 +247,50 @@ export async function routesDivers(app: FastifyInstance): Promise<void> {
     return Promise.all([
       une({ fond: 'plan', ...paire }),
       une({ fond: 'ortho', ...paire }),
+      /**
+       * ═══════════════════════════════════════════════════════════════════════════════════════
+       * QUATRE VUES THEMATIQUES — les quatre questions qu'un developpeur pose avant de venir
+       * ═══════════════════════════════════════════════════════════════════════════════════════
+       *
+       * Le dossier ne portait que le plan, la photographie et la vue large : elles disent OU l'on
+       * est et CE QU'IL Y A au sol, jamais ce qui CONTRAINT. Ces quatre-la repondent chacune a une
+       * question distincte, et aucune ne se deduit des trois autres :
+       *
+       *   - le ZONAGE dit si le terrain est constructible et sous quel regime ;
+       *   - le RELIEF dit la pente, donc le terrassement et l'exposition ;
+       *   - les MILIEUX disent ce qui declenchera une etude d'impact ;
+       *   - le PARCELLAIRE AGRICOLE dit qui exploite, donc avec qui negocier.
+       *
+       * Chacune est produite SEULEMENT si son calque arrive : un fond nu sous une legende
+       * thematique se lirait comme une absence de contrainte (voir `construireFigure`).
+       */
+      une({
+        fond: 'plan',
+        ...paire,
+        calques: ['plu'],
+        legende:
+          'Zonage du document d’urbanisme — Géoportail de l’urbanisme. Une commune au RNU n’y figure pas.',
+      }),
+      une({
+        fond: 'plan',
+        ...paire,
+        calques: ['courbes'],
+        legende: 'Relief — courbes de niveau IGN (RGE ALTI)',
+      }),
+      une({
+        fond: 'ortho',
+        ...paire,
+        calques: ['zonesHumides', 'foret'],
+        legende:
+          'Milieux — zones humides (BCAE) et boisements (BD Forêt V2). Pré-repérage, jamais une conclusion.',
+      }),
+      une({
+        fond: 'ortho',
+        ...paire,
+        calques: ['rpg'],
+        legende:
+          'Parcellaire agricole déclaré à la PAC — RPG 2023. Une parcelle absente peut relever d’un exploitant non déclarant.',
+      }),
       /*
        * LA LEGENDE N'ANNONCE PAS DE DISTANCE, et c'est voulu. `rayonMiniM` garantit un MINIMUM ;
        * le cadre etant deux fois et demie plus large que haut, la vue couvre en realite bien plus.
