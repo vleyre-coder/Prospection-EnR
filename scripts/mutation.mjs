@@ -5138,6 +5138,55 @@ function baseJoignable() {
   }
 }
 
+/**
+ * L'HEURE DE DEMARRAGE DU SERVEUR, ou `null` si on ne peut pas la lire.
+ *
+ * POURQUOI LE CONTROLE TCP NE SUFFIT PAS. Il repond « la base est-elle joignable MAINTENANT ». Or
+ * le mode de panne reel de ce conteneur est une suspension suivie d'une restauration : PostgreSQL
+ * meurt, et il est souvent redemarre — a la main ou par une surveillance — avant qu'on ne regarde.
+ * Le port est alors ouvert, le controle TCP passe, et les motifs joues PENDANT la coupure restent
+ * comptes attrapes. L'incident devient invisible precisement parce qu'il a ete repare.
+ *
+ * `pg_postmaster_start_time()` le dit sans ambiguite : si elle a change depuis le debut de la
+ * campagne, le serveur a redemarre, donc il y a eu une coupure, donc les verdicts rendus entre-temps
+ * ne prouvent rien. C'est une date, pas une heuristique.
+ *
+ * `null` quand `psql` est absent : le controle TCP reste, et la campagne ne refuse jamais de tourner
+ * faute d'un outil facultatif.
+ */
+function demarrageDuServeur() {
+  const url = process.env['DATABASE_URL'];
+  if (!url) return null;
+  try {
+    return execFileSync('psql', [url, '-tAc', 'SELECT pg_postmaster_start_time()'], {
+      stdio: 'pipe',
+      timeout: 10_000,
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Interrompt la campagne en disant que le serveur a redemarre, donc qu'il y a eu une coupure. */
+function abandonServeurRedemarre(m, avant, apres) {
+  console.error(`\n${'═'.repeat(95)}`);
+  console.error('CAMPAGNE INTERROMPUE : LA BASE A REDEMARRE EN COURS DE ROUTE');
+  console.error('═'.repeat(95));
+  console.error(
+    `\nAu debut de la campagne, le serveur tournait depuis ${avant}.\n` +
+      `Il tourne maintenant depuis ${apres} : il a donc redemarre, et il y a eu une coupure.\n`,
+  );
+  console.error(
+    `Le motif « ${m.quoi} » (${m.audit}) a fait echouer ses tests, mais on ne peut pas savoir si\n` +
+      "c'est la mutation ou la coupure. Et tous les motifs joues depuis le redemarrage sont dans le\n" +
+      "meme cas, sans que la sortie permette de dire lesquels.\n\n" +
+      'Relancez la campagne ENTIERE. Si le conteneur se suspend souvent, surveillez la base :\n' +
+      '    while true; do pg_isready -q || pg_ctlcluster 16 main start; sleep 20; done &\n',
+  );
+  process.exit(2);
+}
+
 /** Interrompt la campagne en disant pourquoi les resultats deja affiches ne valent rien. */
 function abandonBaseTombee(m, etat) {
   console.error(`\n${'═'.repeat(95)}`);
@@ -5174,6 +5223,9 @@ if (A_JOUER.some(exigeUneBase)) {
     process.exit(2);
   }
 }
+
+/** Reference contre laquelle on detecte un redemarrage du serveur en cours de campagne. */
+const DEMARRAGE_INITIAL = A_JOUER.some(exigeUneBase) ? demarrageDuServeur() : null;
 
 for (const m of A_JOUER) {
   const original = readFileSync(m.fichier, 'utf8');
@@ -5236,6 +5288,10 @@ for (const m of A_JOUER) {
     if (exigeUneBase(m)) {
       const etat = baseJoignable();
       if (etat.verdict === 'injoignable') abandonBaseTombee(m, etat);
+      const maintenant = demarrageDuServeur();
+      if (DEMARRAGE_INITIAL && maintenant && maintenant !== DEMARRAGE_INITIAL) {
+        abandonServeurRedemarre(m, DEMARRAGE_INITIAL, maintenant);
+      }
     }
     console.log(`OK   (${m.audit}) ${m.quoi}`);
   } else if (exigeUneBase(m) && !process.env['DATABASE_URL']) {
